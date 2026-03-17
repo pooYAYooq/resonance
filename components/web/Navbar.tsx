@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { buttonVariants } from "../ui/button";
+import { ThemeToggle } from "./theme-toggle";
 
 export function Navbar() {
   return (
-    <nav className="flex items-center justify-between w-full py-5 border-b border-gray-700">
+    <nav className="flex items-center justify-between w-full py-5">
       {/* Logo */}
       <div className="flex items-center gap-8">
         <Link href="/">
@@ -38,6 +39,7 @@ export function Navbar() {
         >
           Login
         </Link>
+        <ThemeToggle />
       </div>
     </nav>
   );
