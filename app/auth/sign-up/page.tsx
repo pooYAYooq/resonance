@@ -27,6 +27,11 @@ export default function SignUpPage() {
       password: "",
     },
   });
+
+  function onSubmit() {
+    console.log("Sumitted Values: No API call implemented yet.");
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -36,15 +41,19 @@ export default function SignUpPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup className="gap-5">
             <Controller
               name="name"
               control={form.control}
               render={({ field, fieldState }) => (
-                <Field className="gap-y-2">
+                <Field className="gap-y-3">
                   <FieldLabel>Full Name</FieldLabel>
-                  <Input placeholder="John Doe" {...field} />
+                  <Input
+                    aria-invalid={fieldState.invalid}
+                    placeholder="John Doe"
+                    {...field}
+                  />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
@@ -55,9 +64,13 @@ export default function SignUpPage() {
               name="email"
               control={form.control}
               render={({ field, fieldState }) => (
-                <Field className="gap-y-2">
+                <Field className="gap-y-3">
                   <FieldLabel>Email</FieldLabel>
-                  <Input placeholder="john@example.com" {...field} />
+                  <Input
+                    aria-invalid={fieldState.invalid}
+                    placeholder="john@example.com"
+                    {...field}
+                  />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
@@ -68,9 +81,14 @@ export default function SignUpPage() {
               name="password"
               control={form.control}
               render={({ field, fieldState }) => (
-                <Field className="gap-y-2">
+                <Field className="gap-y-3">
                   <FieldLabel>Password</FieldLabel>
-                  <Input type="password" placeholder="••••••••" {...field} />
+                  <Input
+                    aria-invalid={fieldState.invalid}
+                    type="password"
+                    placeholder="••••••••"
+                    {...field}
+                  />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
