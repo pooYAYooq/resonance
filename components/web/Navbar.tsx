@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Button, buttonVariants } from "../ui/button";
 import { ThemeToggle } from "./theme-toggle";
-import { useConvex, useConvexAuth } from "convex/react";
+import { useConvexAuth } from "convex/react";
 import { authClient } from "@/lib/auth-client";
 
 export function Navbar() {
