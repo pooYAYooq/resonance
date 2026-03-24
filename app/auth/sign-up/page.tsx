@@ -20,6 +20,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 
+/**
+ * The sign up page component.
+ *
+ * This component renders a sign up form which accepts a full name, an email address, and a password.
+ * The form is validated using the `signUpSchema` from the `schemas/auth` module.
+ * When the form is submitted, the component calls the `signUp.email` method from the `authClient` to create a new user account.
+ *
+ * The component also renders a `Card` component from the `components/ui/card` module, which contains the form fields and the submit button.
+ */
 export default function SignUpPage() {
   const form = useForm({
     resolver: zodResolver(signUpSchema),
@@ -30,6 +39,11 @@ export default function SignUpPage() {
     },
   });
 
+  /**
+   * Submits the sign up form and creates a new user account.
+   *
+   * @param {z.infer<typeof signUpSchema>} data - The form data which is validated against the `signUpSchema`.
+   */
   async function onSubmit(data: z.infer<typeof signUpSchema>) {
     await authClient.signUp.email({
       email: data.email,
