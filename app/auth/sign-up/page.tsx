@@ -50,7 +50,7 @@ export default function SignUpPage() {
    *
    * @param {z.infer<typeof signUpSchema>} data - The form data which is validated against the `signUpSchema`.
    */
-  async function onSubmit(data: z.infer<typeof signUpSchema>) {
+  function onSubmit(data: z.infer<typeof signUpSchema>) {
     startTransition(async () => {
       await authClient.signUp.email({
         email: data.email,
@@ -145,7 +145,7 @@ export default function SignUpPage() {
               {isPending ? (
                 <>
                   <Loader2 className="animate-spin size-4" />
-                  <span className="ml-2">Signing up...</span>
+                  <span className="ml-2">Loading...</span>
                 </>
               ) : (
                 <span>Sign Up</span>

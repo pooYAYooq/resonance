@@ -24,6 +24,15 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 
+/**
+ * The login page component.
+ *
+ * This component renders a login form which accepts an email address and a password.
+ * The form is validated using the `loginSchema` from the `schemas/auth` module.
+ * When the form is submitted, the component calls the `signIn.email` method from the `authClient` to log the user in.
+ *
+ * The component also renders a `Card` component from the `components/ui/card` module, which contains the form fields and the submit button.
+ */
 export default function LoginPage() {
   const form = useForm({
     resolver: zodResolver(loginSchema),
@@ -46,10 +55,19 @@ export default function LoginPage() {
         email: data.email,
         password: data.password,
         fetchOptions: {
+          /**
+           * Called when the login request is successful.
+           * Shows a success toast with the message "Logged in successfully!" and redirects the user to the home page.
+           */
           onSuccess: () => {
             toast.success("Logged in successfully!");
             router.push("/");
           },
+
+          /**
+           * Called when the login request is rejected.
+           * Shows an error toast with the error message from the Better Auth error.
+           */
           onError: (error) => {
             toast.error(error.error.message);
           },
@@ -65,7 +83,6 @@ export default function LoginPage() {
         <CardDescription>Login to your account</CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Form fields will go here */}
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup className="gap-5">
             <Controller
@@ -102,7 +119,7 @@ export default function LoginPage() {
               {isPending ? (
                 <>
                   <Loader2 className="animate-spin size-4" />
-                  <span className="ml-2">Logging in...</span>
+                  <span className="ml-2">Loading...</span>
                 </>
               ) : (
                 <span>Login</span>
