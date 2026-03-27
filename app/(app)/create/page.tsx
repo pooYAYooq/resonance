@@ -1,5 +1,6 @@
 "use client";
 import { postSchema } from "@/app/schemas/blog";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,10 +16,23 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { api } from "@/convex/_generated/api";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "convex/react";
 import { Controller, useForm } from "react-hook-form";
+import z from "zod";
 
+/**
+ * The create route component.
+ *
+ * This component renders a form which allows users to create a new blog article.
+ * The form is validated against the `postSchema` using the `zodResolver` from the
+ * `@hookform/resolvers/zod` module.
+ * When the form is submitted, the component calls the `api.posts.createPost` mutation
+ * from the `convex/react` module to create a new blog article.
+ */
 export default function CreateRoute() {
+  const mutation = useMutation(api.posts.createPost);
   const form = useForm({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -26,6 +40,18 @@ export default function CreateRoute() {
       content: "",
     },
   });
+
+  /**
+   * Submits the create post form and creates a new blog article.
+   *
+   * @param {z.infer<typeof postSchema>} data - The form data which is validated against the `postSchema`.
+   */
+  const onSubmit = (data: z.infer<typeof postSchema>) => {
+    mutation({
+      body: data.content,
+      title: data.title,
+    });
+  };
 
   return (
     <div className="py-12 flex flex-col items-center gap-6">
@@ -45,8 +71,8 @@ export default function CreateRoute() {
           <CardDescription>Create a new blog article</CardDescription>
         </CardHeader>
         <CardContent>
-          <form>
-            <FieldGroup>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <FieldGroup className="gap-y-4">
               <Controller
                 name="title"
                 control={form.control}
@@ -76,6 +102,7 @@ export default function CreateRoute() {
                   </Field>
                 )}
               />
+              <Button type="submit">Create Post</Button>
             </FieldGroup>
           </form>
         </CardContent>
