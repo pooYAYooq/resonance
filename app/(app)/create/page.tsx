@@ -19,19 +19,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "convex/react";
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import z from "zod";
 
 /**
  * The create route component.
- *
- * This component renders a form which allows users to create a new blog article.
- * The form is validated against the `postSchema` using the `zodResolver` from the
- * `@hookform/resolvers/zod` module.
- * When the form is submitted, the component calls the `api.posts.createPost` mutation
- * from the `convex/react` module to create a new blog article.
+ * This component renders a form for creating a new blog article.
+ * The form is validated using the `postSchema` from the `schemas/blog` module.
+ * When the form is submitted, the component calls the `createPost` method from the `api.posts` module to create a new blog article.
+ * The component also renders a `Card` component from the `components/ui/card` module, which contains the form fields and the submit button.
  */
 export default function CreateRoute() {
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const mutation = useMutation(api.posts.createPost);
   const form = useForm({
     resolver: zodResolver(postSchema),
@@ -42,15 +46,21 @@ export default function CreateRoute() {
   });
 
   /**
-   * Submits the create post form and creates a new blog article.
+   * Submits the create form and creates a new blog article using the provided title and content.
    *
+   * Shows a success toast with the message "Article created successfully!" and redirects the user to the home page.
    * @param {z.infer<typeof postSchema>} data - The form data which is validated against the `postSchema`.
    */
   const onSubmit = (data: z.infer<typeof postSchema>) => {
-    mutation({
-      body: data.content,
-      title: data.title,
+    startTransition(() => {
+      mutation({
+        body: data.content,
+        title: data.title,
+      });
     });
+
+    toast.success("Article created successfully!");
+    router.push("/");
   };
 
   return (
@@ -102,7 +112,16 @@ export default function CreateRoute() {
                   </Field>
                 )}
               />
-              <Button type="submit">Create Post</Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Loader2 className="animate-spin size-4" />
+                    <span className="ml-2">Creating...</span>
+                  </>
+                ) : (
+                  <span>Create Post</span>
+                )}
+              </Button>
             </FieldGroup>
           </form>
         </CardContent>
