@@ -18,11 +18,11 @@ export default function BlogPost() {
   // await new Promise((resolve) => setTimeout(resolve, 4000));
   return (
     <div className="container mx-auto">
-      <div className="text-center py-12">
+      <div className="text-center pb-12 pt-24">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
           Our Blog
         </h1>
-        <p className="pt-2 max-w-2xl text-muted-foreground mx-auto text-xl">
+        <p className="pt-4 max-w-2xl text-muted-foreground mx-auto text-xl">
           Insight, thoughts, and stories from our universal team.
         </p>
       </div>
@@ -45,9 +45,9 @@ export default function BlogPost() {
 async function LoadBlogList() {
   const posts = await fetchQuery(api.posts.getPosts);
   return (
-    <div className="grid px-6 py-6 border-l border-r gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid px-6 py-6 items-stretch border-l-2 border-r-2 gap-6 md:grid-cols-2 lg:grid-cols-3">
       {posts?.map((post) => (
-        <Card key={post._id} className="pt-0 gap-4">
+        <Card key={post._id} className="pt-0 gap-4 flex flex-col h-full">
           <div className=" relative h-48 w-full overflow-hidden mb-8">
             <Image
               src="https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
@@ -57,7 +57,7 @@ async function LoadBlogList() {
             />
           </div>
 
-          <CardContent className="mb-0">
+          <CardContent className="mb-0 flex-1">
             <Link href={`/blog/${post._id}`}>
               <h1 className="text-xl mb-4 font-semibold hover:text-primary">
                 {post.title}
@@ -65,13 +65,14 @@ async function LoadBlogList() {
             </Link>
             <p className="text-muted-foreground line-clamp-3">{post.body}</p>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="mt-auto">
             <Link
               className={cn(
                 buttonVariants({
+                  variant: "outline",
                   className: " w-full",
                 }),
-                "px-0 py-0 hover:no-underline hover:animate-pulse space-x-2",
+                "px-0 py-0 hover:text-primary hover:no-underline space-x-2",
               )}
               href={`/blog/${post._id}`}
             >
@@ -92,9 +93,9 @@ async function LoadBlogList() {
  */
 function SkeletonLoadingUi() {
   return (
-    <div className="grid px-6 py-6 border-l border-r gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid items-stretch px-6 py-6 border-l border-r gap-6 md:grid-cols-2 lg:grid-cols-3">
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="pt-0 gap-4">
+        <div key={i} className="pt-0 gap-4 flex flex-col h-full">
           <div className="relative h-48 w-full overflow-hidden mb-8">
             <Skeleton className="object-cover h-full w-full rounded-t-lg" />
           </div>
