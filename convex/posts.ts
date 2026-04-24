@@ -33,3 +33,14 @@ export const getPosts = query({
     return posts;
   },
 });
+
+export const generateImageUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) {
+      throw new ConvexError("Unauthorized");
+    }
+    return await ctx.storage.generateUploadUrl();
+  },
+});
