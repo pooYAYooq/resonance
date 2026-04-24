@@ -1,64 +1,59 @@
 <!-- convex-ai-start -->
-This project uses [Convex](https://convex.dev) as its backend.
+This project uses [Convex](https://convex.dev) for its backend logic and
+Better Auth for user sessions.
 
-When working on Convex code, **always read `convex/_generated/ai/guidelines.md` first** for important guidelines on how to correctly use Convex APIs and patterns. The file contains rules that override what you may have learned about Convex from training data.
+Convex authoring rules live in `convex/_generated/ai/guidelines.md`; **read
+that file before touching any Convex code** because it overrides default
+patterns. Generated helpers (`convex/_generated/*`) are not meant to be
+edited manually.
 
-Convex agent skills for common tasks can be installed by running `npx convex ai-files install`.
+Convex agent helpers (api, migrations, etc.) can be installed with
+`npx convex ai-files install` when you want the latest scaffolding.
 <!-- convex-ai-end -->
 
-## Git Commit Messages
+## Setup
+- `pnpm install` (locked to pnpm 10 via `packageManager`) and please run it in
+  the repo root.
+- Copy `.env.local.example` → `.env.local` before running anything. Set
+  `NEXT_PUBLIC_CONVEX_URL`, `NEXT_PUBLIC_CONVEX_SITE_URL`, and
+  `BETTER_AUTH_SECRET` (32+ chars, match production entropy) there for the
+  browser and server layers. Also configure `SITE_URL` in the Convex dashboard's
+  environment variables because `convex/auth.ts` and Better Auth use it.
 
-When generating git commit messages, follow these rules **strictly**:
+## Dev / Verification
+- Start the Next.js App Router app with `pnpm dev`; it wires `app/layout.tsx`
+  (Theme + Convex + Toaster providers), `components/web/ConvexClientProvider`,
+  and the `(app)` route group that renders the authenticated shell.
+- `pnpm build` runs `next build` and `pnpm lint` runs ESLint (`eslint.config.mjs`).
+  Run them before releasing, especially when touching routing, components, or
+  layout files.
+- App routes are under `app/(app)` for the logged-in experience and under
+  `app/auth` for login/sign-up; the parentheses mean the folder is not part of
+  the URL (e.g., `/blog` ↦ `app/(app)/blog/page.tsx`). Use server components for
+  read-only screens (`fetchQuery`) and client components only when you need
+  hooks/mutations/providers (like `app/(app)/create`).
 
-### Format
+## Architecture Reminders
+- Convex owns the database and Better Auth stack (`convex/schema.ts`,
+  `convex/auth.ts`, `convex/http.ts`, `convex/posts.ts`). Next.js talks to it via
+  `lib/auth-server.ts`, `lib/auth-client.ts`, and `components/web/ConvexClientProvider`.
+  Trust the diagram in `docs/ARCHITECTURE.md` if you need to refresh how the
+  browser ↔ Next ↔ Convex flow works.
+- `components/ui` lives inside the shadcn ecosystem, so re-generate those
+  primitives with the shadcn CLI (see `components.json`) instead of editing
+  them manually.
 
-Use the **Conventional Commits** format with a subject line and a body:
+## Convex / Better Auth Gotchas
+- Better Auth runs _inside_ Convex. Endpoint handlers live at
+  `app/api/auth/[...all]/route.ts` (Next.js) and Convex HTTP at
+  `convex/http.ts`. Do not duplicate the auth logic in other layers; use
+  `convexBetterAuthNextJs()` helpers from `lib/auth-server.ts` to keep sessions
+  consistent.
+- Keep `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` in sync with the
+  Convex deployment you set in the dashboard, because the frontend talks to
+  Convex over WebSocket at the former and posts auth requests to the latter.
 
-```
-<type>(<optional scope>): <short imperative summary>
-
-<body — wrap at 72 characters per line>
-```
-
-### Subject Line (title)
-
-- Start with a **type** prefix: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `perf`, or `ci`.
-- Optionally add a **scope** in parentheses to indicate the affected area (e.g., `feat(auth):`, `fix(api):`).
-- Write in the **imperative mood** — "Add feature", not "Added feature" or "Adds feature".
-- Keep it **under 72 characters**.
-- Do **not** end with a period.
-- Use correct **English grammar and spelling**.
-
-### Body
-
-- Always include a body unless the change is completely trivial (e.g., a typo fix in a single line).
-- Separate the subject line from the body with a **blank line**.
-- Explain **what** changed and **why** — not just how. The diff already shows how.
-- Describe the **motivation** for the change, and contrast it with previous behavior when relevant.
-- Wrap lines at **72 characters**.
-- Use **full sentences** with correct grammar and punctuation.
-- Use bullet points (`-`) for listing multiple distinct changes within the same commit.
-
-### Examples
-
-**Simple single-change commit:**
-```
-fix(auth): redirect to login when session expires
-
-Previously, expired sessions caused a blank page to appear because the
-auth guard was not redirecting unauthenticated users. This change adds
-an explicit redirect to /login whenever the session token is missing or
-invalid.
-```
-
-**Multi-change commit:**
-```
-feat(dashboard): add real-time activity feed and unread badge
-
-- Introduces a live activity feed on the dashboard that streams events
-  from Convex in real time, replacing the previous polling mechanism.
-- Adds an unread-count badge to the navigation icon so users can see
-  pending activity without opening the panel.
-- Extracts the feed item renderer into a reusable ActivityItem component
-  to keep the dashboard component focused on layout.
-```
+## Commits
+- Use Conventional Commits with a subject + body. Aim for active-voice, keep the
+  subject under 72 characters, and explain _why_ you changed things in the body. 
+  Use bullets if the change spans multiple concerns.
