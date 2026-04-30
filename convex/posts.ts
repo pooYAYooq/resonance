@@ -4,7 +4,11 @@ import { authComponent } from "./auth";
 
 // Create a new blog article.
 export const createPost = mutation({
-  args: { title: v.string(), body: v.string() },
+  args: {
+    title: v.string(),
+    body: v.string(),
+    imageStorageId: v.id("_storage"),
+  },
   /**
    * Inserts a new blog article into the database.
    * Throws an error if the user is not logged in.
@@ -18,6 +22,7 @@ export const createPost = mutation({
     const blogArticle = await ctx.db.insert("posts", {
       title: args.title,
       body: args.body,
+      imageStorageId: args.imageStorageId,
       authorId: user._id, // Store the user's ID as the author of the post
     });
 
@@ -31,5 +36,17 @@ export const getPosts = query({
   handler: async (ctx) => {
     const posts = await ctx.db.query("posts").order("desc").collect();
     return posts;
+  },
+});
+
+// Generate a pre-signed URL for uploading an image to storage.
+export const generateImageUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) {
+      throw new ConvexError("Unauthorized");
+    }
+    return await ctx.storage.generateUploadUrl();
   },
 });

@@ -53,6 +53,8 @@ async function LoadBlogList() {
               src="https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
               alt="Blog Post Image"
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              priority
               className="object-cover"
             />
           </div>
