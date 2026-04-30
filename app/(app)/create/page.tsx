@@ -1,5 +1,8 @@
 "use client";
+
 import { postSchema } from "@/app/schemas/blog";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,7 +19,6 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { api } from "@/convex/_generated/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "convex/react";
 import { Loader2 } from "lucide-react";
@@ -26,42 +28,56 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 
-/**
- * The create route component.
- * This component renders a form for creating a new blog article.
- * The form is validated using the `postSchema` from the `schemas/blog` module.
- * When the form is submitted, the component calls the `createPost` method from the `api.posts` module to create a new blog article.
- * The component also renders a `Card` component from the `components/ui/card` module, which contains the form fields and the submit button.
- */
 export default function CreateRoute() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const mutation = useMutation(api.posts.createPost);
+  const generateImageUploadUrl = useMutation(api.posts.generateImageUploadUrl);
+  const createPost = useMutation(api.posts.createPost);
+
   const form = useForm({
     resolver: zodResolver(postSchema),
     defaultValues: {
       title: "",
       content: "",
+      image: undefined,
     },
   });
 
-  /**
-   * Submits the create form and creates a new blog article using the provided title and content.
-   *
-   * Shows a success toast with the message "Article created successfully!" and redirects the user to the home page.
-   * @param {z.infer<typeof postSchema>} data - The form data which is validated against the `postSchema`.
-   */
-  const onSubmit = (data: z.infer<typeof postSchema>) => {
-    startTransition(() => {
-      mutation({
-        body: data.content,
-        title: data.title,
-      });
-    });
+  function onSubmit(values: z.infer<typeof postSchema>) {
+    startTransition(async () => {
+      try {
+        const imageUrl = await generateImageUploadUrl({});
+        const uploadResult = await fetch(imageUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": values.image.type,
+          },
+          body: values.image,
+        });
 
-    toast.success("Article created successfully!");
-    router.push("/");
-  };
+        if (!uploadResult.ok) {
+          toast.error("Failed to upload image");
+          return;
+        }
+
+        const { storageId } = (await uploadResult.json()) as {
+          storageId: Id<"_storage">;
+        };
+
+        await createPost({
+          title: values.title,
+          body: values.content,
+          imageStorageId: storageId,
+        });
+
+        toast.success("Post created successfully!");
+        router.push("/blog");
+      } catch (error) {
+        console.error("Create post failed:", error);
+        toast.error("Failed to create post");
+      }
+    });
+  }
 
   return (
     <div className="py-12 flex flex-col items-center gap-6">
@@ -89,7 +105,11 @@ export default function CreateRoute() {
                 render={({ field, fieldState }) => (
                   <Field>
                     <FieldLabel>Blog Title</FieldLabel>
-                    <Input placeholder="Give your thought a name" {...field} />
+                    <Input
+                      aria-invalid={fieldState.invalid}
+                      placeholder="Give your thought a name"
+                      {...field}
+                    />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}
@@ -103,8 +123,31 @@ export default function CreateRoute() {
                   <Field>
                     <FieldLabel>Blog Content</FieldLabel>
                     <Textarea
+                      aria-invalid={fieldState.invalid}
                       {...field}
                       placeholder="Let the world know what you are thinking..."
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="image"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field>
+                    <FieldLabel>Image</FieldLabel>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      aria-invalid={fieldState.invalid}
+                      placeholder="Choose an image to upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        field.onChange(file);
+                      }}
                     />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
