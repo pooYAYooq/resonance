@@ -1,14 +1,9 @@
 <!-- convex-ai-start -->
-This project uses [Convex](https://convex.dev) for its backend logic and
-Better Auth for user sessions.
+This project uses [Convex](https://convex.dev) as its backend.
 
-Convex authoring rules live in `convex/_generated/ai/guidelines.md`; **read
-that file before touching any Convex code** because it overrides default
-patterns. Generated helpers (`convex/_generated/*`) are not meant to be
-edited manually.
+When working on Convex code, **always read `convex/_generated/ai/guidelines.md` first** for important guidelines on how to correctly use Convex APIs and patterns. The file contains rules that override what you may have learned about Convex from training data.
 
-Convex agent helpers (api, migrations, etc.) can be installed with
-`npx convex ai-files install` when you want the latest scaffolding.
+Convex agent skills for common tasks can be installed by running `npx convex ai-files install`.
 <!-- convex-ai-end -->
 
 ## Setup
