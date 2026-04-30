@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Figtree, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ConvexClientProvider } from "@/components/web/ConvexClientProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { getToken } from "@/lib/auth-server";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -20,14 +21,16 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "R E S O N A N C E",
-  description: "A blog app built with Next.js, Tailwind CSS, and TypeScript.",
+  description: "Resonance is a blog platform for sharing thoughts and ideas.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const token = await getToken();
+
   return (
     <html
       lang="en"
@@ -44,7 +47,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <main className="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8">
-            <ConvexClientProvider>{children}</ConvexClientProvider>
+            <ConvexClientProvider initialToken={token}>
+              {children}
+            </ConvexClientProvider>
           </main>
           <Toaster richColors closeButton />
         </ThemeProvider>
