@@ -3,10 +3,10 @@ import { v } from "convex/values";
 
 // This file defines the schema for our Convex database.
 export default defineSchema({
-	posts: defineTable({
-		title: v.string(),
-		body: v.string(),
-		authorId: v.string(),
-		imageStorageId: v.optional(v.id("_storage")),
-	}),
+  posts: defineTable({
+    title: v.string(),
+    body: v.string(),
+    authorId: v.string(),
+    imageStorageId: v.optional(v.id("_storage")),
+  }),
 });

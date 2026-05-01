@@ -8,14 +8,14 @@ built the way they were. Read it top-to-bottom once, then use it as a lookup.
 
 ## Stack
 
-| Layer | Technology | Notes |
-|---|---|---|
-| Framework | Next.js 16 (App Router) | Server + client components, route handlers |
-| Backend | Convex | Database, serverless functions, real-time subscriptions |
-| Auth | Better Auth via `@convex-dev/better-auth` | Runs *inside* Convex, not in Next.js |
-| UI | shadcn/ui + Tailwind CSS v4 | Primitive components + utility styles |
-| Forms | React Hook Form + Zod | Client-side forms with schema validation |
-| Theming | next-themes | Dark/light mode toggle |
+| Layer     | Technology                                | Notes                                                   |
+| --------- | ----------------------------------------- | ------------------------------------------------------- |
+| Framework | Next.js 16 (App Router)                   | Server + client components, route handlers              |
+| Backend   | Convex                                    | Database, serverless functions, real-time subscriptions |
+| Auth      | Better Auth via `@convex-dev/better-auth` | Runs _inside_ Convex, not in Next.js                    |
+| UI        | shadcn/ui + Tailwind CSS v4               | Primitive components + utility styles                   |
+| Forms     | React Hook Form + Zod                     | Client-side forms with schema validation                |
+| Theming   | next-themes                               | Dark/light mode toggle                                  |
 
 ---
 
@@ -75,7 +75,7 @@ live in the same Convex database as your app data — no separate auth DB.
 │                        CONVEX BACKEND                          │
 │                                                                │
 │  convex/auth.ts          Creates the Better Auth instance.     │
-│    └─ betterAuth()       Uses Convex DB adapter.               │  
+│    └─ betterAuth()       Uses Convex DB adapter.               │
 │                          Reads SITE_URL from Convex env.       │
 │                                                                │
 │  convex/auth.config.ts   Registers Better Auth as the          │
@@ -180,6 +180,7 @@ Two distinct rendering patterns are used depending on what the page needs.
 ```
 
 **When to use which:**
+
 - Server Component + `fetchQuery` → read-only pages, good for SEO, no client JS needed.
 - Client Component + `useMutation`/`useQuery` → anything that writes data or needs
   real-time reactivity.
@@ -239,11 +240,13 @@ parentheses mean the folder name is **not** part of the URL. `/blog` resolves to
 ## Key Decisions
 
 ### 1. Why Convex?
+
 Real-time subscriptions out of the box, TypeScript-first schema, and fully serverless —
 no separate API server to maintain. Queries and mutations are just TypeScript functions.
 The schema in `convex/schema.ts` is the single source of truth for the DB shape.
 
 ### 2. Why Better Auth instead of Clerk or Auth.js?
+
 - **Cost:** Open-source and self-hosted. No per-MAU pricing.
 - **Integration:** `@convex-dev/better-auth` is the official package, so user/session
   data lives directly in Convex — no second database or third-party service.
@@ -251,16 +254,19 @@ The schema in `convex/schema.ts` is the single source of truth for the DB shape.
   your own code, not reading someone else's dashboard docs.
 
 ### 3. Why does Better Auth run on Convex instead of Next.js?
+
 If it ran in Next.js, sessions and user records would need their own database. By
 running Better Auth inside Convex functions (via `convex/auth.ts` and `convex/http.ts`),
 everything — posts, users, sessions — lives in one place. Fewer moving parts.
 
 ### 4. Why two separate layouts (`(app)` vs `auth`)?
+
 The main app needs a persistent Navbar. Auth pages need to be distraction-free,
 full-screen forms. Route groups let you express this with zero conditional rendering logic
 — the layout file handles it structurally.
 
 ### 5. Why the mixed Server / Client Component rendering strategy?
+
 - `/blog` is read-only and benefits from server-side rendering for SEO and fast initial
   load. `fetchQuery` runs at request time — no client JS required to see the content.
 - `/create` needs React Hook Form state and fires a Convex mutation directly from the
@@ -273,11 +279,11 @@ you need interactivity, browser APIs, or real-time Convex hooks.
 
 ## Environment Variables
 
-| Variable | Where it lives | Used by |
-|---|---|---|
-| `NEXT_PUBLIC_CONVEX_URL` | Next.js `.env.local` | `ConvexClientProvider` — WebSocket URL |
-| `NEXT_PUBLIC_CONVEX_SITE_URL` | Next.js `.env.local` | Points browser auth calls at Convex HTTP |
-| `SITE_URL` | Convex dashboard env vars | `convex/auth.ts` — Better Auth base URL |
+| Variable                      | Where it lives            | Used by                                  |
+| ----------------------------- | ------------------------- | ---------------------------------------- |
+| `NEXT_PUBLIC_CONVEX_URL`      | Next.js `.env.local`      | `ConvexClientProvider` — WebSocket URL   |
+| `NEXT_PUBLIC_CONVEX_SITE_URL` | Next.js `.env.local`      | Points browser auth calls at Convex HTTP |
+| `SITE_URL`                    | Convex dashboard env vars | `convex/auth.ts` — Better Auth base URL  |
 
 `NEXT_PUBLIC_*` variables are exposed to the browser bundle. `SITE_URL` stays
 server-side inside Convex.
