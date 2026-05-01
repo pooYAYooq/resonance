@@ -1,0 +1,21 @@
+# Dependencies
+node_modules
+pnpm-lock.yaml
+
+# Build outputs
+build
+coverage
+.next
+out
+.vercel
+
+# Generated files
+convex/_generated
+next-env.d.ts
+*.tsbuildinfo
+
+# Local / env files
+.env*
+NOTES.local.md
+.next-docs/
+.pnpm-debug.log*

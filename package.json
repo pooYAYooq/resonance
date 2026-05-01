@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check"
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.11.3",
@@ -36,6 +38,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "3.8.3",
     "shadcn": "^4.1.2",
     "tailwindcss": "^4",
     "typescript": "^5"
@@ -53,5 +57,5 @@
       "msw"
     ]
   },
-  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
+  "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8"
 }
