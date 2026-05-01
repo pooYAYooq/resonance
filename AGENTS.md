@@ -59,3 +59,11 @@ Convex agent skills for common tasks can be installed by running `npx convex ai-
 - Use Conventional Commits with a subject + body. Aim for active-voice, keep the
   subject under 72 characters, and explain _why_ you changed things in the body.
   Use bullets if the change spans multiple concerns.
+
+## CI Parity Commands
+
+Before opening a PR, run the same command order as CI:
+
+1. `pnpm lint`
+2. `pnpm test:ci`
+3. `pnpm build`
