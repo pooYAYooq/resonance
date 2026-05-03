@@ -138,8 +138,9 @@ export default function CreateRoute() {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field>
-                    <FieldLabel>Image</FieldLabel>
+                    <FieldLabel htmlFor="image">Image</FieldLabel>
                     <Input
+                      id="image"
                       type="file"
                       accept="image/*"
                       aria-invalid={fieldState.invalid}
