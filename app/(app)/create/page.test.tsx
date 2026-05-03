@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import CreateRoute from "./page";
@@ -55,7 +62,11 @@ describe("CreateRoute", () => {
     generateImageUploadUrlMock.mockClear();
     createPostMock.mockClear();
     fetchMock = vi.fn();
-    global.fetch = fetchMock;
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("shows validation error for empty title", async () => {
@@ -85,18 +96,9 @@ describe("CreateRoute", () => {
     const user = userEvent.setup();
 
     // Hang the mutation so the pending state stays visible
-    let resolveUpload!: (value: string) => void;
     generateImageUploadUrlMock.mockImplementation(
-      () =>
-        new Promise<string>((resolve) => {
-          resolveUpload = resolve;
-        }),
+      () => new Promise<string>(() => {}),
     );
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ storageId: "storage-123" }),
-    });
-    createPostMock.mockResolvedValue(undefined);
 
     render(<CreateRoute />);
 
@@ -121,9 +123,6 @@ describe("CreateRoute", () => {
     });
 
     expect(screen.getByText(/creating/i)).toBeInTheDocument();
-
-    // Release the pending transition so the test cleans up deterministically
-    resolveUpload("https://upload.url");
   });
 
   it("submits successfully and redirects", async () => {
