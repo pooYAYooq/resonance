@@ -10,7 +10,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "vitest",
-    "test:ci": "vitest --run --reporter=verbose"
+    "test:ci": "vitest --run --reporter=verbose",
+    "test:component": "vitest --run --reporter=verbose --config vitest.ui.config.ts"
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.11.3",
@@ -36,6 +37,9 @@
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -43,6 +47,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "eslint-config-prettier": "^10.1.8",
+    "jsdom": "^29.1.1",
     "prettier": "3.8.3",
     "shadcn": "^4.1.2",
     "tailwindcss": "^4",

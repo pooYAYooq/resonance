@@ -66,4 +66,10 @@ Before opening a PR, run the same command order as CI:
 
 1. `pnpm lint`
 2. `pnpm test:ci`
-3. `pnpm build`
+3. `pnpm test:component`
+4. `pnpm build`
+
+### Test lane split
+
+- `test:ci` — Fast PR gate (schema, utility, and Convex baseline tests on edge-runtime).
+- `test:component` — RTL + jsdom component tests. Currently an optional CI job; runs on every PR and nightly. Once it proves stable it will be promoted to a required check.
