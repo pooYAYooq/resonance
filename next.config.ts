@@ -30,9 +30,9 @@ if (process.env.NEXT_PUBLIC_CONVEX_URL) {
     // Parse the Convex URL to extract only the hostname, ignoring path/query params
     convexHostname = new URL(process.env.NEXT_PUBLIC_CONVEX_URL).hostname;
   } catch {
-    // Warn (not throw) if the env var is malformed to avoid breaking the build
-    console.warn(
-      "Invalid NEXT_PUBLIC_CONVEX_URL; skipping Convex hostname in Next.js image remotePatterns.",
+    // Throw if the env var is malformed since this is a required configuration
+    throw new Error(
+      "Invalid NEXT_PUBLIC_CONVEX_URL: " + process.env.NEXT_PUBLIC_CONVEX_URL,
     );
   }
 }
