@@ -211,4 +211,41 @@ describe("CreateRoute", () => {
     expect(createPostMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
   });
+
+  it("creates a text-only post successfully without imageStorageId", async () => {
+    const user = userEvent.setup();
+
+    createPostMock.mockResolvedValue(undefined);
+
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "My Post",
+    );
+    await user.type(
+      screen.getByPlaceholderText(
+        "Let the world know what you are thinking...",
+      ),
+      "This is enough content for the body.",
+    );
+
+    await user.click(screen.getByRole("button", { name: /create post/i }));
+
+    await waitFor(() => {
+      expect(createPostMock).toHaveBeenCalledWith({
+        title: "My Post",
+        body: "This is enough content for the body.",
+      });
+    });
+
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Post created successfully!",
+      );
+      expect(pushMock).toHaveBeenCalledWith("/blog");
+    });
+
+    expect(generateImageUploadUrlMock).not.toHaveBeenCalled();
+  });
 });

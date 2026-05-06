@@ -76,7 +76,7 @@ export default function CreateRoute() {
         await createPost({
           title: values.title,
           body: values.content,
-          imageStorageId: storageId,
+          ...(storageId && { imageStorageId: storageId }),
         });
 
         toast.success("Post created successfully!");
