@@ -13,5 +13,7 @@ export const postSchema = z.object({
     })
     .refine((file) => ALLOWED_IMAGE_TYPES.includes(file.type), {
       message: "Only JPG, PNG, and WEBP images are supported.",
-    }),
+    })
+    // Image is optional so users can create text-only posts.
+    .optional(),
 });

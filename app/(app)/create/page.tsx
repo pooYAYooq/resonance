@@ -46,23 +46,32 @@ export default function CreateRoute() {
   function onSubmit(values: z.infer<typeof postSchema>) {
     startTransition(async () => {
       try {
-        const imageUrl = await generateImageUploadUrl({});
-        const uploadResult = await fetch(imageUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": values.image.type,
-          },
-          body: values.image,
-        });
+        // Track the uploaded image's storage ID. It stays undefined when no image is provided,
+        // allowing posts to be created without an attached image.
+        let storageId: Id<"_storage"> | undefined;
 
-        if (!uploadResult.ok) {
-          toast.error("Failed to upload image");
-          return;
+        // Only attempt to upload when the user selected an image. The field is optional in the form schema.
+        if (values.image) {
+          // Request a pre-signed upload URL from Convex so we can POST the file directly to storage.
+          const imageUrl = await generateImageUploadUrl({});
+          const uploadResult = await fetch(imageUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": values.image.type,
+            },
+            body: values.image,
+          });
+
+          if (!uploadResult.ok) {
+            toast.error("Failed to upload image");
+            return;
+          }
+
+          const result = (await uploadResult.json()) as {
+            storageId: Id<"_storage">;
+          };
+          storageId = result.storageId;
         }
-
-        const { storageId } = (await uploadResult.json()) as {
-          storageId: Id<"_storage">;
-        };
 
         await createPost({
           title: values.title,
@@ -73,7 +82,7 @@ export default function CreateRoute() {
         toast.success("Post created successfully!");
         router.push("/blog");
       } catch (error) {
-        console.error("Create post failed:", error);
+        console.error("Create post failed", error);
         toast.error("Failed to create post");
       }
     });
@@ -138,7 +147,7 @@ export default function CreateRoute() {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field>
-                    <FieldLabel htmlFor="image">Image</FieldLabel>
+                    <FieldLabel htmlFor="image">Image (optional)</FieldLabel>
                     <Input
                       id="image"
                       type="file"

@@ -49,9 +49,14 @@ async function LoadBlogList() {
       {posts?.map((post) => (
         <Card key={post._id} className="pt-0 gap-4 flex flex-col h-full">
           <div className=" relative h-48 w-full overflow-hidden mb-8">
+            {/* Render the post's uploaded image if available; otherwise fall back to a default placeholder.
+                The hostname must be allowlisted in next.config.ts for Next.js Image optimization. */}
             <Image
-              src="https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
-              alt="Blog Post Image"
+              src={
+                post.imageUrl ??
+                "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
+              }
+              alt={post.title}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               priority

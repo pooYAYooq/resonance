@@ -7,7 +7,8 @@ export const createPost = mutation({
   args: {
     title: v.string(),
     body: v.string(),
-    imageStorageId: v.id("_storage"),
+    // Optional because posts may be created without an image.
+    imageStorageId: v.optional(v.id("_storage")),
   },
   /**
    * Inserts a new blog article into the database.
@@ -22,7 +23,7 @@ export const createPost = mutation({
     const blogArticle = await ctx.db.insert("posts", {
       title: args.title,
       body: args.body,
-      imageStorageId: args.imageStorageId,
+      imageStorageId: args.imageStorageId, // Optional storage ID for the post image
       authorId: user._id, // Store the user's ID as the author of the post
     });
 
@@ -35,7 +36,20 @@ export const getPosts = query({
   args: {},
   handler: async (ctx) => {
     const posts = await ctx.db.query("posts").order("desc").collect();
-    return posts;
+
+    // Hydrate each post with a public image URL. We resolve storage URLs server-side
+    // so the client receives ready-to-use links without needing direct storage access.
+    const postsWithImageUrl = await Promise.all(
+      posts.map(async (post) => {
+        let imageUrl = null;
+        if (post.imageStorageId) {
+          imageUrl = await ctx.storage.getUrl(post.imageStorageId);
+        }
+        return { ...post, imageUrl };
+      }),
+    );
+
+    return postsWithImageUrl;
   },
 });
 
