@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import CreateRoute from "./page";
@@ -74,11 +67,13 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Let the world know what you are thinking..."),
+      screen.getByPlaceholderText(
+        "Let the world know what you are thinking...",
+      ),
       "Some content here",
     );
     await user.upload(
-      screen.getByLabelText("Image"),
+      screen.getByLabelText("Image (optional)"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
     await user.click(screen.getByRole("button", { name: /create post/i }));
@@ -107,11 +102,13 @@ describe("CreateRoute", () => {
       "My Post",
     );
     await user.type(
-      screen.getByPlaceholderText("Let the world know what you are thinking..."),
+      screen.getByPlaceholderText(
+        "Let the world know what you are thinking...",
+      ),
       "This is enough content for the body.",
     );
     await user.upload(
-      screen.getByLabelText("Image"),
+      screen.getByLabelText("Image (optional)"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
@@ -142,11 +139,13 @@ describe("CreateRoute", () => {
       "My Post",
     );
     await user.type(
-      screen.getByPlaceholderText("Let the world know what you are thinking..."),
+      screen.getByPlaceholderText(
+        "Let the world know what you are thinking...",
+      ),
       "This is enough content for the body.",
     );
     await user.upload(
-      screen.getByLabelText("Image"),
+      screen.getByLabelText("Image (optional)"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
@@ -173,7 +172,9 @@ describe("CreateRoute", () => {
     });
 
     await waitFor(() => {
-      expect(toastSuccessMock).toHaveBeenCalledWith("Post created successfully!");
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Post created successfully!",
+      );
       expect(pushMock).toHaveBeenCalledWith("/blog");
     });
   });
@@ -191,11 +192,13 @@ describe("CreateRoute", () => {
       "My Post",
     );
     await user.type(
-      screen.getByPlaceholderText("Let the world know what you are thinking..."),
+      screen.getByPlaceholderText(
+        "Let the world know what you are thinking...",
+      ),
       "This is enough content for the body.",
     );
     await user.upload(
-      screen.getByLabelText("Image"),
+      screen.getByLabelText("Image (optional)"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
