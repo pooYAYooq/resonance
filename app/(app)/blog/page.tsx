@@ -43,15 +43,22 @@ export default function BlogPost() {
  * @returns A JSX element representing a grid of blog post cards.
  */
 async function LoadBlogList() {
-  const posts = await fetchQuery(api.posts.getPosts);
+  const posts = await fetchQuery(api.posts.getPosts, {
+    paginationOpts: { numItems: 50, cursor: null },
+  });
   return (
     <div className="grid px-6 py-6 items-stretch border-l-2 border-r-2 gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {posts?.map((post) => (
+      {posts?.page?.map((post) => (
         <Card key={post._id} className="pt-0 gap-4 flex flex-col h-full">
           <div className=" relative h-48 w-full overflow-hidden mb-8">
+            {/* Render the post's uploaded image if available; otherwise fall back to a default placeholder.
+                The hostname must be allowlisted in next.config.ts for Next.js Image optimization. */}
             <Image
-              src="https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
-              alt="Blog Post Image"
+              src={
+                post.imageUrl ??
+                "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
+              }
+              alt={post.title}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               priority
