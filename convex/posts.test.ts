@@ -63,7 +63,9 @@ describe("posts functions", () => {
       });
     });
 
-    const posts = await t.query(api.posts.getPosts, {});
-    expect(posts.map((post) => post.title)).toEqual(["Newer", "Older"]);
+    const result = await t.query(api.posts.getPosts, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(result.page.map((post) => post.title)).toEqual(["Newer", "Older"]);
   });
 });
