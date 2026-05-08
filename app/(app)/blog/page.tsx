@@ -15,7 +15,6 @@ import { Skeleton } from "@/components/ui/skeleton";
  * The blog posts are fetched from the Convex API using the `api.posts.getPosts` query.
  */
 export default function BlogPost() {
-  // await new Promise((resolve) => setTimeout(resolve, 4000));
   return (
     <div className="container mx-auto">
       <div className="text-center pb-12 pt-24">

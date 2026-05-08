@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ConvexClientProvider } from "@/components/web/ConvexClientProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { getToken } from "@/lib/auth-server";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -24,13 +23,11 @@ export const metadata: Metadata = {
   description: "Resonance is a blog platform for sharing thoughts and ideas.",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const token = await getToken();
-
   return (
     <html
       lang="en"
@@ -47,7 +44,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <main className="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8">
-            <ConvexClientProvider initialToken={token}>
+            <ConvexClientProvider>
               {children}
             </ConvexClientProvider>
           </main>
