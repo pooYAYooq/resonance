@@ -27,7 +27,6 @@ import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
-import { revalidateBlog } from "@/lib/revalidate";
 
 export default function CreateRoute() {
   const [isPending, startTransition] = useTransition();
@@ -79,13 +78,6 @@ export default function CreateRoute() {
           body: values.content,
           ...(storageId && { imageStorageId: storageId }),
         });
-
-        // Revalidate the blog page to show the new post immediately
-        try {
-          await revalidateBlog();
-        } catch (error) {
-          console.error("Revalidation failed", error);
-        }
 
         toast.success("Post created successfully!");
         router.push("/blog");

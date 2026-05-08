@@ -8,7 +8,6 @@ import { api } from "@/convex/_generated/api";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const dynamic = "force-static";
 /**
  * A page component that renders a list of blog posts.
  *
