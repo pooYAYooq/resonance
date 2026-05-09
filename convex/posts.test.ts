@@ -68,4 +68,70 @@ describe("posts functions", () => {
     });
     expect(result.page.map((post) => post.title)).toEqual(["Newer", "Older"]);
   });
+
+  it("returns null when post does not exist", async () => {
+    const t = convexTest(schema, modules);
+
+    const deletedId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("posts", {
+        title: "To be deleted",
+        body: "Body content.",
+        authorId: "user-1",
+      });
+      await ctx.db.delete(id);
+      return id;
+    });
+
+    const result = await t.query(api.posts.getPostById, {
+      postId: deletedId,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("returns post with resolved imageUrl when post has an image", async () => {
+    const t = convexTest(schema, modules);
+
+    const insertedId = await t.run(async (ctx) => {
+      const imageStorageId = await ctx.storage.store(
+        new Blob([new Uint8Array([1])], { type: "image/png" }),
+      );
+
+      return await ctx.db.insert("posts", {
+        title: "Post with image",
+        body: "Body content.",
+        authorId: "user-1",
+        imageStorageId,
+      });
+    });
+
+    const result = await t.query(api.posts.getPostById, {
+      postId: insertedId,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.title).toBe("Post with image");
+    expect(result?.imageUrl).toBeTruthy();
+    expect(typeof result?.imageUrl).toBe("string");
+  });
+
+  it("returns post with null imageUrl when post has no image", async () => {
+    const t = convexTest(schema, modules);
+
+    const insertedId = await t.run(async (ctx) => {
+      return await ctx.db.insert("posts", {
+        title: "Post without image",
+        body: "Body content.",
+        authorId: "user-1",
+      });
+    });
+
+    const result = await t.query(api.posts.getPostById, {
+      postId: insertedId,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.title).toBe("Post without image");
+    expect(result?.imageUrl).toBeNull();
+  });
 });
