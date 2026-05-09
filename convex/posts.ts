@@ -1,21 +1,33 @@
+/**
+ * Blog post queries and mutations.
+ * Defines Convex operations for creating, listing, and retrieving posts,
+ * plus server-side image URL resolution and pre-signed upload URL generation.
+ * All write paths require an active Better Auth session.
+ */
+
 import { mutation, query } from "./_generated/server";
+
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import { paginationOptsValidator } from "convex/server";
 
-// Create a new blog article.
+/**
+ * Creates a new blog article authored by the currently authenticated user.
+ *
+ * @param title - `string`: The article's display title.
+ * @param body - `string`: The article's Markdown or HTML body content.
+ * @param imageStorageId - `Id<"_storage"> | undefined`: Optional storage ID for the post's
+ *   cover image. Pass `undefined` when no image is attached.
+ * @returns `Id<"posts">`: The auto-generated document ID of the newly inserted post.
+ *
+ * @throws `ConvexError("Unauthorized")` if the caller has no valid session.
+ */
 export const createPost = mutation({
   args: {
     title: v.string(),
     body: v.string(),
-    // Optional because posts may be created without an image.
     imageStorageId: v.optional(v.id("_storage")),
   },
-  /**
-   * Inserts a new blog article into the database.
-   * Throws an error if the user is not logged in.
-   * @returns The newly created blog article.
-   */
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
@@ -24,8 +36,8 @@ export const createPost = mutation({
     const blogArticle = await ctx.db.insert("posts", {
       title: args.title,
       body: args.body,
-      imageStorageId: args.imageStorageId, // Optional storage ID for the post image
-      authorId: user._id, // Store the user's ID as the author of the post
+      imageStorageId: args.imageStorageId,
+      authorId: user._id,
     });
 
     return blogArticle;
@@ -40,6 +52,10 @@ export const createPost = mutation({
  * `imageUrl: null`. By using `.paginate()`, the total number of posts — and therefore
  * the maximum number of storage lookups per query — is bounded by the caller-supplied
  * `numItems`.
+ *
+ * @param paginationOpts - `PaginationOptions`: Convex pagination config such as `numItems` and cursor.
+ * @returns `PaginationResult`: Paginated result where `page` contains posts with a
+ *   server-resolved `imageUrl` (`string | null`), plus `isDone` and `continueCursor`.
  */
 export const getPosts = query({
   args: {
@@ -73,7 +89,16 @@ export const getPosts = query({
   },
 });
 
-// Generate a pre-signed URL for uploading an image to storage.
+/**
+ * Generates a pre-signed upload URL so the client can upload an image directly
+ * to Convex storage without exposing storage credentials.
+ *
+ * @returns `string`: A temporary pre-signed URL valid for a single upload.
+ *
+ * @throws `ConvexError("Unauthorized")` if the caller has no valid session.
+ * @sideEffects Allocates a pre-signed URL on Convex storage; must be consumed
+ *   within the URL's expiration window (~1 hour).
+ */
 export const generateImageUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
@@ -82,5 +107,30 @@ export const generateImageUploadUrl = mutation({
       throw new ConvexError("Unauthorized");
     }
     return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
+ * Retrieves a single blog post by its document ID, resolving its image URL
+ * server-side if one exists.
+ *
+ * @param postId - `Id<"posts">`: The Convex document ID of the target post.
+ * @returns The post object with an `imageUrl` field, or `null` if not found.
+ *   `imageUrl` is a signed URL string when the post has an associated image,
+ *   or `null` when it does not.
+ */
+export const getPostById = query({
+  args: { postId: v.id("posts") },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      return null;
+    }
+
+    const resolvedImageUrl =
+      post?.imageStorageId !== undefined
+        ? await ctx.storage.getUrl(post.imageStorageId)
+        : null;
+    return { ...post, imageUrl: resolvedImageUrl };
   },
 });
