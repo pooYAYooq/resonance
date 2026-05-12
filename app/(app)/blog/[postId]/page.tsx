@@ -12,6 +12,7 @@ import Image from "next/image";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { Separator } from "@/components/ui/separator";
 
 /** Props received by the dynamic blog post route. */
 interface PostIdRouteProps {
@@ -68,7 +69,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           {post.title}
         </h1>
         <p className="text-muted-foreground mt-4 text-sm">
-          Published on{" "}
+          Published on:{" "}
           {new Date(post._creationTime).toLocaleDateString("en-US", {
             day: "numeric",
             month: "long",
@@ -76,9 +77,13 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           })}
         </p>
       </div>
+      <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div className="mt-6 prose max-w-none">
-        <p>{post.body}</p>
+        <p className="text-lg, leading-relaxed text-foreground/90 whitespace-pre-wrap">
+          {post.body}
+        </p>
       </div>
+      <Separator className="my-8" orientation="horizontal" decorative={true} />
     </div>
   );
 }
