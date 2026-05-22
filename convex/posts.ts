@@ -38,6 +38,7 @@ export const createPost = mutation({
       body: args.body,
       imageStorageId: args.imageStorageId,
       authorId: user._id,
+      commentCount: 0,
     });
 
     return blogArticle;
@@ -55,7 +56,8 @@ export const createPost = mutation({
  *
  * @param paginationOpts - `PaginationOptions`: Convex pagination config such as `numItems` and cursor.
  * @returns `PaginationResult`: Paginated result where `page` contains posts with a
- *   server-resolved `imageUrl` (`string | null`), plus `isDone` and `continueCursor`.
+ *   server-resolved `imageUrl` (`string | null`) and `commentCount`, plus `isDone`
+ *   and `continueCursor`.
  */
 export const getPosts = query({
   args: {
@@ -115,7 +117,7 @@ export const generateImageUploadUrl = mutation({
  * server-side if one exists.
  *
  * @param postId - `Id<"posts">`: The Convex document ID of the target post.
- * @returns The post object with an `imageUrl` field, or `null` if not found.
+ * @returns The post object with `imageUrl` and `commentCount` fields, or `null` if not found.
  *   `imageUrl` is a signed URL string when the post has an associated image,
  *   or `null` when it does not.
  */

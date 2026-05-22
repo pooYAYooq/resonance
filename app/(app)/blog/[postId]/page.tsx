@@ -9,9 +9,11 @@ import { buttonVariants } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { fetchQuery } from "convex/nextjs";
+import { fetchQuery, preloadQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { Separator } from "@/components/ui/separator";
+import { CommentSection } from "@/components/web/CommentSection";
 
 /** Props received by the dynamic blog post route. */
 interface PostIdRouteProps {
@@ -22,11 +24,15 @@ interface PostIdRouteProps {
  * Server component that displays a single blog post.
  *
  * @param params - Next.js dynamic route params, resolved as a Promise containing the Convex `postId`.
- * @returns The rendered post page, or a "not found" fallback when the post is missing.
+ * @returns JSX.Element: the rendered post page, or a "not found" fallback when the post is missing.
  */
 export default async function PostIdRoute({ params }: PostIdRouteProps) {
   const { postId } = await params;
   const post = await fetchQuery(api.posts.getPostById, { postId: postId });
+  const preloadedComments = await preloadQuery(
+    api.comments.getCommentsByPostId,
+    { postId },
+  );
 
   if (!post) {
     return (
@@ -68,7 +74,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           {post.title}
         </h1>
         <p className="text-muted-foreground mt-4 text-sm">
-          Published on{" "}
+          Published on:{" "}
           {new Date(post._creationTime).toLocaleDateString("en-US", {
             day: "numeric",
             month: "long",
@@ -76,9 +82,17 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           })}
         </p>
       </div>
+      <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div className="mt-6 prose max-w-none">
-        <p>{post.body}</p>
+        <p           className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap">
+          {post.body}
+        </p>
       </div>
+      <Separator className="my-8" orientation="horizontal" decorative={true} />
+      <CommentSection
+        preloadedComments={preloadedComments}
+        totalCount={post.commentCount ?? 0}
+      />
     </div>
   );
 }
