@@ -1,3 +1,8 @@
+/**
+ * Unit tests for Convex post queries and mutations.
+ * Covers auth rejection, pagination, image URL resolution, and comment counting.
+ */
+
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
@@ -7,11 +12,19 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 
+/**
+ * Stores a minimal PNG blob in Convex test storage and returns its ID.
+ *
+ * @param t - `ReturnType<typeof convexTest>`: the convex test runner instance.
+ * @returns `Promise<Id<"_storage">>`: the generated storage document ID.
+ */
 const createStorageId = async (t: ReturnType<typeof convexTest>) =>
   t.run(async (ctx) => {
-    return await ctx.storage.store(new Blob([new Uint8Array([1, 2, 3])], {
-      type: "image/png",
-    }));
+    return await ctx.storage.store(
+      new Blob([new Uint8Array([1, 2, 3])], {
+        type: "image/png",
+      }),
+    );
   });
 
 describe("posts functions", () => {
@@ -31,9 +44,9 @@ describe("posts functions", () => {
   it("rejects upload URL generation when unauthenticated", async () => {
     const t = convexTest(schema, modules);
 
-    await expect(t.mutation(api.posts.generateImageUploadUrl, {})).rejects.toThrow(
-      "Unauthorized",
-    );
+    await expect(
+      t.mutation(api.posts.generateImageUploadUrl, {}),
+    ).rejects.toThrow("Unauthorized");
   });
 
   it("returns posts in descending creation order", async () => {
@@ -133,5 +146,38 @@ describe("posts functions", () => {
     expect(result).not.toBeNull();
     expect(result?.title).toBe("Post without image");
     expect(result?.imageUrl).toBeNull();
+  });
+
+  it("returns commentCount in getPosts", async () => {
+    const t = convexTest(schema, modules);
+
+    const postId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("posts", {
+        title: "Post with comments",
+        body: "Body.",
+        authorId: "user-1",
+      });
+      await ctx.db.insert("comments", {
+        postId: id,
+        authorId: "user-2",
+        authorName: "Alice",
+        body: "First comment",
+      });
+      await ctx.db.insert("comments", {
+        postId: id,
+        authorId: "user-3",
+        authorName: "Bob",
+        body: "Second comment",
+      });
+      return id;
+    });
+
+    const result = await t.query(api.posts.getPosts, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    const found = result.page.find((p) => p._id === postId);
+    expect(found).toBeDefined();
+    expect(found?.commentCount).toBe(2);
   });
 });
