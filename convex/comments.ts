@@ -53,7 +53,8 @@ export const createComment = mutation({
       throw new ConvexError("Unauthorized");
     }
 
-    if (args.body.length < 3 || args.body.length > 1000) {
+    const body = args.body.trim();
+    if (body.length < 3 || body.length > 1000) {
       throw new ConvexError("Comment must be between 3 and 1000 characters.");
     }
 
@@ -64,13 +65,14 @@ export const createComment = mutation({
 
     const commentId = await ctx.db.insert("comments", {
       postId: args.postId,
-      body: args.body,
+      body,
       authorId: user._id,
-      authorName: user.name,
+      authorName: user.name ?? "Anonymous",
     });
 
+    const nextCount = (post.commentCount ?? 0) + 1;
     await ctx.db.patch(args.postId, {
-      commentCount: post.commentCount + 1,
+      commentCount: nextCount,
     });
 
     return commentId;

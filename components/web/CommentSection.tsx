@@ -8,7 +8,7 @@ import { Loader2, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { commentSchema } from "@/app/schemas/comment";
+import { commentBodySchema } from "@/app/schemas/comment";
 import { Field, FieldError, FieldLabel } from "../ui/field";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
@@ -23,16 +23,20 @@ import { CommentCard } from "./CommentCard";
 
 interface CommentSectionProps {
   preloadedComments: Preloaded<typeof api.comments.getCommentsByPostId>;
+  totalCount: number;
 }
 
 /**
  * Renders the comment section for a single post, including the list of existing
  * comments and a form to submit new ones.
  *
- * @param props - `CommentSectionProps`: preloaded Convex comment query result.
+ * @param props - `CommentSectionProps`: preloaded Convex comment query result and total comment count.
  * @returns JSX.Element: a card containing the comment list and reply form.
  */
-export function CommentSection({ preloadedComments }: CommentSectionProps) {
+export function CommentSection({
+  preloadedComments,
+  totalCount,
+}: CommentSectionProps) {
   // Tracks whether a comment mutation is in-flight so the submit button can
   // show a loading spinner and disable itself during the round-trip.
   const [isPending, startTransition] = useTransition();
@@ -46,22 +50,28 @@ export function CommentSection({ preloadedComments }: CommentSectionProps) {
   // Hydrate the server-preloaded comment list on the client.
   const comments = usePreloadedQuery(preloadedComments);
 
-  // React Hook Form with Zod validation. postId is injected from the route
-  // so the submit handler only needs the body field from the user.
+  // React Hook Form with Zod validation. Only the body field is user-provided;
+  // postId comes from the URL route and is injected in the submit handler.
   const form = useForm({
-    resolver: zodResolver(commentSchema),
+    resolver: zodResolver(commentBodySchema),
     defaultValues: {
       body: "",
-      postId: params?.postId,
     },
   });
 
   // Submits the comment via a Convex mutation inside a transition.
+  // postId is read from useParams() and validated before the mutation.
   // Errors surface as Sonner toasts so the user can retry.
-  async function onSubmit(values: z.infer<typeof commentSchema>) {
+  async function onSubmit(values: z.infer<typeof commentBodySchema>) {
+    const postId = params?.postId;
+    if (!postId) {
+      toast.error("Missing post ID — cannot submit comment.");
+      return;
+    }
+
     startTransition(async () => {
       try {
-        await createComment(values);
+        await createComment({ ...values, postId });
         toast.success("Comment submitted successfully");
         form.reset();
       } catch {
@@ -75,7 +85,9 @@ export function CommentSection({ preloadedComments }: CommentSectionProps) {
       <CardHeader className="flex flex-row items-center gap-2 border-b border-border">
         <MessageSquare className="size-5" />
         <h2 className="text-xl font-bold">
-          {comments.length} {comments.length === 1 ? "comment" : "comments"}
+          {comments.length < totalCount
+            ? `Showing ${comments.length} of ${totalCount} comments`
+            : `${totalCount} ${totalCount === 1 ? "comment" : "comments"}`}
         </h2>
       </CardHeader>
       <CardContent>

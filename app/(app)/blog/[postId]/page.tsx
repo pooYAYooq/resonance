@@ -84,12 +84,15 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div className="mt-6 prose max-w-none">
-        <p className="text-lg, leading-relaxed text-foreground/90 whitespace-pre-wrap">
+        <p           className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap">
           {post.body}
         </p>
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
-      <CommentSection preloadedComments={preloadedComments} />
+      <CommentSection
+        preloadedComments={preloadedComments}
+        totalCount={post.commentCount ?? 0}
+      />
     </div>
   );
 }
