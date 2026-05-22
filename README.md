@@ -41,10 +41,10 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 app/
   (app)/        # Main app routes (home, blog, create)
   auth/         # Auth pages (login, sign-up)
-  schemas/      # Zod validation schemas
+  schemas/      # Zod validation schemas (post, comment)
 convex/         # Convex backend (schema, queries, mutations, auth)
 components/
   ui/           # shadcn/ui components
-  web/          # App-level components (Navbar, providers)
+  web/          # App-level components (Navbar, CommentSection, CommentCard)
 lib/            # Auth client/server helpers
 ```
