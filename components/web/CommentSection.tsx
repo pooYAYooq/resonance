@@ -37,7 +37,7 @@ export function CommentSection({ preloadedComments }: CommentSectionProps) {
   // show a loading spinner and disable itself during the round-trip.
   const [isPending, startTransition] = useTransition();
 
-  const prams = useParams<{ postId: Id<"posts"> }>();
+  const params = useParams<{ postId: Id<"posts"> }>();
 
   // Convex mutation to persist a new comment. Wrapped in a transition so the
   // UI stays responsive while the mutation round-trips.
@@ -52,7 +52,7 @@ export function CommentSection({ preloadedComments }: CommentSectionProps) {
     resolver: zodResolver(commentSchema),
     defaultValues: {
       body: "",
-      postId: prams?.postId,
+      postId: params?.postId,
     },
   });
 

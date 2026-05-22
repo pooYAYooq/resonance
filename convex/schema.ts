@@ -17,6 +17,7 @@ export default defineSchema({
     body: v.string(),
     authorId: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
+    commentCount: v.number(),
   }),
   comments: defineTable({
     postId: v.id("posts"),

@@ -62,6 +62,7 @@ describe("posts functions", () => {
         body: "Older body content.",
         authorId: "user-1",
         imageStorageId: firstImage,
+        commentCount: 0,
       });
 
       const secondImage = await ctx.storage.store(
@@ -73,6 +74,7 @@ describe("posts functions", () => {
         body: "Newer body content.",
         authorId: "user-1",
         imageStorageId: secondImage,
+        commentCount: 0,
       });
     });
 
@@ -90,6 +92,7 @@ describe("posts functions", () => {
         title: "To be deleted",
         body: "Body content.",
         authorId: "user-1",
+        commentCount: 0,
       });
       await ctx.db.delete(id);
       return id;
@@ -115,6 +118,7 @@ describe("posts functions", () => {
         body: "Body content.",
         authorId: "user-1",
         imageStorageId,
+        commentCount: 0,
       });
     });
 
@@ -136,6 +140,7 @@ describe("posts functions", () => {
         title: "Post without image",
         body: "Body content.",
         authorId: "user-1",
+        commentCount: 0,
       });
     });
 
@@ -156,18 +161,7 @@ describe("posts functions", () => {
         title: "Post with comments",
         body: "Body.",
         authorId: "user-1",
-      });
-      await ctx.db.insert("comments", {
-        postId: id,
-        authorId: "user-2",
-        authorName: "Alice",
-        body: "First comment",
-      });
-      await ctx.db.insert("comments", {
-        postId: id,
-        authorId: "user-3",
-        authorName: "Bob",
-        body: "Second comment",
+        commentCount: 2,
       });
       return id;
     });

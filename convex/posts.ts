@@ -38,6 +38,7 @@ export const createPost = mutation({
       body: args.body,
       imageStorageId: args.imageStorageId,
       authorId: user._id,
+      commentCount: 0,
     });
 
     return blogArticle;
@@ -78,14 +79,7 @@ export const getPosts = query({
         if (post.imageStorageId) {
           imageUrl = await ctx.storage.getUrl(post.imageStorageId);
         }
-        // Count comments for this post. An empty result yields 0; query failures
-        // propagate out of Promise.all and surface to the caller.
-        const commentCount = await ctx.db
-          .query("comments")
-          .withIndex("by_postId", (q) => q.eq("postId", post._id))
-          .collect()
-          .then((comments) => comments.length);
-        return { ...post, imageUrl, commentCount };
+        return { ...post, imageUrl };
       }),
     );
 
@@ -139,12 +133,6 @@ export const getPostById = query({
       post?.imageStorageId !== undefined
         ? await ctx.storage.getUrl(post.imageStorageId)
         : null;
-    // Count related comments. An empty result yields 0.
-    const commentCount = await ctx.db
-      .query("comments")
-      .withIndex("by_postId", (q) => q.eq("postId", post._id))
-      .collect()
-      .then((comments) => comments.length);
-    return { ...post, imageUrl: resolvedImageUrl, commentCount };
+    return { ...post, imageUrl: resolvedImageUrl };
   },
 });

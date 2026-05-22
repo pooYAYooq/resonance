@@ -24,7 +24,7 @@ export const getCommentsByPostId = query({
       .query("comments")
       .withIndex("by_postId", (q) => q.eq("postId", args.postId))
       .order("desc")
-      .collect();
+      .take(500);
 
     return data;
   },
@@ -52,11 +52,27 @@ export const createComment = mutation({
     if (!user) {
       throw new ConvexError("Unauthorized");
     }
-    return await ctx.db.insert("comments", {
+
+    if (args.body.length < 3 || args.body.length > 1000) {
+      throw new ConvexError("Comment must be between 3 and 1000 characters.");
+    }
+
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      throw new ConvexError("Post not found.");
+    }
+
+    const commentId = await ctx.db.insert("comments", {
       postId: args.postId,
       body: args.body,
       authorId: user._id,
       authorName: user.name,
     });
+
+    await ctx.db.patch(args.postId, {
+      commentCount: post.commentCount + 1,
+    });
+
+    return commentId;
   },
 });
