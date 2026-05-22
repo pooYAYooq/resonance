@@ -20,12 +20,9 @@ export const getCommentsByPostId = query({
     postId: v.id("posts"),
   },
   handler: async (ctx, args) => {
-    // TODO: Replace `.filter()` with `.withIndex()` once an index on
-    // `comments.by_postId` is defined in the schema. Using `.filter()`
-    // performs a full table scan, which won't scale as the table grows.
     const data = await ctx.db
       .query("comments")
-      .filter((q) => q.eq(q.field("postId"), args.postId))
+      .withIndex("by_postId", (q) => q.eq("postId", args.postId))
       .order("desc")
       .collect();
 

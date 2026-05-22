@@ -1,8 +1,15 @@
+/**
+ * Blog listing page.
+ * Fetches posts server-side and renders them in a responsive grid.
+ * Wraps the async list in a Suspense boundary with a skeleton fallback.
+ */
+
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import Image from "next/image";
 import Link from "next/link";
+import { MessageSquare } from "lucide-react";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Suspense } from "react";
@@ -13,6 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton";
  *
  * This page is wrapped in a suspense boundary, and will render a skeleton loading UI until the blog posts have been fetched.
  * The blog posts are fetched from the Convex API using the `api.posts.getPosts` query.
+ *
+ * @returns JSX.Element: the blog listing page with a suspense boundary.
  */
 export default function BlogPost() {
   return (
@@ -73,14 +82,18 @@ async function LoadBlogList() {
             </Link>
             <p className="text-muted-foreground line-clamp-3">{post.body}</p>
           </CardContent>
-          <CardFooter className="mt-auto">
+          <CardFooter className="mt-auto flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <MessageSquare className="size-3" />
+              {post.commentCount}{" "}
+              {post.commentCount === 1 ? "comment" : "comments"}
+            </span>
             <Link
               className={cn(
                 buttonVariants({
                   variant: "outline",
-                  className: " w-full",
                 }),
-                "px-0 py-0 hover:text-primary hover:no-underline space-x-2",
+                "px-3 py-0 hover:text-primary hover:no-underline space-x-2",
               )}
               href={`/blog/${post._id}`}
             >

@@ -55,7 +55,8 @@ export const createPost = mutation({
  *
  * @param paginationOpts - `PaginationOptions`: Convex pagination config such as `numItems` and cursor.
  * @returns `PaginationResult`: Paginated result where `page` contains posts with a
- *   server-resolved `imageUrl` (`string | null`), plus `isDone` and `continueCursor`.
+ *   server-resolved `imageUrl` (`string | null`) and `commentCount`, plus `isDone`
+ *   and `continueCursor`.
  */
 export const getPosts = query({
   args: {
@@ -77,7 +78,14 @@ export const getPosts = query({
         if (post.imageStorageId) {
           imageUrl = await ctx.storage.getUrl(post.imageStorageId);
         }
-        return { ...post, imageUrl };
+        // Count comments for this post. An empty result yields 0; query failures
+        // propagate out of Promise.all and surface to the caller.
+        const commentCount = await ctx.db
+          .query("comments")
+          .withIndex("by_postId", (q) => q.eq("postId", post._id))
+          .collect()
+          .then((comments) => comments.length);
+        return { ...post, imageUrl, commentCount };
       }),
     );
 
@@ -115,7 +123,7 @@ export const generateImageUploadUrl = mutation({
  * server-side if one exists.
  *
  * @param postId - `Id<"posts">`: The Convex document ID of the target post.
- * @returns The post object with an `imageUrl` field, or `null` if not found.
+ * @returns The post object with `imageUrl` and `commentCount` fields, or `null` if not found.
  *   `imageUrl` is a signed URL string when the post has an associated image,
  *   or `null` when it does not.
  */
@@ -131,6 +139,12 @@ export const getPostById = query({
       post?.imageStorageId !== undefined
         ? await ctx.storage.getUrl(post.imageStorageId)
         : null;
-    return { ...post, imageUrl: resolvedImageUrl };
+    // Count related comments. An empty result yields 0.
+    const commentCount = await ctx.db
+      .query("comments")
+      .withIndex("by_postId", (q) => q.eq("postId", post._id))
+      .collect()
+      .then((comments) => comments.length);
+    return { ...post, imageUrl: resolvedImageUrl, commentCount };
   },
 });
