@@ -400,15 +400,20 @@ posts: defineTable({
 ### 🟢 Lower Priority
 
 #### 10. User Avatars
-- [ ] Task
+- [x] Phase 1: Auto-generated avatars in comments (2025-01-25)
+- [x] Phase 1.5: Extracted reusable `UserAvatar` component with tests (2025-05-26)
+- [ ] Phase 2: Optional custom upload
 
 **Description:** Profile pictures stored in Convex storage.
 
 **Implementation:**
-- Add `avatarStorageId` to `users` table (via migration)
-- Add `generateAvatarUploadUrl` mutation
-- Use `ctx.storage.getUrl()` in profile queries
-- Add avatar upload UI to dashboard/edit-profile
+- [x] Created `components/web/UserAvatar.tsx` — reusable DiceBear avatar with `AvatarFallback`
+- [x] Replaced inline avatar logic in `CommentCard` with `<UserAvatar />`
+- [x] Added component tests for fallback, initials, and className application
+- [ ] Add `avatarStorageId` to `users` table (via migration)
+- [ ] Add `generateAvatarUploadUrl` mutation
+- [ ] Use `ctx.storage.getUrl()` in profile queries
+- [ ] Add avatar upload UI to dashboard/edit-profile
 
 **Effort:** Medium | **Files:** Migration + mutation + form components
 
@@ -666,3 +671,4 @@ Use `pnpm shadcn add <component>` to add new primitives. Do not edit `components
 ```
 pnpm lint → pnpm test:ci → pnpm test:component → pnpm build
 ```
+
