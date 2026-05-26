@@ -67,7 +67,7 @@ export const createComment = mutation({
       postId: args.postId,
       body,
       authorId: user._id,
-      authorName: user.name ?? "Anonymous",
+      authorName: user.name?.trim() || "Anonymous",
     });
 
     const nextCount = (post.commentCount ?? 0) + 1;

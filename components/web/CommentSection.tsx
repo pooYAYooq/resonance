@@ -103,6 +103,7 @@ export function CommentSection({
                 authorName={comment.authorName}
                 body={comment.body}
                 createdAt={comment._creationTime}
+                authorId={comment.authorId}
               />
             ))
           )}

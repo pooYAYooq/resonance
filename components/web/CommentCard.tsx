@@ -5,12 +5,13 @@
 
 "use client";
 
-import { MessageSquare } from "lucide-react";
+import { UserAvatar } from "./UserAvatar";
 
 interface CommentCardProps {
   authorName: string;
   body: string;
   createdAt: number;
+  authorId: string;
 }
 
 /**
@@ -19,11 +20,20 @@ interface CommentCardProps {
  * @param props - `CommentCardProps`: comment data to render.
  * @returns JSX.Element: a styled comment card.
  */
-export function CommentCard({ authorName, body, createdAt }: CommentCardProps) {
+export function CommentCard({
+  authorName,
+  body,
+  createdAt,
+  authorId,
+}: CommentCardProps) {
   return (
     <div className="border rounded-lg p-4 bg-card">
       <div className="flex items-center gap-2 mb-2">
-        <MessageSquare className="size-4 text-muted-foreground" />
+        <UserAvatar
+          userId={authorId}
+          name={authorName}
+          className="size-8 shrink-0"
+        />
         <span className="font-semibold text-sm">{authorName}</span>
         <span className="text-xs text-muted-foreground ml-auto">
           {new Date(createdAt).toLocaleDateString("en-US", {
