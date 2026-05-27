@@ -28,11 +28,10 @@ interface PostIdRouteProps {
  */
 export default async function PostIdRoute({ params }: PostIdRouteProps) {
   const { postId } = await params;
-  const post = await fetchQuery(api.posts.getPostById, { postId: postId });
-  const preloadedComments = await preloadQuery(
-    api.comments.getCommentsByPostId,
-    { postId },
-  );
+  const [post, preloadedComments] = await Promise.all([
+    fetchQuery(api.posts.getPostById, { postId: postId }),
+    preloadQuery(api.comments.getCommentsByPostId, { postId }),
+  ]);
 
   if (!post) {
     return (
@@ -84,7 +83,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div className="mt-6 prose max-w-none">
-        <p           className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap">
+        <p className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap">
           {post.body}
         </p>
       </div>
