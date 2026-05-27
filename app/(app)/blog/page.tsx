@@ -14,6 +14,7 @@ import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HeroActions } from "@/components/web/HeroActions";
 
 /**
  * A page component that renders a list of blog posts.
@@ -26,13 +27,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function BlogPost() {
   return (
     <div className="container mx-auto">
-      <div className="text-center pb-12 pt-24">
-        <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-          Our Blog
-        </h1>
-        <p className="pt-4 max-w-2xl text-muted-foreground mx-auto text-xl">
-          Insight, thoughts, and stories from our universal team.
-        </p>
+      <div className="pt-24 pb-20 sm:pb-24">
+        <div className="relative border border-primary/5 bg-gradient-to-br from-muted/20 via-muted/10 to-primary/5 p-8 sm:p-12 lg:p-16 overflow-hidden">
+          {/* Decorative ambient blobs */}
+          <div className="absolute -top-100 -right-50 w-20 h-240 bg-primary/3 rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary/2 rounded-full blur-3xl" />
+
+          <div className="relative z-10">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-4">
+              Resonance / Blog
+            </p>
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6">
+              Stories that echo
+            </h1>
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-[50ch] leading-relaxed">
+              A collection of ideas, experiments, and conversations from people
+              who see patterns in the noise.
+            </p>
+            <HeroActions />
+          </div>
+        </div>
       </div>
       <Suspense fallback={<SkeletonLoadingUi />}>
         <LoadBlogList />
