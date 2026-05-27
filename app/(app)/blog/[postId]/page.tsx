@@ -91,7 +91,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
       <Separator className="my-8" orientation="horizontal" decorative={true} />
       <CommentSection
         preloadedComments={preloadedComments}
-        totalCount={post.commentCount ?? 0}
+        initialTotalCount={post.commentCount ?? 0}
       />
     </div>
   );
