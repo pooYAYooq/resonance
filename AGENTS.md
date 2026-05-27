@@ -68,3 +68,18 @@ Before PR: `pnpm lint` → `pnpm test:ci` → `pnpm test:component` → `pnpm bu
 ## Commits
 
 Conventional Commits, active voice, subject ≤72 chars, explain _why_ in body.
+
+## Git Workflow
+
+**ALWAYS use Pull Requests. NEVER merge directly to main.**
+
+When a branch is complete and the user says "finish it," "merge it,"
+"ship it," or similar, present exactly this choice:
+
+> Ready to create a PR for this branch?
+
+- If YES → push branch, create PR, STOP. Do not merge.
+- If NO → ask what they'd like to change before PRing.
+
+Never run `git merge` or push to main without explicit user instruction
+to bypass PR workflow.
