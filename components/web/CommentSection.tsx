@@ -14,7 +14,7 @@ import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
 import { useParams } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
-import { useMutation, usePreloadedQuery, Preloaded } from "convex/react";
+import { useMutation, usePreloadedQuery, Preloaded, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import z from "zod";
 import { toast } from "sonner";
@@ -23,19 +23,19 @@ import { CommentCard } from "./CommentCard";
 
 interface CommentSectionProps {
   preloadedComments: Preloaded<typeof api.comments.getCommentsByPostId>;
-  totalCount: number;
+  initialTotalCount: number;
 }
 
 /**
  * Renders the comment section for a single post, including the list of existing
  * comments and a form to submit new ones.
  *
- * @param props - `CommentSectionProps`: preloaded Convex comment query result and total comment count.
+ * @param props - `CommentSectionProps`: preloaded Convex comment query result and initial total count.
  * @returns JSX.Element: a card containing the comment list and reply form.
  */
 export function CommentSection({
   preloadedComments,
-  totalCount,
+  initialTotalCount,
 }: CommentSectionProps) {
   // Tracks whether a comment mutation is in-flight so the submit button can
   // show a loading spinner and disable itself during the round-trip.
@@ -49,6 +49,13 @@ export function CommentSection({
 
   // Hydrate the server-preloaded comment list on the client.
   const comments = usePreloadedQuery(preloadedComments);
+
+  // Fetch the post client-side so commentCount updates reactively when
+  // new comments are added via the mutation above.
+  const post = useQuery(api.posts.getPostById, {
+    postId: params.postId,
+  });
+  const totalCount = post?.commentCount ?? initialTotalCount;
 
   // React Hook Form with Zod validation. Only the body field is user-provided;
   // postId comes from the URL route and is injected in the submit handler.
