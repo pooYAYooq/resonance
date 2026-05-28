@@ -193,5 +193,7 @@
   }
   html {
     @apply font-sans;
+    /* Offset for the sticky navbar so anchor links don't hide behind it. */
+    scroll-padding-top: 4rem;
   }
 }
