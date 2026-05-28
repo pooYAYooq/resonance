@@ -3,7 +3,7 @@
 ## Progress Checklist
 
 ### 🔴 High Priority (MVP)
-- [ ] 1. Footer Component
+- [x] 1. Footer Component
 - [ ] 2. Home Page Redesign
 - [ ] 3. Like Button & Like Count
 - [ ] 4. Reply to Comments
@@ -91,7 +91,7 @@ These features are small enough to knock out in a single session:
 
 Features required for a launch-ready product:
 
-- [ ] 1. Footer Component
+- [x] 1. Footer Component
 - [ ] 2. Home Page Redesign
 - [ ] 3. Like Button & Like Count
 - [ ] 4. Reply to Comments
@@ -620,7 +620,7 @@ follows: defineTable({
 
 ```
 Phase 1 — Polish & Foundation ☐
-├── [ ] 1. Footer Component
+├── [x] 1. Footer Component
 ├── [ ] 2. Home Page Redesign
 ├── [ ] 17. Empty States
 └── [ ] 18. Custom 404 Page
