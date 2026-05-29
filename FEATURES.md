@@ -21,13 +21,13 @@
 - [ ] 12. Bookmarks
 - [ ] 13. Follow Users
 - [ ] 14. Activity Feed
-- [ ] 15. Social Sharing `Quick Win`
+- [x] 15. Social Sharing `Quick Win`
 - [ ] 16. Email Notifications
 - [ ] 17. Empty States `Quick Win`
 - [ ] 18. Custom 404 Page `Quick Win`
 - [ ] 19. Loading Skeletons
 - [ ] 20. About & Contact Pages
-- [ ] 21. SEO Optimization
+- [x] 21. SEO Optimization
 
 ## Project Overview
 
@@ -506,15 +506,17 @@ follows: defineTable({
 ---
 
 #### 15. Social Sharing `Quick Win`
-- [ ] Task
+- [x] Phase 1: OG meta tags for rich link previews (2025-05-30)
+- [ ] Phase 2: Share buttons (Twitter/X, LinkedIn, Facebook, Web Share API)
 
 **Description:** Share posts to social media.
 
 **Implementation:**
-- Add share buttons (Twitter/X, LinkedIn, Facebook) to post page
-- Use Web Share API on mobile (`navigator.share()`)
-- Copy link button (falls back)
-- Add OG meta tags for rich link previews
+- [x] Dynamic Open Graph tags per page (root layout + `generateMetadata` on blog posts)
+- [x] `metadataBase` set from `NEXT_PUBLIC_SITE_URL` for absolute OG image URLs
+- [ ] Add share buttons to post page
+- [ ] Use Web Share API on mobile (`navigator.share()`)
+- [ ] Copy link button (falls back)
 
 **Effort:** Low | **Files:** Post page component update
 
@@ -597,20 +599,23 @@ follows: defineTable({
 ---
 
 #### 21. SEO Optimization
-- [ ] Task
+- [x] Phase 1: Per-page metadata and OG tags (2025-05-30)
+- [ ] Phase 2: JSON-LD structured data, sitemap.xml, robots.ts
 
 **Description:** Improve search engine visibility.
 
-**Tasks:**
-- Dynamic `<title>` and `<meta description>` per page
-- Open Graph tags for social sharing
+**Completed:**
+- Created `lib/constants/seo.ts` with `SITE_NAME`, `SITE_DESCRIPTION`, `getSiteUrl()`, `truncateForDescription()`
+- Expanded root `app/layout.tsx` metadata with `metadataBase`, title template, OG, Twitter, and keywords
+- Static metadata on `/` (Home), `/blog` (Listing), `/create`, `/login`, `/sign-up`
+- Dynamic `generateMetadata()` on `/blog/[postId]` using post title, body (truncated), and image
+- Auth pages (`/login`, `/sign-up`) set to `noindex`
+- Added `NEXT_PUBLIC_SITE_URL` to `.env.local.example`
+
+**Remaining:**
 - JSON-LD structured data for blog posts
 - `sitemap.xml` generation
-- `robots.txt`
-
-**Implementation:**
-- Add `generateMetadata()` to page files
-- Create `app/sitemap.ts` and `app/robots.ts`
+- `robots.txt` / `app/robots.ts`
 
 **Effort:** Medium | **Files:** Page updates + sitemap + robots
 

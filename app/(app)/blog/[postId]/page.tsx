@@ -5,6 +5,7 @@
  * to a default cover image.
  */
 
+import type { Metadata } from "next";
 import { buttonVariants } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -14,10 +15,50 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Separator } from "@/components/ui/separator";
 import { CommentSection } from "@/components/web/CommentSection";
+import { truncateForDescription } from "@/lib/constants/seo";
 
 /** Props received by the dynamic blog post route. */
 interface PostIdRouteProps {
   params: Promise<{ postId: Id<"posts"> }>;
+}
+
+/**
+ * Generates metadata for a single blog post page.
+ *
+ * Fetches the post by its Convex ID and returns dynamic title,
+ * description, and Open Graph tags derived from the post content.
+ */
+export async function generateMetadata({
+  params,
+}: PostIdRouteProps): Promise<Metadata> {
+  const { postId } = await params;
+  const post = await fetchQuery(api.posts.getPostById, { postId });
+
+  if (!post) {
+    return {
+      title: "Post Not Found",
+    };
+  }
+
+  const description = truncateForDescription(post.body);
+  const images = post.imageUrl ? [post.imageUrl] : undefined;
+
+  return {
+    title: post.title,
+    description,
+    openGraph: {
+      title: post.title,
+      description,
+      type: "article",
+      images,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description,
+      images,
+    },
+  };
 }
 
 /**
