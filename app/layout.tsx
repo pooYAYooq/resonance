@@ -5,6 +5,11 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ConvexClientProvider } from "@/components/web/ConvexClientProvider";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  SITE_NAME,
+  SITE_DESCRIPTION,
+  getSiteUrl,
+} from "@/lib/constants/seo";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -19,8 +24,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "R E S O N A N C E",
-  description: "Resonance is a blog platform for sharing thoughts and ideas.",
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    template: `%s | ${SITE_NAME}`,
+    default: SITE_NAME,
+  },
+  description: SITE_DESCRIPTION,
+  keywords: ["blog", "writing", "stories", "ideas", "community"],
+  openGraph: {
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    type: "website",
+    siteName: SITE_NAME,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({

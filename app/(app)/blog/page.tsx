@@ -4,6 +4,7 @@
  * Wraps the async list in a Suspense boundary with a skeleton fallback.
  */
 
+import type { Metadata } from "next";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -15,6 +16,12 @@ import { api } from "@/convex/_generated/api";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HeroActions } from "@/components/web/HeroActions";
+
+export const metadata: Metadata = {
+  title: "Blog",
+  description:
+    "A collection of ideas, experiments, and conversations from people who see patterns in the noise.",
+};
 
 /**
  * A page component that renders a list of blog posts.
