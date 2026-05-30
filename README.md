@@ -94,7 +94,7 @@ This starts the Convex dev server and syncs your schema/functions.
 ## CI Before PR
 
 ```bash
-pnpm lint → pnpm test:ci → pnpm test:component → pnpm build
+pnpm lint && pnpm test:ci && pnpm test:component && pnpm build
 ```
 
 ---
@@ -103,8 +103,8 @@ pnpm lint → pnpm test:ci → pnpm test:component → pnpm build
 
 ```text
 app/
-  (app)/                      # Logged-in routes (home, blog, create)
-    page.tsx                  # Landing page
+  (app)/                      # Main app routes (has Navbar + Footer)
+    page.tsx                  # Landing page (public, auth-aware CTAs)
     layout.tsx                # App layout with Navbar + Footer
     blog/
       page.tsx                # Blog listing with gradient hero + post grid

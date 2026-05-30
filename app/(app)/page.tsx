@@ -24,7 +24,7 @@ import { StatsSection } from "@/components/web/home/StatsSection";
 import { ExploreSection } from "@/components/web/home/ExploreSection";
 
 export const metadata: Metadata = {
-  title: "Resonance — Write, Share, Connect",
+  title: "RESONANCE | Write, Share, Connect",
   description:
     "A blog platform for sharing thoughts, ideas, and stories that echo. Join a community of curious minds.",
 };
