@@ -9,18 +9,19 @@
  * Sections:
  * - Brand column: site name (primary color), tagline, social icons
  * - Quick links: vertical navigation list
- * - CTA card: gradient card matching the blog hero style, linking to /create
+ * - CTA card: auth-aware gradient card via `<FooterCTA />` (Client Component)
+ *   showing "Write a post" when authenticated, "Get Started" otherwise
  * - Bottom bar: full-width border + centered copyright
  */
 import Link from "next/link";
-import { Github, Twitter, Linkedin, PenLine } from "lucide-react";
+import { Github, Twitter, Linkedin } from "lucide-react";
 import {
   SITE_NAME,
   QUICK_LINKS,
   SOCIAL_LINKS,
   COPYRIGHT_TEXT,
 } from "@/lib/constants/footer";
-import { buttonVariants } from "@/components/ui/button";
+import { FooterCTA } from "./FooterCTA";
 
 const iconMap = {
   github: Github,
@@ -88,26 +89,7 @@ export function Footer() {
           </div>
 
           {/* CTA Card */}
-          <div className="md:max-w-xs w-full">
-            <div className="rounded-xs border border-primary/10 bg-gradient-to-tr from-muted/5 via-muted/5 to-primary/2 p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <PenLine className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">
-                  Start Writing
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                Have something to share? Publish your first post and reach a
-                community of readers.
-              </p>
-              <Link
-                href="/create"
-                className={buttonVariants({ variant: "default", size: "sm" })}
-              >
-                Create Post
-              </Link>
-            </div>
-          </div>
+          <FooterCTA />
         </div>
       </div>
 

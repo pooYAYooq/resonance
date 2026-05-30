@@ -1,5 +1,5 @@
 /**
- * Layout for all logged-in (app) routes.
+ * Layout for all main app routes (shared Navbar + Footer).
  *
  * Wraps the page in a flex column with `min-h-screen` so the footer is
  * pushed to the bottom even when the content is short. The Navbar is

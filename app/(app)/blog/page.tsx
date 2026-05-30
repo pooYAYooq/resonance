@@ -15,7 +15,7 @@ import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { HeroActions } from "@/components/web/HeroActions";
+import { AuthCTA } from "@/components/web/AuthCTA";
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -35,7 +35,7 @@ export default function BlogPost() {
   return (
     <div className="container mx-auto">
       <div className="pt-24 pb-20 sm:pb-24">
-        <div className="relative border border-primary/5 bg-gradient-to-br from-muted/20 via-muted/10 to-primary/5 p-8 sm:p-12 lg:p-16 overflow-hidden">
+        <div className="relative border border-primary/5 bg-linear-to-br from-muted/20 via-muted/10 to-primary/5 p-8 sm:p-12 lg:p-16 overflow-hidden">
           {/* Decorative ambient blobs */}
           <div className="absolute -top-100 -right-50 w-20 h-240 bg-primary/3 rounded-full blur-3xl" />
           <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary/2 rounded-full blur-3xl" />
@@ -51,7 +51,7 @@ export default function BlogPost() {
               A collection of ideas, experiments, and conversations from people
               who see patterns in the noise.
             </p>
-            <HeroActions />
+            <AuthCTA className="mt-8" />
           </div>
         </div>
       </div>
@@ -76,7 +76,7 @@ async function LoadBlogList() {
     paginationOpts: { numItems: 50, cursor: null },
   });
   return (
-    <div className="grid px-6 py-6 items-stretch border-l-2 border-r-2 gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid px-6 py-6 items-stretch border-l border-r gap-6 md:grid-cols-2 lg:grid-cols-3">
       {posts?.page?.map((post) => (
         <Card key={post._id} className="pt-0 gap-4 flex flex-col h-full">
           <div className=" relative h-48 w-full overflow-hidden mb-8">

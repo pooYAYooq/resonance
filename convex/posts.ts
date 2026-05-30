@@ -113,6 +113,21 @@ export const generateImageUploadUrl = mutation({
 });
 
 /**
+ * Returns the total number of blog posts in the database.
+ *
+ * Used by the landing page stats section to display live community metrics.
+ *
+ * @returns `number`: The total count of posts in the `posts` table.
+ */
+export const countPosts = query({
+  args: {},
+  handler: async (ctx) => {
+    const posts = await ctx.db.query("posts").collect();
+    return posts.length;
+  },
+});
+
+/**
  * Retrieves a single blog post by its document ID, resolving its image URL
  * server-side if one exists.
  *
