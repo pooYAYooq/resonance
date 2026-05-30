@@ -174,4 +174,39 @@ describe("posts functions", () => {
     expect(found).toBeDefined();
     expect(found?.commentCount).toBe(2);
   });
+
+  it("returns total post count via countPosts", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("posts", {
+        title: "First",
+        body: "Body one.",
+        authorId: "user-1",
+        commentCount: 0,
+      });
+      await ctx.db.insert("posts", {
+        title: "Second",
+        body: "Body two.",
+        authorId: "user-2",
+        commentCount: 0,
+      });
+      await ctx.db.insert("posts", {
+        title: "Third",
+        body: "Body three.",
+        authorId: "user-1",
+        commentCount: 0,
+      });
+    });
+
+    const count = await t.query(api.posts.countPosts, {});
+    expect(count).toBe(3);
+  });
+
+  it("returns zero from countPosts when no posts exist", async () => {
+    const t = convexTest(schema, modules);
+
+    const count = await t.query(api.posts.countPosts, {});
+    expect(count).toBe(0);
+  });
 });

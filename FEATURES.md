@@ -4,7 +4,7 @@
 
 ### 🔴 High Priority (MVP)
 - [x] 1. Footer Component
-- [ ] 2. Home Page Redesign
+- [x] 2. Home Page Redesign
 - [ ] 3. Like Button & Like Count
 - [ ] 4. Reply to Comments
 
@@ -92,7 +92,7 @@ These features are small enough to knock out in a single session:
 Features required for a launch-ready product:
 
 - [x] 1. Footer Component
-- [ ] 2. Home Page Redesign
+- [x] 2. Home Page Redesign
 - [ ] 3. Like Button & Like Count
 - [ ] 4. Reply to Comments
 - [ ] 6. Post Editing
@@ -144,6 +144,9 @@ graph TD
 - Toast notifications (Sonner)
 - Responsive Navbar with navigation links
 - Card-based post layouts
+- Full landing page with animated sections (Hero, Features, Recent Posts, Stats, Explore)
+- Auth-aware CTAs via `<AuthCTA />` and `<FooterCTA />`: "Write a post" (auth) / "Get Started" (unauth)
+- Content-shaped loading skeletons (`RecentPostsSkeleton`) with Suspense fallbacks
 
 ---
 
@@ -173,26 +176,32 @@ graph TD
 ---
 
 #### 2. Home Page Redesign `MVP`
-- [ ] Task
+- [x] Task
 
-**Description:** Replace the placeholder "INDEX PAGE" with a proper landing page.
+**Description:** Replaced the placeholder "INDEX PAGE" with a full landing page composed of dedicated section components. Eliminated redundant CTAs by consolidating auth-aware buttons into a single reusable `<AuthCTA />` component.
 
-**Sections:**
-| Section | Purpose | Content |
-|---------|---------|---------|
-| Hero | Welcome visitors, drive action | Headline, subtext, CTA buttons (Start Blogging / View Posts) |
-| Featured Posts | Showcase best content | 3–6 recent posts in card grid |
-| Stats | Build credibility | "X posts, Y comments, Z users" |
-| CTA | Convert visitors | "Join the community — Sign up free" |
-| Recent Activity | Show liveliness | Latest comments or posts |
+**Sections Built:**
 
-**Implementation:**
-- Edit `app/(app)/page.tsx` to be a Server Component
-- Fetch recent posts via `fetchQuery` (no auth required)
-- Use existing `components/ui/card.tsx` for post cards
-- Add Footer component
+| Section | Component | Purpose | Content |
+|---------|-----------|---------|---------|
+| Hero | `HeroSection.tsx` | Welcome visitors, drive action | Gradient background with decorative blur blobs, bold headline, tagline, auth-aware CTA via `AuthCTA` |
+| Features | `FeaturesSection.tsx` | Highlight platform capabilities | 3-column responsive grid (`Card` with icons): Writing & Publishing, Community Engagement, Discussion & Comments |
+| Recent Posts | `RecentPostsSection.tsx` | Showcase live content | 2-column grid of 4 latest posts with cover images, excerpts, comment counts, links to full post |
+| Stats | `StatsSection.tsx` | Build credibility | Live total post count (via `countPosts` query), community-focused messaging |
+| Explore | `ExploreSection.tsx` | Future category discovery | Placeholder grid of topic cards (Technology, Design, Culture, Science) with "Browse all posts" link |
 
-**Effort:** Medium | **Files:** 1 page edit + Footer addition
+**Implementation Details:**
+- All sections are React Server Components (async where data fetching is needed)
+- Entrance animations via `tw-animate-css` (`animate-in fade-in-0 slide-in-from-bottom-4`) with staggered delays
+- Recent Posts wrapped in `<Suspense>` with `RecentPostsSkeleton` fallback
+- `fetchQuery(api.posts.getPosts)` for recent posts, `fetchQuery(api.posts.countPosts)` for stats
+- Unified auth-aware CTAs: `<AuthCTA />` (hero, blog hero) and `<FooterCTA />` (footer) both use consistent labels:
+  - Authenticated → "Write a post" → `/create`
+  - Unauthenticated → "Get Started" → `/auth/login`
+- Removed redundant `CTASection` and `CTAActions`/`HeroActions` in favor of single `AuthCTA` component
+- Updated page metadata: `"Resonance — Write, Share, Connect"`
+
+**Effort:** Medium | **Files:** `app/(app)/page.tsx` + 8 new components + `convex/posts.ts` update + tests
 
 ---
 
@@ -571,13 +580,19 @@ follows: defineTable({
 ---
 
 #### 19. Loading Skeletons
-- [ ] Task
+- [x] Phase 1: `RecentPostsSkeleton` for landing page (2025-05-30)
+- [ ] Phase 2: Blog listing, comment cards, profile sections
 
-**Description:** Show animated skeletons while content loads.
+**Description:** Show animated skeletons that match actual content dimensions for seamless Suspense transitions.
 
-**Implementation:**
-- Replace `<Skeleton />` usage with actual content-shaped skeletons
-- Add to post cards, comment cards, profile sections
+**Completed:**
+- Created `components/web/home/RecentPostsSkeleton.tsx` — mirrors the 2-column Recent Posts grid with image, title, body, and footer skeletons
+- Used as `<Suspense fallback>` in `app/(app)/page.tsx` for `RecentPostsSection`
+
+**Remaining:**
+- Content-shaped skeletons for blog listing (`/blog` currently uses generic `<SkeletonLoadingUi />`)
+- Comment section skeletons
+- Profile/dashboard skeletons
 
 **Effort:** Low | **Files:** Component updates
 
@@ -626,7 +641,7 @@ follows: defineTable({
 ```
 Phase 1 — Polish & Foundation ☐
 ├── [x] 1. Footer Component
-├── [ ] 2. Home Page Redesign
+├── [x] 2. Home Page Redesign
 ├── [ ] 17. Empty States
 └── [ ] 18. Custom 404 Page
 
@@ -653,9 +668,9 @@ Phase 5 — Social Features ☐
 
 Phase 6 — Enhancement ☐
 ├── [ ] 16. Email Notifications
-├── [ ] 19. Loading Skeletons
+├── [x] 19. Loading Skeletons (partial — landing page done)
 ├── [ ] 20. About & Contact Pages
-└── [ ] 21. SEO Optimization
+└── [x] 21. SEO Optimization (partial — Phase 1 done)
 ```
 
 ---
