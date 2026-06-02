@@ -1,5 +1,5 @@
 "use client";
-import { loginSchema } from "@/app/schemas/auth";
+import { loginSchema } from "@/schemas/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,

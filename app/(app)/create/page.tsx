@@ -1,6 +1,6 @@
 "use client";
 
-import { postSchema } from "@/app/schemas/blog";
+import { postSchema } from "@/schemas/blog";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
