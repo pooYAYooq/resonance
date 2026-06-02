@@ -16,12 +16,12 @@
 
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { HeroSection } from "@/components/web/home/HeroSection";
-import { FeaturesSection } from "@/components/web/home/FeaturesSection";
-import { RecentPostsSection } from "@/components/web/home/RecentPostsSection";
-import { RecentPostsSkeleton } from "@/components/web/home/RecentPostsSkeleton";
-import { StatsSection } from "@/components/web/home/StatsSection";
-import { ExploreSection } from "@/components/web/home/ExploreSection";
+import { HeroSection } from "@/app/(app)/_components/HeroSection";
+import { FeaturesSection } from "@/app/(app)/_components/FeaturesSection";
+import { RecentPostsSection } from "@/app/(app)/_components/RecentPostsSection";
+import { RecentPostsSkeleton } from "@/app/(app)/_components/RecentPostsSkeleton";
+import { StatsSection } from "@/app/(app)/_components/StatsSection";
+import { ExploreSection } from "@/app/(app)/_components/ExploreSection";
 
 export const metadata: Metadata = {
   title: "RESONANCE | Write, Share, Connect",

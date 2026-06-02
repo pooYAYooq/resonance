@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loginSchema, signUpSchema } from "@/app/schemas/auth";
+import { loginSchema, signUpSchema } from "@/schemas/auth";
 
 describe("auth schema", () => {
   it("accepts a valid sign-up payload", () => {

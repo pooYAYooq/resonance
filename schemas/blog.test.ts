@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { postSchema } from "@/app/schemas/blog";
+import { postSchema } from "@/schemas/blog";
 
 const makeFile = (size = 1024, type = "image/png") =>
   new File([new Uint8Array(size)], "image.png", { type });

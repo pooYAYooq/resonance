@@ -8,7 +8,7 @@ import { Loader2, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { commentBodySchema } from "@/app/schemas/comment";
+import { commentBodySchema } from "@/schemas/comment";
 import { Field, FieldError, FieldLabel } from "../ui/field";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
