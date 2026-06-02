@@ -48,3 +48,6 @@ NOTES.local.md
 
 # local git worktrees
 .worktrees/
+
+# docs and plans
+/docs/superpowers/
