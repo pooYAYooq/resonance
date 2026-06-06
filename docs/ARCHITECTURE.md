@@ -56,8 +56,8 @@ resonance/
 │   └── web/
 │       ├── ConvexClientProvider.tsx  # Convex + Better Auth session bridge
 │       ├── Navbar.tsx               # Top nav. Reads auth state via useConvexAuth().
-│       ├── CommentSection.tsx       # Client: comment list + submission form
-│       ├── CommentCard.tsx          # Pure display of a single comment
+│   ├── CommentSection.tsx       # Client: paginated comment list + submission form
+│   ├── CommentCard.tsx          # Pure display of a single comment with timestamp
 │       └── theme-toggle.tsx         # Dark and light toggle
 │
 └── lib/
@@ -87,10 +87,10 @@ components/
     │     Calls authClient.signOut() from lib/auth-client.ts on logout.
     │
     ├── CommentSection.tsx
-    │     Client component. Displays the comment thread for a single
-    │     post and hosts the reply form. Uses usePreloadedQuery to
-    │     hydrate server-fetched comments and useMutation to submit
-    │     new ones. Form validation via React Hook Form + Zod.
+    │     Client component. Displays the paginated comment thread for a single
+    │     post and hosts the reply form. Uses usePaginatedQuery for "Load More"
+    │     support and useMutation to submit new ones. Form validation via
+    │     React Hook Form + Zod.
     │
     ├── CommentCard.tsx
     │     Stateless display of a single comment. Shows author name,
@@ -243,25 +243,24 @@ Two distinct rendering patterns are used depending on what the page needs.
 └──────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────────┐
-│  PATTERN C: Hybrid (comments)  (blog/[postId]/page.tsx)          │
+│  PATTERN C: Client-side (comments)  (blog/[postId]/page.tsx)     │
 │                                                                  │
-│  Next.js Server                        Convex                    │
-│      │                                    │                      │
-│      │── preloadQuery(api.comments        │                      │
-│      │     .getCommentsByPostId) ───────> │── reads comments     │
-│      │<── preloaded handle ────────────── │   table              │
-│      │                                    │                      │
-│      │  Passes preloaded handle to        │                      │
-│      │  <CommentSection> (Client Component)                      │
-│      │                                    │                      │
+│  Next.js Server                                                  │
+│      │                                                            │
+│      │  Renders <CommentSection> with initialTotalCount           │
+│      │  (no server data fetch for comments)                        │
+│      │                                                            │
 │  Browser (React)                       Convex                    │
 │      │                                    │                      │
-│      │── usePreloadedQuery(handle) ──────>│                      │
-│      │<── comments[] ──────────────────── │                      │
+│      │── usePaginatedQuery(api.comments   │                      │
+│      │     .getCommentsByPostId) ─────────>│── reads comments     │
+│      │<── PaginationResult ─────────────── │   table (paged)      │
 │      │                                    │                      │
 │      │── useMutation(api.comments         │                      │
-│      │     .createComment) ─────────────> │── writes to comments │
+│      │     .createComment) ─────────────>│── writes to comments │
 │      │<── new comment ID ─────────────────│   (auth required)    │
+│      │                                    │                      │
+│      │── loadMore(numItems) ─────────────>│── next page          │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -270,8 +269,8 @@ Two distinct rendering patterns are used depending on what the page needs.
 - Server Component + `fetchQuery` → read-only pages, good for SEO, no client JS needed.
 - Client Component + `useMutation`/`useQuery` → anything that writes data or needs
   real-time reactivity.
-- Hybrid (Server preload + Client `usePreloadedQuery`) → data that should render on
-  initial load but also needs client interactivity (e.g. a comment list with a reply form).
+- Client-side + `usePaginatedQuery` → data that needs pagination and real-time updates
+  (e.g. a comment list with "Load More" and a reply form).
 
 ---
 

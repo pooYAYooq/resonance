@@ -6,11 +6,12 @@
  */
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { fetchQuery, preloadQuery } from "convex/nextjs";
+import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Separator } from "@/components/ui/separator";
@@ -69,10 +70,7 @@ export async function generateMetadata({
  */
 export default async function PostIdRoute({ params }: PostIdRouteProps) {
   const { postId } = await params;
-  const [post, preloadedComments] = await Promise.all([
-    fetchQuery(api.posts.getPostById, { postId: postId }),
-    preloadQuery(api.comments.getCommentsByPostId, { postId }),
-  ]);
+  const post = await fetchQuery(api.posts.getPostById, { postId: postId });
 
   if (!post) {
     return (
@@ -129,10 +127,9 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
         </p>
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
-      <CommentSection
-        preloadedComments={preloadedComments}
-        initialTotalCount={post.commentCount ?? 0}
-      />
+      <Suspense fallback={null}>
+        <CommentSection initialTotalCount={post.commentCount ?? 0} />
+      </Suspense>
     </div>
   );
 }

@@ -7,26 +7,27 @@
  */
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 import { authComponent } from "./auth";
 
 /**
- * Fetches all comments for a given post, ordered newest-first.
+ * Fetches paginated comments for a given post, ordered newest-first.
  *
  * @param args.postId - `Id<"posts">`: the document ID of the target post.
- * @returns `Promise<Doc<"comments">[]>`: all comments whose `postId` matches.
+ * @param args.paginationOpts - `PaginationOptions`: Convex pagination config.
+ * @returns `PaginationResult`: paginated comments with `page`, `isDone`, and `continueCursor`.
  */
 export const getCommentsByPostId = query({
   args: {
     postId: v.id("posts"),
+    paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const data = await ctx.db
+    return await ctx.db
       .query("comments")
       .withIndex("by_postId", (q) => q.eq("postId", args.postId))
       .order("desc")
-      .take(500);
-
-    return data;
+      .paginate(args.paginationOpts);
   },
 });
 
@@ -68,6 +69,7 @@ export const createComment = mutation({
       body,
       authorId: user._id,
       authorName: user.name?.trim() || "Anonymous",
+      createdAt: Date.now(),
     });
 
     const nextCount = (post.commentCount ?? 0) + 1;
