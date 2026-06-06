@@ -77,7 +77,13 @@ export default defineSchema({
      * Secondary lookup: support future public profile pages or search by
      * display name without scanning the entire table.
      */
-    .index("by_displayName", ["displayName"]),
+    .index("by_displayName", ["displayName"])
+    /**
+     * Tertiary lookup: support admin features, password resets, and "find user"
+     * flows by email address. Added during Phase 0 Task 4 to avoid a future
+     * schema migration.
+     */
+    .index("by_email", ["email"]),
 
   /**
    * Denormalized site-wide statistics. Currently a single-row table that
