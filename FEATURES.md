@@ -135,9 +135,9 @@ graph TD
 
 ### Comments
 - Create comments on posts (requires auth)
-- View comments on post page
+- View comments on post page with pagination ("Load More" for additional comments)
 - Comment count displayed on post cards
-- Newest-first ordering
+- Newest-first ordering with explicit timestamps
 
 ### UI/UX
 - Dark/light/system theme toggle (next-themes)
