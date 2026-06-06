@@ -197,6 +197,7 @@ describe("posts functions", () => {
         authorId: "user-1",
         commentCount: 0,
       });
+      await ctx.db.insert("stats", { totalPosts: 3 });
     });
 
     const count = await t.query(api.posts.countPosts, {});

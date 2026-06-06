@@ -10,6 +10,7 @@ import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import { paginationOptsValidator } from "convex/server";
+import { api, internal } from "./_generated/api";
 
 /**
  * Creates a new blog article authored by the currently authenticated user.
@@ -33,13 +34,19 @@ export const createPost = mutation({
     if (!user) {
       throw new ConvexError("Unauthorized");
     }
+
+    const now = Date.now();
     const blogArticle = await ctx.db.insert("posts", {
       title: args.title,
       body: args.body,
       imageStorageId: args.imageStorageId,
       authorId: user._id,
       commentCount: 0,
+      createdAt: now,
+      updatedAt: now,
     });
+
+    await ctx.runMutation(internal.stats.incrementPostCount, {});
 
     return blogArticle;
   },
@@ -113,17 +120,20 @@ export const generateImageUploadUrl = mutation({
 });
 
 /**
- * Returns the total number of blog posts in the database.
+ * Returns the total number of blog posts via the denormalized stats table.
  *
  * Used by the landing page stats section to display live community metrics.
  *
- * @returns `number`: The total count of posts in the `posts` table.
+ * @returns `number`: The total count of posts from the `stats` table.
  */
 export const countPosts = query({
   args: {},
-  handler: async (ctx) => {
-    const posts = await ctx.db.query("posts").collect();
-    return posts.length;
+  handler: async (ctx): Promise<number> => {
+    const stats: { totalPosts: number } = await ctx.runQuery(
+      api.stats.getStats,
+      {},
+    );
+    return stats.totalPosts;
   },
 });
 
