@@ -67,7 +67,10 @@ Before PR: `pnpm lint` → `pnpm test:ci` → `pnpm test:component` → `pnpm bu
 
 ## Commits
 
-Conventional Commits, active voice, subject ≤72 chars, explain _why_ in body.
+Conventional Commits (type + optional scope). Imperative, active voice.
+Subject ≤72 chars, no trailing period. Blank line, then body at 72 chars
+explaining *why* (not *what*). Breaking changes: `!` or `BREAKING CHANGE:`
+footer. Ref issues in body (`Closes #123`). No WIP or vague subjects.
 
 ## Git Workflow
 
