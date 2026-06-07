@@ -94,4 +94,45 @@ describe("UserAvatar", () => {
     const img = screen.getByRole("img", { name: "User avatar" });
     expect(img).toBeInTheDocument();
   });
+
+  it("uses avatarUrl when provided instead of DiceBear", () => {
+    render(
+      <UserAvatar
+        userId="user-123"
+        name="Jane Doe"
+        avatarUrl="https://example.com/avatar.png"
+      />,
+    );
+
+    const img = screen.getByRole("img", { name: "Jane Doe avatar" });
+    expect(img).toHaveAttribute("data-src", "https://example.com/avatar.png");
+  });
+
+  it("falls back to DiceBear when avatarUrl is null", () => {
+    render(
+      <UserAvatar userId="user-123" name="Jane Doe" avatarUrl={null} />,
+    );
+
+    const img = screen.getByRole("img", { name: "Jane Doe avatar" });
+    const expectedSeed = hashUserId("user-123");
+    expect(img).toHaveAttribute(
+      "data-src",
+      `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(
+        expectedSeed,
+      )}&scale=90`,
+    );
+  });
+
+  it("falls back to DiceBear when avatarUrl is undefined", () => {
+    render(<UserAvatar userId="user-123" name="Jane Doe" />);
+
+    const img = screen.getByRole("img", { name: "Jane Doe avatar" });
+    const expectedSeed = hashUserId("user-123");
+    expect(img).toHaveAttribute(
+      "data-src",
+      `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(
+        expectedSeed,
+      )}&scale=90`,
+    );
+  });
 });

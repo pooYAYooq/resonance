@@ -17,7 +17,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/auth-client", () => ({
-  authClient: { signUp: { email: signUpMock } },
+  authClient: {
+    signUp: { email: signUpMock },
+    signIn: { social: vi.fn() },
+  },
 }));
 
 vi.mock("sonner", () => ({

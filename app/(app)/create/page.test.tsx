@@ -36,6 +36,7 @@ vi.mock("convex/react", () => ({
     if (apiRef === "createPost") return createPostMock;
     return vi.fn();
   },
+  useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
