@@ -19,6 +19,12 @@ interface UserAvatarProps {
   name: string;
 
   /**
+   * Optional avatar URL from an OAuth provider. When provided, this takes
+   * precedence over the auto-generated DiceBear avatar.
+   */
+  avatarUrl?: string | null;
+
+  /**
    * Optional additional CSS classes for the outer `<Avatar>` wrapper.
    */
   className?: string;
@@ -42,18 +48,19 @@ interface UserAvatarProps {
  * <UserAvatar userId="user-123" name="Jane Doe" className="size-10" />
  * ```
  */
-export function UserAvatar({ userId, name, className }: UserAvatarProps) {
+export function UserAvatar({ userId, name, avatarUrl, className }: UserAvatarProps) {
   const safeName = name.trim();
   const displayName = safeName || "User";
   const initials = safeName ? safeName.slice(0, 2).toUpperCase() : "?";
   const seed = hashUserId(userId);
 
+  const diceBearUrl = `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(seed)}&scale=90`;
+  const imageSrc = avatarUrl || diceBearUrl;
+
   return (
     <Avatar className={className}>
       <AvatarImage
-        src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(
-          seed,
-        )}&scale=90`}
+        src={imageSrc}
         alt={`${displayName} avatar`}
       />
       <AvatarFallback className="font-extrabold text-primary">
