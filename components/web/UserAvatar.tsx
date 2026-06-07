@@ -55,7 +55,7 @@ export function UserAvatar({ userId, name, avatarUrl, className }: UserAvatarPro
   const seed = hashUserId(userId);
 
   const diceBearUrl = `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(seed)}&scale=90`;
-  const imageSrc = avatarUrl || diceBearUrl;
+  const imageSrc = avatarUrl ?? diceBearUrl;
 
   return (
     <Avatar className={className}>
