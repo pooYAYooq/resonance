@@ -21,14 +21,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "convex/react";
+import { useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useTransition, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 
 export default function CreateRoute() {
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const generateImageUploadUrl = useMutation(api.posts.generateImageUploadUrl);
@@ -42,6 +44,20 @@ export default function CreateRoute() {
       image: undefined,
     },
   });
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/auth/login");
+    }
+  }, [isLoading, isAuthenticated, router]);
+
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="py-12 flex justify-center">
+        <Loader2 className="animate-spin size-8 text-muted-foreground" />
+      </div>
+    );
+  }
 
   function onSubmit(values: z.infer<typeof postSchema>) {
     startTransition(async () => {

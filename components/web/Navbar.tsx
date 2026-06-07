@@ -11,13 +11,16 @@
 import Link from "next/link";
 import { Button, buttonVariants } from "../ui/button";
 import { ThemeToggle } from "./theme-toggle";
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { UserAvatar } from "./UserAvatar";
 
 export function Navbar() {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const currentUser = useQuery(api.users.getCurrentUser);
   const router = useRouter();
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background">
@@ -36,42 +39,44 @@ export function Navbar() {
             <Link className={buttonVariants({ variant: "ghost" })} href="/blog">
               Blog
             </Link>
-            <Link className={buttonVariants({ variant: "ghost" })} href="/create">
-              Create
-            </Link>
+            {isAuthenticated && (
+              <Link className={buttonVariants({ variant: "ghost" })} href="/create">
+                Create
+              </Link>
+            )}
           </div>
         </div>
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-2">
           {isLoading ? null : isAuthenticated ? (
-            <Button
-              onClick={() =>
-                authClient.signOut({
-                  fetchOptions: {
-                    /**
-                     * Called when the sign out request is successful.
-                     * Shows a success toast with the message "Logged out successfully!".
-                     */
-                    onSuccess: () => {
-                      toast.success("Logged out successfully!");
-
-                      // Redirect to the home page after successful logout
-                      router.push("/");
+            <div className="flex items-center gap-2">
+              {currentUser && (
+                <UserAvatar
+                  userId={currentUser.userId}
+                  name={currentUser.displayName}
+                  avatarUrl={currentUser.avatarUrl}
+                  className="size-8"
+                />
+              )}
+              <Button
+                onClick={() =>
+                  authClient.signOut({
+                    fetchOptions: {
+                      onSuccess: () => {
+                        toast.success("Logged out successfully!");
+                        router.push("/");
+                      },
+                      onError: (error) => {
+                        toast.error(error.error.message);
+                      },
                     },
-                    /**
-                     * Called when the sign out request is rejected.
-                     * Shows an error toast with the error message from the betterauth error.
-                     */
-                    onError: (error) => {
-                      toast.error(error.error.message);
-                    },
-                  },
-                })
-              }
-            >
-              Logout
-            </Button>
+                  })
+                }
+              >
+                Logout
+              </Button>
+            </div>
           ) : (
             <>
               <Link
