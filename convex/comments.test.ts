@@ -23,6 +23,8 @@ describe("comments functions", () => {
         body: "Body.",
         authorId: "user-1",
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
     });
 
@@ -44,6 +46,8 @@ describe("comments functions", () => {
         body: "Body.",
         authorId: "user-1",
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
       await ctx.db.insert("comments", {
         postId: id,
@@ -82,6 +86,8 @@ describe("comments functions", () => {
         body: "Body.",
         authorId: "user-1",
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
       for (let i = 0; i < 5; i++) {
         await ctx.db.insert("comments", {
@@ -114,6 +120,8 @@ describe("comments functions", () => {
         body: "Body.",
         authorId: "user-1",
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
     });
 

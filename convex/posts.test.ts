@@ -63,6 +63,8 @@ describe("posts functions", () => {
         authorId: "user-1",
         imageStorageId: firstImage,
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
 
       const secondImage = await ctx.storage.store(
@@ -75,6 +77,8 @@ describe("posts functions", () => {
         authorId: "user-1",
         imageStorageId: secondImage,
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
     });
 
@@ -93,6 +97,8 @@ describe("posts functions", () => {
         body: "Body content.",
         authorId: "user-1",
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
       await ctx.db.delete(id);
       return id;
@@ -119,6 +125,8 @@ describe("posts functions", () => {
         authorId: "user-1",
         imageStorageId,
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
     });
 
@@ -141,6 +149,8 @@ describe("posts functions", () => {
         body: "Body content.",
         authorId: "user-1",
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
     });
 
@@ -162,6 +172,8 @@ describe("posts functions", () => {
         body: "Body.",
         authorId: "user-1",
         commentCount: 2,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
       return id;
     });
@@ -184,18 +196,24 @@ describe("posts functions", () => {
         body: "Body one.",
         authorId: "user-1",
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
       await ctx.db.insert("posts", {
         title: "Second",
         body: "Body two.",
         authorId: "user-2",
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
       await ctx.db.insert("posts", {
         title: "Third",
         body: "Body three.",
         authorId: "user-1",
         commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
       await ctx.db.insert("stats", { totalPosts: 3 });
     });
