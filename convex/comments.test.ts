@@ -133,6 +133,76 @@ describe("comments functions", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
+  it("includes authorAvatarUrl from users table in comment results", async () => {
+    const t = convexTest(schema, modules);
+
+    const postId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("posts", {
+        title: "Avatar test",
+        body: "Body.",
+        authorId: "user-1",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("users", {
+        userId: "user-2",
+        displayName: "Alice",
+        email: "alice@example.com",
+        avatarUrl: "https://example.com/alice.png",
+        bio: "",
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert("comments", {
+        postId: id,
+        authorId: "user-2",
+        authorName: "Alice",
+        body: "Great post!",
+        createdAt: 1000,
+      });
+      return id;
+    });
+
+    const result = await t.query(api.comments.getCommentsByPostId, {
+      postId,
+      paginationOpts: { numItems: 50, cursor: null },
+    });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].authorAvatarUrl).toBe("https://example.com/alice.png");
+  });
+
+  it("returns null authorAvatarUrl when user has no users record", async () => {
+    const t = convexTest(schema, modules);
+
+    const postId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("posts", {
+        title: "No user record",
+        body: "Body.",
+        authorId: "user-1",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("comments", {
+        postId: id,
+        authorId: "unknown-user",
+        authorName: "Ghost",
+        body: "Orphan comment",
+        createdAt: 1000,
+      });
+      return id;
+    });
+
+    const result = await t.query(api.comments.getCommentsByPostId, {
+      postId,
+      paginationOpts: { numItems: 50, cursor: null },
+    });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].authorAvatarUrl).toBeNull();
+  });
+
   // NOTE: Tests for authenticated paths (body validation, commentCount
   // increment, and createdAt population) are omitted because convex-test
   // requires the betterAuth component to be registered, which is not

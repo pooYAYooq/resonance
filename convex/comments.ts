@@ -23,11 +23,26 @@ export const getCommentsByPostId = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const result = await ctx.db
       .query("comments")
       .withIndex("by_postId", (q) => q.eq("postId", args.postId))
       .order("desc")
       .paginate(args.paginationOpts);
+
+    const page = await Promise.all(
+      result.page.map(async (comment) => {
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_userId", (q) => q.eq("userId", comment.authorId))
+          .unique();
+        return {
+          ...comment,
+          authorAvatarUrl: user?.avatarUrl ?? null,
+        };
+      }),
+    );
+
+    return { ...result, page };
   },
 });
 

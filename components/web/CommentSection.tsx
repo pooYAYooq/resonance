@@ -117,6 +117,7 @@ export function CommentSection({ initialTotalCount }: CommentSectionProps) {
                 body={comment.body}
                 createdAt={comment.createdAt ?? comment._creationTime}
                 authorId={comment.authorId}
+                authorAvatarUrl={comment.authorAvatarUrl}
               />
             ))
           )}

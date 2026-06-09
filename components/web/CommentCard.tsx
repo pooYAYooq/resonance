@@ -12,6 +12,7 @@ interface CommentCardProps {
   body: string;
   createdAt: number;
   authorId: string;
+  authorAvatarUrl?: string | null;
 }
 
 /**
@@ -25,6 +26,7 @@ export function CommentCard({
   body,
   createdAt,
   authorId,
+  authorAvatarUrl,
 }: CommentCardProps) {
   return (
     <div className="border rounded-lg p-4 bg-card">
@@ -32,6 +34,7 @@ export function CommentCard({
         <UserAvatar
           userId={authorId}
           name={authorName}
+          avatarUrl={authorAvatarUrl}
           className="size-8 shrink-0"
         />
         <span className="font-semibold text-sm">{authorName}</span>
