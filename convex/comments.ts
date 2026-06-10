@@ -87,7 +87,7 @@ export const createComment = mutation({
       createdAt: Date.now(),
     });
 
-    const nextCount = (post.commentCount ?? 0) + 1;
+    const nextCount = post.commentCount + 1;
     await ctx.db.patch(args.postId, {
       commentCount: nextCount,
     });
