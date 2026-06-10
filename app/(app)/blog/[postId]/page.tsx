@@ -113,7 +113,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
         </h1>
         <p className="text-muted-foreground mt-4 text-sm">
           Published on:{" "}
-          {new Date(post.createdAt ?? post._creationTime).toLocaleDateString("en-US", {
+          {new Date(post.createdAt).toLocaleDateString("en-US", {
             day: "numeric",
             month: "long",
             year: "numeric",
