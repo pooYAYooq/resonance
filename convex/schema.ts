@@ -7,14 +7,14 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 /**
- * Root Convex schema — registers every table and its validated fields.
+ * Root Convex schema, registers every table and its validated fields.
  * Convex enforces these validators on insert and uses them to
  * generate TypeScript types in `_generated/dataModel.d.ts`.
- *
- * Phase 0 additions (backward-compatible widen-migrate pattern):
- * - Timestamps are optional so existing documents remain valid without backfill.
+ * - `posts` is the main blog post table.
+ * - `comments` is the table of comments attached to posts.
  * - `users` is an app-level enrichment table synced from Better Auth identity.
  * - `stats` is a denormalized singleton counter to avoid loading all posts for a count.
+ * - Timestamps (`createdAt`, `updatedAt`) are required on all tables.
  */
 export default defineSchema({
   /** Blog posts. Each post belongs to an author and tracks comment count. */
@@ -24,15 +24,8 @@ export default defineSchema({
     authorId: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
     commentCount: v.number(),
-
-    /**
-     * Optional timestamps to support explicit publish/update dates.
-     * Marked optional so existing rows (created before this field existed)
-     * remain valid without a migration backfill. Frontend falls back to
-     * `_creationTime` when these are absent.
-     */
-    createdAt: v.optional(v.number()),
-    updatedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
   }),
 
   /** Comments attached to a single post. */
@@ -41,13 +34,7 @@ export default defineSchema({
     authorId: v.string(),
     authorName: v.string(),
     body: v.string(),
-
-    /**
-     * Optional explicit creation timestamp. Optional for the same backward-
-     * compatibility reason as `posts.createdAt`. When absent, `_creationTime`
-     * is used on the frontend.
-     */
-    createdAt: v.optional(v.number()),
+    createdAt: v.number(),
   }).index("by_postId", ["postId"]),
 
   /**
