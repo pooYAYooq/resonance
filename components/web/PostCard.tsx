@@ -110,9 +110,21 @@ export function PostCard({
         <p className="text-muted-foreground line-clamp-3">{body}</p>
       </CardContent>
       <CardFooter className="mt-auto flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
-          <MessageSquare className="size-3" />
-          {commentCount} {commentCount === 1 ? "comment" : "comments"}
+        <span className="text-xs text-muted-foreground flex items-center gap-3">
+          <span className="flex items-center gap-1">
+            <MessageSquare className="size-3" />
+            {commentCount} {commentCount === 1 ? "comment" : "comments"}
+          </span>
+          <time
+            dateTime={new Date(createdAt).toISOString()}
+            className="text-xs text-muted-foreground"
+          >
+            {new Date(createdAt).toLocaleDateString("en-US", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </time>
         </span>
         <Link
           className={cn(

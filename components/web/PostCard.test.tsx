@@ -73,6 +73,16 @@ describe("PostCard", () => {
     expect(link).toHaveAttribute("href", "/blog/post-123");
   });
 
+  it("renders the formatted creation date in a time element", () => {
+    render(<PostCard {...basePost} />);
+    const time = screen.getByText("Jun 1, 2026");
+    expect(time.tagName).toBe("TIME");
+    expect(time).toHaveAttribute(
+      "dateTime",
+      new Date(basePost.createdAt).toISOString(),
+    );
+  });
+
   it("renders the cover image when imageUrl is provided", () => {
     render(<PostCard {...basePost} />);
     const img = screen.getByAltText("Echoes in the Static");
