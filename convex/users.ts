@@ -127,9 +127,10 @@ export const getUserByAuthId = query({
 /**
  * Get a user by their email address.
  *
- * Added during Phase 0 Task 4 to support future admin features, password
- * resets, and "find user" flows without requiring a later schema migration.
+ * Supports admin lookups, password resets, and "find user" flows.
+ * Relies on the `by_email` index on the `users` table.
  *
+ * @param args.email - `string`: Exact email address to search for.
  * @returns The user record or `null` if no matching email exists.
  */
 export const getUserByEmail = query({
@@ -139,5 +140,89 @@ export const getUserByEmail = query({
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", args.email))
       .unique();
+  },
+});
+
+/**
+ * Gets a user's public profile including their post count.
+ *
+ * Looks up the user by their Better Auth user ID and returns the profile
+ * enriched with the number of published posts. Returns `null` when no
+ * matching user is found.
+ *
+ * @param args.userId - `string`: Better Auth user ID to look up.
+ * @returns The user record with an appended `postCount` field, or `null`
+ *   if no user matches the given ID.
+ */
+export const getUserProfile = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique();
+
+    if (!user) return null;
+
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_authorId", (q) => q.eq("authorId", args.userId))
+      .collect();
+
+    return { ...user, postCount: posts.length };
+  },
+});
+
+/**
+ * Updates the current user's display name and bio.
+ *
+ * Requires an authenticated session. Validates that `displayName` is
+ * non-empty after trimming and that `bio` does not exceed 160 characters.
+ * Patches the existing user record rather than replacing it, so fields
+ * like `email` and `avatarUrl` are preserved.
+ *
+ * @param args.displayName - `string`: New display name (trimmed, must be non-empty).
+ * @param args.bio - `string`: New bio (max 160 characters).
+ * @returns `Id<"users">`, the document ID of the updated user record.
+ * @throws `ConvexError("Unauthorized")` if no valid session exists.
+ * @throws `ConvexError("Display name cannot be empty.")` if trimmed name is blank.
+ * @throws `ConvexError("Bio must be 160 characters or fewer.")` if bio exceeds limit.
+ * @throws `ConvexError("User not found")` if the authenticated user has no record.
+ */
+export const updateProfile = mutation({
+  args: {
+    displayName: v.string(),
+    bio: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    if (!authUser) {
+      throw new ConvexError("Unauthorized");
+    }
+
+    const displayName = args.displayName.trim();
+    if (!displayName) {
+      throw new ConvexError("Display name cannot be empty.");
+    }
+
+    if (args.bio.length > 160) {
+      throw new ConvexError("Bio must be 160 characters or fewer.");
+    }
+
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", authUser._id))
+      .unique();
+
+    if (!existing) {
+      throw new ConvexError("User not found");
+    }
+
+    await ctx.db.patch(existing._id, {
+      displayName,
+      bio: args.bio,
+    });
+
+    return existing._id;
   },
 });

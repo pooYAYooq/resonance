@@ -26,7 +26,12 @@ export default defineSchema({
     commentCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }),
+  })
+    /**
+     * Primary lookup: fetch all posts by a given author for profile pages and
+     * user-specific post listings without scanning the entire table.
+     */
+    .index("by_authorId", ["authorId"]),
 
   /** Comments attached to a single post. */
   comments: defineTable({
