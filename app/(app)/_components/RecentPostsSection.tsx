@@ -7,12 +7,10 @@
  */
 
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
-import { MessageSquare } from "lucide-react";
-import Image from "next/image";
+import { PostCard } from "@/components/web/PostCard";
 import Link from "next/link";
 
 export async function RecentPostsSection() {
@@ -47,53 +45,22 @@ export async function RecentPostsSection() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {posts.map((post, index) => (
-            <Card
+            <div
               key={post._id}
-              className={`pt-0 gap-4 flex flex-col h-full animate-in fade-in-0 slide-in-from-bottom-4 duration-700 ${index === 0 ? "delay-0" : index === 1 ? "delay-150" : index === 2 ? "delay-300" : "delay-500"} fill-mode-both transition-all hover:shadow-lg hover:border-primary/20`}
+              className={`animate-in fade-in-0 slide-in-from-bottom-4 duration-700 ${index === 0 ? "delay-0" : index === 1 ? "delay-150" : index === 2 ? "delay-300" : "delay-500"} fill-mode-both transition-all hover:shadow-lg hover:border-primary/20 rounded-xl`}
             >
-              <div className="relative h-56 w-full overflow-hidden">
-                <Image
-                  src={
-                    post.imageUrl ??
-                    "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
-                  }
-                  alt={post.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover"
-                />
-              </div>
-
-              <CardContent className="flex-1">
-                <Link href={`/blog/${post._id}`}>
-                  <h3 className="text-xl font-semibold hover:text-primary transition-colors mb-3">
-                    {post.title}
-                  </h3>
-                </Link>
-                <p className="text-muted-foreground line-clamp-3">
-                  {post.body}
-                </p>
-              </CardContent>
-
-              <CardFooter className="mt-auto flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <MessageSquare className="size-3" />
-                  {post.commentCount}{" "}
-                  {post.commentCount === 1 ? "comment" : "comments"}
-                </span>
-                <Link
-                  className={cn(
-                    buttonVariants({
-                      variant: "outline",
-                    }),
-                    "px-3 py-0 hover:text-primary hover:no-underline space-x-2",
-                  )}
-                  href={`/blog/${post._id}`}
-                >
-                  Read More
-                </Link>
-              </CardFooter>
-            </Card>
+              <PostCard
+                postId={post._id}
+                title={post.title}
+                body={post.body}
+                imageUrl={post.imageUrl}
+                commentCount={post.commentCount}
+                createdAt={post.createdAt}
+                authorId={post.authorId}
+                authorName={post.authorName}
+                authorAvatarUrl={post.authorAvatarUrl}
+              />
+            </div>
           ))}
         </div>
 

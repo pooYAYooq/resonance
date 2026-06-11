@@ -5,17 +5,12 @@
  */
 
 import type { Metadata } from "next";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import Image from "next/image";
-import Link from "next/link";
-import { MessageSquare } from "lucide-react";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthCTA } from "@/components/web/AuthCTA";
+import { PostCard } from "@/components/web/PostCard";
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -78,50 +73,18 @@ async function LoadBlogList() {
   return (
     <div className="grid px-6 py-6 items-stretch border-l border-r gap-6 md:grid-cols-2 lg:grid-cols-3">
       {posts?.page?.map((post) => (
-        <Card key={post._id} className="pt-0 gap-4 flex flex-col h-full">
-          <div className=" relative h-48 w-full overflow-hidden mb-8">
-            {/* Render the post's uploaded image if available; otherwise fall back to a default placeholder.
-                The hostname must be allowlisted in next.config.ts for Next.js Image optimization. */}
-            <Image
-              src={
-                post.imageUrl ??
-                "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
-              }
-              alt={post.title}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              priority
-              className="object-cover"
-            />
-          </div>
-
-          <CardContent className="mb-0 flex-1">
-            <Link href={`/blog/${post._id}`}>
-              <h1 className="text-xl mb-4 font-semibold hover:text-primary">
-                {post.title}
-              </h1>
-            </Link>
-            <p className="text-muted-foreground line-clamp-3">{post.body}</p>
-          </CardContent>
-          <CardFooter className="mt-auto flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <MessageSquare className="size-3" />
-              {post.commentCount}{" "}
-              {post.commentCount === 1 ? "comment" : "comments"}
-            </span>
-            <Link
-              className={cn(
-                buttonVariants({
-                  variant: "outline",
-                }),
-                "px-3 py-0 hover:text-primary hover:no-underline space-x-2",
-              )}
-              href={`/blog/${post._id}`}
-            >
-              Read More
-            </Link>
-          </CardFooter>
-        </Card>
+        <PostCard
+          key={post._id}
+          postId={post._id}
+          title={post.title}
+          body={post.body}
+          imageUrl={post.imageUrl}
+          commentCount={post.commentCount}
+          createdAt={post.createdAt}
+          authorId={post.authorId}
+          authorName={post.authorName}
+          authorAvatarUrl={post.authorAvatarUrl}
+        />
       ))}
     </div>
   );
