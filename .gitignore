@@ -46,8 +46,8 @@ next-env.d.ts
 # local dev notes
 NOTES.local.md
 
+# OC planning docs
+docs/superpowers/
+
 # local git worktrees
 .worktrees/
-
-# docs and plans
-/docs/superpowers/
