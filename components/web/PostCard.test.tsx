@@ -84,12 +84,22 @@ describe("PostCard", () => {
   });
 
   it("renders the cover image when imageUrl is provided", () => {
-    render(<PostCard {...basePost} />);
+    const { container } = render(<PostCard {...basePost} />);
     const img = screen.getByAltText("Echoes in the Static");
     expect(img).toBeInTheDocument();
     // Next.js Image rewrites the src to the local optimization endpoint; verify
     // the original URL is preserved in the encoded query string.
     expect(img.getAttribute("src") ?? "").toContain("example.com%2Fcover.png");
+    // The cover wrapper should use the consistent 16:9 aspect ratio.
+    const coverWrapper = container.querySelector(".aspect-video");
+    expect(coverWrapper).toBeInTheDocument();
+  });
+
+  it("the card has hover-lift classes", () => {
+    const { container } = render(<PostCard {...basePost} />);
+    const card = container.querySelector('[data-slot="card"]');
+    expect(card).toHaveClass("hover:-translate-y-0.5");
+    expect(card).toHaveClass("hover:shadow-md");
   });
 
   it("falls back to a default cover image when imageUrl is null", () => {

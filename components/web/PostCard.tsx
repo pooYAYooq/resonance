@@ -5,7 +5,7 @@
  * title, a body excerpt, the comment count, and a "Read More" link to
  * the post detail page.
  *
- * This component is a pure presentational Server Component — it does
+ * This component is a pure presentational Server Component, it does
  * not subscribe to Convex queries. Parents are responsible for fetching
  * the data via `fetchQuery` (or `useQuery` for live updates) and
  * passing the hydrated fields as props.
@@ -71,8 +71,8 @@ export function PostCard({
   const profileHref = `/u/${authorId}`;
 
   return (
-    <Card className="pt-0 gap-4 flex flex-col h-full">
-      <div className="relative h-48 w-full overflow-hidden mb-8">
+    <Card className="pt-0 gap-4 flex flex-col h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative aspect-video w-full overflow-hidden mb-6">
         {/*
           The hostname must be allowlisted in next.config.ts for Next.js
           Image optimization. The default cover image is a wallhaven URL
@@ -110,11 +110,11 @@ export function PostCard({
         <p className="text-muted-foreground line-clamp-3">{body}</p>
       </CardContent>
       <CardFooter className="mt-auto flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground flex items-center gap-3">
-          <span className="flex items-center gap-1">
-            <MessageSquare className="size-3" />
-            {commentCount} {commentCount === 1 ? "comment" : "comments"}
-          </span>
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <MessageSquare className="size-3" />
+          {commentCount} {commentCount === 1 ? "comment" : "comments"}
+        </span>
+        <span className="flex items-center gap-3">
           <time
             dateTime={new Date(createdAt).toISOString()}
             className="text-xs text-muted-foreground"
@@ -125,18 +125,18 @@ export function PostCard({
               year: "numeric",
             })}
           </time>
+          <Link
+            className={cn(
+              buttonVariants({
+                variant: "outline",
+              }),
+              "px-3 py-0 hover:text-primary hover:no-underline space-x-2",
+            )}
+            href={postHref}
+          >
+            Read More
+          </Link>
         </span>
-        <Link
-          className={cn(
-            buttonVariants({
-              variant: "outline",
-            }),
-            "px-3 py-0 hover:text-primary hover:no-underline space-x-2",
-          )}
-          href={postHref}
-        >
-          Read More
-        </Link>
       </CardFooter>
     </Card>
   );

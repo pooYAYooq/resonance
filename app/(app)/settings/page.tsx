@@ -21,13 +21,8 @@ import { useEffect, useState, useTransition } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   Field,
   FieldDescription,
@@ -81,6 +76,7 @@ export default function SettingsRoute() {
   const displayNameTrimmed = displayName.trim();
   const displayNameInvalid = displayNameTrimmed.length === 0;
   const bioInvalid = bio.length > MAX_BIO_LENGTH;
+  const userId = currentUser.userId;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -93,6 +89,7 @@ export default function SettingsRoute() {
           bio,
         });
         toast.success("Profile updated");
+        router.push(`/u/${userId}`);
       } catch {
         toast.error("Failed to update profile");
       }
@@ -100,106 +97,111 @@ export default function SettingsRoute() {
   }
 
   return (
-    <div className="py-12 flex flex-col items-center gap-6">
-      <div className="text-center py-6 max-w-xl">
+    <div className="py-12 flex flex-col items-center gap-8">
+      <div className="text-center max-w-xl">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl leading-tight">
           Settings
         </h1>
         <p className="text-lg leading-relaxed text-muted-foreground">
-          Update your public profile so others can recognize you.
+          Update your profile so others can recognize you.
         </p>
       </div>
 
-      <Card className="w-full max-w-xl mx-auto shadow-md">
-        <CardHeader>
-          <CardTitle>Public Profile</CardTitle>
-          <CardDescription>
-            This information appears on your public profile page.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card
+        className="w-full max-w-2xl mx-auto shadow-md"
+        data-testid="settings-form"
+      >
+        <CardContent className="pt-6">
           <form onSubmit={handleSubmit}>
-            <FieldGroup className="gap-y-4">
-              <Field>
-                <FieldLabel>Avatar</FieldLabel>
-                <div className="flex items-center gap-3">
-                  <UserAvatar
-                    userId={currentUser.userId}
-                    name={displayNameTrimmed || currentUser.displayName || "User"}
-                    avatarUrl={currentUser.avatarUrl}
-                    className="size-12"
+            <FieldGroup className="gap-y-6">
+              <FieldGroup className="gap-y-4">
+                <Field>
+                  <FieldLabel>Avatar</FieldLabel>
+                  <div className="flex items-center gap-3">
+                    <UserAvatar
+                      userId={currentUser.userId}
+                      name={
+                        displayNameTrimmed ||
+                        currentUser.displayName ||
+                        "User"
+                      }
+                      avatarUrl={currentUser.avatarUrl}
+                      className="size-12"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Avatars come from your OAuth provider. Custom upload
+                      coming soon.
+                    </p>
+                  </div>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="email">Email</FieldLabel>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={currentUser.email ?? ""}
+                    readOnly
+                    disabled
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Avatars come from your OAuth provider. Custom upload
-                    coming soon.
-                  </p>
-                </div>
-              </Field>
+                  <FieldDescription>
+                    Email is managed by your sign-in provider and cannot be
+                    changed here.
+                  </FieldDescription>
+                </Field>
+              </FieldGroup>
 
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  value={currentUser.email ?? ""}
-                  readOnly
-                  disabled
-                />
-                <FieldDescription>
-                  Email is managed by your sign-in provider and cannot be
-                  changed here.
-                </FieldDescription>
-              </Field>
+              <Separator />
 
-              <Field data-invalid={displayNameInvalid}>
-                <FieldLabel htmlFor="displayName">Display Name</FieldLabel>
-                <Input
-                  id="displayName"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  aria-invalid={displayNameInvalid}
-                  placeholder="How should we call you?"
-                />
-                {displayNameInvalid && (
-                  <FieldError>
-                    Display name cannot be empty.
-                  </FieldError>
-                )}
-              </Field>
+              <FieldGroup className="gap-y-4">
+                <Field data-invalid={displayNameInvalid}>
+                  <FieldLabel htmlFor="displayName">Display Name</FieldLabel>
+                  <Input
+                    id="displayName"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    aria-invalid={displayNameInvalid}
+                    placeholder="How should we call you?"
+                  />
+                  {displayNameInvalid && (
+                    <FieldError>Display name cannot be empty.</FieldError>
+                  )}
+                </Field>
 
-              <Field data-invalid={bioInvalid}>
-                <FieldLabel htmlFor="bio">Bio</FieldLabel>
-                <Textarea
-                  id="bio"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  aria-invalid={bioInvalid}
-                  placeholder="Tell us a little about yourself."
-                  rows={4}
-                />
-                <FieldDescription>
-                  {bio.length} / {MAX_BIO_LENGTH} characters
-                </FieldDescription>
-                {bioInvalid && (
-                  <FieldError>
-                    Bio must be {MAX_BIO_LENGTH} characters or fewer.
-                  </FieldError>
-                )}
-              </Field>
+                <Field data-invalid={bioInvalid}>
+                  <FieldLabel htmlFor="bio">Bio</FieldLabel>
+                  <Textarea
+                    id="bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    aria-invalid={bioInvalid}
+                    placeholder="Tell us a little about yourself."
+                    rows={4}
+                  />
+                  <FieldDescription>
+                    {bio.length} / {MAX_BIO_LENGTH} characters
+                  </FieldDescription>
+                  {bioInvalid && (
+                    <FieldError>
+                      Bio must be {MAX_BIO_LENGTH} characters or fewer.
+                    </FieldError>
+                  )}
+                </Field>
 
-              <Button
-                type="submit"
-                disabled={isPending || displayNameInvalid || bioInvalid}
-              >
-                {isPending ? (
-                  <>
-                    <Loader2 className="animate-spin size-4" />
-                    <span className="ml-2">Saving...</span>
-                  </>
-                ) : (
-                  <span>Save Changes</span>
-                )}
-              </Button>
+                <Button
+                  type="submit"
+                  disabled={isPending || displayNameInvalid || bioInvalid}
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="animate-spin size-4" />
+                      <span className="ml-2">Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </Button>
+              </FieldGroup>
             </FieldGroup>
           </form>
         </CardContent>

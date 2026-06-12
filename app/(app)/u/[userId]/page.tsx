@@ -3,9 +3,9 @@
  *
  * Server Component at `/u/[userId]`. Fetches the public profile via
  * `getUserProfile` and renders the profile header (avatar, display name,
- * bio, post count). A "User not found" message is shown when the user
- * doesn't exist. The post list is rendered by a Client Component so it
- * can use `usePaginatedQuery` for live pagination.
+ * bio). A "User not found" message is shown when the user doesn't exist.
+ * The post list is rendered by a Client Component so it can use
+ * `usePaginatedQuery` for live pagination.
  *
  * The "(app)" route group ensures the Navbar wraps the page.
  */
@@ -14,9 +14,13 @@ import type { Metadata } from "next";
 import { cache } from "react";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
-import { UserAvatar } from "@/components/web/UserAvatar";
+import { ProfileHeader } from "@/components/web/ProfileHeader";
+import { SectionHeading } from "@/components/web/SectionHeading";
 import { ProfilePostList } from "./_components/ProfilePostList";
 import { EditProfileButton } from "./_components/EditProfileButton";
+import { buttonVariants } from "@/components/ui/button";
+import { BookOpen } from "lucide-react";
+import Link from "next/link";
 
 interface ProfileRouteProps {
   params: Promise<{ userId: string }>;
@@ -49,49 +53,45 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
   if (!profile) {
     return (
       <div className="py-24 text-center">
+        <BookOpen
+          className="mx-auto size-12 text-muted-foreground mb-4"
+          strokeWidth={1.5}
+        />
         <h1 className="text-3xl font-extrabold tracking-tight mb-4">
           User not found
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground mb-8">
           The profile you are looking for does not exist.
         </p>
+        <Link
+          href="/blog"
+          className={buttonVariants({ variant: "outline" })}
+        >
+          Back to blog
+        </Link>
       </div>
     );
   }
 
   const displayName = profile.displayName?.trim() || "Anonymous";
-  const hasBio = !!profile.bio && profile.bio.trim().length > 0;
+  const postCountLabel = profile.postCount === 1 ? "post" : "posts";
 
   return (
     <div className="py-12">
-      <header className="flex flex-col items-center text-center gap-4 pb-8 border-b border-border">
-        <UserAvatar
-          userId={profile.userId}
-          name={displayName}
-          avatarUrl={profile.avatarUrl}
-          className="size-24"
-        />
-        <div className="space-y-2">
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            {displayName}
-          </h1>
-          {hasBio && (
-            <p className="text-muted-foreground max-w-prose mx-auto">
-              {profile.bio}
-            </p>
-          )}
-          <p className="text-sm text-muted-foreground">
-            {profile.postCount}{" "}
-            {profile.postCount === 1 ? "post" : "posts"}
-          </p>
-        </div>
-        <EditProfileButton profileUserId={profile.userId} />
-      </header>
+      <ProfileHeader
+        displayName={displayName}
+        bio={profile.bio}
+        avatarUrl={profile.avatarUrl}
+        userId={profile.userId}
+        rightAction={<EditProfileButton profileUserId={profile.userId} />}
+      />
 
       <section className="py-10">
-        <h2 className="text-2xl font-bold tracking-tight mb-6">
-          Posts
-        </h2>
+        <SectionHeading
+          title="Posts"
+          count={profile.postCount}
+          countLabel={postCountLabel}
+        />
         <ProfilePostList userId={profile.userId} />
       </section>
     </div>

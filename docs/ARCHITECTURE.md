@@ -72,6 +72,9 @@ resonance/
 │   ├── CommentCard.tsx          # Pure display of a single comment with timestamp
 │   ├── PostCard.tsx             # Reusable post card. Title is an <h2> so the
 │   │                            # page-level <h1> remains unique per page.
+│   ├── EmptyState.tsx           # Icon + title + description + optional CTA primitive
+│   ├── SectionHeading.tsx       # Heading with optional count + right-side action slot
+│   ├── ProfileHeader.tsx        # Reusable profile hero (avatar, name, bio, action)
 │   ├── UserAvatar.tsx           # Avatar with DiceBear fallback + initials.
 │       └── theme-toggle.tsx         # Dark and light toggle
 │
@@ -113,10 +116,31 @@ components/
     │
     ├── PostCard.tsx
     │     Reusable post card used in `/blog` and on author profile pages.
-    │     Renders cover image, author row (avatar + name → profile), title
-    │     as an <h2>, body excerpt, and a footer with comment count + a
-    │     "Read More" link. The title is intentionally <h2> so each page
-    │     keeps a single <h1> for screen-reader / SEO consistency.
+    │     Renders cover image (aspect-video), an author row (avatar + name
+    │     → profile), title as an <h2>, body excerpt, and a single-row
+    │     footer with comment count, date, and a "Read More" link. The
+    │     card has a hover-lift treatment (`-translate-y-0.5` + shadow).
+    │     The title is intentionally <h2> so each page keeps a single
+    │     <h1> for screen-reader / SEO consistency.
+    │
+    ├── EmptyState.tsx
+    │     Shared "no content yet" primitive. Icon + title + optional
+    │     description + optional CTA. Used on the profile page's empty
+    │     post list and reusable for future empty states (no comments,
+    │     empty search, etc.).
+    │
+    ├── SectionHeading.tsx
+    │     Shared heading primitive. Title with optional inline count +
+    │     label and a right-side action slot. Used for "Posts" on the
+    │     profile page and "Fresh from the community" on the landing
+    │     page's `RecentPostsSection`.
+    │
+    ├── ProfileHeader.tsx
+    │     Reusable profile hero: avatar + name + bio + optional right
+    │     action (e.g. "Edit Profile"). Anchored on the left on `md:`,
+    │     centered on mobile. The post count is intentionally not
+    │     rendered here, it lives in the section heading next to the
+    │     post list.
     │
     ├── UserAvatar.tsx
     │     Avatar with DiceBear fallback. Accepts avatarUrl, name, and
@@ -364,6 +388,16 @@ In `getPostsByAuthorId` the author is the same for every post in the page, so we
 then read the cached `user` value inside the map. Doing it inside the map would
 issue one user lookup per post. The image URL still has to be resolved per post
 because each `imageStorageId` is unique — that one stays in the map.
+
+### 9. Why share a single `PostCard` across every list surface?
+
+Every surface that lists posts, the blog listing, the landing page's
+`RecentPostsSection`, and the profile page's post list, renders posts
+through the same `PostCard` component with the same cover aspect ratio
+(`aspect-video`) and hover-lift treatment. Visual consistency comes from
+reusing one component, not from aligning hand-written styles across files.
+A future change to the card (e.g. a new badge, a new affordance) is a
+single-file edit, not a sweep.
 
 ---
 
