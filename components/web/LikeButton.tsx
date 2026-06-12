@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -37,11 +37,15 @@ export function LikeButton({ postId, isLiked, likeCount }: LikeButtonProps) {
 
   const [localLiked, setLocalLiked] = useState(isLiked);
   const [localCount, setLocalCount] = useState(likeCount);
+  const [prevIsLiked, setPrevIsLiked] = useState(isLiked);
+  const [prevLikeCount, setPrevLikeCount] = useState(likeCount);
 
-  useEffect(() => {
+  if (isLiked !== prevIsLiked || likeCount !== prevLikeCount) {
+    setPrevIsLiked(isLiked);
+    setPrevLikeCount(likeCount);
     setLocalLiked(isLiked);
     setLocalCount(likeCount);
-  }, [isLiked, likeCount]);
+  }
 
   const handleClick = () => {
     if (!isAuthenticated) {
