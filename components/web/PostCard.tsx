@@ -2,17 +2,19 @@
  * Shared blog post card used by the blog listing, the landing page's
  * `RecentPostsSection`, and the public profile page. Renders a cover
  * image, an author row that links to the author's profile, the post
- * title, a body excerpt, the comment count, and a "Read More" link to
- * the post detail page.
+ * title, a body excerpt, the comment count, a live like button, and
+ * a "Read More" link to the post detail page.
  *
- * This component is a pure presentational Server Component, it does
- * not subscribe to Convex queries. Parents are responsible for fetching
- * the data via `fetchQuery` (or `useQuery` for live updates) and
- * passing the hydrated fields as props.
+ * This component is a Server Component. It does not subscribe to Convex
+ * queries directly, but it renders the `LikeButton` client component
+ * which does. Parents are responsible for fetching the data via
+ * `fetchQuery` (or `useQuery` for live updates) and passing the hydrated
+ * fields as props.
  */
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { UserAvatar } from "./UserAvatar";
+import { LikeButton } from "./LikeButton";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MessageSquare } from "lucide-react";
@@ -34,6 +36,10 @@ interface PostCardProps {
   imageUrl?: string | null;
   /** Pre-computed comment count to display in the footer. */
   commentCount: number;
+  /** Pre-computed like count to display in the footer. */
+  likeCount: number;
+  /** Whether the current user has liked this post. */
+  isLiked: boolean;
   /** Unix timestamp (ms) of when the post was created. */
   createdAt: number;
   /** Better Auth user ID of the post's author. */
@@ -61,6 +67,8 @@ export function PostCard({
   body,
   imageUrl,
   commentCount,
+  likeCount,
+  isLiked,
   createdAt,
   authorId,
   authorName,
@@ -110,9 +118,12 @@ export function PostCard({
         <p className="text-muted-foreground line-clamp-3">{body}</p>
       </CardContent>
       <CardFooter className="mt-auto flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
-          <MessageSquare className="size-3" />
-          {commentCount} {commentCount === 1 ? "comment" : "comments"}
+        <span className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <MessageSquare className="size-3" />
+            {commentCount} {commentCount === 1 ? "comment" : "comments"}
+          </span>
+          <LikeButton postId={postId} isLiked={isLiked} likeCount={likeCount} />
         </span>
         <span className="flex items-center gap-3">
           <time

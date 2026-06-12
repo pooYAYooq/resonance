@@ -48,6 +48,8 @@ export async function RecentPostsSection() {
               body={post.body}
               imageUrl={post.imageUrl}
               commentCount={post.commentCount}
+              likeCount={post.likeCount ?? 0}
+              isLiked={post.isLiked ?? false}
               createdAt={post.createdAt}
               authorId={post.authorId}
               authorName={post.authorName}

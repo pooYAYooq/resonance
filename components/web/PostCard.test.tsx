@@ -27,12 +27,34 @@ vi.mock("../ui/avatar", () => ({
   ),
 }));
 
+vi.mock("./LikeButton", () => ({
+  LikeButton: ({
+    postId,
+    isLiked,
+    likeCount,
+  }: {
+    postId: string;
+    isLiked: boolean;
+    likeCount: number;
+  }) => (
+    <button
+      aria-label={isLiked ? "Unlike this post" : "Like this post"}
+      aria-pressed={isLiked}
+      data-post-id={postId}
+    >
+      {likeCount}
+    </button>
+  ),
+}));
+
 const basePost = {
   postId: "post-123" as Id<"posts">,
   title: "Echoes in the Static",
   body: "An exploration of hidden patterns in everyday noise and why resonance matters more than volume.",
   imageUrl: "https://example.com/cover.png",
   commentCount: 3,
+  likeCount: 5,
+  isLiked: false,
   createdAt: new Date("2026-06-01T12:00:00Z").getTime(),
   authorId: "user-abc",
   authorName: "Ada Lovelace",
@@ -131,5 +153,24 @@ describe("PostCard", () => {
     render(<PostCard {...basePost} />);
     const readMore = screen.getByRole("link", { name: /read more/i });
     expect(readMore).toHaveAttribute("href", "/blog/post-123");
+  });
+
+  it("renders the like count", () => {
+    render(<PostCard {...basePost} />);
+    expect(screen.getByText("5")).toBeInTheDocument();
+  });
+
+  it("renders LikeButton", () => {
+    render(<PostCard {...basePost} />);
+    expect(
+      screen.getByRole("button", { name: "Like this post" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders LikeButton as liked when isLiked is true", () => {
+    render(<PostCard {...basePost} isLiked={true} />);
+    expect(
+      screen.getByRole("button", { name: "Unlike this post" }),
+    ).toBeInTheDocument();
   });
 });
