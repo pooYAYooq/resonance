@@ -187,6 +187,55 @@ describe("posts functions", () => {
     expect(found?.commentCount).toBe(2);
   });
 
+  it("hydrates author name and avatar in getPosts", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "user-1",
+        displayName: "Bob",
+        avatarUrl: "https://example.com/bob.png",
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert("posts", {
+        title: "Bob's post",
+        body: "Body.",
+        authorId: "user-1",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPosts, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page[0].authorName).toBe("Bob");
+    expect(result.page[0].authorAvatarUrl).toBe("https://example.com/bob.png");
+  });
+
+  it("returns null authorAvatarUrl in getPosts when user has no users record", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("posts", {
+        title: "Ghost post",
+        body: "Body.",
+        authorId: "unknown-user",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPosts, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page[0].authorAvatarUrl).toBeNull();
+  });
+
   it("returns total post count via countPosts", async () => {
     const t = convexTest(schema, modules);
 
@@ -227,5 +276,136 @@ describe("posts functions", () => {
 
     const count = await t.query(api.posts.countPosts, {});
     expect(count).toBe(0);
+  });
+
+  it("returns only the specified author's posts", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("posts", {
+        title: "First",
+        body: "Body one.",
+        authorId: "alice",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("posts", {
+        title: "Second",
+        body: "Body two.",
+        authorId: "bob",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("posts", {
+        title: "Third",
+        body: "Body three.",
+        authorId: "alice",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("stats", { totalPosts: 3 });
+    });
+
+    const posts = await t.query(api.posts.getPostsByAuthorId, {
+      authorId: "alice",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(posts.page.length).toBe(2);
+    expect(posts.page[0].title).toBe("Third");
+    expect(posts.page[1].title).toBe("First");
+  });
+
+  it("pagination works", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 5; i++) {
+        await ctx.db.insert("posts", {
+          title: `Post ${i}`,
+          body: "Body.",
+          authorId: "alice",
+          commentCount: 0,
+          createdAt: 1000 + i,
+          updatedAt: 1000 + i,
+        });
+      }
+    });
+
+    const result = await t.query(api.posts.getPostsByAuthorId, {
+      authorId: "alice",
+      paginationOpts: { numItems: 2, cursor: null },
+    });
+
+    expect(result.page).toHaveLength(2);
+    expect(result.isDone).toBe(false);
+    expect(result.continueCursor).toBeDefined();
+  });
+
+  it("hydrates author name and avatar from users table", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "alice",
+        displayName: "Alice",
+        avatarUrl: "https://example.com/alice.png",
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert("posts", {
+        title: "Alice's post",
+        body: "Body.",
+        authorId: "alice",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPostsByAuthorId, {
+      authorId: "alice",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].authorName).toBe("Alice");
+    expect(result.page[0].authorAvatarUrl).toBe("https://example.com/alice.png");
+  });
+
+  it("returns null authorAvatarUrl when user has no users record", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("posts", {
+        title: "Ghost post",
+        body: "Body.",
+        authorId: "unknown-user",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPostsByAuthorId, {
+      authorId: "unknown-user",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].authorAvatarUrl).toBeNull();
+  });
+
+  it("returns empty page for author with no posts", async () => {
+    const t = convexTest(schema, modules);
+
+    const result = await t.query(api.posts.getPostsByAuthorId, {
+      authorId: "nobody",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page).toEqual([]);
+    expect(result.isDone).toBe(true);
   });
 });

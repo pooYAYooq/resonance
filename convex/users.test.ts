@@ -67,4 +67,48 @@ describe("users functions", () => {
     const result = await t.query(api.users.getCurrentUser, {});
     expect(result).toBeNull();
   });
+
+  it("getUserProfile returns user with postCount", async () => {
+    const t = convexTest(schema, modules);
+
+    const userId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "alice-auth-id",
+        displayName: "Alice",
+        email: "alice@example.com",
+        avatarUrl: "https://example.com/alice.png",
+        bio: "Hello, I'm Alice!",
+        createdAt: Date.now(),
+      });
+
+      for (let i = 0; i < 2; i++) {
+        await ctx.db.insert("posts", {
+          title: `Post ${i + 1}`,
+          body: "Body.",
+          authorId: "alice-auth-id",
+          commentCount: 0,
+          createdAt: 1000 + i,
+          updatedAt: 1000 + i,
+        });
+      }
+
+      return "alice-auth-id";
+    });
+
+    const result = await t.query(api.users.getUserProfile, {
+      userId,
+    });
+    expect(result).not.toBeNull();
+    expect(result!.displayName).toBe("Alice");
+    expect(result!.bio).toBe("Hello, I'm Alice!");
+    expect(result!.postCount).toBe(2);
+  });
+
+  it("getUserProfile returns null for missing user", async () => {
+    const t = convexTest(schema, modules);
+    const result = await t.query(api.users.getUserProfile, {
+      userId: "nonexistent",
+    });
+    expect(result).toBeNull();
+  });
 });

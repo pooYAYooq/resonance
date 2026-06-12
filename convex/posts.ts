@@ -61,10 +61,13 @@ export const createPost = mutation({
  * the maximum number of storage lookups per query — is bounded by the caller-supplied
  * `numItems`.
  *
+ * Each post is also hydrated with author data (`authorName`, `authorAvatarUrl`) from
+ * the `users` table, following the same join pattern as `getCommentsByPostId`.
+ *
  * @param paginationOpts - `PaginationOptions`: Convex pagination config such as `numItems` and cursor.
  * @returns `PaginationResult`: Paginated result where `page` contains posts with a
- *   server-resolved `imageUrl` (`string | null`) and `commentCount`, plus `isDone`
- *   and `continueCursor`.
+ *   server-resolved `imageUrl` (`string | null`), `commentCount`, `authorName`,
+ *   `authorAvatarUrl`, plus `isDone` and `continueCursor`.
  */
 export const getPosts = query({
   args: {
@@ -76,25 +79,27 @@ export const getPosts = query({
       .order("desc")
       .paginate(args.paginationOpts);
 
-    // Hydrate each post on the current page with a public image URL.
-    // We resolve storage URLs server-side so the client receives ready-to-use links
-    // without needing direct storage access. The `if (post.imageStorageId)` guard
-    // ensures we only call `getUrl()` for posts that actually have an image.
-    const postsWithImageUrl = await Promise.all(
+    const page = await Promise.all(
       result.page.map(async (post) => {
-        let imageUrl = null;
-        if (post.imageStorageId) {
-          imageUrl = await ctx.storage.getUrl(post.imageStorageId);
-        }
-        return { ...post, imageUrl };
+        const imageUrl = post.imageStorageId
+          ? await ctx.storage.getUrl(post.imageStorageId)
+          : null;
+
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
+          .unique();
+
+        return {
+          ...post,
+          imageUrl,
+          authorName: user?.displayName ?? null,
+          authorAvatarUrl: user?.avatarUrl ?? null,
+        };
       }),
     );
 
-    return {
-      page: postsWithImageUrl,
-      isDone: result.isDone,
-      continueCursor: result.continueCursor,
-    };
+    return { ...result, page };
   },
 });
 
@@ -159,5 +164,53 @@ export const getPostById = query({
         ? await ctx.storage.getUrl(post.imageStorageId)
         : null;
     return { ...post, imageUrl: resolvedImageUrl };
+  },
+});
+
+/**
+ * Retrieves a paginated list of posts by a specific author.
+ *
+ * Uses the `by_authorId` index to filter posts, ordered by creation time
+ * descending. Hydrates each post with:
+ * - `imageUrl` from storage (same as `getPosts`)
+ * - `authorName` and `authorAvatarUrl` from the `users` table (same join
+ *   pattern as `getCommentsByPostId`)
+ *
+ * @param args.authorId - `string`: Better Auth user ID of the author.
+ * @param args.paginationOpts - `PaginationOptions`: Convex pagination config.
+ * @returns `PaginationResult`: Paginated posts with hydrated author data.
+ */
+export const getPostsByAuthorId = query({
+  args: {
+    authorId: v.string(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("posts")
+      .withIndex("by_authorId", (q) => q.eq("authorId", args.authorId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", args.authorId))
+      .unique();
+
+    const page = await Promise.all(
+      result.page.map(async (post) => {
+        const imageUrl = post.imageStorageId
+          ? await ctx.storage.getUrl(post.imageStorageId)
+          : null;
+
+        return {
+          ...post,
+          imageUrl,
+          authorName: user?.displayName ?? null,
+          authorAvatarUrl: user?.avatarUrl ?? null,
+        };
+      }),
+    );
+    return { ...result, page };
   },
 });
