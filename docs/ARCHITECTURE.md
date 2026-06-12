@@ -31,8 +31,16 @@ resonance/
 │   │   ├── page.tsx            # Home / index (placeholder)
 │   │   ├── blog/
 │   │   │   └── page.tsx        # Blog listing. Server Component. Uses fetchQuery.
-│   │   └── create/
-│   │       └── page.tsx        # Create post form. Client Component. Uses useMutation.
+│   │   ├── create/
+│   │   │   └── page.tsx        # Create post form. Client Component. Uses useMutation.
+│   │   ├── settings/
+│   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
+│   │   └── u/[userId]/
+│   │       ├── page.tsx        # Public profile. Server Component. Uses fetchQuery +
+│   │       │                   # react.cache() to dedupe generateMetadata / page fetch.
+│   │       └── _components/
+│   │           ├── EditProfileButton.tsx   # Client. Shown only to the profile owner.
+│   │           └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
 │   │   ├── login/
@@ -44,12 +52,16 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts and comments tables
+│   ├── schema.ts               # DB schema: posts, comments, and users tables
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
-│   ├── posts.ts                # createPost mutation, getPosts query, getPostById
+│   ├── posts.ts                # createPost mutation; getPosts, getPostById,
+│   │                           # getPostsByAuthorId, countPosts queries
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
+│   ├── users.ts                # syncUser, getCurrentUser, getUserById,
+│   │                           # getUserByAuthId, getUserByEmail, getUserProfile,
+│   │                           # updateProfile mutations/queries
 │
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (Button, Card, Input, etc.)
@@ -58,6 +70,9 @@ resonance/
 │       ├── Navbar.tsx               # Top nav. Reads auth state via useConvexAuth().
 │   ├── CommentSection.tsx       # Client: paginated comment list + submission form
 │   ├── CommentCard.tsx          # Pure display of a single comment with timestamp
+│   ├── PostCard.tsx             # Reusable post card. Title is an <h2> so the
+│   │                            # page-level <h1> remains unique per page.
+│   ├── UserAvatar.tsx           # Avatar with DiceBear fallback + initials.
 │       └── theme-toggle.tsx         # Dark and light toggle
 │
 └── lib/
@@ -95,6 +110,17 @@ components/
     ├── CommentCard.tsx
     │     Stateless display of a single comment. Shows author name,
     │     creation timestamp, and body text.
+    │
+    ├── PostCard.tsx
+    │     Reusable post card used in `/blog` and on author profile pages.
+    │     Renders cover image, author row (avatar + name → profile), title
+    │     as an <h2>, body excerpt, and a footer with comment count + a
+    │     "Read More" link. The title is intentionally <h2> so each page
+    │     keeps a single <h1> for screen-reader / SEO consistency.
+    │
+    ├── UserAvatar.tsx
+    │     Avatar with DiceBear fallback. Accepts avatarUrl, name, and
+    │     userId. Falls back to initials on whitespace / empty names.
     │
     └── theme-toggle.tsx
           Wraps next-themes' useTheme(). Toggling updates a class on
@@ -320,6 +346,24 @@ already present. No client spinners. The `<CommentSection>` component is a Clien
 Component because it needs `useForm`, `useMutation`, and `useTransition` for the
 submission UX. `usePreloadedQuery` bridges the two worlds: it hydrates the server-
 preloaded data inside the client component without an extra network round-trip.
+
+### 7. Why use `react.cache()` for `generateMetadata` + the page?
+
+Next.js renders a Server Component twice per request: once for `generateMetadata`
+and once for the page body. Calling `fetchQuery` directly in both means two round
+trips to Convex and the risk that the two reads see different states. We wrap the
+fetch in a module-level `cache(async (userId) => fetchQuery(...))` and call that
+helper from both `generateMetadata` and the page. React dedupes the calls within
+the same request, so both phases share a single Convex read. The same pattern is
+used for any Server Component where metadata and body need the same data.
+
+### 8. Why hoist author lookups out of paginated maps?
+
+In `getPostsByAuthorId` the author is the same for every post in the page, so we
+`ctx.db.query("users")...unique()` **once** before `Promise.all(result.page.map(...))`,
+then read the cached `user` value inside the map. Doing it inside the map would
+issue one user lookup per post. The image URL still has to be resolved per post
+because each `imageStorageId` is unique — that one stays in the map.
 
 ---
 

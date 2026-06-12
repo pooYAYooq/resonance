@@ -192,16 +192,16 @@ export const getPostsByAuthorId = query({
       .order("desc")
       .paginate(args.paginationOpts);
 
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", args.authorId))
+      .unique();
+
     const page = await Promise.all(
       result.page.map(async (post) => {
         const imageUrl = post.imageStorageId
           ? await ctx.storage.getUrl(post.imageStorageId)
           : null;
-
-        const user = await ctx.db
-          .query("users")
-          .withIndex("by_userId", (q) => q.eq("userId", args.authorId))
-          .unique();
 
         return {
           ...post,

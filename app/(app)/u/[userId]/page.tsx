@@ -11,6 +11,7 @@
  */
 
 import type { Metadata } from "next";
+import { cache } from "react";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { UserAvatar } from "@/components/web/UserAvatar";
@@ -21,11 +22,15 @@ interface ProfileRouteProps {
   params: Promise<{ userId: string }>;
 }
 
+const getProfile = cache(async (userId: string) => {
+  return await fetchQuery(api.users.getUserProfile, { userId });
+});
+
 export async function generateMetadata({
   params,
 }: ProfileRouteProps): Promise<Metadata> {
   const { userId } = await params;
-  const profile = await fetchQuery(api.users.getUserProfile, { userId });
+  const profile = await getProfile(userId);
 
   if (!profile) {
     return { title: "User not found" };
@@ -39,7 +44,7 @@ export async function generateMetadata({
 
 export default async function ProfileRoute({ params }: ProfileRouteProps) {
   const { userId } = await params;
-  const profile = await fetchQuery(api.users.getUserProfile, { userId });
+  const profile = await getProfile(userId);
 
   if (!profile) {
     return (

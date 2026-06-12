@@ -103,9 +103,9 @@ export function PostCard({
           </Link>
         </div>
         <Link href={postHref}>
-          <h1 className="text-xl mb-4 font-semibold hover:text-primary">
+          <h2 className="text-xl mb-4 font-semibold hover:text-primary">
             {title}
-          </h1>
+          </h2>
         </Link>
         <p className="text-muted-foreground line-clamp-3">{body}</p>
       </CardContent>
