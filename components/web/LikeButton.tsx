@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -35,6 +35,14 @@ export function LikeButton({ postId, isLiked, likeCount }: LikeButtonProps) {
   const router = useRouter();
   const toggleLike = useMutation(api.likes.toggleLike);
 
+  const [localLiked, setLocalLiked] = useState(isLiked);
+  const [localCount, setLocalCount] = useState(likeCount);
+
+  useEffect(() => {
+    setLocalLiked(isLiked);
+    setLocalCount(likeCount);
+  }, [isLiked, likeCount]);
+
   const handleClick = () => {
     if (!isAuthenticated) {
       router.push("/auth/login");
@@ -44,6 +52,8 @@ export function LikeButton({ postId, isLiked, likeCount }: LikeButtonProps) {
     startTransition(async () => {
       try {
         const result = await toggleLike({ postId });
+        setLocalLiked(result.liked);
+        setLocalCount(result.likeCount);
         toast.success(result.liked ? "Post liked" : "Post unliked");
       } catch {
         toast.error("Something went wrong");
@@ -57,18 +67,18 @@ export function LikeButton({ postId, isLiked, likeCount }: LikeButtonProps) {
       size="sm"
       onClick={handleClick}
       disabled={isPending || isLoading}
-      aria-label={isLiked ? "Unlike this post" : "Like this post"}
-      aria-pressed={isLiked}
+      aria-label={localLiked ? "Unlike this post" : "Like this post"}
+      aria-pressed={localLiked}
     >
       {isPending ? (
         <Loader2 className="animate-spin size-4" />
       ) : (
         <Heart
-          className={cn("size-4", isLiked && "text-red-500")}
-          fill={isLiked ? "currentColor" : "none"}
+          className={cn("size-4", localLiked && "text-red-500")}
+          fill={localLiked ? "currentColor" : "none"}
         />
       )}
-      <span className="ml-1">{likeCount}</span>
+      <span className="ml-1">{localCount}</span>
     </Button>
   );
 }

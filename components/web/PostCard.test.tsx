@@ -76,14 +76,14 @@ describe("PostCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the comment count with the plural form", () => {
+  it("renders the comment count", () => {
     render(<PostCard {...basePost} />);
-    expect(screen.getByText(/3\s*comments/)).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
   });
 
-  it("renders the comment count with the singular form when there is one comment", () => {
+  it("renders the comment count when there is one comment", () => {
     render(<PostCard {...basePost} commentCount={1} />);
-    expect(screen.getByText(/1\s*comment\b/)).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
   });
 
   it("links the title to the post detail page", () => {

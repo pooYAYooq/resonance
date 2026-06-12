@@ -12,7 +12,12 @@
  * fields as props.
  */
 
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 import { UserAvatar } from "./UserAvatar";
 import { LikeButton } from "./LikeButton";
 import { buttonVariants } from "@/components/ui/button";
@@ -54,9 +59,11 @@ interface PostCardProps {
 }
 
 /**
- * Renders a post card with cover image, author row, title, body excerpt,
- * comment count, and a "Read More" link. See {@link PostCardProps} for
- * the field-level documentation.
+ * Renders a post card with a cover image, author header, title, body
+ * excerpt, engagement metrics, and a "Read More" link. The card is
+ * divided into three visual sections separated by borders: a header
+ * with author info, a content area, and a footer with engagement
+ * actions. See {@link PostCardProps} for field-level documentation.
  *
  * @param props - `PostCardProps`: post data to render.
  * @returns JSX.Element: a card linking to the post detail page.
@@ -79,13 +86,8 @@ export function PostCard({
   const profileHref = `/u/${authorId}`;
 
   return (
-    <Card className="pt-0 gap-4 flex flex-col h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="relative aspect-video w-full overflow-hidden mb-6">
-        {/*
-          The hostname must be allowlisted in next.config.ts for Next.js
-          Image optimization. The default cover image is a wallhaven URL
-          that is already allowlisted.
-        */}
+    <Card className="pt-0 gap-0 flex flex-col h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative aspect-video w-full overflow-hidden">
         <Image
           src={imageUrl ?? DEFAULT_COVER_IMAGE}
           alt={title}
@@ -95,8 +97,8 @@ export function PostCard({
         />
       </div>
 
-      <CardContent className="mb-0 flex-1">
-        <div className="flex items-center gap-2 mb-3">
+      <CardHeader className="border-b pb-4 pt-4">
+        <div className="flex items-center gap-2">
           <UserAvatar
             userId={authorId}
             name={displayName}
@@ -109,23 +111,7 @@ export function PostCard({
           >
             {displayName}
           </Link>
-        </div>
-        <Link href={postHref}>
-          <h2 className="text-xl mb-4 font-semibold hover:text-primary">
-            {title}
-          </h2>
-        </Link>
-        <p className="text-muted-foreground line-clamp-3">{body}</p>
-      </CardContent>
-      <CardFooter className="mt-auto flex items-center justify-between gap-2">
-        <span className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <MessageSquare className="size-3" />
-            {commentCount} {commentCount === 1 ? "comment" : "comments"}
-          </span>
-          <LikeButton postId={postId} isLiked={isLiked} likeCount={likeCount} />
-        </span>
-        <span className="flex items-center gap-3">
+          <span className="text-muted-foreground">·</span>
           <time
             dateTime={new Date(createdAt).toISOString()}
             className="text-xs text-muted-foreground"
@@ -136,18 +122,39 @@ export function PostCard({
               year: "numeric",
             })}
           </time>
-          <Link
-            className={cn(
-              buttonVariants({
-                variant: "outline",
-              }),
-              "px-3 py-0 hover:text-primary hover:no-underline space-x-2",
-            )}
-            href={postHref}
-          >
-            Read More
-          </Link>
+        </div>
+      </CardHeader>
+
+      <CardContent className="pt-4 pb-4 flex-1">
+        <Link href={postHref}>
+          <h2 className="text-xl mb-3 font-semibold hover:text-primary">
+            {title}
+          </h2>
+        </Link>
+        <p className="text-muted-foreground line-clamp-3">{body}</p>
+      </CardContent>
+
+      <CardFooter className="border-t pt-4 flex items-center justify-between">
+        <span className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <MessageSquare className="size-3.5" />
+            {commentCount}
+          </span>
+          <LikeButton
+            postId={postId}
+            isLiked={isLiked}
+            likeCount={likeCount}
+          />
         </span>
+        <Link
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "hover:text-primary hover:no-underline",
+          )}
+          href={postHref}
+        >
+          Read More
+        </Link>
       </CardFooter>
     </Card>
   );
