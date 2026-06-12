@@ -172,4 +172,17 @@ describe("SettingsRoute", () => {
       expect(toastErrorMock).toHaveBeenCalledWith("Failed to update profile");
     });
   });
+
+  it("redirects to the user's profile after a successful save", async () => {
+    const user = userEvent.setup();
+    updateProfileMock.mockResolvedValue("users-1");
+
+    render(<SettingsRoute />);
+
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/u/auth-user-1");
+    });
+  });
 });
