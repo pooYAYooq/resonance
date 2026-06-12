@@ -13,8 +13,9 @@
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PostCard } from "@/components/web/PostCard";
+import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, NotebookPen } from "lucide-react";
 
 interface ProfilePostListProps {
   /** Better Auth user ID of the author whose posts to display. */
@@ -36,13 +37,17 @@ export function ProfilePostList({ userId }: ProfilePostListProps) {
 
   if (results.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">No posts yet.</p>
+      <EmptyState
+        icon={NotebookPen}
+        title="No posts yet"
+        description="When this user publishes a post, it will appear here."
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {results.map((post) => (
           <PostCard
             key={post._id}
