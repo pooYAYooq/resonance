@@ -24,6 +24,12 @@ export default defineSchema({
     authorId: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
     commentCount: v.number(),
+    /**
+     * Denormalized like counter, kept in sync by the `toggleLike` mutation.
+     * Optional for backward compatibility with posts created before Phase 1.2;
+     * UI consumers should fall back to 0 via `post.likeCount ?? 0`.
+     */
+    likeCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -41,6 +47,23 @@ export default defineSchema({
     body: v.string(),
     createdAt: v.number(),
   }).index("by_postId", ["postId"]),
+
+  /**
+   * Individual like records, one per user per post. Stored as a separate
+   * table rather than an array on the post document to avoid hitting the
+   * 1 MB document limit and to keep the post document small for reads
+   * that don't need like data (Convex schema guideline: no unbounded
+   * arrays in documents).
+   *
+   * The compound index supports both "did this user like this post?"
+   * (exact match on both fields) and "all likes for this post" (prefix
+   * query on `postId`).
+   */
+  likes: defineTable({
+    postId: v.id("posts"),
+    userId: v.string(),
+    createdAt: v.number(),
+  }).index("by_postId_and_userId", ["postId", "userId"]),
 
   /**
    * App-level user enrichment table, synced from Better Auth on sign-in.

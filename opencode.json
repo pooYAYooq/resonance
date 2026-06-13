@@ -3,8 +3,7 @@
   "permission": {
     "edit": "ask",
     "bash": {
-      "*": "ask",
-      "ls": "allow"
+      "*": "ask"
     }
   }
 }

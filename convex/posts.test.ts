@@ -63,6 +63,7 @@ describe("posts functions", () => {
         authorId: "user-1",
         imageStorageId: firstImage,
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -77,6 +78,7 @@ describe("posts functions", () => {
         authorId: "user-1",
         imageStorageId: secondImage,
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -97,6 +99,7 @@ describe("posts functions", () => {
         body: "Body content.",
         authorId: "user-1",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -125,6 +128,7 @@ describe("posts functions", () => {
         authorId: "user-1",
         imageStorageId,
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -149,6 +153,7 @@ describe("posts functions", () => {
         body: "Body content.",
         authorId: "user-1",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -172,6 +177,7 @@ describe("posts functions", () => {
         body: "Body.",
         authorId: "user-1",
         commentCount: 2,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -202,6 +208,7 @@ describe("posts functions", () => {
         body: "Body.",
         authorId: "user-1",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -224,6 +231,7 @@ describe("posts functions", () => {
         body: "Body.",
         authorId: "unknown-user",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -245,6 +253,7 @@ describe("posts functions", () => {
         body: "Body one.",
         authorId: "user-1",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -253,6 +262,7 @@ describe("posts functions", () => {
         body: "Body two.",
         authorId: "user-2",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -261,6 +271,7 @@ describe("posts functions", () => {
         body: "Body three.",
         authorId: "user-1",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -287,6 +298,7 @@ describe("posts functions", () => {
         body: "Body one.",
         authorId: "alice",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -295,6 +307,7 @@ describe("posts functions", () => {
         body: "Body two.",
         authorId: "bob",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -303,6 +316,7 @@ describe("posts functions", () => {
         body: "Body three.",
         authorId: "alice",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -328,6 +342,7 @@ describe("posts functions", () => {
           body: "Body.",
           authorId: "alice",
           commentCount: 0,
+          likeCount: 0,
           createdAt: 1000 + i,
           updatedAt: 1000 + i,
         });
@@ -359,6 +374,7 @@ describe("posts functions", () => {
         body: "Body.",
         authorId: "alice",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -383,6 +399,7 @@ describe("posts functions", () => {
         body: "Body.",
         authorId: "unknown-user",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -407,5 +424,28 @@ describe("posts functions", () => {
 
     expect(result.page).toEqual([]);
     expect(result.isDone).toBe(true);
+  });
+
+  it("getPostById returns likeCount when set", async () => {
+    const t = convexTest(schema, modules);
+
+    const postId = await t.run(async (ctx) => {
+      return await ctx.db.insert("posts", {
+        title: "Post with likeCount",
+        body: "Body.",
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPostById, {
+      postId,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.likeCount).toBe(0);
   });
 });

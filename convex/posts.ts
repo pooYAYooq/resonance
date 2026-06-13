@@ -42,6 +42,7 @@ export const createPost = mutation({
       imageStorageId: args.imageStorageId,
       authorId: user._id,
       commentCount: 0,
+      likeCount: 0,
       createdAt: now,
       updatedAt: now,
     });
@@ -67,7 +68,7 @@ export const createPost = mutation({
  * @param paginationOpts - `PaginationOptions`: Convex pagination config such as `numItems` and cursor.
  * @returns `PaginationResult`: Paginated result where `page` contains posts with a
  *   server-resolved `imageUrl` (`string | null`), `commentCount`, `authorName`,
- *   `authorAvatarUrl`, plus `isDone` and `continueCursor`.
+ *   `authorAvatarUrl`, `isLiked`, plus `isDone` and `continueCursor`.
  */
 export const getPosts = query({
   args: {
@@ -78,6 +79,8 @@ export const getPosts = query({
       .query("posts")
       .order("desc")
       .paginate(args.paginationOpts);
+
+    const authUser = await authComponent.safeGetAuthUser(ctx);
 
     const page = await Promise.all(
       result.page.map(async (post) => {
@@ -90,11 +93,23 @@ export const getPosts = query({
           .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
           .unique();
 
+        let isLiked = false;
+        if (authUser) {
+          const like = await ctx.db
+            .query("likes")
+            .withIndex("by_postId_and_userId", (q) =>
+              q.eq("postId", post._id).eq("userId", authUser._id),
+            )
+            .unique();
+          isLiked = !!like;
+        }
+
         return {
           ...post,
           imageUrl,
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,
+          isLiked,
         };
       }),
     );
@@ -147,9 +162,9 @@ export const countPosts = query({
  * server-side if one exists.
  *
  * @param postId - `Id<"posts">`: The Convex document ID of the target post.
- * @returns The post object with `imageUrl` and `commentCount` fields, or `null` if not found.
- *   `imageUrl` is a signed URL string when the post has an associated image,
- *   or `null` when it does not.
+ * @returns The post object with `imageUrl`, `commentCount`, and `isLiked` fields,
+ *   or `null` if not found. `imageUrl` is a signed URL string when the post has an
+ *   associated image, or `null` when it does not.
  */
 export const getPostById = query({
   args: { postId: v.id("posts") },
@@ -163,7 +178,20 @@ export const getPostById = query({
       post?.imageStorageId !== undefined
         ? await ctx.storage.getUrl(post.imageStorageId)
         : null;
-    return { ...post, imageUrl: resolvedImageUrl };
+
+    let isLiked = false;
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    if (authUser) {
+      const like = await ctx.db
+        .query("likes")
+        .withIndex("by_postId_and_userId", (q) =>
+          q.eq("postId", post._id).eq("userId", authUser._id),
+        )
+        .unique();
+      isLiked = !!like;
+    }
+
+    return { ...post, imageUrl: resolvedImageUrl, isLiked };
   },
 });
 
@@ -178,7 +206,7 @@ export const getPostById = query({
  *
  * @param args.authorId - `string`: Better Auth user ID of the author.
  * @param args.paginationOpts - `PaginationOptions`: Convex pagination config.
- * @returns `PaginationResult`: Paginated posts with hydrated author data.
+ * @returns `PaginationResult`: Paginated posts with hydrated author data and `isLiked`.
  */
 export const getPostsByAuthorId = query({
   args: {
@@ -197,17 +225,31 @@ export const getPostsByAuthorId = query({
       .withIndex("by_userId", (q) => q.eq("userId", args.authorId))
       .unique();
 
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+
     const page = await Promise.all(
       result.page.map(async (post) => {
         const imageUrl = post.imageStorageId
           ? await ctx.storage.getUrl(post.imageStorageId)
           : null;
 
+        let isLiked = false;
+        if (authUser) {
+          const like = await ctx.db
+            .query("likes")
+            .withIndex("by_postId_and_userId", (q) =>
+              q.eq("postId", post._id).eq("userId", authUser._id),
+            )
+            .unique();
+          isLiked = !!like;
+        }
+
         return {
           ...post,
           imageUrl,
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,
+          isLiked,
         };
       }),
     );

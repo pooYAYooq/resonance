@@ -16,6 +16,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Separator } from "@/components/ui/separator";
 import { CommentSection } from "@/components/web/CommentSection";
+import { LikeButton } from "@/components/web/LikeButton";
 import { truncateForDescription } from "@/lib/constants/seo";
 
 /** Props received by the dynamic blog post route. */
@@ -127,6 +128,13 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
         </p>
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
+      <div className="flex items-center gap-2 mb-4">
+        <LikeButton
+          postId={postId}
+          isLiked={post.isLiked ?? false}
+          likeCount={post.likeCount ?? 0}
+        />
+      </div>
       <Suspense fallback={null}>
         <CommentSection initialTotalCount={post.commentCount ?? 0} />
       </Suspense>
