@@ -33,6 +33,63 @@ function getRequiredEnv(name: string, value: string | undefined): string {
 }
 
 /**
+ * Reads a required string from an OAuth profile, throwing a clear error
+ * if the field is missing or not a string.
+ */
+function getRequiredString(
+  profile: Record<string, unknown>,
+  key: string,
+  source: string
+): string {
+  const value = profile[key];
+  if (typeof value !== "string") {
+    throw new Error(
+      `Missing required field "${key}" in ${source} OAuth profile`
+    );
+  }
+  return value;
+}
+
+/**
+ * Reads a required number from an OAuth profile, throwing a clear error
+ * if the field is missing or not a number.
+ */
+function getRequiredNumber(
+  profile: Record<string, unknown>,
+  key: string,
+  source: string
+): number {
+  const value = profile[key];
+  if (typeof value !== "number") {
+    throw new Error(
+      `Missing required field "${key}" in ${source} OAuth profile`
+    );
+  }
+  return value;
+}
+
+/**
+ * Reads a nullable string from an OAuth profile, throwing a clear error
+ * if the field exists but is not a string or null.
+ */
+function getNullableString(
+  profile: Record<string, unknown>,
+  key: string,
+  source: string
+): string | null {
+  const value = profile[key];
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    throw new Error(
+      `Invalid type for "${key}" in ${source} OAuth profile: expected string, got ${typeof value}`
+    );
+  }
+  return value;
+}
+
+/**
  * Minimal shape for a social provider config consumed by Better Auth.
  *
  * Each provider maps its OAuth profile to the standard user fields
@@ -94,10 +151,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       clientSecret: authGoogleSecret,
       mapProfileToUser: (profile: Record<string, unknown>) => ({
         // Google's OIDC endpoint uses `sub` (not `id`) as the stable user identifier.
-        id: profile.sub as string,
-        name: profile.name as string,
-        email: profile.email as string,
-        image: profile.picture as string,
+        id: getRequiredString(profile, "sub", "Google"),
+        name: getRequiredString(profile, "name", "Google"),
+        email: getNullableString(profile, "email", "Google"),
+        image: getRequiredString(profile, "picture", "Google"),
       }),
     };
   }
@@ -115,11 +172,11 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       clientSecret: authGithubSecret,
       mapProfileToUser: (profile: Record<string, unknown>) => ({
         // GitHub API returns `id` as a number; convert to string for storage.
-        id: String(profile.id),
+        id: String(getRequiredNumber(profile, "id", "GitHub")),
         // `name` can be null, fall back to `login` (always present).
-        name: (profile.name as string | null) ?? (profile.login as string),
-        email: profile.email as string | null,
-        image: profile.avatar_url as string,
+        name: getNullableString(profile, "name", "GitHub") ?? getRequiredString(profile, "login", "GitHub"),
+        email: getNullableString(profile, "email", "GitHub"),
+        image: getRequiredString(profile, "avatar_url", "GitHub"),
       }),
     };
   }
