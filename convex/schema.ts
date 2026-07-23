@@ -45,6 +45,7 @@ export default defineSchema({
     authorId: v.string(),
     authorName: v.string(),
     body: v.string(),
+    likeCount: v.optional(v.number()),
     createdAt: v.number(),
   }).index("by_postId", ["postId"]),
 
@@ -64,6 +65,21 @@ export default defineSchema({
     userId: v.string(),
     createdAt: v.number(),
   }).index("by_postId_and_userId", ["postId", "userId"]),
+
+  /**
+   * Individual comment-like records, one per user per comment. Mirrors the
+   * `likes` table pattern: separate table (not an array on the comment doc)
+   * to keep the comment document small and avoid the 1 MB document limit.
+   *
+   * The compound index supports both "did this user like this comment?"
+   * (exact match on both fields) and "all likes for this comment" (prefix
+   * query on `commentId`).
+   */
+  commentLikes: defineTable({
+    commentId: v.id("comments"),
+    userId: v.string(),
+    createdAt: v.number(),
+  }).index("by_commentId_and_userId", ["commentId", "userId"]),
 
   /**
    * App-level user enrichment table, synced from Better Auth on sign-in.
