@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { CommentLikeButton } from "./CommentLikeButton";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -78,6 +78,18 @@ describe("CommentLikeButton", () => {
     expect(screen.getByRole("button")).toHaveAttribute(
       "aria-label",
       "Like this comment",
+    );
+  });
+
+  it("calls toggleCommentLike with the comment id on click", async () => {
+    useMutationMock.mockResolvedValue({ liked: true, likeCount: 1 });
+    render(<CommentLikeButton {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button"));
+    await vi.waitFor(() =>
+      expect(useMutationMock).toHaveBeenCalledWith({
+        commentId: "comment-123",
+      }),
     );
   });
 });
