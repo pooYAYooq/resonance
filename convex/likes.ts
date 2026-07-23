@@ -1,9 +1,11 @@
 /**
- * Convex query and mutation for blog post likes.
+ * Convex mutations for toggling likes on posts and comments.
  *
- * Data access: reads from and writes to the `likes` table.
- * Auth: `toggleLike` requires a valid session via `authComponent.safeGetAuthUser`;
- * unauthenticated callers receive a `ConvexError("Unauthorized")`.
+ * Data access: reads from and writes to the `likes` and `commentLikes`
+ * tables, and patches denormalized `likeCount` on `posts`/`comments`.
+ * Auth: both mutations require a valid session via
+ * `authComponent.safeGetAuthUser`; unauthenticated callers receive a
+ * `ConvexError("Unauthorized")`.
  */
 import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
