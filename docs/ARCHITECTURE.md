@@ -57,7 +57,7 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts, comments, likes, users, stats
+│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, users, stats
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
@@ -66,9 +66,9 @@ resonance/
 │   │                           # getPosts, getPostById, getPostsByAuthorId,
 │   │                           # countPosts queries (countPosts reads the stats table)
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
-│   │                           # (paginated, enriches authorAvatarUrl from users)
-│   ├── likes.ts                # toggleLike mutation (idempotent); keeps the
-│   │                           # denormalized posts.likeCount in sync
+│   │                           # (paginated, enriches authorAvatarUrl, isLiked, likeCount)
+│   ├── likes.ts                # toggleLike + toggleCommentLike mutations (idempotent); keeps
+│   │                           # denormalized posts.likeCount and comments.likeCount in sync
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserById,
@@ -86,8 +86,12 @@ resonance/
 │       ├── FooterCTA.tsx        # Auth-aware CTA card rendered inside Footer
 │       ├── AuthCTA.tsx          # Auth-aware CTA button ("Write a post" / "Get Started")
 │       ├── CommentSection.tsx   # Client: paginated comment list + submission form
-│       ├── CommentCard.tsx      # Pure display of a single comment with timestamp
+│       ├── CommentCard.tsx      # Display of a single comment with timestamp + comment like button
 │       ├── LikeButton.tsx       # Client: heart toggle + count, auth-gated
+│       ├── LikeToggle.tsx      # Generic like-toggle primitive (auth redirect, transition,
+│       │                       # optimistic state sync, toasts) — wrapped by LikeButton/CommentLikeButton
+│       ├── CommentLikeButton.tsx # Thin LikeToggle wrapper bound to toggleCommentLike;
+│       │                       # rendered on each CommentCard
 │       ├── PostCard.tsx         # Reusable post card. Title is an <h2> so the
 │       │                        # page-level <h1> remains unique per page.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
@@ -156,6 +160,21 @@ components/
     │     the server-rendered post (isLiked, likeCount) and stays in
     │     sync with the live query after toggling.
     │
+    ├── LikeToggle.tsx
+    │     Generic like-toggle primitive shared by post and comment like
+    │     buttons. Owns auth-redirect, the useTransition in-flight state,
+    │     the optimistic render-time state sync (no useEffect), and Sonner
+    │     toasts. The wrapper components own `useMutation` (so the
+    │     mutation arg name — postId vs commentId — stays correct and
+    │     type-safe) and pass an already-bound `onToggle` callback.
+    │
+    ├── CommentLikeButton.tsx
+    │     Thin LikeToggle wrapper bound to `api.likes.toggleCommentLike`.
+    │     Renders the heart + count on each CommentCard; owns the
+    │     `useMutation` call and passes `onToggle={() =>
+    │     toggleCommentLike({ commentId })}`. The shared like UX (auth,
+    │     transition, toasts) lives in LikeToggle.
+    │
     ├── CommentSection.tsx
     │     Client component. Displays the paginated comment thread for a single
     │     post and hosts the reply form. Uses usePaginatedQuery for "Load More"
@@ -164,7 +183,7 @@ components/
     │
     ├── CommentCard.tsx
     │     Stateless display of a single comment. Shows author name,
-    │     creation timestamp, and body text.
+    │     creation timestamp, body text, and a right-aligned comment like button.
     │
     ├── PostCard.tsx
     │     Reusable post card used in `/blog` and on author profile pages.
@@ -483,6 +502,22 @@ separate `likes` table (one row per user per post, indexed
 "all likes for this post" as index queries. The hot-path count is
 denormalized onto `posts.likeCount`, kept in sync by `toggleLike`, so cards
 and detail pages render counts without touching the `likes` table.
+
+### 12. Why a shared `LikeToggle` primitive?
+
+Post and comment like buttons share the same UX — auth-gated redirect,
+in-flight transition state, optimistic local count synced from
+server-rendered props without a `useEffect`, and success/error toasts —
+differing only in the mutation reference, the argument name (`postId`
+vs `commentId`), and the label/toast strings. `LikeToggle` owns the
+shared behavior; each wrapper (`LikeButton`, `CommentLikeButton`) owns
+its `useMutation` call and passes an already-bound `onToggle` callback
+so the mutation arg name stays type-safe. This keeps the two buttons
+visually and behaviorally consistent, avoids ~60 lines of duplication,
+and gives future bookmark-style toggles (1.5) a ready seam. The
+`commentLikes` table mirrors `likes` (decision #11): separate table, no
+unbounded array, denormalized `comment.likeCount` kept in sync by
+`toggleCommentLike`.
 
 ---
 

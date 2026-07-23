@@ -19,8 +19,8 @@
 | ----------------------------------- | ---------------------------------------------------------- | -------------- |
 | Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening        | ✅ Complete    |
 | Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required              | ✅ Complete    |
-| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes         | 🔵 1.3 up next |
-| Phase 1B — Curation & Connection    | 1.4 Follows · 1.5 Bookmarks · 1.6 Notifications · 1.7 Feed | ⚪ Pending     |
+| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅      | ✅ Complete    |
+| Phase 1B — Curation & Connection    | 1.4 Follows · 1.5 Bookmarks · 1.6 Notifications · 1.7 Feed | 🔵 1.4 up next |
 | Phase 1C — Discovery & Polish       | 1.8 Tags · 1.9 Trending · 1.10 Activity · 1.11 Polish      | ⚪ Pending     |
 | Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics              | ⚪ Future      |
 | Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest              | ⚪ Future      |
@@ -49,6 +49,8 @@ instead of the provider picture until the user record sync completes
 
 - `toggleLike` — idempotent, one like per user per post, records in a separate `likes` table
 - `LikeButton` on post cards and the post detail page; `likeCount` denormalized on posts
+- `toggleCommentLike` — idempotent, one like per user per comment, records in a separate `commentLikes` table
+- `CommentLikeButton` on each `CommentCard`; `likeCount` denormalized on comments; shared `LikeToggle` primitive powers both post and comment like buttons
 
 ### Comments
 
@@ -75,10 +77,6 @@ instead of the provider picture until the user record sync completes
 
 Each item: essence + rough effort. Phase-numbered items are specified in the
 roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
-
-### Phase 1A — Identity & Engagement (remainder)
-
-- **1.3 Comment Likes** — extend the like pattern to comments (`commentLikes` table, count on `CommentCard`). _Medium._
 
 ### Phase 1B — Curation & Connection
 
