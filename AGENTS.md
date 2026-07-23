@@ -24,16 +24,16 @@ Convex agent skills for common tasks can be installed by running
 
 ## Commands
 
-| Intent | Command |
-|---|---|
-| Dev server | `pnpm dev` |
-| Lint | `pnpm lint` (ESLint via `eslint.config.mjs`) |
-| Format | `pnpm format` (Prettier), `pnpm format:check` |
-| Typecheck | `pnpm build` runs `next build` (includes TS type-checking via Next plugin) |
-| Tests (edge-runtime) | `pnpm test:ci` — vitest, edge-runtime, `app/**/*.test.ts`, `lib/**/*.test.ts`, `convex/**/*.test.ts` |
-| Component tests | `pnpm test:component` — vitest with jsdom, `app/**/*.test.tsx`, auto-cleanup via `vitest.ui.setup.ts` |
-| Single test file | `pnpm test -- <path>` (vitest in watch mode) |
-| Build | `pnpm build` |
+| Intent               | Command                                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------------------------- |
+| Dev server           | `pnpm dev`                                                                                            |
+| Lint                 | `pnpm lint` (ESLint via `eslint.config.mjs`)                                                          |
+| Format               | `pnpm format` (Prettier), `pnpm format:check`                                                         |
+| Typecheck            | `pnpm build` runs `next build` (includes TS type-checking via Next plugin)                            |
+| Tests (edge-runtime) | `pnpm test:ci` — vitest, edge-runtime, `app/**/*.test.ts`, `lib/**/*.test.ts`, `convex/**/*.test.ts`  |
+| Component tests      | `pnpm test:component` — vitest with jsdom, `app/**/*.test.tsx`, auto-cleanup via `vitest.ui.setup.ts` |
+| Single test file     | `pnpm test -- <path>` (vitest in watch mode)                                                          |
+| Build                | `pnpm build`                                                                                          |
 
 ## Routing
 
@@ -65,11 +65,23 @@ Convex agent skills for common tasks can be installed by running
 
 Before PR: `pnpm lint` → `pnpm test:ci` → `pnpm test:component` → `pnpm build`.
 
+## Documentation
+
+Keep the docs in sync as part of every change — stale docs cost more than
+no docs.
+
+- `FEATURES.md` — living roadmap. Shipping a feature → update its status in
+  the Status Board / backlog.
+- `docs/ARCHITECTURE.md` + README's Project Structure — changing directory
+  structure, schema, or auth → update both.
+- Designs and implementation plans → `docs/superpowers/specs|plans/`
+  (local, gitignored).
+
 ## Commits
 
 Conventional Commits (type + optional scope). Imperative, active voice.
 Subject ≤72 chars, no trailing period. Blank line, then body at 72 chars
-explaining *why* (not *what*). Breaking changes: `!` or `BREAKING CHANGE:`
+explaining _why_ (not _what_). Breaking changes: `!` or `BREAKING CHANGE:`
 footer. Ref issues in body (`Closes #123`). No WIP or vague subjects.
 
 ## Git Workflow

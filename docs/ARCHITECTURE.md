@@ -26,11 +26,20 @@ resonance/
 ├── app/
 │   ├── layout.tsx              # Root layout. ThemeProvider, ConvexClientProvider, Toaster
 │   ├── globals.css
-│   ├── (app)/                  # Route group: main app shell (has Navbar)
-│   │   ├── layout.tsx          # Renders <Navbar /> above all (app) pages
-│   │   ├── page.tsx            # Home / index (placeholder)
+│   ├── (app)/                  # Route group: main app shell (has Navbar + Footer)
+│   │   ├── layout.tsx          # Renders <Navbar /> above and <Footer /> below all (app) pages
+│   │   ├── page.tsx            # Landing page. Composes sections from _components/.
+│   │   ├── _components/        # Page-specific landing sections (not routed)
+│   │   │   ├── HeroSection.tsx
+│   │   │   ├── FeaturesSection.tsx
+│   │   │   ├── RecentPostsSection.tsx    # fetchQuery, wrapped in <Suspense>
+│   │   │   ├── RecentPostsSkeleton.tsx   # Content-shaped fallback
+│   │   │   ├── StatsSection.tsx          # Live total via posts.countPosts
+│   │   │   └── ExploreSection.tsx
 │   │   ├── blog/
-│   │   │   └── page.tsx        # Blog listing. Server Component. Uses fetchQuery.
+│   │   │   ├── page.tsx        # Blog listing. Server Component. Uses fetchQuery.
+│   │   │   └── [postId]/
+│   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
 │   │   ├── create/
 │   │   │   └── page.tsx        # Create post form. Client Component. Uses useMutation.
 │   │   ├── settings/
@@ -45,20 +54,23 @@ resonance/
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
 │   │   ├── login/
 │   │   └── sign-up/
-│   ├── schemas/
-│   │   ├── auth.ts             # Zod: signUpSchema, loginSchema
-│   │   ├── blog.ts             # Zod: postSchema
-│   │   └── comment.ts          # Zod: commentSchema (body + postId)
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts, comments, and users tables
+│   ├── schema.ts               # DB schema: posts, comments, likes, users, stats
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
-│   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL
+│   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
+│   │                           # Google + GitHub OAuth with profile field mapping.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
-│   ├── posts.ts                # createPost mutation; getPosts, getPostById,
-│   │                           # getPostsByAuthorId, countPosts queries
+│   ├── posts.ts                # createPost, generateImageUploadUrl mutations;
+│   │                           # getPosts, getPostById, getPostsByAuthorId,
+│   │                           # countPosts queries (countPosts reads the stats table)
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
+│   │                           # (paginated, enriches authorAvatarUrl from users)
+│   ├── likes.ts                # toggleLike mutation (idempotent); keeps the
+│   │                           # denormalized posts.likeCount in sync
+│   ├── stats.ts                # getStats query + incrementPostCount internal
+│   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserById,
 │   │                           # getUserByAuthId, getUserByEmail, getUserProfile,
 │   │                           # updateProfile mutations/queries
@@ -66,21 +78,36 @@ resonance/
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (Button, Card, Input, etc.)
 │   └── web/
-│       ├── ConvexClientProvider.tsx  # Convex + Better Auth session bridge
-│       ├── Navbar.tsx               # Top nav. Reads auth state via useConvexAuth().
-│   ├── CommentSection.tsx       # Client: paginated comment list + submission form
-│   ├── CommentCard.tsx          # Pure display of a single comment with timestamp
-│   ├── PostCard.tsx             # Reusable post card. Title is an <h2> so the
-│   │                            # page-level <h1> remains unique per page.
-│   ├── EmptyState.tsx           # Icon + title + description + optional CTA primitive
-│   ├── SectionHeading.tsx       # Heading with optional count + right-side action slot
-│   ├── ProfileHeader.tsx        # Reusable profile hero (avatar, name, bio, action)
-│   ├── UserAvatar.tsx           # Avatar with DiceBear fallback + initials.
-│       └── theme-toggle.tsx         # Dark and light toggle
+│       ├── ConvexClientProvider.tsx  # Convex + Better Auth session bridge.
+│       │                           # Wraps children in <AuthSync>.
+│       ├── AuthSync.tsx         # Fires users.syncUser on every auth state change
+│       ├── Navbar.tsx           # Top nav. Avatar dropdown (profile/settings/logout).
+│       ├── Footer.tsx           # Site-wide footer. Links from lib/constants/footer.ts.
+│       ├── FooterCTA.tsx        # Auth-aware CTA card rendered inside Footer
+│       ├── AuthCTA.tsx          # Auth-aware CTA button ("Write a post" / "Get Started")
+│       ├── CommentSection.tsx   # Client: paginated comment list + submission form
+│       ├── CommentCard.tsx      # Pure display of a single comment with timestamp
+│       ├── LikeButton.tsx       # Client: heart toggle + count, auth-gated
+│       ├── PostCard.tsx         # Reusable post card. Title is an <h2> so the
+│       │                        # page-level <h1> remains unique per page.
+│       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
+│       ├── SectionHeading.tsx   # Heading with optional count + right-side action slot
+│       ├── ProfileHeader.tsx    # Reusable profile hero (avatar, name, bio, action)
+│       ├── UserAvatar.tsx       # Avatar with DiceBear fallback + initials.
+│       └── theme-toggle.tsx     # Dark and light toggle
+│
+├── schemas/                    # Zod validation schemas (repo root, shared)
+│   ├── auth.ts                 # signUpSchema, loginSchema
+│   ├── blog.ts                 # postSchema
+│   └── comment.ts              # commentSchema (body + postId)
 │
 └── lib/
     ├── auth-server.ts          # Next.js server-side auth helpers
-    └── auth-client.ts          # Browser-side authClient (sign-in, sign-up, sign-out)
+    ├── auth-client.ts          # Browser-side authClient (sign-in, sign-up, sign-out)
+    ├── avatar.ts               # DiceBear fallback URL + initials helpers
+    └── constants/
+        ├── seo.ts              # SITE_NAME, getSiteUrl(), truncateForDescription()
+        └── footer.ts           # Footer site name, nav links, social links
 ```
 
 ---
@@ -98,11 +125,36 @@ components/
     │     Wraps the entire app tree. Sets up ConvexBetterAuthProvider
     │     with NEXT_PUBLIC_CONVEX_URL. Must be a client component
     │     ("use client") because it manages a real-time WebSocket.
+    │     Wraps children in <AuthSync> so user records stay in sync.
+    │
+    ├── AuthSync.tsx
+    │     Client component mounted inside ConvexClientProvider. Fires
+    │     the users.syncUser mutation whenever auth state changes, so
+    │     the app-level users table mirrors the Better Auth identity
+    │     (display name, email, OAuth avatar). Known issue: sync is
+    │     fire-and-forget, so on first OAuth sign-up the Navbar can
+    │     briefly render initials instead of the provider avatar.
     │
     ├── Navbar.tsx
     │     Reads auth state with useConvexAuth(). Reactive to the
     │     Convex session, not to the Better Auth client directly.
-    │     Calls authClient.signOut() from lib/auth-client.ts on logout.
+    │     Authenticated users get an avatar dropdown (profile,
+    │     settings, logout); calls authClient.signOut() on logout.
+    │     "Create" is hidden from unauthenticated visitors.
+    │
+    ├── Footer.tsx / FooterCTA.tsx / AuthCTA.tsx
+    │     Footer is the site-wide footer (quick links, socials,
+    │     copyright; link data lives in lib/constants/footer.ts).
+    │     FooterCTA is the auth-aware CTA card inside it, and AuthCTA
+    │     is the same pattern as a standalone button used on the
+    │     landing and blog heroes: authenticated → "Write a post"
+    │     (/create), unauthenticated → "Get Started" (/auth/login).
+    │
+    ├── LikeButton.tsx
+    │     Heart toggle with like count, rendered on post cards and
+    │     the post detail page. Auth-gated; initial state comes from
+    │     the server-rendered post (isLiked, likeCount) and stays in
+    │     sync with the live query after toggling.
     │
     ├── CommentSection.tsx
     │     Client component. Displays the paginated comment thread for a single
@@ -161,8 +213,9 @@ app/
 │                         ThemeProvider, ConvexClientProvider, Toaster
 │
 ├── (app)/
-│   └── layout.tsx      Adds <Navbar /> above page content.
-│                       All logged-in app pages live here.
+│   └── layout.tsx      Adds <Navbar /> above and <Footer /> below page
+│                       content, in a flex column so the footer pins to
+│                       the bottom on short pages. All app pages live here.
 │
 └── auth/
     └── layout.tsx      Full-screen centered layout.
@@ -170,6 +223,11 @@ app/
                         Auth pages are deliberately isolated so there is
                         no visual chrome distracting from the form.
 ```
+
+Page-specific components that only one route uses live next to that route in
+a `_components/` folder (e.g. `app/(app)/_components/` for the landing
+sections, `app/(app)/u/[userId]/_components/` for the profile page). Shared
+components live in `components/web/`.
 
 Route groups (the `(app)` folder name) are a Next.js App Router convention. The
 parentheses mean the folder name is not part of the URL. `/blog` resolves to
@@ -253,7 +311,11 @@ Browser                 Next.js              Convex HTTP
   │  queries / mutations automatically           │
 ```
 
-Auth is email + password only. Email verification is disabled.
+Auth supports email + password and OAuth (Google and GitHub). Email
+verification is disabled. For OAuth sign-ins, `convex/auth.ts` maps provider
+profile fields (Google `picture`, GitHub `avatar_url`) onto the Better Auth
+user so avatars display immediately; `AuthSync` then copies identity fields
+into the app-level `users` table.
 
 ---
 
@@ -362,14 +424,19 @@ The layout file handles it structurally.
 The rule of thumb: default to Server Components; drop to Client Components only when
 you need interactivity, browser APIs, or real-time Convex hooks.
 
-### 6. Why preload comments server-side but render the form client-side?
+### 6. Why load comments client-side instead of server-rendering them?
 
-Comments on a blog post are read-heavy but also need a write path (the reply form).
-`preloadQuery` fetches the comment list at request time so the HTML arrives with data
-already present. No client spinners. The `<CommentSection>` component is a Client
-Component because it needs `useForm`, `useMutation`, and `useTransition` for the
-submission UX. `usePreloadedQuery` bridges the two worlds: it hydrates the server-
-preloaded data inside the client component without an extra network round-trip.
+The post page server-renders the post itself (SEO + fast first paint) but
+deliberately does **not** fetch comments on the server. The page only passes
+the denormalized `post.commentCount` to `<CommentSection>` as
+`initialTotalCount`, and the client component takes it from there:
+`usePaginatedQuery(api.comments.getCommentsByPostId)` for the "Load More"
+list and `useMutation(api.comments.createComment)` for the submission form
+(React Hook Form + Zod validation). Trade-off: comments appear a beat after
+the post content, but the list is live — new comments from other readers
+show up without a refresh, and pagination state stays entirely on the
+client. Comments are below the fold and not SEO-critical, so the extra
+server round-trip would buy little.
 
 ### 7. Why use `react.cache()` for `generateMetadata` + the page?
 
@@ -399,15 +466,35 @@ reusing one component, not from aligning hand-written styles across files.
 A future change to the card (e.g. a new badge, a new affordance) is a
 single-file edit, not a sweep.
 
+### 10. Why a single-row `stats` table for the total post count?
+
+Convex has no built-in count operation, and `.collect().length` loads every
+post into memory. The landing page stats section needs an O(1) read, so
+`createPost` calls the internal `incrementPostCount` mutation after every
+insert and `posts.countPosts` simply reads the single `stats` row. Writes
+are where we pay; reads stay cheap.
+
+### 11. Why is `likes` a separate table instead of an array on posts?
+
+An unbounded `likedBy` array would grow the post document toward Convex's
+1 MB document limit and bloat every read that doesn't need like data. A
+separate `likes` table (one row per user per post, indexed
+`by_postId_and_userId`) supports both "did this user like this post?" and
+"all likes for this post" as index queries. The hot-path count is
+denormalized onto `posts.likeCount`, kept in sync by `toggleLike`, so cards
+and detail pages render counts without touching the `likes` table.
+
 ---
 
 ## Environment Variables
 
-| Variable                      | Where it lives            | Used by                                      |
-| ----------------------------- | ------------------------- | -------------------------------------------- |
-| `NEXT_PUBLIC_CONVEX_URL`      | Next.js `.env.local`      | `ConvexClientProvider`: WebSocket URL        |
-| `NEXT_PUBLIC_CONVEX_SITE_URL` | Next.js `.env.local`      | Points browser auth calls at Convex HTTP     |
-| `SITE_URL`                    | Convex dashboard env vars | `convex/auth.ts`: Better Auth base URL       |
+| Variable                      | Where it lives            | Used by                                  |
+| ----------------------------- | ------------------------- | ---------------------------------------- |
+| `NEXT_PUBLIC_CONVEX_URL`      | Next.js `.env.local`      | `ConvexClientProvider`: WebSocket URL    |
+| `NEXT_PUBLIC_CONVEX_SITE_URL` | Next.js `.env.local`      | Points browser auth calls at Convex HTTP |
+| `BETTER_AUTH_SECRET`          | Next.js `.env.local`      | Better Auth encryption (32+ chars)       |
+| `NEXT_PUBLIC_SITE_URL`        | Next.js `.env.local`      | `metadataBase` / absolute OG image URLs  |
+| `SITE_URL`                    | Convex dashboard env vars | `convex/auth.ts`: Better Auth base URL   |
 
 `NEXT_PUBLIC_*` variables are exposed to the browser bundle. `SITE_URL` stays
 server-side inside Convex.
