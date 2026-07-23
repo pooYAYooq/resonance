@@ -9,14 +9,19 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { CommentLikeButton } from "./CommentLikeButton";
 import type { Id } from "@/convex/_generated/dataModel";
 
-const { useConvexAuthState, useMutationMock } = vi.hoisted(() => ({
-  useConvexAuthState: vi.fn(),
-  useMutationMock: vi.fn(),
-}));
+const { useConvexAuthState, useMutationMock, useMutationSpy } = vi.hoisted(
+  () => ({
+    useConvexAuthState: vi.fn(),
+    useMutationMock: vi.fn(),
+    // Captures which mutation reference the wrapper passed to useMutation at
+    // render, while still handing back useMutationMock so the click path works.
+    useMutationSpy: vi.fn(() => useMutationMock),
+  }),
+);
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => useConvexAuthState(),
-  useMutation: () => useMutationMock,
+  useMutation: useMutationSpy,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -49,6 +54,7 @@ describe("CommentLikeButton", () => {
       isLoading: false,
     });
     useMutationMock.mockClear();
+    useMutationSpy.mockClear();
   });
 
   afterEach(() => {
@@ -79,6 +85,11 @@ describe("CommentLikeButton", () => {
       "aria-label",
       "Like this comment",
     );
+  });
+
+  it("wires the toggleCommentLike mutation reference at render", () => {
+    render(<CommentLikeButton {...baseProps} />);
+    expect(useMutationSpy).toHaveBeenCalledWith("toggleCommentLike");
   });
 
   it("calls toggleCommentLike with the comment id on click", async () => {
