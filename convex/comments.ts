@@ -15,7 +15,10 @@ import { authComponent } from "./auth";
  *
  * @param args.postId - `Id<"posts">`: the document ID of the target post.
  * @param args.paginationOpts - `PaginationOptions`: Convex pagination config.
- * @returns `PaginationResult`: paginated comments with `page`, `isDone`, and `continueCursor`.
+ * @returns `PaginationResult`: paginated result where `page` contains comments with
+ *   `authorAvatarUrl` (`string | null`), `likeCount` (`number`, defaulting to 0 for
+ *   legacy comments), `isLiked` (`boolean`, always `false` for unauthenticated
+ *   callers), plus `isDone` and `continueCursor`.
  */
 export const getCommentsByPostId = query({
   args: {
