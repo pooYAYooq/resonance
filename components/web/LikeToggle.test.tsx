@@ -106,6 +106,8 @@ describe("LikeToggle", () => {
 
     expect(onToggleMock).toHaveBeenCalledTimes(1);
     expect(toastSuccessMock).toHaveBeenCalledWith("Liked");
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
   });
 
   it("invokes onToggle and toasts error on onToggle failure", async () => {
