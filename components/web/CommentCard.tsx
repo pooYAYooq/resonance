@@ -1,32 +1,34 @@
 /**
- * Renders a single comment card with author metadata and a timestamp.
- * Used inside the comment list below each blog post.
+ * Renders a single comment card with author metadata, a timestamp, and a
+ * like button. Used inside the comment list below each blog post.
  */
 
 "use client";
 
 import { UserAvatar } from "./UserAvatar";
+import { CommentLikeButton } from "./CommentLikeButton";
+import type { Id } from "@/convex/_generated/dataModel";
 
 interface CommentCardProps {
+  commentId: Id<"comments">;
   authorName: string;
   body: string;
   createdAt: number;
   authorId: string;
   authorAvatarUrl?: string | null;
+  isLiked: boolean;
+  likeCount: number;
 }
 
-/**
- * Displays a comment card with author name, creation date, and body text.
- *
- * @param props - `CommentCardProps`: comment data to render.
- * @returns JSX.Element: a styled comment card.
- */
 export function CommentCard({
+  commentId,
   authorName,
   body,
   createdAt,
   authorId,
   authorAvatarUrl,
+  isLiked,
+  likeCount,
 }: CommentCardProps) {
   return (
     <div className="border rounded-lg p-4 bg-card">
@@ -52,6 +54,13 @@ export function CommentCard({
         </span>
       </div>
       <p className="text-sm text-foreground/90 whitespace-pre-wrap">{body}</p>
+      <div className="flex justify-end mt-2">
+        <CommentLikeButton
+          commentId={commentId}
+          isLiked={isLiked}
+          likeCount={likeCount}
+        />
+      </div>
     </div>
   );
 }

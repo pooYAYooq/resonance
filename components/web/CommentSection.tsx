@@ -113,11 +113,14 @@ export function CommentSection({ initialTotalCount }: CommentSectionProps) {
             comments.map((comment) => (
               <CommentCard
                 key={comment._id}
+                commentId={comment._id}
                 authorName={comment.authorName}
                 body={comment.body}
                 createdAt={comment.createdAt}
                 authorId={comment.authorId}
                 authorAvatarUrl={comment.authorAvatarUrl}
+                isLiked={comment.isLiked}
+                likeCount={comment.likeCount}
               />
             ))
           )}
