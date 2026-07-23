@@ -29,15 +29,31 @@ export const getCommentsByPostId = query({
       .order("desc")
       .paginate(args.paginationOpts);
 
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+
     const page = await Promise.all(
       result.page.map(async (comment) => {
         const user = await ctx.db
           .query("users")
           .withIndex("by_userId", (q) => q.eq("userId", comment.authorId))
           .unique();
+
+        let isLiked = false;
+        if (authUser) {
+          const like = await ctx.db
+            .query("commentLikes")
+            .withIndex("by_commentId_and_userId", (q) =>
+              q.eq("commentId", comment._id).eq("userId", authUser._id),
+            )
+            .unique();
+          isLiked = !!like;
+        }
+
         return {
           ...comment,
+          likeCount: comment.likeCount ?? 0,
           authorAvatarUrl: user?.avatarUrl ?? null,
+          isLiked,
         };
       }),
     );
@@ -84,6 +100,7 @@ export const createComment = mutation({
       body,
       authorId: user._id,
       authorName: user.name?.trim() || "Anonymous",
+      likeCount: 0,
       createdAt: Date.now(),
     });
 

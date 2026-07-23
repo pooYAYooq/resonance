@@ -203,6 +203,71 @@ describe("comments functions", () => {
     expect(result.page[0].authorAvatarUrl).toBeNull();
   });
 
+  it("getCommentsByPostId returns isLiked false and likeCount 0 for comments without stored likeCount", async () => {
+    const t = convexTest(schema, modules);
+
+    const postId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("posts", {
+        title: "Like default",
+        body: "Body.",
+        authorId: "user-1",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("comments", {
+        postId: id,
+        authorId: "user-2",
+        authorName: "Alice",
+        body: "Old comment without likeCount field.",
+        createdAt: 1000,
+      });
+      return id;
+    });
+
+    const result = await t.query(api.comments.getCommentsByPostId, {
+      postId,
+      paginationOpts: { numItems: 50, cursor: null },
+    });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].isLiked).toBe(false);
+    expect(result.page[0].likeCount).toBe(0);
+  });
+
+  it("getCommentsByPostId surfaces stored denormalized likeCount for unauthenticated callers", async () => {
+    const t = convexTest(schema, modules);
+
+    const postId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("posts", {
+        title: "Stored count",
+        body: "Body.",
+        authorId: "user-1",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("comments", {
+        postId: id,
+        authorId: "user-2",
+        authorName: "Alice",
+        body: "Liked comment.",
+        likeCount: 3,
+        createdAt: 1000,
+      });
+      return id;
+    });
+
+    const result = await t.query(api.comments.getCommentsByPostId, {
+      postId,
+      paginationOpts: { numItems: 50, cursor: null },
+    });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].likeCount).toBe(3);
+    expect(result.page[0].isLiked).toBe(false);
+  });
+
   // NOTE: Tests for authenticated paths (body validation, commentCount
   // increment, and createdAt population) are omitted because convex-test
   // requires the betterAuth component to be registered, which is not
