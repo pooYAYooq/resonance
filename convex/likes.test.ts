@@ -33,6 +33,33 @@ describe("likes functions", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
+  it("rejects toggleCommentLike when unauthenticated", async () => {
+    const t = convexTest(schema, modules);
+
+    const { commentId } = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Post",
+        body: "Body.",
+        authorId: "user-1",
+        commentCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      const id = await ctx.db.insert("comments", {
+        postId,
+        authorId: "user-2",
+        authorName: "Alice",
+        body: "Nice post.",
+        createdAt: Date.now(),
+      });
+      return { commentId: id };
+    });
+
+    await expect(
+      t.mutation(api.likes.toggleCommentLike, { commentId }),
+    ).rejects.toThrow("Unauthorized");
+  });
+
   it("getPostById returns isLiked: false for unauthenticated callers", async () => {
     const t = convexTest(schema, modules);
 

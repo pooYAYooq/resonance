@@ -15,7 +15,10 @@ import { authComponent } from "./auth";
  *
  * @param args.postId - `Id<"posts">`: the document ID of the target post.
  * @param args.paginationOpts - `PaginationOptions`: Convex pagination config.
- * @returns `PaginationResult`: paginated comments with `page`, `isDone`, and `continueCursor`.
+ * @returns `PaginationResult`: paginated result where `page` contains comments with
+ *   `authorAvatarUrl` (`string | null`), `likeCount` (`number`, defaulting to 0 for
+ *   legacy comments), `isLiked` (`boolean`, always `false` for unauthenticated
+ *   callers), plus `isDone` and `continueCursor`.
  */
 export const getCommentsByPostId = query({
   args: {
@@ -29,15 +32,31 @@ export const getCommentsByPostId = query({
       .order("desc")
       .paginate(args.paginationOpts);
 
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+
     const page = await Promise.all(
       result.page.map(async (comment) => {
         const user = await ctx.db
           .query("users")
           .withIndex("by_userId", (q) => q.eq("userId", comment.authorId))
           .unique();
+
+        let isLiked = false;
+        if (authUser) {
+          const like = await ctx.db
+            .query("commentLikes")
+            .withIndex("by_commentId_and_userId", (q) =>
+              q.eq("commentId", comment._id).eq("userId", authUser._id),
+            )
+            .unique();
+          isLiked = !!like;
+        }
+
         return {
           ...comment,
+          likeCount: comment.likeCount ?? 0,
           authorAvatarUrl: user?.avatarUrl ?? null,
+          isLiked,
         };
       }),
     );
@@ -84,6 +103,7 @@ export const createComment = mutation({
       body,
       authorId: user._id,
       authorName: user.name?.trim() || "Anonymous",
+      likeCount: 0,
       createdAt: Date.now(),
     });
 

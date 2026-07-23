@@ -133,10 +133,10 @@ app/
   api/auth/[...all]/          # Better Auth route handler → Convex HTTP
 
 convex/
-  schema.ts                   # Database schema (posts, comments, likes, users, stats)
+  schema.ts                   # Database schema (posts, comments, likes, commentLikes, users, stats)
   posts.ts                    # Post queries, mutations, image upload
-  comments.ts                 # Comment queries and mutations (paginated)
-  likes.ts                    # toggleLike mutation
+  comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
+  likes.ts                    # toggleLike + toggleCommentLike mutations
   users.ts                    # User sync, profile queries, updateProfile
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth)
@@ -151,6 +151,8 @@ components/
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile)
     LikeButton.tsx
+    LikeToggle.tsx              # Generic like-toggle primitive (auth, transition, toasts)
+    CommentLikeButton.tsx       # Comment like button wrapper rendered on CommentCard
     CommentSection.tsx
     CommentCard.tsx
     ProfileHeader.tsx
