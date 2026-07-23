@@ -7,15 +7,17 @@
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| **Landing Page** | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA |
-| **Blog** | Create posts with cover images, browse paginated listings, read individual posts |
-| **Comments** | Leave comments on posts with real-time updates |
-| **Authentication** | Email/password sign-up and login via Better Auth (runs inside Convex) |
-| **SEO** | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts |
-| **Dark Mode** | System-aware dark/light theme toggle |
-| **Responsive** | Mobile-first design, works across all breakpoints |
+| Feature            | Description                                                                               |
+| ------------------ | ----------------------------------------------------------------------------------------- |
+| **Landing Page**   | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA |
+| **Blog**           | Create posts with cover images, browse paginated listings, read individual posts          |
+| **Likes**          | Like/unlike posts with live counts on cards and post pages                                |
+| **Comments**       | Paginated comments with author avatars, real-time updates                                 |
+| **Profiles**       | Public profiles at `/u/[userId]` with posts, bio, and avatar; edit via `/settings`        |
+| **Authentication** | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                 |
+| **SEO**            | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts            |
+| **Dark Mode**      | System-aware dark/light theme toggle                                                      |
+| **Responsive**     | Mobile-first design, works across all breakpoints                                         |
 
 ---
 
@@ -49,12 +51,12 @@ pnpm install
 
 Copy `.env.local.example` to `.env.local` and fill in:
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_CONVEX_URL` | Your Convex deployment URL |
-| `NEXT_PUBLIC_CONVEX_SITE_URL` | Your Convex site URL |
-| `BETTER_AUTH_SECRET` | 32+ character secret for auth encryption |
-| `NEXT_PUBLIC_SITE_URL` | Public site URL (for OG tags) |
+| Variable                      | Description                              |
+| ----------------------------- | ---------------------------------------- |
+| `NEXT_PUBLIC_CONVEX_URL`      | Your Convex deployment URL               |
+| `NEXT_PUBLIC_CONVEX_SITE_URL` | Your Convex site URL                     |
+| `BETTER_AUTH_SECRET`          | 32+ character secret for auth encryption |
+| `NEXT_PUBLIC_SITE_URL`        | Public site URL (for OG tags)            |
 
 > **Note:** Also set `SITE_URL` in the **Convex dashboard** environment variables (not `.env.local`) — `convex/auth.ts` and Better Auth read it from there.
 
@@ -78,16 +80,16 @@ This starts the Convex dev server and syncs your schema/functions.
 
 ## Development Commands
 
-| Intent | Command |
-|--------|---------|
-| Dev server | `pnpm dev` |
-| Lint | `pnpm lint` |
-| Format | `pnpm format` |
-| Typecheck | `pnpm build` (includes TS type-checking via Next plugin) |
+| Intent               | Command                                                        |
+| -------------------- | -------------------------------------------------------------- |
+| Dev server           | `pnpm dev`                                                     |
+| Lint                 | `pnpm lint`                                                    |
+| Format               | `pnpm format`                                                  |
+| Typecheck            | `pnpm build` (includes TS type-checking via Next plugin)       |
 | Tests (edge-runtime) | `pnpm test:ci` — Vitest with edge-runtime for Convex functions |
-| Component tests | `pnpm test:component` — Vitest with jsdom for React components |
-| Single test file | `pnpm test -- <path>` |
-| Build | `pnpm build` |
+| Component tests      | `pnpm test:component` — Vitest with jsdom for React components |
+| Single test file     | `pnpm test -- <path>`                                          |
+| Build                | `pnpm build`                                                   |
 
 ---
 
@@ -106,47 +108,63 @@ app/
   (app)/                      # Main app routes (has Navbar + Footer)
     page.tsx                  # Landing page (public, auth-aware CTAs)
     layout.tsx                # App layout with Navbar + Footer
-    blog/
-      page.tsx                # Blog listing with gradient hero + post grid
-      [postId]/
-        page.tsx              # Single post view with comments
-    create/
-      page.tsx                # Create new post form
-  auth/                       # Auth routes (login, sign-up)
-    login/page.tsx
-    sign-up/page.tsx
-    layout.tsx                # Auth layout (no Navbar, full-screen forms)
-  api/auth/[...all]/          # Better Auth route handler → Convex HTTP
-  schemas/                    # Zod validation schemas
-
-convex/
-  schema.ts                   # Database schema
-  posts.ts                    # Post queries, mutations, image upload
-  comments.ts                 # Comment queries and mutations
-  auth.ts                     # Better Auth integration inside Convex
-  http.ts                     # Convex HTTP actions
-
-components/
-  ui/                         # shadcn/ui primitives
-  web/                        # App-level components
-    home/                     # Landing page sections
+    _components/              # Landing page sections
       HeroSection.tsx
       FeaturesSection.tsx
       RecentPostsSection.tsx
       RecentPostsSkeleton.tsx
       StatsSection.tsx
       ExploreSection.tsx      # Category placeholder grid
+    blog/
+      page.tsx                # Blog listing with gradient hero + post grid
+      [postId]/
+        page.tsx              # Single post view with likes + comments
+    create/
+      page.tsx                # Create new post form
+    settings/
+      page.tsx                # Edit display name + bio
+    u/[userId]/
+      page.tsx                # Public profile with paginated posts
+      _components/            # EditProfileButton, ProfilePostList
+  auth/                       # Auth routes (login, sign-up)
+    login/page.tsx
+    sign-up/page.tsx
+    layout.tsx                # Auth layout (no Navbar, full-screen forms)
+  api/auth/[...all]/          # Better Auth route handler → Convex HTTP
+
+convex/
+  schema.ts                   # Database schema (posts, comments, likes, users, stats)
+  posts.ts                    # Post queries, mutations, image upload
+  comments.ts                 # Comment queries and mutations (paginated)
+  likes.ts                    # toggleLike mutation
+  users.ts                    # User sync, profile queries, updateProfile
+  stats.ts                    # Denormalized total post count
+  auth.ts                     # Better Auth integration inside Convex (email + OAuth)
+  http.ts                     # Convex HTTP actions
+
+components/
+  ui/                         # shadcn/ui primitives
+  web/                        # App-level components
     AuthCTA.tsx               # Auth-aware CTA button ("Write a post" / "Get Started")
     FooterCTA.tsx             # Auth-aware CTA card for Footer
-    Navbar.tsx
+    Navbar.tsx                # Top nav with avatar dropdown
     Footer.tsx
+    PostCard.tsx              # Shared post card (listing, landing, profile)
+    LikeButton.tsx
     CommentSection.tsx
     CommentCard.tsx
+    ProfileHeader.tsx
+    SectionHeading.tsx
+    EmptyState.tsx
     UserAvatar.tsx
+    AuthSync.tsx              # Syncs Better Auth identity → users table
     ConvexClientProvider.tsx
 
+schemas/                      # Zod validation schemas (repo root)
+
 lib/
-  constants/                  # Site-wide constants
+  constants/                  # Site-wide constants (seo, footer)
+  avatar.ts                   # DiceBear fallback + initials helpers
   utils.ts                    # cn() and other helpers
   auth-client.ts              # Better Auth client setup
   auth-server.ts              # Server-side auth helpers
@@ -158,10 +176,10 @@ lib/
 
 ### Server vs Client Components
 
-| Type | Usage | Data Fetching |
-|------|-------|---------------|
-| **Server Components** | Read-only pages & sections | `fetchQuery` from `convex/nextjs` |
-| **Client Components** | Interactivity, hooks, auth state | `useConvexAuth`, mutations |
+| Type                  | Usage                            | Data Fetching                     |
+| --------------------- | -------------------------------- | --------------------------------- |
+| **Server Components** | Read-only pages & sections       | `fetchQuery` from `convex/nextjs` |
+| **Client Components** | Interactivity, hooks, auth state | `useConvexAuth`, mutations        |
 
 ### Auth Flow
 
@@ -175,21 +193,21 @@ User and session records live in the same Convex DB as application data.
 
 ### Data Fetching Patterns
 
-| Section | Query | Pattern |
-|---------|-------|---------|
-| Landing stats | `fetchQuery(api.posts.countPosts)` | Live total post count |
-| Recent posts | `fetchQuery(api.posts.getPosts, { numItems: 4 })` | Paginated, wrapped in `<Suspense>` |
-| Blog listing | `fetchQuery(api.posts.getPosts, { numItems: 50 })` | Full paginated grid |
-| Post detail | `fetchQuery(api.posts.getPostById)` | Single post + image URL resolution |
+| Section       | Query                                              | Pattern                            |
+| ------------- | -------------------------------------------------- | ---------------------------------- |
+| Landing stats | `fetchQuery(api.posts.countPosts)`                 | Live total post count              |
+| Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`  | Paginated, wrapped in `<Suspense>` |
+| Blog listing  | `fetchQuery(api.posts.getPosts, { numItems: 50 })` | Full paginated grid                |
+| Post detail   | `fetchQuery(api.posts.getPostById)`                | Single post + image URL resolution |
 
 ---
 
 ## Testing
 
-| Suite | Command | Runtime | Coverage |
-|-------|---------|---------|----------|
-| Convex | `pnpm test:ci` | Edge | Functions, queries, mutations |
-| UI | `pnpm test:component` | jsdom | React components, forms |
+| Suite  | Command               | Runtime | Coverage                      |
+| ------ | --------------------- | ------- | ----------------------------- |
+| Convex | `pnpm test:ci`        | Edge    | Functions, queries, mutations |
+| UI     | `pnpm test:component` | jsdom   | React components, forms       |
 
 ---
 

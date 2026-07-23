@@ -1,694 +1,144 @@
-# Resonance — Feature Research & Roadmap
+# Resonance — Features & Roadmap
 
-## Progress Checklist
+> The living roadmap: what's shipped, what's next, and the idea backlog.
+>
+> **Update rule:** when a feature ships, update its status here (see the
+> "Documentation" section in `AGENTS.md`). Detailed phase designs and
+> implementation plans live in `docs/superpowers/specs|plans/` (local,
+> gitignored).
 
-### 🔴 High Priority (MVP)
-- [x] 1. Footer Component
-- [x] 2. Home Page Redesign
-- [ ] 3. Like Button & Like Count
-- [ ] 4. Reply to Comments
+**Stack:** Next.js 16 (App Router) + TypeScript + Convex + Better Auth + Tailwind CSS v4 + shadcn/ui
 
-### 🟡 Medium Priority (Post-MVP)
-- [ ] 5. User Dashboard
-- [ ] 6. Post Editing
-- [ ] 7. User Profile Page
-- [ ] 8. Search Functionality
-- [ ] 9. Tags / Categories
-
-### 🟢 Low Priority (Nice-to-have)
-- [ ] 10. User Avatars
-- [ ] 11. View Count `Quick Win`
-- [ ] 12. Bookmarks
-- [ ] 13. Follow Users
-- [ ] 14. Activity Feed
-- [x] 15. Social Sharing `Quick Win`
-- [ ] 16. Email Notifications
-- [ ] 17. Empty States `Quick Win`
-- [ ] 18. Custom 404 Page `Quick Win`
-- [ ] 19. Loading Skeletons
-- [ ] 20. About & Contact Pages
-- [x] 21. SEO Optimization
-
-## Project Overview
-
-**Stack:** Next.js 16 (App Router) + TypeScript + Convex (backend) + Better Auth + Tailwind CSS v4 + shadcn/ui
-
-**Purpose:** A blog platform where users can create posts, comment, and engage with content.
+**Purpose:** A multi-author publishing platform where users write posts and readers engage through likes, comments, and follows.
 
 ---
 
-## Table of Contents
+## Status Board
 
-- [Part 1: Currently Implemented Features](#part-1-currently-implemented-features)
-  - [Authentication](#authentication)
-  - [Blog Posts](#blog-posts)
-  - [Comments](#comments)
-  - [UI/UX](#uiux)
-- [Part 2: Feature Proposals](#part-2-feature-proposals)
-  - [🔴 High Priority](#-high-priority)
-    - [1. Footer Component `MVP`](#1-footer-component-mvp)
-    - [2. Home Page Redesign `MVP`](#2-home-page-redesign-mvp)
-    - [3. Like Button & Like Count `MVP`](#3-like-button--like-count-mvp)
-    - [4. Reply to Comments `MVP`](#4-reply-to-comments-mvp)
-  - [🟡 Medium Priority](#-medium-priority)
-    - [5. User Dashboard `MVP`](#5-user-dashboard-mvp)
-    - [6. Post Editing `MVP`](#6-post-editing-mvp)
-    - [7. User Profile Page](#7-user-profile-page)
-    - [8. Search Functionality](#8-search-functionality)
-    - [9. Tags / Categories](#9-tags--categories)
-  - [🟢 Lower Priority](#-lower-priority)
-    - [10. User Avatars](#10-user-avatars)
-    - [11. View Count `Quick Win`](#11-view-count-quick-win)
-    - [12. Bookmarks](#12-bookmarks)
-    - [13. Follow Users](#13-follow-users)
-    - [14. Activity Feed](#14-activity-feed)
-    - [15. Social Sharing `Quick Win`](#15-social-sharing-quick-win)
-    - [16. Email Notifications](#16-email-notifications)
-    - [17. Empty States `Quick Win`](#17-empty-states-quick-win)
-    - [18. Custom 404 Page `Quick Win`](#18-custom-404-page-quick-win)
-    - [19. Loading Skeletons](#19-loading-skeletons)
-    - [20. About & Contact Pages](#20-about--contact-pages)
-    - [21. SEO Optimization](#21-seo-optimization)
-- [Part 3: Recommended Implementation Order](#part-3-recommended-implementation-order)
-- [Part 4: Technical Notes](#part-4-technical-notes)
+| Phase                               | Goal                                                       | Status         |
+| ----------------------------------- | ---------------------------------------------------------- | -------------- |
+| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening        | ✅ Complete    |
+| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required              | ✅ Complete    |
+| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes         | 🔵 1.3 up next |
+| Phase 1B — Curation & Connection    | 1.4 Follows · 1.5 Bookmarks · 1.6 Notifications · 1.7 Feed | ⚪ Pending     |
+| Phase 1C — Discovery & Polish       | 1.8 Tags · 1.9 Trending · 1.10 Activity · 1.11 Polish      | ⚪ Pending     |
+| Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics              | ⚪ Future      |
+| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest              | ⚪ Future      |
+
+**Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
+instead of the provider picture until the user record sync completes
+(`AuthSync` fires `syncUser` as fire-and-forget).
 
 ---
 
-## Quick Wins (< 1 hour each)
-
-These features are small enough to knock out in a single session:
-
-| # | Feature | Why it's quick | Effort |
-|---|---------|----------------|--------|
-| 18 | Custom 404 Page | Single static page, no backend changes | Low |
-| 17 | Empty States | Reusable component, just text + icon | Low |
-| 11 | View Count | Add one field to schema + one mutation | Low |
-| 15 | Social Sharing | Pure frontend — Web Share API + OG tags | Low |
-
----
-
-## MVP Scope (v1.0)
-
-Features required for a launch-ready product:
-
-- [x] 1. Footer Component
-- [x] 2. Home Page Redesign
-- [ ] 3. Like Button & Like Count
-- [ ] 4. Reply to Comments
-- [ ] 6. Post Editing
-- [ ] 5. User Dashboard
-
-Everything else (Tags, Follow, Activity Feed, Bookmarks, Email Notifications, etc.) is **post-MVP**.
-
----
-
-## Feature Dependencies
-
-```mermaid
-graph TD
-    A[10. User Avatars] --> B[7. User Profile Page]
-    C[3. Like Button] --> D[5. User Dashboard - likes received]
-    E[4. Reply to Comments] --> F[5. User Dashboard - comment threads]
-    G[13. Follow Users] --> H[14. Activity Feed]
-    G --> B
-    C --> I[16. Email Notifications - like alerts]
-    E --> I
-    J[9. Tags/Categories] --> K[8. Search - filter by tag]
-```
-
----
-
-## Part 1: Currently Implemented Features
+## Currently Implemented
 
 ### Authentication
-- Email/password sign-up and login via Better Auth
-- Logout functionality
-- Auth state managed via `useConvexAuth()` in Navbar
-- Session stored in Convex DB (`sessions` table)
+
+- Email/password **and** Google/GitHub OAuth via Better Auth (runs inside Convex)
+- `AuthSync` bridges Better Auth identity into the app-level `users` table on sign-in
+- Navbar avatar dropdown (profile / settings / logout); `/create` is auth-gated
 
 ### Blog Posts
-- Create post with title, body, and optional cover image
-- Image upload to Convex storage (`_storage`)
-- Paginated blog listing at `/blog`
-- Single post view at `/blog/[postId]`
-- Post author shown via `authorId`
+
+- Create posts with title, body, and optional cover image (Convex storage)
+- Paginated listing at `/blog` (server-rendered); post detail at `/blog/[postId]` with dynamic OG metadata
+- Denormalized `commentCount` and `likeCount` on posts; O(1) total via `stats` table
+
+### Likes
+
+- `toggleLike` — idempotent, one like per user per post, records in a separate `likes` table
+- `LikeButton` on post cards and the post detail page; `likeCount` denormalized on posts
 
 ### Comments
-- Create comments on posts (requires auth)
-- View comments on post page with pagination ("Load More" for additional comments)
-- Comment count displayed on post cards
-- Newest-first ordering with explicit timestamps
+
+- Paginated comments ("Load More"), auth required to post
+- Comment cards enriched with author avatars from the `users` table
+
+### Profiles & Settings
+
+- Public profiles at `/u/[userId]`: avatar, display name, bio, paginated post list
+- `/settings`: edit display name and bio
+- OAuth avatars mapped from provider profiles (Google `picture` / GitHub `avatar_url`), DiceBear fallback
 
 ### UI/UX
-- Dark/light/system theme toggle (next-themes)
-- Toast notifications (Sonner)
-- Responsive Navbar with navigation links
-- Card-based post layouts
-- Full landing page with animated sections (Hero, Features, Recent Posts, Stats, Explore)
-- Auth-aware CTAs via `<AuthCTA />` and `<FooterCTA />`: "Write a post" (auth) / "Get Started" (unauth)
-- Content-shaped loading skeletons (`RecentPostsSkeleton`) with Suspense fallbacks
+
+- Landing page sections in `app/(app)/_components/`: Hero, Features, Recent Posts (Suspense + content-shaped skeleton), Stats, Explore
+- Shared `PostCard` across blog listing, landing, and profile pages
+- `EmptyState` and `SectionHeading` primitives; site-wide `Footer` with auth-aware `FooterCTA`
+- Dark/light/system theme toggle; toast notifications (Sonner)
+- SEO phase 1: per-page metadata, OG/Twitter tags, dynamic post metadata, `noindex` auth pages
 
 ---
 
-## Part 2: Feature Proposals
+## Backlog
 
-### 🔴 High Priority
+Each item: essence + rough effort. Phase-numbered items are specified in the
+roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 
-#### 1. Footer Component `MVP`
-- [x] Task
+### Phase 1A — Identity & Engagement (remainder)
 
-**Description:** A consistent site-wide footer appearing on all pages.
+- **1.3 Comment Likes** — extend the like pattern to comments (`commentLikes` table, count on `CommentCard`). _Medium._
 
-**Contents:**
-- Logo or site name
-- Quick links: Home, Blog, Create Post, About
-- Social media icons (GitHub, Twitter, LinkedIn)
-- Copyright notice with current year
-- "Built with Convex" badge
+### Phase 1B — Curation & Connection
 
-**Implementation:**
-- Create `components/web/Footer.tsx` as a Server Component
-- Add to `app/(app)/layout.tsx` below `<Navbar />`
-- Use `components/ui/` primitives (Separator, lucide icons)
+- **1.4 Follows** — follow/unfollow authors; denormalized `followerCount`/`followingCount` on `users`. _Medium._
+- **1.5 Bookmarks / Reading List** — private bookmarks; `/reading-list` page. _Medium._
+- **1.6 Notifications** — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._
+- **1.7 Reader Feed** — `/feed` with posts from followed authors, newest-first, paginated. _Medium._
 
-**Effort:** Low | **Files:** 1 new component + layout edit
+### Phase 1C — Discovery & Polish
 
----
+- **1.8 Post Tags** — `tags` array on posts, tag pills, filter `/blog?tag=`. _Medium._
+- **1.9 Trending / Popular** — "Latest" / "Popular" tabs on `/blog` via `likeCount`/`commentCount`. _Low._
+- **1.10 User Activity Feed** — recent activity ("X liked Y's post") on profiles. _Medium._
+- **1.11 Polish** — reading-time estimate (~200 wpm) on cards/detail; share links (copy-to-clipboard / Web Share API). _Low._
 
-#### 2. Home Page Redesign `MVP`
-- [x] Task
+### Phase 2 — The Author
 
-**Description:** Replaced the placeholder "INDEX PAGE" with a full landing page composed of dedicated section components. Eliminated redundant CTAs by consolidating auth-aware buttons into a single reusable `<AuthCTA />` component.
+- **Rich Text Editor** — replace plain-text body (TipTap, Lexical, or Plate), structured content. _High._
+- **Drafts & Publishing** — `draft`/`published` status, drafts on dashboard. _Medium._
+- **Author Dashboard** — `/dashboard`: drafts, published posts, analytics summary. _Medium._
+- **Post Editing** — edit published posts (versioning strategy TBD in Phase 2 design). _Medium._
+- **Post Analytics** — views, likes over time, follower growth charts. _Medium._
 
-**Sections Built:**
+### Phase 3 — The Platform
 
-| Section | Component | Purpose | Content |
-|---------|-----------|---------|---------|
-| Hero | `HeroSection.tsx` | Welcome visitors, drive action | Gradient background with decorative blur blobs, bold headline, tagline, auth-aware CTA via `AuthCTA` |
-| Features | `FeaturesSection.tsx` | Highlight platform capabilities | 3-column responsive grid (`Card` with icons): Writing & Publishing, Community Engagement, Discussion & Comments |
-| Recent Posts | `RecentPostsSection.tsx` | Showcase live content | 2-column grid of 4 latest posts with cover images, excerpts, comment counts, links to full post |
-| Stats | `StatsSection.tsx` | Build credibility | Live total post count (via `countPosts` query), community-focused messaging |
-| Explore | `ExploreSection.tsx` | Future category discovery | Placeholder grid of topic cards (Technology, Design, Culture, Science) with "Browse all posts" link |
+- **Admin Role & Moderation** — hide posts, ban users, content reports. _High._
+- **Full-Text Search** — search by title/body/author (Convex search or Algolia/Meilisearch). _Medium._
+- **AI Features** — content suggestions, summarization, auto-tags. _High._
+- **Subscriptions / Tipping** — Stripe integration, premium gating. _High._
+- **Email Digest** — weekly top posts from followed authors. _Medium._
 
-**Implementation Details:**
-- All sections are React Server Components (async where data fetching is needed)
-- Entrance animations via `tw-animate-css` (`animate-in fade-in-0 slide-in-from-bottom-4`) with staggered delays
-- Recent Posts wrapped in `<Suspense>` with `RecentPostsSkeleton` fallback
-- `fetchQuery(api.posts.getPosts)` for recent posts, `fetchQuery(api.posts.countPosts)` for stats
-- Unified auth-aware CTAs: `<AuthCTA />` (hero, blog hero) and `<FooterCTA />` (footer) both use consistent labels:
-  - Authenticated → "Write a post" → `/create`
-  - Unauthenticated → "Get Started" → `/auth/login`
-- Removed redundant `CTASection` and `CTAActions`/`HeroActions` in favor of single `AuthCTA` component
-- Updated page metadata: `"Resonance — Write, Share, Connect"`
+### Unscheduled
 
-**Effort:** Medium | **Files:** `app/(app)/page.tsx` + 8 new components + `convex/posts.ts` update + tests
+- **Reply to Comments** — 1-level threading (`parentId` on comments), inline reply form. _Medium._
+- **Custom 404 Page** — branded not-found page with navigation. `Quick Win` _Low._
+- **About & Contact Pages** — static `/about`; `/contact` form. _Low._
+- **Empty-state Rollout** — `EmptyState` currently used on profiles only; extend to `/blog`, comments, search. `Quick Win` _Low._
+- **Custom Avatar Upload** — `avatarStorageId` + upload UI (OAuth/DiceBear avatars already work). _Medium._
+- **SEO Phase 2** — JSON-LD structured data, `sitemap.xml`, `robots.ts`. _Medium._
+- **Loading Skeletons Phase 2** — content-shaped skeletons for `/blog` listing and comments. _Low._
 
 ---
 
-#### 3. Like Button & Like Count `MVP`
-- [ ] Task
-
-**Description:** Allow authenticated users to like posts. Display total like count.
-
-**Data Model:**
-```typescript
-likes: defineTable({
-  postId: v.id("posts"),  // indexed "by_post"
-  userId: v.string(),     // indexed "by_user"
-  createdAt: v.number(),
-}).index("by_post", ["postId"])
-.index("by_user", ["userId"])
-```
-
-**Functions:**
-| Function | Type | Description |
-|----------|------|-------------|
-| `toggleLike` | mutation | Add/remove like (idempotent) |
-| `getLikeCount` | query | Count likes for a post |
-| `getUserLikedPosts` | query | Get all posts a user has liked |
-
-**UI:**
-- Heart icon (lucide) — hollow when not liked, filled when liked
-- Count displayed next to icon
-- Optimistic UI update on click
-- Requires auth (show tooltip "Login to like" if not authenticated)
-
-**Implementation:**
-- Add `likes` table to `convex/schema.ts`
-- Create `convex/likes.ts` with functions above
-- Add like button to `app/(app)/blog/[postId]/page.tsx`
-- Add like count to post cards on blog listing
-
-**Effort:** Medium | **Files:** Schema change + 1 Convex file + UI components
-
----
-
-#### 4. Reply to Comments `MVP`
-- [ ] Task
-
-**Description:** Enable threaded replies to comments (1 level deep).
-
-**Data Model:**
-```typescript
-comments: defineTable({
-  postId: v.id("posts"),      // indexed "by_postId"
-  parentId: v.optional(v.id("comments")),  // null = top-level
-  authorId: v.string(),
-  authorName: v.string(),
-  body: v.string(),
-  createdAt: v.number(),
-}).index("by_postId", ["postId"])
-```
-
-**UI Behavior:**
-- Top-level comments show "Reply" button
-- Clicking Reply shows inline reply form (not a new page)
-- Replies indented slightly under parent
-- Replies cannot have further nested replies (1 level only)
-- "X replies" shown under parent comment if count > 0
-
-**Functions:**
-| Function | Type | Description |
-|----------|------|-------------|
-| `getCommentsByPostId` | query | Fetch all comments (both levels), ordered by `createdAt` |
-
-**Implementation:**
-- Update `convex/schema.ts` — add `parentId` optional field to `comments`
-- Update `convex/comments.ts` — no new functions needed, just use `parentId`
-- Update `components/web/CommentSection.tsx` — add Reply button and inline form
-- Update `components/web/CommentCard.tsx` — handle replies display
-
-**Effort:** Medium | **Files:** Schema change + 2 component updates
-
----
-
-### 🟡 Medium Priority
-
-#### 5. User Dashboard `MVP`
-- [ ] Task
-
-**Description:** A personalized page where users see their content and stats.
-
-**Route:** `/dashboard` (add to `app/(app)/dashboard/page.tsx`)
-
-**Sections:**
-| Section | Content |
-|---------|---------|
-| Profile Summary | Avatar, name, member since, total posts/comments/likes received |
-| My Posts | List of user's posts with edit/delete options |
-| Recent Comments | User's last 10 comments across all posts |
-| Liked Posts | Posts the user has liked |
-
-**Implementation:**
-- Add `createdAt` to `users` table via migration
-- Create `convex/dashboard.ts` with queries for user stats
-- Create `app/(app)/dashboard/page.tsx` as Client Component
-- Add Dashboard link to Navbar
-
-**Effort:** Medium | **Files:** 1 Convex file + 1 page + possible migration
-
----
-
-#### 6. Post Editing `MVP`
-- [ ] Task
-
-**Description:** Allow post authors to edit their own posts.
-
-**UI Flow:**
-1. On `/blog/[postId]`, show "Edit" button only if `session.identityId === post.authorId`
-2. `/blog/[postId]/edit` page — pre-filled form with existing title, body, image
-3. Save updates via mutation `updatePost`
-4. Redirect to updated post on success
-
-**Implementation:**
-- Add `updatePost` mutation in `convex/posts.ts`
-- Create `app/(app)/blog/[postId]/edit/page.tsx`
-- Add edit button to post view page
-- Add `updatedAt` field to posts table (optional)
-
-**Effort:** Medium | **Files:** 1 mutation + 1 new page
-
----
-
-#### 7. User Profile Page
-- [ ] Task
-
-**Description:** Public profile page at `/profile/[userId]`.
-
-**Contents:**
-- Avatar, display name, bio (from user metadata), join date
-- Grid of their posts
-- "Follow" button (if auth and not self)
-
-**Implementation:**
-- Create `convex/users.ts` with `getUserProfile` query
-- Create `app/(app)/profile/[userId]/page.tsx`
-- Add `follows` table (see Feature #13)
-
-**Effort:** Medium | **Files:** 1 Convex file + 1 page
-
----
-
-#### 8. Search Functionality
-- [ ] Task
-
-**Description:** Search posts by title and body content.
-
-**Approaches:**
-
-| Approach | Pros | Cons |
-|----------|------|------|
-| Client-side (filter loaded posts) | Simple, no backend change | Only works with small datasets |
-| Convex query with filter | Real-time, scalable | Limited text search capability |
-| Algolia/Typesense | Full-text search | External service, setup complexity |
-
-**Recommendation:** Start with Convex query filtering for MVP.
-
-**Implementation:**
-- Add `searchPosts(query: string)` query to `convex/posts.ts`
-- Create `app/(app)/search/page.tsx` with search input
-- Add search to Navbar (input field or icon that expands)
-
-**Effort:** Medium | **Files:** 1 query + 1 page
-
----
-
-#### 9. Tags / Categories
-- [ ] Task
-
-**Description:** Organize posts with labels.
-
-**Data Model:**
-```typescript
-tags: defineTable({
-  name: v.string(),  // unique, e.g., "javascript"
-  slug: v.string(),
-})
-
-posts: defineTable({
-  // ...existing fields...
-  tagIds: v.array(v.id("tags")),
-})
-```
-
-**UI:**
-- Tag pills below post title
-- Filter by tag on `/blog?tag=javascript`
-- Tag cloud on sidebar (optional)
-
-**Implementation:**
-- Add `tags` table + `post_tags` junction table
-- Add `getPostsByTag`, `getAllTags` queries
-- Update post creation form with tag selector
-- Add filter UI to blog listing page
-
-**Effort:** Medium | **Files:** Schema + Convex queries + form + listing page
-
----
-
-### 🟢 Lower Priority
-
-#### 10. User Avatars
-- [x] Phase 1: Auto-generated avatars in comments (2025-01-25)
-- [x] Phase 1.5: Extracted reusable `UserAvatar` component with tests (2025-05-26)
-- [ ] Phase 2: Optional custom upload
-
-**Description:** Profile pictures stored in Convex storage.
-
-**Implementation:**
-- [x] Created `components/web/UserAvatar.tsx` — reusable DiceBear avatar with `AvatarFallback`
-- [x] Replaced inline avatar logic in `CommentCard` with `<UserAvatar />`
-- [x] Added component tests for fallback, initials, and className application
-- [ ] Add `avatarStorageId` to `users` table (via migration)
-- [ ] Add `generateAvatarUploadUrl` mutation
-- [ ] Use `ctx.storage.getUrl()` in profile queries
-- [ ] Add avatar upload UI to dashboard/edit-profile
-
-**Effort:** Medium | **Files:** Migration + mutation + form components
-
----
-
-#### 11. View Count `Quick Win`
-- [ ] Task
-
-**Description:** Track how many times a post has been viewed.
-
-**Data Model:**
-```typescript
-posts: defineTable({
-  // ...existing fields...
-  viewCount: v.number(),
-})
-```
-
-**Implementation:**
-- Add `incrementViewCount` mutation (rate-limited per session)
-- Show view count on post cards and post page
-
-**Effort:** Low | **Files:** Schema change + 1 mutation + UI updates
-
----
-
-#### 12. Bookmarks
-- [ ] Task
-
-**Description:** Allow users to save posts for later reading.
-
-**Data Model:**
-```typescript
-bookmarks: defineTable({
-  userId: v.string(),      // indexed "by_user"
-  postId: v.id("posts"),
-  createdAt: v.number(),
-}).index("by_user", ["userId"])
-```
-
-**Implementation:**
-- Add `bookmarks` table
-- Create `toggleBookmark`, `getUserBookmarks` functions
-- Add bookmark icon to post cards (toggle on click)
-- Add `/bookmarks` page showing saved posts
-
-**Effort:** Medium | **Files:** Schema + Convex file + UI components
-
----
-
-#### 13. Follow Users
-- [ ] Task
-
-**Description:** Subscribe to see a user's new posts in your feed.
-
-**Data Model:**
-```typescript
-follows: defineTable({
-  followerId: v.string(),  // indexed "by_follower"
-  followingId: v.string(), // indexed "by_following"
-  createdAt: v.number(),
-}).index("by_follower", ["followerId"])
-.index("by_following", ["followingId"])
-```
-
-**Implementation:**
-- Add `follows` table
-- Create `toggleFollow`, `getFollowing`, `getFollowers` functions
-- Add "Follow" button on profile pages
-- Show follower/following counts on profiles
-
-**Effort:** Medium | **Files:** Schema + Convex file + profile UI
-
----
-
-#### 14. Activity Feed
-- [ ] Task
-
-**Description:** Personalized feed showing latest posts from followed users.
-
-**Route:** `/feed`
-
-**Implementation:**
-- Query posts where `authorId` in `getFollowing(userId)`
-- Chronological ordering, infinite scroll pagination
-- Empty state: "Follow some users to see their posts here"
-
-**Effort:** Medium | **Files:** 1 query + 1 page
-
----
-
-#### 15. Social Sharing `Quick Win`
-- [x] Phase 1: OG meta tags for rich link previews (2025-05-30)
-- [ ] Phase 2: Share buttons (Twitter/X, LinkedIn, Facebook, Web Share API)
-
-**Description:** Share posts to social media.
-
-**Implementation:**
-- [x] Dynamic Open Graph tags per page (root layout + `generateMetadata` on blog posts)
-- [x] `metadataBase` set from `NEXT_PUBLIC_SITE_URL` for absolute OG image URLs
-- [ ] Add share buttons to post page
-- [ ] Use Web Share API on mobile (`navigator.share()`)
-- [ ] Copy link button (falls back)
-
-**Effort:** Low | **Files:** Post page component update
-
----
-
-#### 16. Email Notifications
-- [ ] Task
-
-**Description:** Notify users via email when someone comments on their post or likes it.
-
-**Implementation:**
-- Use Convex HTTP endpoint + external email service (Resend, SendGrid)
-- Trigger emails in `createComment` and `toggleLike` mutations
-- Rate limit to avoid spam
-
-**Effort:** High | **Files:** Convex functions + external service integration
-
----
-
-#### 17. Empty States `Quick Win`
-- [ ] Task
-
-**Description:** Friendly UI when lists are empty.
-
-**Examples:**
-| Page | Empty State Message |
-|------|---------------------|
-| `/blog` | "No posts yet. Be the first to write something!" |
-| `/blog/[postId]` | "No comments yet. Share your thoughts below." |
-| `/dashboard` | "You haven't created any posts yet." |
-| `/search` | "No results for '[query]'. Try different keywords." |
-
-**Implementation:**
-- Create `components/web/EmptyState.tsx` component
-- Use on all listing pages with appropriate messages
-
-**Effort:** Low | **Files:** 1 component + usage in pages
-
----
-
-#### 18. Custom 404 Page `Quick Win`
-- [ ] Task
-
-**Description:** Branded not-found page with navigation options.
-
-**Implementation:**
-- Edit `app/not-found.tsx`
-- Show friendly message, link to home, link to blog
-
-**Effort:** Low | **Files:** 1 page
-
----
-
-#### 19. Loading Skeletons
-- [x] Phase 1: `RecentPostsSkeleton` for landing page (2025-05-30)
-- [ ] Phase 2: Blog listing, comment cards, profile sections
-
-**Description:** Show animated skeletons that match actual content dimensions for seamless Suspense transitions.
-
-**Completed:**
-- Created `components/web/home/RecentPostsSkeleton.tsx` — mirrors the 2-column Recent Posts grid with image, title, body, and footer skeletons
-- Used as `<Suspense fallback>` in `app/(app)/page.tsx` for `RecentPostsSection`
-
-**Remaining:**
-- Content-shaped skeletons for blog listing (`/blog` currently uses generic `<SkeletonLoadingUi />`)
-- Comment section skeletons
-- Profile/dashboard skeletons
-
-**Effort:** Low | **Files:** Component updates
-
----
-
-#### 20. About & Contact Pages
-- [ ] Task
-
-**Description:** Static content pages.
-
-**Routes:** `/about`, `/contact`
-
-**Implementation:**
-- Create `app/(app)/about/page.tsx` — mission statement, team (if applicable)
-- Create `app/(app)/contact/page.tsx` — contact form (sends via Convex mutation → email)
-
-**Effort:** Low | **Files:** 2 pages
-
----
-
-#### 21. SEO Optimization
-- [x] Phase 1: Per-page metadata and OG tags (2025-05-30)
-- [ ] Phase 2: JSON-LD structured data, sitemap.xml, robots.ts
-
-**Description:** Improve search engine visibility.
-
-**Completed:**
-- Created `lib/constants/seo.ts` with `SITE_NAME`, `SITE_DESCRIPTION`, `getSiteUrl()`, `truncateForDescription()`
-- Expanded root `app/layout.tsx` metadata with `metadataBase`, title template, OG, Twitter, and keywords
-- Static metadata on `/` (Home), `/blog` (Listing), `/create`, `/login`, `/sign-up`
-- Dynamic `generateMetadata()` on `/blog/[postId]` using post title, body (truncated), and image
-- Auth pages (`/login`, `/sign-up`) set to `noindex`
-- Added `NEXT_PUBLIC_SITE_URL` to `.env.local.example`
-
-**Remaining:**
-- JSON-LD structured data for blog posts
-- `sitemap.xml` generation
-- `robots.txt` / `app/robots.ts`
-
-**Effort:** Medium | **Files:** Page updates + sitemap + robots
-
----
-
-## Part 3: Recommended Implementation Order
-
-```
-Phase 1 — Polish & Foundation ☐
-├── [x] 1. Footer Component
-├── [x] 2. Home Page Redesign
-├── [ ] 17. Empty States
-└── [ ] 18. Custom 404 Page
-
-Phase 2 — Engagement Features ☐
-├── [ ] 3. Like Button & Count
-├── [ ] 4. Reply to Comments
-└── [ ] 11. View Count
-
-Phase 3 — User Features ☐
-├── [ ] 6. Post Editing
-├── [ ] 7. User Profile Page
-└── [ ] 10. User Avatars
-
-Phase 4 — Discovery & Organization ☐
-├── [ ] 8. Search Functionality
-├── [ ] 9. Tags / Categories
-└── [ ] 5. User Dashboard
-
-Phase 5 — Social Features ☐
-├── [ ] 13. Follow Users
-├── [ ] 14. Activity Feed
-├── [ ] 12. Bookmarks
-└── [ ] 15. Social Sharing
-
-Phase 6 — Enhancement ☐
-├── [ ] 16. Email Notifications
-├── [x] 19. Loading Skeletons (partial — landing page done)
-├── [ ] 20. About & Contact Pages
-└── [x] 21. SEO Optimization (partial — Phase 1 done)
-```
-
----
-
-## Part 4: Technical Notes
+## Technical Notes
 
 ### Convex Guidelines
+
 Always read `convex/_generated/ai/guidelines.md` before modifying Convex code.
 
 ### shadcn/ui
+
 Use `pnpm shadcn add <component>` to add new primitives. Do not edit `components/ui/` manually.
 
 ### Testing
+
 - Convex functions: `pnpm test:ci` (edge-runtime)
 - UI components: `pnpm test:component` (jsdom)
 
 ### CI Before PR
+
 ```
 pnpm lint → pnpm test:ci → pnpm test:component → pnpm build
 ```
-
