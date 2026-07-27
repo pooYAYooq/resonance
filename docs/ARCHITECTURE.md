@@ -48,8 +48,9 @@ resonance/
 │   │       ├── page.tsx        # Public profile. Server Component. Uses fetchQuery +
 │   │       │                   # react.cache() to dedupe generateMetadata / page fetch.
 │   │       └── _components/
-│   │           ├── EditProfileButton.tsx   # Client. Shown only to the profile owner.
 │   │           └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
+│   │                                # (Edit Profile + Follow live in components/web/
+│   │                                # ProfileActionButton.tsx since 1.4.)
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
 │   │   ├── login/
@@ -57,7 +58,7 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, users, stats
+│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, users, stats
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
@@ -69,6 +70,12 @@ resonance/
 │   │                           # (paginated, enriches authorAvatarUrl, isLiked, likeCount)
 │   ├── likes.ts                # toggleLike + toggleCommentLike mutations (idempotent); keeps
 │   │                           # denormalized posts.likeCount and comments.likeCount in sync
+│   ├── follows.ts              # toggleFollow (idempotent) + isFollowing + getFollowCounts;
+│   │                           # keeps denormalized users.followerCount and
+│   │                           # users.followingCount in sync. Only the
+│   │                           # by_followerId_and_followingId index ships (1.4); a
+│   │                           # by_followingId index is deferred to 1.6 for the
+│   │                           # notification fan-out — see the Follows spec's Forward pointers.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserById,
@@ -96,7 +103,25 @@ resonance/
 │       │                        # page-level <h1> remains unique per page.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
 │       ├── SectionHeading.tsx   # Heading with optional count + right-side action slot
-│       ├── ProfileHeader.tsx    # Reusable profile hero (avatar, name, bio, action)
+│       ├── ProfileHeader.tsx    # Reusable profile hero (avatar, name, bio, action,
+│       │                       # optional stats slot). Pure presentational — the
+│       │                       # `stats` and `rightAction` slots are composed by the
+│       │                       # consuming page.
+│       ├── ProfileStats.tsx     # Reactive `{n} Followers · {n} Following` row rendered
+│       │                       # in ProfileHeader's stats slot. Subscribes to
+│       │                       # follows.getFollowCounts — bumps live when toggleFollow
+│       │                       # patches the users doc. New count-type stats must extend
+│       │                       # getFollowCounts, never subscribe to getUserProfile (see
+│       │                       # Follows spec's Forward pointers).
+│       ├── FollowButton.tsx     # Self-contained follow/unfollow button for the profile
+│       │                       # rightAction slot. Owns its toggleFollow mutation, the
+│       │                       # optimistic label state, and the success toast. Mirrors
+│       │                       # LikeToggle's behavior; the count bump lives in ProfileStats.
+│       ├── ProfileActionButton.tsx # Owns the profile's single rightAction slot. Renders
+│       │                       # Edit Profile (own profile), FollowButton (someone else),
+│       │                       # or a redirect-to-login Follow (anonymous). Consolidates
+│       │                       # the previous EditProfileButton with the follow affordance
+│       │                       # so both don't each issue a getCurrentUser subscription.
 │       ├── UserAvatar.tsx       # Avatar with DiceBear fallback + initials.
 │       └── theme-toggle.tsx     # Dark and light toggle
 │
@@ -518,6 +543,46 @@ and gives future bookmark-style toggles (1.5) a ready seam. The
 `commentLikes` table mirrors `likes` (decision #11): separate table, no
 unbounded array, denormalized `comment.likeCount` kept in sync by
 `toggleCommentLike`.
+
+### 13. Why `follows` ships with one index, and why counts ride reactivity (not the mutation return)
+
+Phase 1.4 Follows mirrors `likes` (separate `follows` table, idempotent
+`toggleFollow` mutation, denormalized `followerCount` / `followingCount`
+on `users` patched in the same transaction) but diverges on two points a
+future agent needs to know:
+
+- **Only `by_followerId_and_followingId` ships in 1.4.** The
+  `by_followingId` index is deliberately deferred. It is needed by
+  1.6 (the notification fan-out query "all followers of this
+  publishing author") and by any future follower-list route — both
+  are prefix scans on `followingId`. The `follows` table starts empty
+  in 1.4, but 1.4 ships as a usable feature: between 1.4 ship and 1.6
+  ship, users will follow each other and the table will accumulate real
+  rows. When 1.6 adds `by_followingId`, Convex will backfill the index
+  over those rows — **the backfill is NOT a no-op.** If the table is
+  large by then, declare the index `staged: true` in the 1.6 schema
+  change to backfill asynchronously without blocking the deploy, and
+  verify the backfill completes before querying it (Convex guideline).
+  **1.6 must add `by_followingId` in its schema change before writing
+  fan-out code.** Do not assume it exists.
+
+- **The count bump rides Convex reactivity, not the mutation return.**
+  `toggleFollow` returns only `{ following: boolean }`. The displayed
+  counts come from `ProfileStats` subscribing to the bounded
+  `getFollowCounts` query, which reads the denormalized counters off
+  the same `users` doc the mutation just patched. Convex reactivity
+  bumps the displayed count the instant the transaction commits. This
+  keeps `FollowButton` self-contained (owns only its label) and
+  `ProfileStats` authoritative (one source of truth — no
+  optimistic/reconcile drift). Crucially, `getFollowCounts` is a
+  separate query from `getUserProfile` (which runs an unbounded
+  `.collect()` for `postCount`) so a reactive subscription to counts
+  doesn't amplify that read every render. **Any future count-type stat
+  on the profile header extends `getFollowCounts`, never subscribes
+  `ProfileStats` to `getUserProfile`.**
+
+Full rationale and forward pointers for 1.5 / 1.6 / 1.7 live in
+`docs/superpowers/specs/2026-07-27-follows-design.md` (gitignored).
 
 ---
 

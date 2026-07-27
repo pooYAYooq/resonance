@@ -1,7 +1,9 @@
 /**
  * Profile hero for the public profile page and future own-profile
  * surfaces. Renders the avatar, display name as an `<h1>`, the bio,
- * and an optional right-side action (e.g. the "Edit Profile" button).
+ * an optional `stats` row under the bio (e.g. follower/following
+ * counts), and an optional right-side action (e.g. the follow /
+ * edit-profile button).
  *
  * The post count is intentionally not rendered here — it lives next
  * to the section heading on the consumer side, where the post list
@@ -22,11 +24,17 @@ interface ProfileHeaderProps {
   /** Better Auth user ID of the profile owner. */
   userId: string;
   /**
-   * Optional right-side action (e.g. the "Edit Profile" button).
+   * Optional right-side action (e.g. the Edit Profile / Follow button).
    * Anchored top-right on `md:` and stacked below the content on
    * mobile.
    */
   rightAction?: React.ReactNode;
+  /**
+   * Optional stats row rendered under the name/bio block (e.g.
+   * `<ProfileStats>`). Presentational slot only — the consumer owns
+   * any reactive subscriptions.
+   */
+  stats?: React.ReactNode;
 }
 
 export function ProfileHeader({
@@ -35,6 +43,7 @@ export function ProfileHeader({
   avatarUrl,
   userId,
   rightAction,
+  stats,
 }: ProfileHeaderProps) {
   const hasBio = !!bio && bio.trim().length > 0;
 
@@ -52,6 +61,9 @@ export function ProfileHeader({
         </h1>
         {hasBio ? (
           <p className="text-muted-foreground max-w-prose">{bio}</p>
+        ) : null}
+        {stats ? (
+          <div className="text-sm text-muted-foreground">{stats}</div>
         ) : null}
       </div>
       {rightAction ? (
