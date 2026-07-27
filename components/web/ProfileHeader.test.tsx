@@ -127,4 +127,27 @@ describe("ProfileHeader", () => {
     );
     expect(container.textContent).not.toMatch(/\d+\s*post/);
   });
+
+  it("renders the stats slot when provided", () => {
+    render(
+      <ProfileHeader
+        displayName="Ada Lovelace"
+        userId="user-1"
+        stats={
+          <span data-testid="stats">{`7 Followers · 3 Following`}</span>
+        }
+      />,
+    );
+    expect(screen.getByTestId("stats")).toBeInTheDocument();
+    expect(
+      screen.getByText(/7 Followers · 3 Following/i),
+    ).toBeInTheDocument();
+  });
+
+  it("does not render the stats slot when omitted", () => {
+    const { container } = render(
+      <ProfileHeader displayName="Ada Lovelace" userId="user-1" />,
+    );
+    expect(container.textContent).not.toMatch(/followers/i);
+  });
 });
