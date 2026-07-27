@@ -17,7 +17,8 @@ import { api } from "@/convex/_generated/api";
 import { ProfileHeader } from "@/components/web/ProfileHeader";
 import { SectionHeading } from "@/components/web/SectionHeading";
 import { ProfilePostList } from "./_components/ProfilePostList";
-import { EditProfileButton } from "./_components/EditProfileButton";
+import { ProfileActionButton } from "@/components/web/ProfileActionButton";
+import { ProfileStats } from "@/components/web/ProfileStats";
 import { buttonVariants } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
 import Link from "next/link";
@@ -83,7 +84,19 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
         bio={profile.bio}
         avatarUrl={profile.avatarUrl}
         userId={profile.userId}
-        rightAction={<EditProfileButton profileUserId={profile.userId} />}
+        rightAction={
+          <ProfileActionButton
+            profileUserId={profile.userId}
+            authorName={displayName}
+          />
+        }
+        stats={
+          <ProfileStats
+            profileUserId={profile.userId}
+            initialFollowerCount={profile.followerCount ?? 0}
+            initialFollowingCount={profile.followingCount ?? 0}
+          />
+        }
       />
 
       <section className="py-10">
