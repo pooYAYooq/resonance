@@ -13,7 +13,8 @@
 | **Blog**           | Create posts with cover images, browse paginated listings, read individual posts          |
 | **Likes**          | Like/unlike posts with live counts on cards and post pages                                |
 | **Comments**       | Paginated comments with author avatars, real-time updates                                 |
-| **Profiles**       | Public profiles at `/u/[userId]` with posts, bio, and avatar; edit via `/settings`        |
+| **Follows**        | Follow/unfollow authors; live follower/following counts on profile headers                |
+| **Profiles**       | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings` |
 | **Authentication** | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                 |
 | **SEO**            | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts            |
 | **Dark Mode**      | System-aware dark/light theme toggle                                                      |
@@ -125,7 +126,7 @@ app/
       page.tsx                # Edit display name + bio
     u/[userId]/
       page.tsx                # Public profile with paginated posts
-      _components/            # EditProfileButton, ProfilePostList
+      _components/            # ProfilePostList (Edit Profile + Follow live in components/web/)
   auth/                       # Auth routes (login, sign-up)
     login/page.tsx
     sign-up/page.tsx
@@ -133,10 +134,12 @@ app/
   api/auth/[...all]/          # Better Auth route handler → Convex HTTP
 
 convex/
-  schema.ts                   # Database schema (posts, comments, likes, commentLikes, users, stats)
+  schema.ts                   # Database schema (posts, comments, likes, commentLikes, follows, users, stats)
   posts.ts                    # Post queries, mutations, image upload
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations
+  follows.ts                  # toggleFollow + isFollowing + getFollowCounts (1.4). by_followerId_and_followingId
+                              # index only — by_followingId deferred to 1.6 (notification fan-out)
   users.ts                    # User sync, profile queries, updateProfile
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth)
@@ -155,7 +158,10 @@ components/
     CommentLikeButton.tsx       # Comment like button wrapper rendered on CommentCard
     CommentSection.tsx
     CommentCard.tsx
-    ProfileHeader.tsx
+    ProfileHeader.tsx           # Profile hero (avatar, name, bio, stats slot, rightAction slot)
+    ProfileStats.tsx            # Reactive follower/following counts row (subscribes getFollowCounts)
+    FollowButton.tsx           # Self-contained follow/unfollow toggle (owns toggleFollow mutation)
+    ProfileActionButton.tsx    # Owns profile rightAction: Edit Profile / FollowButton / anon-redirect
     SectionHeading.tsx
     EmptyState.tsx
     UserAvatar.tsx
