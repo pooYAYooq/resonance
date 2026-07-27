@@ -29,7 +29,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { LogOut, User as UserIcon, Settings as SettingsIcon } from "lucide-react";
+import {
+  LogOut,
+  User as UserIcon,
+  Settings as SettingsIcon,
+  Bookmark,
+} from "lucide-react";
 
 export function Navbar() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -117,6 +122,12 @@ export function Navbar() {
                     <Link href={`/u/${currentUser.userId}`}>
                       <UserIcon />
                       <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/reading-list">
+                      <Bookmark />
+                      <span>Reading List</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

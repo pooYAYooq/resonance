@@ -6,10 +6,12 @@
  * a "Read More" link to the post detail page.
  *
  * This component is a Server Component. It does not subscribe to Convex
- * queries directly, but it renders the `LikeButton` client component
- * which does. Parents are responsible for fetching the data via
- * `fetchQuery` (or `useQuery` for live updates) and passing the hydrated
- * fields as props.
+ * queries directly. It renders two client components: `LikeButton`
+ * (mutation-only; like state comes from server-rendered props) and
+ * `BookmarkButton` (self-subscribes to `bookmarks.isBookmarked` because
+ * server-side `fetchQuery` runs unauthenticated in this repo). Parents
+ * are responsible for fetching the post data via `fetchQuery` (or
+ * `useQuery` for live updates) and passing the hydrated fields as props.
  */
 
 import {
@@ -20,6 +22,7 @@ import {
 } from "@/components/ui/card";
 import { UserAvatar } from "./UserAvatar";
 import { LikeButton } from "./LikeButton";
+import { BookmarkButton } from "./BookmarkButton";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MessageSquare } from "lucide-react";
@@ -145,6 +148,7 @@ export function PostCard({
             isLiked={isLiked}
             likeCount={likeCount}
           />
+          <BookmarkButton postId={postId} />
         </span>
         <Link
           className={cn(

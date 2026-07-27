@@ -127,6 +127,9 @@ app/
     u/[userId]/
       page.tsx                # Public profile with paginated posts
       _components/            # ProfilePostList (Edit Profile + Follow live in components/web/)
+    reading-list/
+      page.tsx                # Private reading list (client-gated + paginated)
+      _components/            # ReadingListContent
   auth/                       # Auth routes (login, sign-up)
     login/page.tsx
     sign-up/page.tsx
@@ -134,12 +137,14 @@ app/
   api/auth/[...all]/          # Better Auth route handler → Convex HTTP
 
 convex/
-  schema.ts                   # Database schema (posts, comments, likes, commentLikes, follows, users, stats)
+  schema.ts                   # Database schema (posts, comments, likes, commentLikes, follows, bookmarks, users, stats)
   posts.ts                    # Post queries, mutations, image upload
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations
   follows.ts                  # toggleFollow + isFollowing + getFollowCounts (1.4). by_followerId_and_followingId
                               # index only — by_followingId deferred to 1.6 (notification fan-out)
+  bookmarks.ts                # toggleBookmark + isBookmarked + getBookmarkedPosts (1.5).
+                              # Private reading list, no denormalized counters.
   users.ts                    # User sync, profile queries, updateProfile
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth)
@@ -161,6 +166,7 @@ components/
     ProfileHeader.tsx           # Profile hero (avatar, name, bio, stats slot, rightAction slot)
     ProfileStats.tsx            # Reactive follower/following counts row (subscribes getFollowCounts)
     FollowButton.tsx           # Self-contained follow/unfollow toggle (owns toggleFollow mutation)
+    BookmarkButton.tsx         # Self-contained bookmark toggle (owns toggleBookmark mutation)
     ProfileActionButton.tsx    # Owns profile rightAction: Edit Profile / FollowButton / anon-redirect
     SectionHeading.tsx
     EmptyState.tsx

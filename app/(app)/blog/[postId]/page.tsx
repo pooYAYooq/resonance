@@ -17,6 +17,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Separator } from "@/components/ui/separator";
 import { CommentSection } from "@/components/web/CommentSection";
 import { LikeButton } from "@/components/web/LikeButton";
+import { BookmarkButton } from "@/components/web/BookmarkButton";
 import { truncateForDescription } from "@/lib/constants/seo";
 
 /** Props received by the dynamic blog post route. */
@@ -134,6 +135,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           isLiked={post.isLiked ?? false}
           likeCount={post.likeCount ?? 0}
         />
+        <BookmarkButton postId={postId} />
       </div>
       <Suspense fallback={null}>
         <CommentSection initialTotalCount={post.commentCount ?? 0} />
