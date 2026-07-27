@@ -47,6 +47,21 @@ vi.mock("./LikeButton", () => ({
   ),
 }));
 
+vi.mock("./BookmarkButton", () => ({
+  BookmarkButton: ({
+    postId,
+  }: {
+    postId: string;
+    size?: "sm" | "default";
+  }) => (
+    <button
+      aria-label="Save to reading list"
+      aria-pressed={false}
+      data-post-id={postId}
+    />
+  ),
+}));
+
 const basePost = {
   postId: "post-123" as Id<"posts">,
   title: "Echoes in the Static",

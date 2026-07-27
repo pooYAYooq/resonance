@@ -137,7 +137,7 @@ describe("Navbar", () => {
     expect(trigger).toHaveTextContent("AD");
   });
 
-  it("opens the menu and shows profile, settings, and logout items", async () => {
+  it("opens the menu and shows profile, reading list, settings, and logout items", async () => {
     const user = userEvent.setup();
     currentQueryValue = currentUser;
     useConvexAuthState.mockReturnValue({
@@ -154,6 +154,9 @@ describe("Navbar", () => {
       "href",
       "/u/auth-user-1",
     );
+    expect(
+      screen.getByRole("menuitem", { name: /reading list/i }),
+    ).toHaveAttribute("href", "/reading-list");
     expect(screen.getByRole("menuitem", { name: /settings/i })).toHaveAttribute(
       "href",
       "/settings",

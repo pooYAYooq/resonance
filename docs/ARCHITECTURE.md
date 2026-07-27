@@ -44,13 +44,21 @@ resonance/
 │   │   │   └── page.tsx        # Create post form. Client Component. Uses useMutation.
 │   │   ├── settings/
 │   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
-│   │   └── u/[userId]/
+│   │   ├── u/[userId]/
 │   │       ├── page.tsx        # Public profile. Server Component. Uses fetchQuery +
 │   │       │                   # react.cache() to dedupe generateMetadata / page fetch.
 │   │       └── _components/
 │   │           └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
 │   │                                # (Edit Profile + Follow live in components/web/
 │   │                                # ProfileActionButton.tsx since 1.4.)
+│   │   └── reading-list/
+│   │       ├── page.tsx        # Reading list. Server Component shell (static
+│   │       │                   # metadata, noindex). Auth gate + paginated list
+│   │       │                   # live in the client _components/ReadingListContent.
+│   │       └── _components/
+│   │           └── ReadingListContent.tsx  # Client. useConvexAuth gate (redirect
+│   │                                  # to /auth/login) + usePaginatedQuery
+│   │                                  # bookmarks.getBookmarkedPosts grid.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
 │   │   ├── login/
@@ -58,7 +66,7 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, users, stats
+│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, users, stats
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
@@ -76,6 +84,10 @@ resonance/
 │   │                           # by_followerId_and_followingId index ships (1.4); a
 │   │                           # by_followingId index is deferred to 1.6 for the
 │   │                           # notification fan-out — see the Follows spec's Forward pointers.
+│   ├── bookmarks.ts            # toggleBookmark (idempotent) + isBookmarked +
+│   │                           # getBookmarkedPosts (paginated). Private reading
+│   │                           # list — no denormalized counters. Mirrors likes
+│   │                           # minus the count patches; index is userId-first.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserById,
@@ -88,7 +100,7 @@ resonance/
 │       ├── ConvexClientProvider.tsx  # Convex + Better Auth session bridge.
 │       │                           # Wraps children in <AuthSync>.
 │       ├── AuthSync.tsx         # Fires users.syncUser on every auth state change
-│       ├── Navbar.tsx           # Top nav. Avatar dropdown (profile/settings/logout).
+│       ├── Navbar.tsx           # Top nav. Avatar dropdown (profile/reading list/settings/logout).
 │       ├── Footer.tsx           # Site-wide footer. Links from lib/constants/footer.ts.
 │       ├── FooterCTA.tsx        # Auth-aware CTA card rendered inside Footer
 │       ├── AuthCTA.tsx          # Auth-aware CTA button ("Write a post" / "Get Started")
@@ -117,6 +129,11 @@ resonance/
 │       │                       # rightAction slot. Owns its toggleFollow mutation, the
 │       │                       # optimistic label state, and the success toast. Mirrors
 │       │                       # LikeToggle's behavior; the count bump lives in ProfileStats.
+│       ├── BookmarkButton.tsx   # Self-contained save/unsave button for posts,
+│       │                       # mirrors FollowButton's structure (own useMutation +
+│       │                       # useQuery(isBookmarked)). Auth-gated redirect;
+│       │                       # no count (bookmarks are private). Rendered on
+│       │                       # PostCard footer and the post detail action row.
 │       ├── ProfileActionButton.tsx # Owns the profile's single rightAction slot. Renders
 │       │                       # Edit Profile (own profile), FollowButton (someone else),
 │       │                       # or a redirect-to-login Follow (anonymous). Consolidates
@@ -168,7 +185,7 @@ components/
     │     Reads auth state with useConvexAuth(). Reactive to the
     │     Convex session, not to the Better Auth client directly.
     │     Authenticated users get an avatar dropdown (profile,
-    │     settings, logout); calls authClient.signOut() on logout.
+    │     reading list, settings, logout); calls authClient.signOut() on logout.
     │     "Create" is hidden from unauthenticated visitors.
     │
     ├── Footer.tsx / FooterCTA.tsx / AuthCTA.tsx
@@ -583,6 +600,38 @@ future agent needs to know:
 
 Full rationale and forward pointers for 1.5 / 1.6 / 1.7 live in
 `docs/superpowers/specs/2026-07-27-follows-design.md` (gitignored).
+
+### 14. Why bookmarks self-subscribe instead of being server-hydrated
+
+Phase 1.5 Bookmarks mirrors `likes` (separate `bookmarks` table,
+idempotent `toggleBookmark` mutation, one row per user per post) but
+diverges on how the button knows its initial state. `LikeButton` and
+`CommentLikeButton` receive their initial `isLiked` state from the
+server-rendered `PostCard`/`CommentCard` props, which are hydrated by the
+page-level queries (`getPosts`, `getPostById`, `getCommentsByPostId`).
+
+`BookmarkButton` instead subscribes client-side to
+`bookmarks.isBookmarked({ postId })`, mirroring `FollowButton`.
+
+The reason is that `lib/auth-server.ts` exports `fetchAuthQuery` and
+`fetchAuthMutation` for authenticated server-side fetches, but **no page
+in the repo uses them** — every `fetchQuery` from `convex/nextjs` runs
+unauthenticated. Because the user's saved-state is the entire affordance of
+a bookmark toggle, and because bookmarks are private data that must be
+correct for the current user only, a server-hydrated `isBookmarked`
+would always be `false` on first paint for signed-in users. The
+client-side subscription is authenticated (via
+`ConvexBetterAuthProvider`) and correct on every surface.
+
+This is also why `/reading-list` is client-gated with `useConvexAuth`
+(mirroring `/create`) rather than server-gated.
+
+This decision does not introduce a `bookmarksCount` counter on `users` or
+`posts` (bookmarks are private), and it does not add a `by_postId` index
+(the only prefix scan is "this user's bookmarks").
+
+Full rationale and forward pointers live in
+`docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
 
 ---
 

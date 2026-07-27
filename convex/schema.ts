@@ -100,6 +100,37 @@ export default defineSchema({
   }).index("by_followerId_and_followingId", ["followerId", "followingId"]),
 
   /**
+   * Individual bookmark records, one per user per post. Mirrors the
+   * `likes` table pattern: separate table (not an array on the post or
+   * user doc) to keep those documents small and avoid the 1 MB document
+   * limit.
+   *
+   * `userId` is the Better Auth user ID string (same shape as
+   * `likes.userId` and `follows.followerId`), not the Convex `users._id`.
+   * Bookmarks are private: there is no public per-post listing and no
+   * denormalized count on `users` or `posts`.
+   *
+   * Two indexes, both `userId`-first (bookmarks have no public per-post
+   * query, unlike `likes.by_postId_and_userId` whose public per-post
+   * prefix needs `postId` first):
+   *  - `by_userId_and_postId` serves the exact-match `toggleBookmark` /
+   *    `isBookmarked` probe (equality on both fields via `.unique()`).
+   *  - `by_userId_and_createdAt` serves the `/reading-list` prefix scan:
+   *    equality on `userId`, then `.order("desc")` over `createdAt` gives
+   *    this user's bookmarks most-recently-saved first. (The
+   *    `by_userId_and_postId` index cannot do this — scoped to a `userId`
+   *    it orders by `postId`, i.e. by the *post's* creation order, not by
+   *    when the bookmark was saved.)
+   */
+  bookmarks: defineTable({
+    userId: v.string(),
+    postId: v.id("posts"),
+    createdAt: v.number(),
+  })
+    .index("by_userId_and_postId", ["userId", "postId"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"]),
+
+  /**
    * App-level user enrichment table, synced from Better Auth on sign-in.
    *
    * Why a separate table?
