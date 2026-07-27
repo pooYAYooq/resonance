@@ -82,6 +82,24 @@ export default defineSchema({
   }).index("by_commentId_and_userId", ["commentId", "userId"]),
 
   /**
+   * Individual follow relationships, one per follower per followed
+   * author. Mirrors the `likes` table pattern: separate table (not an
+   * array on the user doc) to keep the user document small and avoid
+   * the 1 MB document limit.
+   *
+   * `followerId` and `followingId` are Better Auth user ID strings
+   * (same shape as `posts.authorId` and `likes.userId`), not Convex
+   * `users._id` values. The compound index supports the
+   * `toggleFollow` `.unique()` probe (exact match on both fields) and
+   * the future 1.7 Reader Feed prefix scan on `followerId`.
+   */
+  follows: defineTable({
+    followerId: v.string(),
+    followingId: v.string(),
+    createdAt: v.number(),
+  }).index("by_followerId_and_followingId", ["followerId", "followingId"]),
+
+  /**
    * App-level user enrichment table, synced from Better Auth on sign-in.
    *
    * Why a separate table?
@@ -97,6 +115,14 @@ export default defineSchema({
     email: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     bio: v.optional(v.string()),
+    /**
+     * Denormalized follower/following counts, kept in sync by the
+     * `toggleFollow` mutation. Optional for backward compatibility with
+     * user docs created before Phase 1.4; UI consumers should fall back
+     * to 0 via `user.followerCount ?? 0` / `user.followingCount ?? 0`.
+     */
+    followerCount: v.optional(v.number()),
+    followingCount: v.optional(v.number()),
     createdAt: v.number(),
   })
     /**
