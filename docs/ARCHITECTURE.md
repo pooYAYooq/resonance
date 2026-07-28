@@ -93,10 +93,11 @@ resonance/
 │   │                           # denormalized posts.likeCount and comments.likeCount in sync
 │   ├── follows.ts              # toggleFollow (idempotent) + isFollowing + getFollowCounts;
 │   │                           # keeps denormalized users.followerCount and
-│   │                           # users.followingCount in sync. Only the
-│   │                           # by_followerId_and_followingId index ships (1.4); a
-│   │                           # by_followingId index is deferred to 1.6 for the
-│   │                           # notification fan-out — see the Follows spec's Forward pointers.
+│   │                           # users.followingCount in sync. Two indexes:
+│   │                           # by_followerId_and_followingId (1.4) for the
+│   │                           # "is X following Y?" check, by_followingId
+│   │                           # (1.6) for the fan-out's ordered scan — see
+│   │                           # notifications.ts.
 │   ├── bookmarks.ts            # toggleBookmark (idempotent) + isBookmarked +
 │   │                           # getBookmarkedPosts (paginated). Private reading
 │   │                           # list — no denormalized counters. Mirrors likes

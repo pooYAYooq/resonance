@@ -70,7 +70,7 @@ reasonable home: Phase 1.9 / 1.10 (data flow / polish).
 - `FollowButton` and `ProfileActionButton` on author profiles (consolidates Edit Profile + Follow into one `rightAction` slot)
 - Denormalized `followerCount` and `followingCount` on `users`; `ProfileStats` row on profile headers subscribes to `getFollowCounts` and bumps live
 - `isFollowing` query drives the initial button state; `getFollowCounts` drives the reactive stats row
-- Only the `by_followerId_and_followingId` index ships here — `by_followingId` is deferred to 1.6 (notification fan-out) per the spec's Forward pointers
+- Two indexes: `by_followerId_and_followingId` (1.4) for the "is X following Y?" check, `by_followingId` (1.6) for the notification fan-out's ordered scan
 
 ### Bookmarks
 
