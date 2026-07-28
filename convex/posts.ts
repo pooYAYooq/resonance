@@ -11,6 +11,7 @@ import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import { paginationOptsValidator } from "convex/server";
 import { api, internal } from "./_generated/api";
+import { FANOUT_BATCH_SIZE } from "./notifications";
 
 /**
  * Creates a new blog article authored by the currently authenticated user.
@@ -48,6 +49,21 @@ export const createPost = mutation({
     });
 
     await ctx.runMutation(internal.stats.incrementPostCount, {});
+    try {
+      await ctx.runMutation(internal.notifications.fanOutForPost, {
+        postId: blogArticle,
+        authorId: user._id,
+        paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
+      });
+    } catch (error) {
+      // The fan-out's own writes (notification rows, counter bumps)
+      // have rolled back because Convex subtransactions are
+      // independent — but the post insert and stats increment above
+      // stay committed. The post is the source of truth; the
+      // notification is a hint. Log and continue so the user gets
+      // their post ID and a success toast.
+      console.error("notifications.fanOutForPost failed", error);
+    }
 
     return blogArticle;
   },

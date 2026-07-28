@@ -35,6 +35,7 @@ import {
   Settings as SettingsIcon,
   Bookmark,
 } from "lucide-react";
+import { NotificationBell } from "./NotificationBell";
 
 export function Navbar() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -84,65 +85,71 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           {isLoading ? null : isAuthenticated ? (
             currentUser ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label="Open user menu"
-                  className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <UserAvatar
-                    userId={currentUser.userId}
-                    name={currentUser.displayName}
-                    avatarUrl={currentUser.avatarUrl}
-                    className="size-8"
-                  />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-56">
-                  <DropdownMenuLabel className="flex flex-col gap-1 p-0 font-normal">
-                    <div className="flex items-center gap-3 px-2 py-2">
-                      <UserAvatar
-                        userId={currentUser.userId}
-                        name={currentUser.displayName}
-                        avatarUrl={currentUser.avatarUrl}
-                        className="size-8"
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-medium text-foreground truncate">
-                          {currentUser.displayName}
-                        </span>
-                        {currentUser.email && (
-                          <span className="text-xs text-muted-foreground truncate">
-                            {currentUser.email}
+              <>
+                <NotificationBell />
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    aria-label="Open user menu"
+                    className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <UserAvatar
+                      userId={currentUser.userId}
+                      name={currentUser.displayName}
+                      avatarUrl={currentUser.avatarUrl}
+                      className="size-8"
+                    />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-56">
+                    <DropdownMenuLabel className="flex flex-col gap-1 p-0 font-normal">
+                      <div className="flex items-center gap-3 px-2 py-2">
+                        <UserAvatar
+                          userId={currentUser.userId}
+                          name={currentUser.displayName}
+                          avatarUrl={currentUser.avatarUrl}
+                          className="size-8"
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium text-foreground truncate">
+                            {currentUser.displayName}
                           </span>
-                        )}
+                          {currentUser.email && (
+                            <span className="text-xs text-muted-foreground truncate">
+                              {currentUser.email}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href={`/u/${currentUser.userId}`}>
-                      <UserIcon />
-                      <span>Profile</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/reading-list">
-                      <Bookmark />
-                      <span>Reading List</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings">
-                      <SettingsIcon />
-                      <span>Settings</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onSelect={handleSignOut}>
-                    <LogOut />
-                    <span>Logout</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href={`/u/${currentUser.userId}`}>
+                        <UserIcon />
+                        <span>Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/reading-list">
+                        <Bookmark />
+                        <span>Reading List</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings">
+                        <SettingsIcon />
+                        <span>Settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={handleSignOut}
+                    >
+                      <LogOut />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : null
           ) : (
             <>

@@ -130,6 +130,9 @@ app/
     reading-list/
       page.tsx                # Private reading list (client-gated + paginated)
       _components/            # ReadingListContent
+    notifications/
+      page.tsx                # Private notifications feed (client-gated + paginated)
+      _components/            # NotificationsList (gate + pagination + mark-all-read) + NotificationRow
   auth/                       # Auth routes (login, sign-up)
     login/page.tsx
     sign-up/page.tsx
@@ -145,6 +148,7 @@ convex/
                               # index only — by_followingId deferred to 1.6 (notification fan-out)
   bookmarks.ts                # toggleBookmark + isBookmarked + getBookmarkedPosts (1.5).
                               # Private reading list, no denormalized counters.
+  notifications.ts            # Notifications fan-out (batched 200 + scheduler), unread count, list, mark-all-read
   users.ts                    # User sync, profile queries, updateProfile
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth)
@@ -156,6 +160,7 @@ components/
     AuthCTA.tsx               # Auth-aware CTA button ("Write a post" / "Get Started")
     FooterCTA.tsx             # Auth-aware CTA card for Footer
     Navbar.tsx                # Top nav with avatar dropdown
+    NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile)
     LikeButton.tsx
