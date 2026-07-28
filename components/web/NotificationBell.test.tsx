@@ -9,6 +9,8 @@
  *  - Badge shows the count when > 0.
  *  - Caps at "99+" when count is 100.
  *  - Click navigates to `/notifications`.
+ *  - Passes `"skip"` to `useQuery` when unauthenticated/loading, `{}`
+ *    when authenticated (avoids an unnecessary subscription).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,9 +18,15 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NotificationBell } from "./NotificationBell";
 
-const { useConvexAuthState, useQueryState, pushMock } = vi.hoisted(() => ({
+const {
+  useConvexAuthState,
+  useQueryState,
+  useQueryArgsMock,
+  pushMock,
+} = vi.hoisted(() => ({
   useConvexAuthState: vi.fn(),
   useQueryState: vi.fn(),
+  useQueryArgsMock: vi.fn(),
   pushMock: vi.fn(),
 }));
 
@@ -28,7 +36,10 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => useConvexAuthState(),
-  useQuery: () => useQueryState(),
+  useQuery: (_query: unknown, args: unknown) => {
+    useQueryArgsMock(args);
+    return useQueryState();
+  },
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
@@ -46,6 +57,7 @@ describe("NotificationBell", () => {
       isLoading: false,
     });
     useQueryState.mockReturnValue(0);
+    useQueryArgsMock.mockClear();
     pushMock.mockClear();
   });
 
@@ -60,6 +72,7 @@ describe("NotificationBell", () => {
     });
     const { container } = render(<NotificationBell />);
     expect(container).toBeEmptyDOMElement();
+    expect(useQueryArgsMock).toHaveBeenLastCalledWith("skip");
   });
 
   it("renders null while auth is loading", () => {
@@ -69,6 +82,7 @@ describe("NotificationBell", () => {
     });
     const { container } = render(<NotificationBell />);
     expect(container).toBeEmptyDOMElement();
+    expect(useQueryArgsMock).toHaveBeenLastCalledWith("skip");
   });
 
   it("renders the bell with the no-unread label when count is 0", () => {
@@ -78,6 +92,7 @@ describe("NotificationBell", () => {
       screen.getByRole("button", { name: "Notifications" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("99+")).not.toBeInTheDocument();
+    expect(useQueryArgsMock).toHaveBeenLastCalledWith({});
   });
 
   it("renders the bell with the count in the label when count > 0", () => {

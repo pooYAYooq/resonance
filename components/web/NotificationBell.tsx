@@ -28,7 +28,10 @@ import { Bell } from "lucide-react";
 export function NotificationBell() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
-  const unread = useQuery(api.notifications.getUnreadCount);
+  const unread = useQuery(
+    api.notifications.getUnreadCount,
+    isAuthenticated ? {} : "skip",
+  );
 
   if (!isAuthenticated || isLoading) return null;
 
