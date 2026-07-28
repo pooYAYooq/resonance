@@ -48,10 +48,20 @@ export const createPost = mutation({
     });
 
     await ctx.runMutation(internal.stats.incrementPostCount, {});
-    await ctx.runMutation(internal.notifications.fanOutForPost, {
-      postId: blogArticle,
-      authorId: user._id,
-    });
+    try {
+      await ctx.runMutation(internal.notifications.fanOutForPost, {
+        postId: blogArticle,
+        authorId: user._id,
+      });
+    } catch (error) {
+      // The fan-out's own writes (notification rows, counter bumps)
+      // have rolled back because Convex subtransactions are
+      // independent — but the post insert and stats increment above
+      // stay committed. The post is the source of truth; the
+      // notification is a hint. Log and continue so the user gets
+      // their post ID and a success toast.
+      console.error("notifications.fanOutForPost failed", error);
+    }
 
     return blogArticle;
   },
