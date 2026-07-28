@@ -104,12 +104,8 @@ export default defineSchema({
     // cursor via `.eq("followingId", ...).gt("createdAt", last)`.
     // Without the `createdAt` second column, a scheduler continuation
     // would re-read the same first 200 rows and insert duplicate
-    // notifications. `staged: true` ships so the 1.6 deploy does not
-    // block on the backfill over rows accumulated since 1.4 ship
-    // (see follows spec Forward pointers); operators confirm
-    // completion in the Convex dashboard before fan-out runs against
-    // production traffic, and a second deploy removes the flag.
-    .index("by_followingId", { fields: ["followingId", "createdAt"], staged: true }),
+    // notifications.
+    .index("by_followingId", { fields: ["followingId", "createdAt"] }),
 
   /**
    * Individual bookmark records, one per user per post. Mirrors the
