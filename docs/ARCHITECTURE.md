@@ -630,8 +630,9 @@ This decision does not introduce a `bookmarksCount` counter on `users` or
 `posts` (bookmarks are private), and it does not add a `by_postId` index
 (the only prefix scan is "this user's bookmarks").
 
-Full rationale and forward pointers live in
-`docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
+Full rationale lives in `docs/ARCHITECTURE.md` decision #14 (this file).
+Forward pointers (e.g. "no notification path", "no aggregate count") are
+folded into the matching `FEATURES.md` bullets for 1.6 / 1.9 / 1.10.
 
 ---
 
