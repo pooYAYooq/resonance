@@ -48,6 +48,10 @@ export const createPost = mutation({
     });
 
     await ctx.runMutation(internal.stats.incrementPostCount, {});
+    await ctx.runMutation(internal.notifications.fanOutForPost, {
+      postId: blogArticle,
+      authorId: user._id,
+    });
 
     return blogArticle;
   },
