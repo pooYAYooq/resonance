@@ -53,9 +53,10 @@ export const FANOUT_BATCH_SIZE = 200;
  *
  * Failure mode: if the mutation throws (transaction limit, OCC), the
  * post is already inserted and `createPost` already returned the
- * post ID. Notifications for any remaining followers are dropped.
- * Acceptable for the Medium-High slice: the post is the source of
- * truth, the notification is a hint.
+ * post ID. Convex discards ALL writes from the top-level mutation
+ * when it throws, including notifications processed earlier in the
+ * loop. Acceptable for the Medium-High slice: the post is the source
+ * of truth, the notification is a hint.
  *
  * @param args.postId - `Id<"posts">`: the freshly published post.
  * @param args.authorId - Better Auth user ID (string) of the
