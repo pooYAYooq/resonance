@@ -105,14 +105,14 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 
 - **1.4 Follows** ✅ — follow/unfollow authors; denormalized `followerCount`/`followingCount` on `users`. _Medium._ See `docs/superpowers/specs/2026-07-27-follows-design.md` (incl. its **Forward pointers** section) before starting 1.5 / 1.6 / 1.7 — those phases build on what 1.4 shipped and must not duplicate it.
 - **1.5 Bookmarks / Reading List** ✅ — private bookmarks; `/reading-list` page. _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`, **no** denormalized count on `users` (bookmarks are private). The shared `LikeToggle` primitive is the ready seam (Phase 1.3 key decision). See `docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
-- **1.6 Notifications** — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Needs a `follows.by_followingId` index that 1.4 deliberately did NOT add — add it in the 1.6 schema change before fan-out code; plan for Convex to backfill over follows accumulated since 1.4 ship (declare it `staged: true` if the table is large, per the Convex guideline). Fan-out belongs in `createPost`, not `toggleFollow`.
+- **1.6 Notifications** — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Needs a `follows.by_followingId` index that 1.4 deliberately did NOT add — add it in the 1.6 schema change before fan-out code; plan for Convex to backfill over follows accumulated since 1.4 ship (declare it `staged: true` if the table is large, per the Convex guideline). Fan-out belongs in `createPost`, not `toggleFollow`. **Scope is post-publish notifications only** — comment-likes and bookmarks have no notification path in 1.6 (deferred from 1.3 / 1.5 per their out-of-scope decisions).
 - **1.7 Reader Feed** — `/feed` with posts from followed authors, newest-first, paginated. _Medium._ 1.4's `by_followerId_and_followingId` index only enumerates followed authors — it does NOT solve cross-author post pagination. 1.7 needs its own feed strategy (denormalized `feed` table or `@convex-dev/aggregate`); plan it as a first-class schema decision in the 1.7 spec.
 
 ### Phase 1C — Discovery & Polish
 
 - **1.8 Post Tags** — `tags` array on posts, tag pills, filter `/blog?tag=`. _Medium._
 - **1.9 Trending / Popular** — "Latest" / "Popular" tabs on `/blog` via `likeCount`/`commentCount`. _Low._
-- **1.10 User Activity Feed** — recent activity ("X liked Y's post") on profiles. _Medium._
+- **1.10 User Activity Feed** — recent activity ("X liked Y's post") on profiles. _Medium._ **Includes comment likes** ("X liked Y's comment") alongside post likes (deferred from 1.3 per its out-of-scope decision).
 - **1.11 Polish** — reading-time estimate (~200 wpm) on cards/detail; share links (copy-to-clipboard / Web Share API). _Low._
 
 ### Phase 2 — The Author
