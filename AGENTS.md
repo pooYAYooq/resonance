@@ -1,100 +1,82 @@
-<!-- convex-ai-start -->
+# Agent rules — Resonance
 
 This project uses [Convex](https://convex.dev) as its backend.
 
 When working on Convex code, **always read
 `convex/_generated/ai/guidelines.md` first** for important guidelines on
 how to correctly use Convex APIs and patterns. The file contains rules that
-override what you may have learned about Convex from training data.
+override what you may have learned from training data.
 
 Convex agent skills for common tasks can be installed by running
 `npx convex ai-files install`.
 
-<!-- convex-ai-end -->
-
 ## Setup
 
-- `pnpm install` (locked to pnpm 10 via `packageManager`) in the repo root.
+- `pnpm install` (locked to pnpm 10 via `packageManager`).
 - Copy `.env.local.example` → `.env.local`. Set `NEXT_PUBLIC_CONVEX_URL`,
-  `NEXT_PUBLIC_CONVEX_SITE_URL`, and `BETTER_AUTH_SECRET` (32+ chars, match
-  production entropy). Also set `SITE_URL` in the **Convex dashboard** env vars
-  (not `.env.local`) — `convex/auth.ts` and Better Auth read it from there.
-- `opencode.json` sets `permission.edit: "ask"` and `permission.bash.*: "ask"` —
-  expect approval prompts for write/file-system commands.
+  `NEXT_PUBLIC_CONVEX_SITE_URL`, `BETTER_AUTH_SECRET` (32+ chars).
+- `SITE_URL` lives in the **Convex dashboard** env vars, not `.env.local`.
+- `opencode.json` sets `permission.edit: "ask"` — expect approval prompts.
 
 ## Commands
 
-| Intent               | Command                                                                                               |
-| -------------------- | ----------------------------------------------------------------------------------------------------- |
-| Dev server           | `pnpm dev`                                                                                            |
-| Lint                 | `pnpm lint` (ESLint via `eslint.config.mjs`)                                                          |
-| Format               | `pnpm format` (Prettier), `pnpm format:check`                                                         |
-| Typecheck            | `pnpm build` runs `next build` (includes TS type-checking via Next plugin)                            |
-| Tests (edge-runtime) | `pnpm test:ci` — vitest, edge-runtime, `app/**/*.test.ts`, `lib/**/*.test.ts`, `convex/**/*.test.ts`  |
-| Component tests      | `pnpm test:component` — vitest with jsdom, `app/**/*.test.tsx`, auto-cleanup via `vitest.ui.setup.ts` |
-| Single test file     | `pnpm test -- <path>` (vitest in watch mode)                                                          |
-| Build                | `pnpm build`                                                                                          |
+| Intent       | Command                             |
+| ------------ | ----------------------------------- |
+| Dev          | `pnpm dev`                          |
+| Lint         | `pnpm lint`                         |
+| Format       | `pnpm format` / `pnpm format:check` |
+| Typecheck    | `pnpm build` (Next.js does TS)      |
+| Test (edge)  | `pnpm test:ci`                      |
+| Test (UI)    | `pnpm test:component`               |
+| Single test  | `pnpm test -- <path>`               |
 
-## Routing
+CI order before PR: `lint → test:ci → test:component → build`.
 
-- `app/(app)/` — logged-in experience (has Navbar). Parens = not part of URL,
-  so `/blog` maps to `app/(app)/blog/page.tsx`.
-- `app/auth/` — isolated layout, no Navbar, full-screen centered forms.
-- Server Components for read-only pages (`fetchQuery`). Client Components
-  (`"use client"`) for hooks, mutations, providers, interactivity.
+## Conventions
 
-## Convex + Better Auth
+- `app/(app)/` has the Navbar; parens = not part of URL.
+- `app/auth/` has no Navbar, full-screen forms.
+- Server Components for read-only pages (`fetchQuery`).
+- Client Components for interactivity, mutations, auth state.
+- `ConvexClientProvider` sets `expectAuth: true` — queries/mutations don't
+  fire until authenticated. Don't "fix" missing data by removing this.
+- `lib/auth-server.ts` exports `fetchAuthQuery` / `fetchAuthMutation` but
+  **no page uses them** — every server `fetchQuery` is unauthenticated.
+  See `docs/ARCHITECTURE.md` decision #14 for the impact on bookmark state.
+- `components/ui/` is shadcn-managed. Re-generate via `pnpm shadcn add`.
+  Don't edit by hand.
+- Tailwind v4 with `@tailwindcss/postcss`. CSS vars in `globals.css`.
 
-- Better Auth runs **inside Convex**. User/session records live in the same
-  Convex DB as app data. Auth flows: browser → Next.js route handler
-  (`app/api/auth/[...all]/route.ts`) → Convex HTTP (`convex/http.ts`).
-- `ConvexClientProvider` sets `expectAuth: true` — Convex queries/mutations
-  won't fire until the user is authenticated. This can confuse agents
-  debugging "no data" issues in unauthenticated contexts.
-- Keep `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` in sync with
-  the Convex dashboard deployment. `SITE_URL` goes in Convex dashboard env
-  vars only.
+## Docs
 
-## UI
+Keep docs in sync as part of every change.
 
-- `components/ui/` are shadcn primitives — re-generate via `pnpm shadcn add`
-  instead of editing manually. `components.json` has the config.
-- Tailwind CSS v4 with `@tailwindcss/postcss`. CSS vars in `globals.css`.
-
-## CI order
-
-Before PR: `pnpm lint` → `pnpm test:ci` → `pnpm test:component` → `pnpm build`.
-
-## Documentation
-
-Keep the docs in sync as part of every change — stale docs cost more than
-no docs.
-
-- `FEATURES.md` — living roadmap. Shipping a feature → update its status in
-  the Status Board / backlog.
-- `docs/ARCHITECTURE.md` + README's Project Structure — changing directory
-  structure, schema, or auth → update both.
-- Designs and implementation plans → `docs/superpowers/specs|plans/`
-  (local, gitignored).
+- `FEATURES.md` — living roadmap. Update Status Board / backlog when
+  shipping or rescoping.
+- `docs/ARCHITECTURE.md` — single deep reference. Update when directory
+  structure, schema, or auth wiring changes.
+- `docs/superpowers/specs|plans/` — local, gitignored. **Active** specs
+  (Follows, Roadmap) hold forward pointers for the next phase — read
+  them before starting 1.6 / 1.7. **Older specs/plans for completed
+  phases are archival; don't re-read them.**
 
 ## Commits
 
-Conventional Commits (type + optional scope). Imperative, active voice.
-Subject ≤72 chars, no trailing period. Blank line, then body at 72 chars
-explaining _why_ (not _what_). Breaking changes: `!` or `BREAKING CHANGE:`
-footer. Ref issues in body (`Closes #123`). No WIP or vague subjects.
+Conventional Commits. Imperative, active voice. Subject ≤72 chars, no
+trailing period. Body explains _why_ (not _what_). Ref issues in body.
+No WIP or vague subjects.
 
-## Git Workflow
+## Git workflow
 
 **ALWAYS use Pull Requests. NEVER merge directly to main.**
 
-When a branch is complete and the user says "finish it," "merge it,"
-"ship it," or similar, present exactly this choice:
+When a branch is complete and the user says "finish it" / "merge it" /
+"ship it", present exactly:
 
 > Ready to create a PR for this branch?
 
-- If YES → push branch, create PR, STOP. Do not merge.
-- If NO → ask what they'd like to change before PRing.
+- YES → push, open PR, stop. Do not merge.
+- NO → ask what to change before PRing.
 
-Never run `git merge` or push to main without explicit user instruction
+Never run `git merge` or push to `main` without explicit user instruction
 to bypass PR workflow.
