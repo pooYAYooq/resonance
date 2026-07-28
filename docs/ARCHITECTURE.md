@@ -51,7 +51,7 @@ resonance/
 │   │           └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
 │   │                                # (Edit Profile + Follow live in components/web/
 │   │                                # ProfileActionButton.tsx since 1.4.)
-│   │   └── reading-list/
+│   │   ├── reading-list/
 │   │       ├── page.tsx        # Reading list. Server Component shell (static
 │   │       │                   # metadata, noindex). Auth gate + paginated list
 │   │       │                   # live in the client _components/ReadingListContent.
@@ -65,7 +65,7 @@ resonance/
 │   │       │                   # pagination, and mark-all-read live in
 │   │       │                   # the client _components/NotificationsList.
 │   │       └── _components/
-│   │           └── NotificationsList.tsx  # Client. useConvexAuth gate
+│   │           ├── NotificationsList.tsx  # Client. useConvexAuth gate
 │   │                                  # (redirect to /auth/login) +
 │   │                                  # usePaginatedQuery
 │   │                                  # notifications.getNotifications,
