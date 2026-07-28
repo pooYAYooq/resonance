@@ -11,6 +11,7 @@ import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import { paginationOptsValidator } from "convex/server";
 import { api, internal } from "./_generated/api";
+import { FANOUT_BATCH_SIZE } from "./notifications";
 
 /**
  * Creates a new blog article authored by the currently authenticated user.
@@ -52,7 +53,7 @@ export const createPost = mutation({
       await ctx.runMutation(internal.notifications.fanOutForPost, {
         postId: blogArticle,
         authorId: user._id,
-        paginationOpts: { numItems: 200, cursor: null },
+        paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
       });
     } catch (error) {
       // The fan-out's own writes (notification rows, counter bumps)

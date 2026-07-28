@@ -24,7 +24,7 @@ import { paginationOptsValidator } from "convex/server";
 import { internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
 
-const FANOUT_BATCH_SIZE = 200;
+export const FANOUT_BATCH_SIZE = 200;
 
 /**
  * Fans out a single published post to the author's followers by
