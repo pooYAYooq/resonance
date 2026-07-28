@@ -20,7 +20,7 @@
 | Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening        | ✅ Complete    |
 | Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required              | ✅ Complete    |
 | Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅      | ✅ Complete    |
-| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications · 1.7 Feed | 🔵 1.6 up next |
+| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed | 🔵 1.7 up next |
 | Phase 1C — Discovery & Polish       | 1.8 Tags · 1.9 Trending · 1.10 Activity · 1.11 Polish      | ⚪ Pending     |
 | Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics              | ⚪ Future      |
 | Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest              | ⚪ Future      |
@@ -80,6 +80,14 @@ reasonable home: Phase 1.9 / 1.10 (data flow / polish).
 - `/reading-list` page — client-gated, paginated grid of saved posts; unbookmarking from the list removes the card immediately
 - Navbar avatar dropdown contains the "Reading List" entry
 
+### Notifications
+
+- `internal.notifications.fanOutForPost` — called by `createPost`, inserts one row per follower in `take(200)` batches with scheduler continuation via the `follows.by_followingId` index
+- `users.unreadNotificationCount` denormalized counter; `getUnreadCount` is a single O(1) read for the bell badge
+- `NotificationBell` in the Navbar, auth-only, left of the avatar
+- `/notifications` page, client-gated, paginated, marks all read on visit
+- `markAllRead` resets the counter; rows remain as visual history
+
 ### Profiles & Settings
 
 - Public profiles at `/u/[userId]`: avatar, display name, bio, paginated post list
@@ -105,7 +113,7 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 
 - **1.4 Follows** ✅ — follow/unfollow authors; denormalized `followerCount`/`followingCount` on `users`. _Medium._ See `docs/superpowers/specs/2026-07-27-follows-design.md` (incl. its **Forward pointers** section) before starting 1.5 / 1.6 / 1.7 — those phases build on what 1.4 shipped and must not duplicate it.
 - **1.5 Bookmarks / Reading List** ✅ — private bookmarks; `/reading-list` page. _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`, **no** denormalized count on `users` (bookmarks are private). The shared `LikeToggle` primitive is the ready seam (Phase 1.3 key decision). See `docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
-- **1.6 Notifications** — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Needs a `follows.by_followingId` index that 1.4 deliberately did NOT add — add it in the 1.6 schema change before fan-out code; plan for Convex to backfill over follows accumulated since 1.4 ship (declare it `staged: true` if the table is large, per the Convex guideline). Fan-out belongs in `createPost`, not `toggleFollow`.
+- **1.6 Notifications** ✅ — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Fan-out in `createPost` via `ctx.runMutation(internal.notifications.fanOutForPost, ...)`; `follows.by_followingId` ships `staged: true` for backfill. See `docs/superpowers/specs/2026-07-28-notifications-design.md` (incl. its **Forward pointers** section) before starting 1.7 — 1.7's feed strategy is its own first-class spec decision; 1.6 only shares the `by_followingId` index, not the feed data path.
 - **1.7 Reader Feed** — `/feed` with posts from followed authors, newest-first, paginated. _Medium._ 1.4's `by_followerId_and_followingId` index only enumerates followed authors — it does NOT solve cross-author post pagination. 1.7 needs its own feed strategy (denormalized `feed` table or `@convex-dev/aggregate`); plan it as a first-class schema decision in the 1.7 spec.
 
 ### Phase 1C — Discovery & Polish
