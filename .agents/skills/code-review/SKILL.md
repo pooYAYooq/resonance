@@ -111,8 +111,10 @@ When user requests implementation + review:
 2. Run `coderabbit review --agent` with any requested scope flags (`-t`, `--base`, `--base-commit`, `--dir`)
 3. Create task list from findings
 4. Fix critical and warning issues systematically
-5. Re-run review to verify fixes
-6. Repeat until clean or only info-level issues remain
+5. Re-run review ONCE to verify fixes
+6. Stop after the re-review. Do NOT iterate further — info-level
+   findings are acknowledged but not fixed in this run. Maximum 2
+   review passes per session (hard cap to bound API + token spend).
 
 ### 5. Review Specific Changes
 
