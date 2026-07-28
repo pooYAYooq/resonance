@@ -65,7 +65,14 @@ describe("notifications functions", () => {
       expect(result).toBe(0);
     });
 
-    it("returns 0 for a user without the counter field (pre-Phase-1.6 doc)", async () => {
+    it("returns 0 for a user without the counter field (pre-Phase-1.6 doc) — verified by code inspection only", async () => {
+      // In convex-test, safeGetAuthUser always returns null (Better Auth
+      // component is not mocked), so this exercises the unauth
+      // short-circuit rather than the `?? 0` fallback for a missing
+      // `unreadNotificationCount` field. The fallback itself is verified
+      // by code inspection of notifications.ts (line ~127) — the
+      // `user?.unreadNotificationCount ?? 0` expression is the
+      // post-Phase-1.6 backward-compat contract.
       const t = convexTest(schema, modules);
 
       await t.run(async (ctx) => {
