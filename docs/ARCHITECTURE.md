@@ -59,6 +59,19 @@ resonance/
 │   │           └── ReadingListContent.tsx  # Client. useConvexAuth gate (redirect
 │   │                                  # to /auth/login) + usePaginatedQuery
 │   │                                  # bookmarks.getBookmarkedPosts grid.
+│   │   └── notifications/
+│   │       ├── page.tsx        # Notifications. Server Component shell
+│   │       │                   # (static metadata, noindex). Auth gate,
+│   │       │                   # pagination, and mark-all-read live in
+│   │       │                   # the client _components/NotificationsList.
+│   │       └── _components/
+│   │           └── NotificationsList.tsx  # Client. useConvexAuth gate
+│   │                                  # (redirect to /auth/login) +
+│   │                                  # usePaginatedQuery
+│   │                                  # notifications.getNotifications,
+│   │                                  # fires markAllRead once on mount.
+│   │           └── NotificationRow.tsx  # Pure-presentational row,
+│   │                                  # no Convex hooks.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
 │   │   ├── login/
@@ -66,7 +79,7 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, users, stats
+│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, notifications, users, stats
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
@@ -88,6 +101,13 @@ resonance/
 │   │                           # getBookmarkedPosts (paginated). Private reading
 │   │                           # list — no denormalized counters. Mirrors likes
 │   │                           # minus the count patches; index is userId-first.
+│   ├── notifications.ts        # fanOutForPost (internal, batched 200 +
+│   │                           # scheduler continuation via
+│   │                           # follows.by_followingId), getUnreadCount,
+│   │                           # getNotifications (paginated, hydrated
+│   │                           # actor + post), markAllRead (resets the
+│   │                           # denormalized users.unreadNotificationCount;
+│   │                           # rows remain as visual history)
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserById,
@@ -101,6 +121,13 @@ resonance/
 │       │                           # Wraps children in <AuthSync>.
 │       ├── AuthSync.tsx         # Fires users.syncUser on every auth state change
 │       ├── Navbar.tsx           # Top nav. Avatar dropdown (profile/reading list/settings/logout).
+│       ├── NotificationBell.tsx  # Self-subscribing bell with unread badge
+│       │                          # in the Navbar, left of the avatar. Mirrors
+│       │                          # BookmarkButton's self-contained pattern;
+│       │                          # hidden when unauthenticated or while auth
+│       │                          # is loading. Backs onto getUnreadCount's
+│       │                          # bounded O(1) read of the denormalized
+│       │                          # users.unreadNotificationCount.
 │       ├── Footer.tsx           # Site-wide footer. Links from lib/constants/footer.ts.
 │       ├── FooterCTA.tsx        # Auth-aware CTA card rendered inside Footer
 │       ├── AuthCTA.tsx          # Auth-aware CTA button ("Write a post" / "Get Started")
