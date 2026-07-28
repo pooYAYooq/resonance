@@ -97,7 +97,19 @@ export default defineSchema({
     followerId: v.string(),
     followingId: v.string(),
     createdAt: v.number(),
-  }).index("by_followerId_and_followingId", ["followerId", "followingId"]),
+  })
+    .index("by_followerId_and_followingId", ["followerId", "followingId"])
+    // `by_followingId` is ordered (followingId, createdAt) so the
+    // 1.6 fan-out can resume a batched scan with a `lastCreatedAt`
+    // cursor via `.eq("followingId", ...).gt("createdAt", last)`.
+    // Without the `createdAt` second column, a scheduler continuation
+    // would re-read the same first 200 rows and insert duplicate
+    // notifications. `staged: true` ships so the 1.6 deploy does not
+    // block on the backfill over rows accumulated since 1.4 ship
+    // (see follows spec Forward pointers); operators confirm
+    // completion in the Convex dashboard before fan-out runs against
+    // production traffic, and a second deploy removes the flag.
+    .index("by_followingId", { fields: ["followingId", "createdAt"], staged: true }),
 
   /**
    * Individual bookmark records, one per user per post. Mirrors the
@@ -131,6 +143,33 @@ export default defineSchema({
     .index("by_userId_and_createdAt", ["userId", "createdAt"]),
 
   /**
+   * Individual notification records, one per follower per published
+   * post. Mirrors the `likes` / `follows` / `bookmarks` pattern: a
+   * separate table, not an array on the user doc, to keep the user
+   * document small and avoid the 1 MB document limit (Convex schema
+   * guideline: no unbounded arrays in documents).
+   *
+   * No `read` / `readAt` field — the Medium-High slice's
+   * "mark-all-read on page visit" resets the denormalized
+   * `users.unreadNotificationCount` rather than tracking per-row
+   * state. Adding `readAt: v.optional(v.number())` later is a
+   * non-breaking migration if per-row state is wanted (see the spec's
+   * Forward pointers).
+   *
+   * `recipientId` and `actorId` are Better Auth user ID strings
+   * (same shape as `follows.followerId` / `follows.followingId` and
+   * `posts.authorId`), NOT Convex `users._id`. The compound index
+   * supports the paginated newest-first list query (prefix scan on
+   * `recipientId` with `.order("desc")`).
+   */
+  notifications: defineTable({
+    recipientId: v.string(),
+    actorId: v.string(),
+    postId: v.id("posts"),
+    createdAt: v.number(),
+  }).index("by_recipientId_and_createdAt", ["recipientId", "createdAt"]),
+
+  /**
    * App-level user enrichment table, synced from Better Auth on sign-in.
    *
    * Why a separate table?
@@ -154,6 +193,15 @@ export default defineSchema({
      */
     followerCount: v.optional(v.number()),
     followingCount: v.optional(v.number()),
+    /**
+     * Denormalized count of unread notifications, kept in sync by
+     * `internal.notifications.fanOutForPost` (increments on fan-out)
+     * and `notifications.markAllRead` (resets to 0 on page visit).
+     * Optional for backward compatibility with user docs created
+     * before Phase 1.6; UI consumers should fall back to 0 via
+     * `user.unreadNotificationCount ?? 0`.
+     */
+    unreadNotificationCount: v.optional(v.number()),
     createdAt: v.number(),
   })
     /**
