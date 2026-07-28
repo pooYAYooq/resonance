@@ -31,15 +31,16 @@ const FANOUT_BATCH_SIZE = 200;
  * inserting one `notifications` row per follower and bumping each
  * recipient's denormalized `users.unreadNotificationCount`.
  *
- * Reads followers in `take(FANOUT_BATCH_SIZE)` batches via the
- * `follows.by_followingId` index, ordered `(followingId, createdAt)`
- * so a scheduler continuation can resume strictly *after* the last
- * processed row via `.gt("createdAt", lastCreatedAt)` — without the
- * `createdAt` second column, a continuation would re-read the same
- * first 200 rows and insert duplicate notifications.
+ * Reads followers in `paginate` batches via the `follows.by_followingId`
+ * index, ordered `(followingId, createdAt)`. Convex's built-in
+ * `paginate` cursor handles tie-breaking correctly — a manual
+ * `lastCreatedAt` cursor would skip followers that share the same
+ * `createdAt` (very plausible for batched sign-ups). The first call
+ * from `createPost` passes `cursor: null`; scheduler continuations
+ * pass the previous batch's `continueCursor`.
  *
- * If the batch is full, the function self-schedules a continuation
- * with the last row's `createdAt` as the resume cursor, returning
+ * If the batch is full (`!isDone`), the function self-schedules a
+ * continuation with the returned `continueCursor`, returning
  * immediately. `createPost` therefore returns the post ID after the
  * first batch is queued (or after the fan-out completes if the author
  * has < 200 followers).
@@ -59,9 +60,10 @@ const FANOUT_BATCH_SIZE = 200;
  * @param args.postId - `Id<"posts">`: the freshly published post.
  * @param args.authorId - Better Auth user ID (string) of the
  *   publishing author. Not a Convex `users._id`.
- * @param args.lastCreatedAt - Optional `createdAt` cursor to resume a
- *   batched scan after a previous batch processed rows up to (and
- *   including) this timestamp. Only used for scheduler continuations.
+ * @param args.paginationOpts - `PaginationOptions`: the first call
+ *   from `createPost` passes `{ numItems: FANOUT_BATCH_SIZE, cursor:
+ *   null }`; scheduler continuations pass the previous batch's
+ *   `continueCursor` with the same `numItems`.
  * @returns `{ done: boolean, processed: number }`: `done` is `true`
  *   on the final batch; `processed` is the count of followers handled
  *   in this batch.
@@ -70,20 +72,17 @@ export const fanOutForPost = internalMutation({
   args: {
     postId: v.id("posts"),
     authorId: v.string(),
-    lastCreatedAt: v.optional(v.number()),
+    paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const followers = await ctx.db
+    const result = await ctx.db
       .query("follows")
-      .withIndex("by_followingId", (q) => {
-        const scoped = q.eq("followingId", args.authorId);
-        return args.lastCreatedAt !== undefined
-          ? scoped.gt("createdAt", args.lastCreatedAt)
-          : scoped;
-      })
-      .take(FANOUT_BATCH_SIZE);
+      .withIndex("by_followingId", (q) =>
+        q.eq("followingId", args.authorId),
+      )
+      .paginate(args.paginationOpts);
 
-    for (const follower of followers) {
+    for (const follower of result.page) {
       await ctx.db.insert("notifications", {
         recipientId: follower.followerId,
         actorId: args.authorId,
@@ -102,16 +101,22 @@ export const fanOutForPost = internalMutation({
       }
     }
 
-    if (followers.length === FANOUT_BATCH_SIZE) {
-      const lastCreatedAt = followers[followers.length - 1].createdAt;
+    if (!result.isDone) {
       await ctx.scheduler.runAfter(
         0,
         internal.notifications.fanOutForPost,
-        { postId: args.postId, authorId: args.authorId, lastCreatedAt },
+        {
+          postId: args.postId,
+          authorId: args.authorId,
+          paginationOpts: {
+            numItems: args.paginationOpts.numItems,
+            cursor: result.continueCursor,
+          },
+        },
       );
-      return { done: false, processed: FANOUT_BATCH_SIZE };
+      return { done: false, processed: result.page.length };
     }
-    return { done: true, processed: followers.length };
+    return { done: true, processed: result.page.length };
   },
 });
 

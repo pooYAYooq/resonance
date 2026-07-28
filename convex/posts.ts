@@ -52,6 +52,7 @@ export const createPost = mutation({
       await ctx.runMutation(internal.notifications.fanOutForPost, {
         postId: blogArticle,
         authorId: user._id,
+        paginationOpts: { numItems: 200, cursor: null },
       });
     } catch (error) {
       // The fan-out's own writes (notification rows, counter bumps)

@@ -132,6 +132,7 @@ describe("notifications functions", () => {
       const result = await t.mutation(internal.notifications.fanOutForPost, {
         postId,
         authorId,
+        paginationOpts: { numItems: 200, cursor: null },
       });
       expect(result).toEqual({ done: true, processed: 3 });
 
@@ -193,6 +194,7 @@ describe("notifications functions", () => {
       const result = await t.mutation(internal.notifications.fanOutForPost, {
         postId,
         authorId,
+        paginationOpts: { numItems: 200, cursor: null },
       });
       expect(result).toEqual({ done: true, processed: 1 });
 
@@ -231,6 +233,7 @@ describe("notifications functions", () => {
       const first = await t.mutation(internal.notifications.fanOutForPost, {
         postId,
         authorId,
+        paginationOpts: { numItems: 200, cursor: null },
       });
       expect(first).toEqual({ done: false, processed: 200 });
 
@@ -270,6 +273,7 @@ describe("notifications functions", () => {
       const result = await t.mutation(internal.notifications.fanOutForPost, {
         postId,
         authorId,
+        paginationOpts: { numItems: 200, cursor: null },
       });
       expect(result).toEqual({ done: true, processed: 5 });
     });
