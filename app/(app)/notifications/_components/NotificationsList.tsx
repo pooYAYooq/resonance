@@ -9,8 +9,10 @@
  *  - "Load More" button when `status === "CanLoadMore"`.
  *  - `EmptyState` when the visible page is empty.
  *
- * Renders the page-level `<h1>Notifications</h1>` and one
- * `NotificationRow` per hydrated notification. Calls
+ * Renders one `NotificationRow` per hydrated notification. The
+ * page-level `<h1>Notifications</h1>` lives in
+ * `app/(app)/notifications/page.tsx` (this component is the list
+ * body only, mirroring `ReadingListContent`). Calls
  * `useMutation(api.notifications.markAllRead)` exactly once on mount
  * via `useEffect`. The mutation is fire-and-forget; the bell badge
  * drops to 0 reactively through the `getUnreadCount` subscription.
