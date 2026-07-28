@@ -56,6 +56,10 @@ vi.mock("@/lib/auth-client", () => ({
   },
 }));
 
+vi.mock("./NotificationBell", () => ({
+  NotificationBell: () => null,
+}));
+
 const currentUser = {
   _id: "users-1",
   _creationTime: 0,
