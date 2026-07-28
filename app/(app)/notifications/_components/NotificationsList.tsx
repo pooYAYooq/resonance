@@ -85,13 +85,23 @@ export function NotificationsList() {
     (n): n is NotificationRowData => n.postTitle !== null,
   );
 
-  if (!listLoading && visible.length === 0) {
+  if (!listLoading && visible.length === 0 && status !== "CanLoadMore") {
     return (
       <EmptyState
         icon={Bell}
         title="No notifications yet"
         description="When an author you follow publishes a new post, it'll show up here."
       />
+    );
+  }
+
+  if (!listLoading && visible.length === 0 && status === "CanLoadMore") {
+    return (
+      <div className="flex justify-center py-4">
+        <Button variant="outline" onClick={() => loadMore(12)}>
+          Load more
+        </Button>
+      </div>
     );
   }
 

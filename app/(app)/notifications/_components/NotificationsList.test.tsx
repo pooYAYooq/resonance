@@ -204,6 +204,31 @@ describe("NotificationsList", () => {
     expect(screen.getAllByRole("article")).toHaveLength(1);
   });
 
+  it("keeps Load more (not EmptyState) when all loaded rows are deleted-post and more pages remain", async () => {
+    const user = userEvent.setup();
+    const loadMore = vi.fn();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    usePaginatedState.mockReturnValue({
+      results: [
+        baseNotification({ _id: "n-1", postTitle: null }),
+        baseNotification({ _id: "n-2", postTitle: null }),
+      ],
+      status: "CanLoadMore",
+      loadMore,
+      isLoading: false,
+    });
+    render(<NotificationsList />);
+
+    expect(screen.queryByText("No notifications yet")).not.toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /load more/i });
+    expect(button).toBeInTheDocument();
+    await user.click(button);
+    expect(loadMore).toHaveBeenCalledWith(12);
+  });
+
   it("renders the Load more button when status is CanLoadMore and triggers loadMore on click", async () => {
     const user = userEvent.setup();
     const loadMore = vi.fn();
