@@ -47,7 +47,6 @@ next-env.d.ts
 NOTES.local.md
 
 # OC planning docs
-docs/superpowers/
 
 # local git worktrees
 .worktrees/

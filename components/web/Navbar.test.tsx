@@ -47,6 +47,9 @@ vi.mock("@/convex/_generated/api", () => ({
     users: {
       getCurrentUser: "getCurrentUser",
     },
+    feed: {
+      getFeed: "getFeed",
+    },
   },
 }));
 
@@ -123,6 +126,20 @@ describe("Navbar", () => {
     expect(
       screen.getByRole("button", { name: /open user menu/i }),
     ).toBeInTheDocument();
+  });
+
+  it("shows the Feed navigation link only in the authenticated branch", () => {
+    currentQueryValue = currentUser;
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    render(<Navbar />);
+
+    expect(screen.getByRole("link", { name: "Feed" })).toHaveAttribute(
+      "href",
+      "/feed",
+    );
   });
 
   it("renders the avatar with the current user's initials in the trigger", () => {

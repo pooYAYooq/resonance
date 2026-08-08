@@ -14,6 +14,7 @@ import { v } from "convex/values";
  * - `comments` is the table of comments attached to posts.
  * - `users` is an app-level enrichment table synced from Better Auth identity.
  * - `stats` is a denormalized singleton counter to avoid loading all posts for a count.
+ * - `feed` is a bounded 30-day materialized view, not the source of truth for author history.
  * - Timestamps (`createdAt`, `updatedAt`) are required on all tables.
  */
 export default defineSchema({
@@ -37,7 +38,8 @@ export default defineSchema({
      * Primary lookup: fetch all posts by a given author for profile pages and
      * user-specific post listings without scanning the entire table.
      */
-    .index("by_authorId", ["authorId"]),
+    .index("by_authorId", ["authorId"])
+    .index("by_authorId_and_createdAt", ["authorId", "createdAt"]),
 
   /** Comments attached to a single post. */
   comments: defineTable({
@@ -164,6 +166,32 @@ export default defineSchema({
     postId: v.id("posts"),
     createdAt: v.number(),
   }).index("by_recipientId_and_createdAt", ["recipientId", "createdAt"]),
+
+  /**
+   * Bounded, denormalized reader feed rows. These rows cover only the most
+   * recent 30 days; posts remain the source of truth for an author's history.
+   */
+  feed: defineTable({
+    userId: v.string(),
+    postId: v.id("posts"),
+    authorId: v.string(),
+    followId: v.id("follows"),
+    createdAt: v.number(),
+    insertedAt: v.number(),
+  })
+    .index("by_userId_and_createdAt_and_insertedAt_and_postId", [
+      "userId",
+      "createdAt",
+      "insertedAt",
+      "postId",
+    ])
+    .index("by_userId_and_postId", ["userId", "postId"])
+    .index("by_userId_and_authorId_and_followId_and_createdAt", [
+      "userId",
+      "authorId",
+      "followId",
+      "createdAt",
+    ]),
 
   /**
    * App-level user enrichment table, synced from Better Auth on sign-in.

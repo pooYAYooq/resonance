@@ -72,6 +72,11 @@ resonance/
 │   │                                  # fires markAllRead once on mount.
 │   │           └── NotificationRow.tsx  # Pure-presentational row,
 │   │                                  # no Convex hooks.
+│   │   └── feed/
+│   │       ├── page.tsx        # Private reader feed shell (static metadata, noindex).
+│   │       └── _components/
+│   │           └── FeedContent.tsx       # Client auth gate, fixed cutoff,
+│   │                                  # bounded cursor pagination + PostCard grid.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
 │   │   ├── login/
@@ -79,7 +84,7 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, notifications, users, stats
+│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, notifications, feed, users, stats
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
@@ -109,6 +114,10 @@ resonance/
 │   │                           # actor + post), markAllRead (resets the
 │   │                           # denormalized users.unreadNotificationCount;
 │   │                           # rows remain as visual history)
+│   ├── feed.ts                 # Private getFeed query plus 30-day materialized
+│   │                           # fan-out, follow backfill, unfollow deletion,
+│   │                           # and bounded expiration cleanup.
+│   ├── crons.ts                # Daily scheduled feed expiration cleanup.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserById,
@@ -465,6 +474,13 @@ Two distinct rendering patterns are used depending on what the page needs.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+The private reader feed uses the same client-gated route pattern as the reading
+list and notifications, but keeps its own manual cursor state. `FeedContent`
+computes one `asOf` timestamp on mount, requests exactly 20 rows with
+`maximumRowsRead: 20`, and reuses that cutoff while loading more pages. The
+server query reads the materialized feed globally by `(userId, createdAt,
+insertedAt, postId)`, hydrates posts, and omits missing or duplicate posts.
+
 **When to use which:**
 
 - Server Component + `fetchQuery` → read-only pages, good for SEO, no client JS needed.
@@ -589,27 +605,24 @@ and gives future bookmark-style toggles (1.5) a ready seam. The
 unbounded array, denormalized `comment.likeCount` kept in sync by
 `toggleCommentLike`.
 
-### 13. Why `follows` ships with one index, and why counts ride reactivity (not the mutation return)
+### 13. Why `follows` has two indexes, and why counts ride reactivity (not the mutation return)
 
 Phase 1.4 Follows mirrors `likes` (separate `follows` table, idempotent
 `toggleFollow` mutation, denormalized `followerCount` / `followingCount`
 on `users` patched in the same transaction) but diverges on two points a
 future agent needs to know:
 
-- **Only `by_followerId_and_followingId` ships in 1.4.** The
-  `by_followingId` index is deliberately deferred. It is needed by
-  1.6 (the notification fan-out query "all followers of this
-  publishing author") and by any future follower-list route — both
-  are prefix scans on `followingId`. The `follows` table starts empty
-  in 1.4, but 1.4 ships as a usable feature: between 1.4 ship and 1.6
-  ship, users will follow each other and the table will accumulate real
-  rows. When 1.6 adds `by_followingId`, Convex will backfill the index
-  over those rows — **the backfill is NOT a no-op.** If the table is
-  large by then, declare the index `staged: true` in the 1.6 schema
-  change to backfill asynchronously without blocking the deploy, and
-  verify the backfill completes before querying it (Convex guideline).
-  **1.6 must add `by_followingId` in its schema change before writing
-  fan-out code.** Do not assume it exists.
+- **`by_followerId_and_followingId` shipped in 1.4; `by_followingId`
+  shipped in 1.6.** The second index was deliberately deferred from 1.4
+  (no follower-list UI or fan-out code needed it yet). The `follows`
+  table started empty in 1.4 but accumulated real rows between 1.4 and
+  1.6 ship. Phase 1.6 added `by_followingId` — ordered
+  `(followingId, createdAt)` — so the notification fan-out can resume a
+  batched scan via `.eq("followingId", ...).gt("createdAt", last)`. The
+  `staged: true` flag was considered for the 1.6 deploy but the table
+  was small enough to backfill synchronously; a larger dataset would
+  require it to avoid blocking the deploy. Any future follower-list
+  route reuses the same index (prefix scan on `followingId`).
 
 - **The count bump rides Convex reactivity, not the mutation return.**
   `toggleFollow` returns only `{ following: boolean }`. The displayed
@@ -627,7 +640,9 @@ future agent needs to know:
   `ProfileStats` to `getUserProfile`.**
 
 Full rationale and forward pointers for 1.5 / 1.6 / 1.7 live in
-`docs/superpowers/specs/2026-07-27-follows-design.md` (gitignored).
+`docs/superpowers/specs/2026-07-27-follows-design.md`;
+the 1.6 notification fan-out that uses this index is documented in
+`docs/superpowers/specs/2026-07-28-notifications-design.md`.
 
 ### 14. Why bookmarks self-subscribe instead of being server-hydrated
 
@@ -660,6 +675,37 @@ This decision does not introduce a `bookmarksCount` counter on `users` or
 
 Full rationale and forward pointers live in
 `docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
+
+### 15. Why the reader feed is a 30-day materialized view
+
+Phase 1.7 needs one newest-first stream across all authors a reader follows.
+Walking each followed author's posts at read time would require a merge across
+unbounded author histories and would not provide a single efficient Convex
+cursor. The `feed` table is therefore a bounded materialized view, not the
+source of truth for author history. Each row stores `userId`, `postId`,
+`authorId`, `followId`, `createdAt`, and `insertedAt`.
+
+The feed uses three indexes with exact field order:
+
+- `by_userId_and_createdAt_and_insertedAt_and_postId` for the global descending
+  reader page;
+- `by_userId_and_postId` for idempotent insertion and hydration deduplication;
+- `by_userId_and_authorId_and_followId_and_createdAt` for isolated unfollow
+  deletion.
+
+New posts fan out to current followers in bounded scheduler batches. Following
+starts a bounded backfill from the staged-then-active
+`posts.by_authorId_and_createdAt` index, while unfollowing deletes only rows
+for the exact follow-row generation. A daily cron removes expired or dangling
+rows. These maintenance operations are intentionally eventually consistent:
+the source post/follow write remains committed if a maintenance subtransaction
+fails, and the caller schedules a bounded retry or continuation.
+
+The public `getFeed` query derives the reader identity from auth, excludes rows
+outside the 30-day window or newer than the client-supplied fixed `asOf`, and
+rejects page contracts other than 20 requested and maximum rows. The client
+gates the route with `useConvexAuth`; it does not server-render private feed
+data because the existing server `fetchQuery` path is unauthenticated.
 
 ---
 
