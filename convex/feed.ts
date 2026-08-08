@@ -29,12 +29,11 @@ export const getFeed = query({
     const result = await ctx.db
       .query("feed")
       .withIndex("by_userId_and_createdAt_and_insertedAt_and_postId", (q) =>
-        q.eq("userId", authUser._id).gte(
-          "createdAt",
-          args.asOf - FEED_WINDOW_MS,
-        ),
+        q
+          .eq("userId", authUser._id)
+          .gte("createdAt", args.asOf - FEED_WINDOW_MS)
+          .lte("createdAt", args.asOf),
       )
-      .filter((q) => q.lte(q.field("createdAt"), args.asOf))
       .order("desc")
       .paginate(args.paginationOpts);
 

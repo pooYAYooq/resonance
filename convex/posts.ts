@@ -64,6 +64,15 @@ export const createPost = mutation({
       // notification is a hint. Log and continue so the user gets
       // their post ID and a success toast.
       console.error("notifications.fanOutForPost failed", error);
+    }
+    try {
+      await ctx.runMutation(internal.feed.fanOutForPost, {
+        postId: blogArticle,
+        authorId: user._id,
+        paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+        retryCount: 0,
+      });
+    } catch (error) {
       console.error("feed.fanOutForPost failed", error);
       await ctx.scheduler.runAfter(0, internal.feed.fanOutForPost, {
         postId: blogArticle,

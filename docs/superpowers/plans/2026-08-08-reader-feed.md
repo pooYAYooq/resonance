@@ -456,9 +456,9 @@ git commit -m "docs: document reader feed"
 - Verify: all changed files from Tasks 1-6
 - Verify: `convex/_generated/api.d.ts` and `convex/_generated/dataModel.d.ts`
 
-- [ ] **Step 1: Regenerate Convex types**
+- [x] **Step 1: Regenerate Convex types**
 
-Run: `npx convex dev --once`
+Run: `pnpm dlx convex dev --once`
 
 Expected: Convex code generation completes without schema or function errors.
 Verify that `convex/_generated/api.d.ts` includes the `feed` and `crons`
