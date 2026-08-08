@@ -74,9 +74,14 @@ export function Navbar() {
               Blog
             </Link>
             {isAuthenticated && (
-              <Link className={buttonVariants({ variant: "ghost" })} href="/create">
-                Create
-              </Link>
+              <>
+                <Link className={buttonVariants({ variant: "ghost" })} href="/feed">
+                  Feed
+                </Link>
+                <Link className={buttonVariants({ variant: "ghost" })} href="/create">
+                  Create
+                </Link>
+              </>
             )}
           </div>
         </div>

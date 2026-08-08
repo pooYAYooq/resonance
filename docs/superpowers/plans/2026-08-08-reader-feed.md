@@ -366,7 +366,7 @@ git commit -m "feat(feed): clean materialized rows on unfollow"
 - Modify: `components/web/Navbar.tsx`
 - Modify: `components/web/Navbar.test.tsx`
 
-- [ ] **Step 1: Add component tests first**
+- [x] **Step 1: Add component tests first**
 
 Mock `useConvexAuth`, `useQuery`, `useRouter`, and the generated feed API following `NotificationsList.test.tsx` and `Navbar.test.tsx`. Test:
 
@@ -379,13 +379,13 @@ Mock `useConvexAuth`, `useQuery`, `useRouter`, and the generated feed API follow
 - loading auth state neither redirects nor starts the feed query;
 - Navbar shows `/feed` only in the authenticated navigation branch.
 
-- [ ] **Step 2: Run component tests and confirm failure**
+- [x] **Step 2: Run component tests and confirm failure**
 
 Run: `pnpm test:component -- app/(app)/feed/_components/FeedContent.test.tsx components/web/Navbar.test.tsx`
 
 Expected: FAIL because the feed route/component and navigation entry do not exist.
 
-- [ ] **Step 3: Implement `FeedContent`**
+- [x] **Step 3: Implement `FeedContent`**
 
 Create a client component that:
 
@@ -397,15 +397,15 @@ Create a client component that:
 6. Renders loading skeletons, `EmptyState`, hydrated posts through the existing `PostCard`, and a 20-item Load More button.
 7. Preserves the same `asOf` value and bounded pagination options for every cursor request.
 
-- [ ] **Step 4: Implement the route shell**
+- [x] **Step 4: Implement the route shell**
 
 Create `app/(app)/feed/page.tsx` as a Server Component with metadata `{ title: "Feed", robots: { index: false, follow: false } }` and render `<FeedContent />`. Keep auth gating in the client component, matching Notifications and Reading List.
 
-- [ ] **Step 5: Add Navbar navigation**
+- [x] **Step 5: Add Navbar navigation**
 
 Add an authenticated `/feed` link using the existing Navbar styles and icons. Keep anonymous and loading branches unchanged. Add assertions to `Navbar.test.tsx` for visibility and route destination.
 
-- [ ] **Step 6: Run component tests**
+- [x] **Step 6: Run component tests**
 
 Run: `pnpm test:component -- app/(app)/feed/_components/FeedContent.test.tsx components/web/Navbar.test.tsx`
 
