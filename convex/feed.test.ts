@@ -395,6 +395,11 @@ describe("feed maintenance", () => {
       paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
     });
 
+    await t.mutation(internal.feed.cleanupExpired, {
+      cutoffAt: now - FEED_WINDOW_MS,
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+    });
+
     const remaining = await t.run(async (ctx) => ctx.db.query("feed").collect());
     expect(remaining).toHaveLength(1);
     expect(remaining[0].createdAt).toBe(now);

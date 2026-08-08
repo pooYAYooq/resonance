@@ -251,9 +251,14 @@ export const cleanupExpired = internalMutation({
       .paginate(args.paginationOpts);
 
     for (const row of result.page) {
-      const post = await ctx.db.get(row.postId);
-      if (row.createdAt < args.cutoffAt || !post) {
-        await ctx.db.delete(row._id);
+      const currentRow = await ctx.db.get(row._id);
+      if (!currentRow) {
+        continue;
+      }
+
+      const post = await ctx.db.get(currentRow.postId);
+      if (currentRow.createdAt < args.cutoffAt || !post) {
+        await ctx.db.delete(currentRow._id);
       }
     }
 
