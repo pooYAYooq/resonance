@@ -624,7 +624,7 @@ future agent needs to know:
   `ProfileStats` to `getUserProfile`.**
 
 Full rationale and forward pointers for 1.5 / 1.6 / 1.7 live in
-`docs/superpowers/specs/2026-07-27-follows-design.md` (gitignored);
+`docs/superpowers/specs/2026-07-27-follows-design.md`;
 the 1.6 notification fan-out that uses this index is documented in
 `docs/superpowers/specs/2026-07-28-notifications-design.md`.
 
