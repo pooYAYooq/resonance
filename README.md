@@ -7,18 +7,18 @@
 
 ## Features
 
-| Feature            | Description                                                                               |
-| ------------------ | ----------------------------------------------------------------------------------------- |
-| **Landing Page**   | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA |
-| **Blog**           | Create posts with cover images, browse paginated listings, read individual posts          |
-| **Likes**          | Like/unlike posts with live counts on cards and post pages                                |
-| **Comments**       | Paginated comments with author avatars, real-time updates                                 |
-| **Follows**        | Follow/unfollow authors; live follower/following counts on profile headers                |
+| Feature            | Description                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------------- |
+| **Landing Page**   | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA         |
+| **Blog**           | Create posts with cover images, browse paginated listings, read individual posts                  |
+| **Likes**          | Like/unlike posts with live counts on cards and post pages                                        |
+| **Comments**       | Paginated comments with author avatars, real-time updates                                         |
+| **Follows**        | Follow/unfollow authors; live follower/following counts on profile headers                        |
 | **Profiles**       | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings` |
-| **Authentication** | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                 |
-| **SEO**            | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts            |
-| **Dark Mode**      | System-aware dark/light theme toggle                                                      |
-| **Responsive**     | Mobile-first design, works across all breakpoints                                         |
+| **Authentication** | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                         |
+| **SEO**            | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                    |
+| **Dark Mode**      | System-aware dark/light theme toggle                                                              |
+| **Responsive**     | Mobile-first design, works across all breakpoints                                                 |
 
 ---
 
@@ -133,6 +133,9 @@ app/
     notifications/
       page.tsx                # Private notifications feed (client-gated + paginated)
       _components/            # NotificationsList (gate + pagination + mark-all-read) + NotificationRow
+    feed/
+      page.tsx                # Private reader feed (client-gated + globally paginated)
+      _components/            # FeedContent (fixed cutoff + bounded cursor pagination)
   auth/                       # Auth routes (login, sign-up)
     login/page.tsx
     sign-up/page.tsx
@@ -140,7 +143,7 @@ app/
   api/auth/[...all]/          # Better Auth route handler → Convex HTTP
 
 convex/
-  schema.ts                   # Database schema (posts, comments, likes, commentLikes, follows, bookmarks, users, stats)
+  schema.ts                   # Database schema (posts, comments, likes, commentLikes, follows, bookmarks, notifications, feed, users, stats)
   posts.ts                    # Post queries, mutations, image upload
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations
@@ -149,6 +152,7 @@ convex/
   bookmarks.ts                # toggleBookmark + isBookmarked + getBookmarkedPosts (1.5).
                               # Private reading list, no denormalized counters.
   notifications.ts            # Notifications fan-out (batched 200 + scheduler), unread count, list, mark-all-read
+  feed.ts                     # 30-day materialized reader feed, fan-out/backfill/deletion/cleanup, paginated query
   users.ts                    # User sync, profile queries, updateProfile
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth)

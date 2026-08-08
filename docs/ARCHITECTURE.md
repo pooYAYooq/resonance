@@ -72,6 +72,11 @@ resonance/
 │   │                                  # fires markAllRead once on mount.
 │   │           └── NotificationRow.tsx  # Pure-presentational row,
 │   │                                  # no Convex hooks.
+│   │   └── feed/
+│   │       ├── page.tsx        # Private reader feed shell (static metadata, noindex).
+│   │       └── _components/
+│   │           └── FeedContent.tsx       # Client auth gate, fixed cutoff,
+│   │                                  # bounded cursor pagination + PostCard grid.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
 │   │   ├── login/
@@ -79,7 +84,7 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, notifications, users, stats
+│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, notifications, feed, users, stats
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
@@ -109,6 +114,10 @@ resonance/
 │   │                           # actor + post), markAllRead (resets the
 │   │                           # denormalized users.unreadNotificationCount;
 │   │                           # rows remain as visual history)
+│   ├── feed.ts                 # Private getFeed query plus 30-day materialized
+│   │                           # fan-out, follow backfill, unfollow deletion,
+│   │                           # and bounded expiration cleanup.
+│   ├── crons.ts                # Daily scheduled feed expiration cleanup.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserById,
@@ -465,6 +474,13 @@ Two distinct rendering patterns are used depending on what the page needs.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+The private reader feed uses the same client-gated route pattern as the reading
+list and notifications, but keeps its own manual cursor state. `FeedContent`
+computes one `asOf` timestamp on mount, requests exactly 20 rows with
+`maximumRowsRead: 20`, and reuses that cutoff while loading more pages. The
+server query reads the materialized feed globally by `(userId, createdAt,
+insertedAt, postId)`, hydrates posts, and omits missing or duplicate posts.
+
 **When to use which:**
 
 - Server Component + `fetchQuery` → read-only pages, good for SEO, no client JS needed.
@@ -659,6 +675,37 @@ This decision does not introduce a `bookmarksCount` counter on `users` or
 
 Full rationale and forward pointers live in
 `docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
+
+### 15. Why the reader feed is a 30-day materialized view
+
+Phase 1.7 needs one newest-first stream across all authors a reader follows.
+Walking each followed author's posts at read time would require a merge across
+unbounded author histories and would not provide a single efficient Convex
+cursor. The `feed` table is therefore a bounded materialized view, not the
+source of truth for author history. Each row stores `userId`, `postId`,
+`authorId`, `followId`, `createdAt`, and `insertedAt`.
+
+The feed uses three indexes with exact field order:
+
+- `by_userId_and_createdAt_and_insertedAt_and_postId` for the global descending
+  reader page;
+- `by_userId_and_postId` for idempotent insertion and hydration deduplication;
+- `by_userId_and_authorId_and_followId_and_createdAt` for isolated unfollow
+  deletion.
+
+New posts fan out to current followers in bounded scheduler batches. Following
+starts a bounded backfill from the staged-then-active
+`posts.by_authorId_and_createdAt` index, while unfollowing deletes only rows
+for the exact follow-row generation. A daily cron removes expired or dangling
+rows. These maintenance operations are intentionally eventually consistent:
+the source post/follow write remains committed if a maintenance subtransaction
+fails, and the caller schedules a bounded retry or continuation.
+
+The public `getFeed` query derives the reader identity from auth, excludes rows
+outside the 30-day window or newer than the client-supplied fixed `asOf`, and
+rejects page contracts other than 20 requested and maximum rows. The client
+gates the route with `useConvexAuth`; it does not server-render private feed
+data because the existing server `fetchQuery` path is unauthenticated.
 
 ---
 
