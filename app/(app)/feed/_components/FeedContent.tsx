@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { Loader2, Rss } from "lucide-react";
@@ -23,7 +23,6 @@ export function FeedContent() {
   const [asOf] = useState(() => Date.now());
   const [cursor, setCursor] = useState<string | null>(null);
   const [pages, setPages] = useState<FeedPost[]>([]);
-  const processedPageKey = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -45,20 +44,6 @@ export function FeedContent() {
       : "skip",
   );
 
-  const pageKey = page
-    ? `${cursor ?? "initial"}:${page.continueCursor}:${page.page
-        .map((post) => post._id)
-        .join(",")}`
-    : null;
-
-  useEffect(() => {
-    if (!page || !pageKey || processedPageKey.current === pageKey) {
-      return;
-    }
-    processedPageKey.current = pageKey;
-    setPages((current) => (cursor === null ? page.page : [...current, ...page.page]));
-  }, [page, pageKey, cursor]);
-
   if (isLoading || !isAuthenticated || !page) {
     return (
       <div className="flex justify-center py-12">
@@ -68,7 +53,7 @@ export function FeedContent() {
   }
 
   const uniquePosts = Array.from(
-    new Map(pages.map((post) => [post._id, post])).values(),
+    new Map([...pages, ...page.page].map((post) => [post._id, post])).values(),
   );
 
   if (uniquePosts.length === 0 && page.isDone) {
@@ -106,7 +91,10 @@ export function FeedContent() {
         <div className="flex justify-center">
           <Button
             variant="outline"
-            onClick={() => setCursor(page.continueCursor)}
+            onClick={() => {
+              setPages((current) => [...current, ...page.page]);
+              setCursor(page.continueCursor);
+            }}
           >
             Load more
           </Button>

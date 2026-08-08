@@ -411,7 +411,7 @@ Run: `pnpm test:component -- app/(app)/feed/_components/FeedContent.test.tsx com
 
 Expected: PASS for auth gating, fixed cutoff, pagination, empty state, and navigation.
 
-- [ ] **Step 7: Commit the route**
+- [x] **Step 7: Commit the route**
 
 ```bash
 git add "app/(app)/feed" components/web/Navbar.tsx components/web/Navbar.test.tsx
@@ -425,25 +425,25 @@ git commit -m "feat(feed): add private reader feed"
 - Modify: `README.md`
 - Modify: `docs/ARCHITECTURE.md`
 
-- [ ] **Step 1: Update the roadmap**
+- [x] **Step 1: Update the roadmap**
 
 Mark Phase 1.7 Reader Feed complete in `FEATURES.md`, move the next-work marker to the next planned Phase 1C item, and add the implemented feed behavior: `/feed`, current follows, 30-day materialization, global chronological pagination, 20-item pages, and batched lifecycle maintenance.
 
-- [ ] **Step 2: Update README structure**
+- [x] **Step 2: Update README structure**
 
 Add `app/(app)/feed/`, `convex/feed.ts`, and the feed’s purpose to the project structure and feature summary. Do not describe the feed as full historical author content.
 
-- [ ] **Step 3: Update architecture reference**
+- [x] **Step 3: Update architecture reference**
 
 Document the `feed` table and all three indexes, the fan-out/backfill/unfollow/cleanup lifecycle, the fixed `asOf` cursor contract, the client-gated route, and the eventual-consistency failure model. Remove any language implying that 1.7 is only planned once this feature is shipped.
 
-- [ ] **Step 4: Format and inspect docs**
+- [x] **Step 4: Format and inspect docs**
 
 Run: `pnpm exec prettier --check FEATURES.md README.md docs/ARCHITECTURE.md`
 
 Expected: all three files pass. Inspect `git diff --check` and verify every newly referenced tracked path exists.
 
-- [ ] **Step 5: Commit documentation**
+- [x] **Step 5: Commit documentation**
 
 ```bash
 git add FEATURES.md README.md docs/ARCHITECTURE.md
@@ -468,19 +468,19 @@ and `followId` field. Verify the exact index names and field order in
 after the staged-index deploy; generated data-model types do not enumerate
 index names. Do not hand-edit generated files.
 
-- [ ] **Step 2: Run lint**
+- [x] **Step 2: Run lint**
 
 Run: `pnpm lint`
 
 Expected: PASS with no new warnings or errors attributable to the feed.
 
-- [ ] **Step 3: Run backend tests**
+- [x] **Step 3: Run backend tests**
 
 Run: `pnpm test:ci`
 
 Expected: PASS, including all feed and existing Convex tests.
 
-- [ ] **Step 4: Run component tests**
+- [x] **Step 4: Run component tests**
 
 Run: `pnpm test:component`
 
