@@ -589,27 +589,24 @@ and gives future bookmark-style toggles (1.5) a ready seam. The
 unbounded array, denormalized `comment.likeCount` kept in sync by
 `toggleCommentLike`.
 
-### 13. Why `follows` ships with one index, and why counts ride reactivity (not the mutation return)
+### 13. Why `follows` has two indexes, and why counts ride reactivity (not the mutation return)
 
 Phase 1.4 Follows mirrors `likes` (separate `follows` table, idempotent
 `toggleFollow` mutation, denormalized `followerCount` / `followingCount`
 on `users` patched in the same transaction) but diverges on two points a
 future agent needs to know:
 
-- **Only `by_followerId_and_followingId` ships in 1.4.** The
-  `by_followingId` index is deliberately deferred. It is needed by
-  1.6 (the notification fan-out query "all followers of this
-  publishing author") and by any future follower-list route — both
-  are prefix scans on `followingId`. The `follows` table starts empty
-  in 1.4, but 1.4 ships as a usable feature: between 1.4 ship and 1.6
-  ship, users will follow each other and the table will accumulate real
-  rows. When 1.6 adds `by_followingId`, Convex will backfill the index
-  over those rows — **the backfill is NOT a no-op.** If the table is
-  large by then, declare the index `staged: true` in the 1.6 schema
-  change to backfill asynchronously without blocking the deploy, and
-  verify the backfill completes before querying it (Convex guideline).
-  **1.6 must add `by_followingId` in its schema change before writing
-  fan-out code.** Do not assume it exists.
+- **`by_followerId_and_followingId` shipped in 1.4; `by_followingId`
+  shipped in 1.6.** The second index was deliberately deferred from 1.4
+  (no follower-list UI or fan-out code needed it yet). The `follows`
+  table started empty in 1.4 but accumulated real rows between 1.4 and
+  1.6 ship. Phase 1.6 added `by_followingId` — ordered
+  `(followingId, createdAt)` — so the notification fan-out can resume a
+  batched scan via `.eq("followingId", ...).gt("createdAt", last)`. The
+  `staged: true` flag was considered for the 1.6 deploy but the table
+  was small enough to backfill synchronously; a larger dataset would
+  require it to avoid blocking the deploy. Any future follower-list
+  route reuses the same index (prefix scan on `followingId`).
 
 - **The count bump rides Convex reactivity, not the mutation return.**
   `toggleFollow` returns only `{ following: boolean }`. The displayed
@@ -627,7 +624,9 @@ future agent needs to know:
   `ProfileStats` to `getUserProfile`.**
 
 Full rationale and forward pointers for 1.5 / 1.6 / 1.7 live in
-`docs/superpowers/specs/2026-07-27-follows-design.md` (gitignored).
+`docs/superpowers/specs/2026-07-27-follows-design.md` (gitignored);
+the 1.6 notification fan-out that uses this index is documented in
+`docs/superpowers/specs/2026-07-28-notifications-design.md`.
 
 ### 14. Why bookmarks self-subscribe instead of being server-hydrated
 
