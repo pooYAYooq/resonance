@@ -77,6 +77,18 @@ no docs.
 - Designs and implementation plans → `docs/superpowers/specs|plans/`
   (local, gitignored).
 
+### Status and PR workflow
+
+- Use `docs/status.md` as the first place to resume work after an absence.
+- When a task or plan step is genuinely complete, update its checkbox in the
+  relevant plan and update `docs/status.md` in the same change.
+- When a phase is complete, mark it complete in `FEATURES.md` and
+  `docs/status.md`, then mark exactly one next phase or task as `🔵 up next`.
+- Never mark work complete without fresh verification evidence. Record known
+  limitations rather than checking an incomplete step.
+- Before opening a PR, follow the local procedure in `docs/PR_CHECKLIST.md`.
+  This is an agent workflow document, not a GitHub PR template.
+
 ## Commits
 
 Conventional Commits (type + optional scope). Imperative, active voice.

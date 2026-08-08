@@ -15,15 +15,15 @@
 
 ## Status Board
 
-| Phase                               | Goal                                                                   | Status      |
-| ----------------------------------- | ---------------------------------------------------------------------- | ----------- |
-| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                    | ✅ Complete |
-| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete |
-| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete |
-| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete |
-| Phase 1C — Discovery & Polish       | 1.8 Tags · 1.9 Trending · 1.10 Activity · 1.11 Polish                  | ⚪ Pending  |
-| Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics                          | ⚪ Future   |
-| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | ⚪ Future   |
+| Phase                               | Goal                                                                   | Status         |
+| ----------------------------------- | ---------------------------------------------------------------------- | -------------- |
+| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                    | ✅ Complete    |
+| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete    |
+| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete    |
+| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete    |
+| Phase 1C — Discovery & Polish       | 1.8 Tags · 1.9 Trending · 1.10 Activity · 1.11 Polish                  | 🔵 1.8 up next |
+| Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics                          | ⚪ Future      |
+| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | ⚪ Future      |
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
