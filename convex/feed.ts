@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
-import { query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
 
 export const FEED_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -74,5 +75,131 @@ export const getFeed = query({
     }
 
     return { ...result, page: hydrated };
+  },
+});
+
+export const fanOutForPost = internalMutation({
+  args: {
+    postId: v.id("posts"),
+    authorId: v.string(),
+    paginationOpts: paginationOptsValidator,
+    retryCount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (!post || post.authorId !== args.authorId) {
+      return { done: true, processed: 0 };
+    }
+    if (post.createdAt < Date.now() - FEED_WINDOW_MS) {
+      return { done: true, processed: 0 };
+    }
+
+    const result = await ctx.db
+      .query("follows")
+      .withIndex("by_followingId", (q) => q.eq("followingId", args.authorId))
+      .paginate(args.paginationOpts);
+
+    for (const follower of result.page) {
+      const currentFollow = await ctx.db.get(follower._id);
+      if (!currentFollow) {
+        continue;
+      }
+
+      const existing = await ctx.db
+        .query("feed")
+        .withIndex("by_userId_and_postId", (q) =>
+          q.eq("userId", currentFollow.followerId).eq("postId", args.postId),
+        )
+        .unique();
+
+      if (!existing) {
+        await ctx.db.insert("feed", {
+          userId: currentFollow.followerId,
+          postId: args.postId,
+          authorId: post.authorId,
+          followId: currentFollow._id,
+          createdAt: post.createdAt,
+          insertedAt: Date.now(),
+        });
+      } else if (existing.followId !== currentFollow._id) {
+        await ctx.db.patch(existing._id, { followId: currentFollow._id });
+      }
+    }
+
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.feed.fanOutForPost, {
+        postId: args.postId,
+        authorId: args.authorId,
+        paginationOpts: {
+          numItems: args.paginationOpts.numItems,
+          cursor: result.continueCursor,
+        },
+        retryCount: args.retryCount,
+      });
+      return { done: false, processed: result.page.length };
+    }
+    return { done: true, processed: result.page.length };
+  },
+});
+
+export const backfillForFollow = internalMutation({
+  args: {
+    userId: v.string(),
+    authorId: v.string(),
+    followId: v.id("follows"),
+    cutoffAt: v.number(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const follow = await ctx.db.get(args.followId);
+    if (
+      !follow ||
+      follow.followerId !== args.userId ||
+      follow.followingId !== args.authorId
+    ) {
+      return { done: true, processed: 0 };
+    }
+
+    const result = await ctx.db
+      .query("posts")
+      .withIndex("by_authorId_and_createdAt", (q) =>
+        q.eq("authorId", args.authorId).gte("createdAt", args.cutoffAt),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    for (const post of result.page) {
+      const existing = await ctx.db
+        .query("feed")
+        .withIndex("by_userId_and_postId", (q) =>
+          q.eq("userId", args.userId).eq("postId", post._id),
+        )
+        .unique();
+
+      if (!existing) {
+        await ctx.db.insert("feed", {
+          userId: args.userId,
+          postId: post._id,
+          authorId: post.authorId,
+          followId: args.followId,
+          createdAt: post.createdAt,
+          insertedAt: Date.now(),
+        });
+      } else if (existing.followId !== args.followId) {
+        await ctx.db.patch(existing._id, { followId: args.followId });
+      }
+    }
+
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.feed.backfillForFollow, {
+        ...args,
+        paginationOpts: {
+          numItems: args.paginationOpts.numItems,
+          cursor: result.continueCursor,
+        },
+      });
+      return { done: false, processed: result.page.length };
+    }
+    return { done: true, processed: result.page.length };
   },
 });

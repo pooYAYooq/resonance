@@ -1,8 +1,16 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { api } from "./_generated/api";
-import { describe, expect, it } from "vitest";
+import { api, internal } from "./_generated/api";
+import { FEED_BATCH_SIZE, FEED_WINDOW_MS } from "./feed";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -106,5 +114,134 @@ describe("feed query", () => {
         },
       }),
     ).rejects.toThrow("Feed pages must request exactly 20 rows");
+  });
+});
+
+describe("feed maintenance", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("fans out one row per current follower and is idempotent", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    const { postId, authorId } = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "New post",
+        body: "Body",
+        authorId: "author-1",
+        commentCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      for (const followerId of ["reader-1", "reader-2"]) {
+        await ctx.db.insert("follows", {
+          followerId,
+          followingId: "author-1",
+          createdAt: now,
+        });
+      }
+      return { postId, authorId: "author-1" };
+    });
+
+    const args = {
+      postId,
+      authorId,
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+      retryCount: 0,
+    };
+    await t.mutation(internal.feed.fanOutForPost, args);
+    await t.mutation(internal.feed.fanOutForPost, args);
+
+    const rows = await t.run(async (ctx) => ctx.db.query("feed").collect());
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.userId).sort()).toEqual([
+      "reader-1",
+      "reader-2",
+    ]);
+  });
+
+  it("returns continuation metadata when the follower batch is full", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    const { postId } = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Popular post",
+        body: "Body",
+        authorId: "popular-author",
+        commentCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      for (let index = 0; index < FEED_BATCH_SIZE + 1; index += 1) {
+        await ctx.db.insert("follows", {
+          followerId: `reader-${index}`,
+          followingId: "popular-author",
+          createdAt: now + index,
+        });
+      }
+      return { postId };
+    });
+
+    const result = await t.mutation(internal.feed.fanOutForPost, {
+      postId,
+      authorId: "popular-author",
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+      retryCount: 0,
+    });
+
+    expect(result).toEqual({ done: false, processed: FEED_BATCH_SIZE });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+  });
+
+  it("backfills only recent posts and is idempotent", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    const { followId } = await t.run(async (ctx) => {
+      const followId = await ctx.db.insert("follows", {
+        followerId: "reader-1",
+        followingId: "author-1",
+        createdAt: now,
+      });
+      await ctx.db.insert("posts", {
+        title: "Recent",
+        body: "Body",
+        authorId: "author-1",
+        commentCount: 0,
+        createdAt: now - FEED_WINDOW_MS + 1,
+        updatedAt: now - FEED_WINDOW_MS + 1,
+      });
+      await ctx.db.insert("posts", {
+        title: "Expired",
+        body: "Body",
+        authorId: "author-1",
+        commentCount: 0,
+        createdAt: now - FEED_WINDOW_MS - 1,
+        updatedAt: now - FEED_WINDOW_MS - 1,
+      });
+      return { followId };
+    });
+
+    const args = {
+      userId: "reader-1",
+      authorId: "author-1",
+      followId,
+      cutoffAt: now - FEED_WINDOW_MS,
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+    };
+    await t.mutation(internal.feed.backfillForFollow, args);
+    await t.mutation(internal.feed.backfillForFollow, args);
+
+    const rows = await t.run(async (ctx) => ctx.db.query("feed").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0].userId).toBe("reader-1");
+    expect(rows[0].authorId).toBe("author-1");
   });
 });

@@ -12,6 +12,7 @@ import { authComponent } from "./auth";
 import { paginationOptsValidator } from "convex/server";
 import { api, internal } from "./_generated/api";
 import { FANOUT_BATCH_SIZE } from "./notifications";
+import { FEED_BATCH_SIZE } from "./feed";
 
 /**
  * Creates a new blog article authored by the currently authenticated user.
@@ -63,6 +64,13 @@ export const createPost = mutation({
       // notification is a hint. Log and continue so the user gets
       // their post ID and a success toast.
       console.error("notifications.fanOutForPost failed", error);
+      console.error("feed.fanOutForPost failed", error);
+      await ctx.scheduler.runAfter(0, internal.feed.fanOutForPost, {
+        postId: blogArticle,
+        authorId: user._id,
+        paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+        retryCount: 1,
+      });
     }
 
     return blogArticle;

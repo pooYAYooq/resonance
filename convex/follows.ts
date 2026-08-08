@@ -15,6 +15,8 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import { internal } from "./_generated/api";
+import { FEED_BATCH_SIZE, FEED_WINDOW_MS } from "./feed";
 
 /**
  * Toggles a follow relationship between the currently authenticated
@@ -94,7 +96,7 @@ export const toggleFollow = mutation({
       return { following: false };
     }
 
-    await ctx.db.insert("follows", {
+    const followId = await ctx.db.insert("follows", {
       followerId: authUser._id,
       followingId: args.followingId,
       createdAt: Date.now(),
@@ -104,6 +106,13 @@ export const toggleFollow = mutation({
     });
     await ctx.db.patch(target._id, {
       followerCount: (target.followerCount ?? 0) + 1,
+    });
+    await ctx.scheduler.runAfter(0, internal.feed.backfillForFollow, {
+      userId: authUser._id,
+      authorId: args.followingId,
+      followId,
+      cutoffAt: Date.now() - FEED_WINDOW_MS,
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
     });
     return { following: true };
   },

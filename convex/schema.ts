@@ -39,10 +39,7 @@ export default defineSchema({
      * user-specific post listings without scanning the entire table.
      */
     .index("by_authorId", ["authorId"])
-    .index("by_authorId_and_createdAt", {
-      fields: ["authorId", "createdAt"],
-      staged: true,
-    }),
+    .index("by_authorId_and_createdAt", ["authorId", "createdAt"]),
 
   /** Comments attached to a single post. */
   comments: defineTable({

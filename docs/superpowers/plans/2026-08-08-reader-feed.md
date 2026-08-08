@@ -51,17 +51,17 @@
 - Create: `convex/feed.ts`
 - Test: `convex/feed.test.ts`
 
-- [ ] **Step 1: Add schema-focused failing tests**
+- [x] **Step 1: Add schema-focused failing tests**
 
 Create `convex/feed.test.ts` with the `convexTest` + `import.meta.glob` setup used by existing Convex tests. Start with tests that seed feed rows and verify the table can represent two rows for different readers and the same post, and that the query exercises the three required indexes.
 
-- [ ] **Step 2: Run the focused test to establish the failure**
+- [x] **Step 2: Run the focused test to establish the failure**
 
 Run: `pnpm test:ci -- convex/feed.test.ts`
 
 Expected: FAIL because the `feed` table and feed module do not exist yet.
 
-- [ ] **Step 3: Add the `feed` table**
+- [x] **Step 3: Add the `feed` table**
 
 In `convex/schema.ts`, add:
 
@@ -104,7 +104,7 @@ Add a separate schema step after the staged index backfill completes: remove
 `staged: true` so `backfillForFollow` can query the index. Verify the index is
 queryable with `npx convex dev --once` before enabling follow backfill.
 
-- [ ] **Step 4: Add feed constants and types**
+- [x] **Step 4: Add feed constants and types**
 
 In `convex/feed.ts`, export the constants used by `posts.ts` and `follows.ts`:
 
@@ -120,13 +120,13 @@ modules. Keep all feed maintenance functions in this module. Do not add a
 custom return validator; the existing codebase relies on inferred pagination
 result types for hydrated post queries.
 
-- [ ] **Step 5: Run the focused tests**
+- [x] **Step 5: Run the focused tests**
 
 Run: `pnpm test:ci -- convex/feed.test.ts`
 
 Expected: PASS for schema setup and seeded table behavior.
 
-- [ ] **Step 6: Commit the schema foundation**
+- [x] **Step 6: Commit the schema foundation**
 
 ```bash
 git add convex/schema.ts convex/feed.ts convex/feed.test.ts
@@ -176,13 +176,13 @@ it("rejects an unbounded page contract", async () => {
 
 Use the existing authenticated test setup or direct internal seed setup where Better Auth cannot be mocked; document the auth limitation in the test as existing tests do.
 
-- [ ] **Step 2: Run the focused tests and confirm failure**
+- [x] **Step 2: Run the focused tests and confirm failure**
 
 Run: `pnpm test:ci -- convex/feed.test.ts`
 
 Expected: FAIL because `api.feed.getFeed` is not implemented.
 
-- [ ] **Step 3: Implement `getFeed`**
+- [x] **Step 3: Implement `getFeed`**
 
 Implement `getFeed` with args `{ asOf: v.number(), paginationOpts: paginationOptsValidator }`.
 
@@ -194,13 +194,13 @@ Implement `getFeed` with args `{ asOf: v.number(), paginationOpts: paginationOpt
 6. Hydrate the bounded raw page and deduplicate by `postId`; do not slice the page after pagination because every consumed row must remain represented by the returned opaque cursor.
 7. Return the pagination metadata from the underlying result without fabricating a new cursor.
 
-- [ ] **Step 4: Run the query tests**
+- [x] **Step 4: Run the query tests**
 
 Run: `pnpm test:ci -- convex/feed.test.ts`
 
 Expected: PASS for unauthenticated behavior, cutoff, ordering, page cap, hydration, and missing-post handling.
 
-- [ ] **Step 5: Commit the query**
+- [x] **Step 5: Commit the query**
 
 ```bash
 git add convex/feed.ts convex/feed.test.ts
@@ -223,7 +223,7 @@ then remove `staged: true` in a follow-up schema change and run
 `npx convex dev --once` again. Do not deploy or schedule code that queries the
 author index while it remains staged; Convex rejects staged-index queries.
 
-- [ ] **Step 1: Add failing fan-out and backfill tests**
+- [x] **Step 1: Add failing fan-out and backfill tests**
 
 Test that:
 
@@ -235,13 +235,13 @@ Test that:
 
 Use direct internal mutation calls for maintenance functions, matching `notifications.test.ts`, and seed posts/follows directly where authentication cannot be mocked.
 
-- [ ] **Step 2: Run the tests and confirm failure**
+- [x] **Step 2: Run the tests and confirm failure**
 
 Run: `pnpm test:ci -- convex/feed.test.ts convex/posts.test.ts convex/follows.test.ts`
 
 Expected: FAIL because feed maintenance functions and lifecycle calls do not exist.
 
-- [ ] **Step 3: Implement batched post fan-out**
+- [x] **Step 3: Implement batched post fan-out**
 
 Add an internal mutation named `fanOutForPost` with validated args
 `{ postId, authorId, paginationOpts, retryCount }`. The first call uses
@@ -255,11 +255,11 @@ scheduled.
 
 Keep the batch size at `FEED_BATCH_SIZE` and pass `{ numItems: FEED_BATCH_SIZE, cursor: null }` from the caller. This relationship recheck makes delayed fan-out safe after unfollow.
 
-- [ ] **Step 4: Trigger fan-out from `createPost`**
+- [x] **Step 4: Trigger fan-out from `createPost`**
 
 Import `internal` and `FEED_BATCH_SIZE` in `convex/posts.ts`. After the stats increment, invoke the feed fan-out in the existing protected maintenance section. Keep post creation successful if feed fan-out throws, log `feed.fanOutForPost failed` consistently with the notifications log, and schedule one retry with the initial cursor and `retryCount: 1`. Add tests for the failure scheduling contract where the Convex test scheduler supports inspection.
 
-- [ ] **Step 5: Implement batched follow backfill**
+- [x] **Step 5: Implement batched follow backfill**
 
 Add an internal mutation named `backfillForFollow` with validated args
 `{ userId, authorId, followId, cutoffAt, paginationOpts }`.
@@ -269,17 +269,17 @@ Add an internal mutation named `backfillForFollow` with validated args
 3. Probe `feed.by_userId_and_postId`; insert missing rows with the original post `authorId`, the validated `followId`, the original post `createdAt`, and current `insertedAt`, or patch an existing older-generation row's `followId` to the current `followId`.
 4. Schedule the continuation with the same `followId` when needed.
 
-- [ ] **Step 6: Schedule backfill from `toggleFollow`**
+- [x] **Step 6: Schedule backfill from `toggleFollow`**
 
 Capture the ID returned by the follow-row insert. On the existing follow-insert branch, after the relationship and counter patches, schedule `internal.feed.backfillForFollow` with `userId: authUser._id`, `authorId: args.followingId`, `followId`, `cutoffAt: Date.now() - FEED_WINDOW_MS`, and the first posts cursor. Do not schedule it on unfollow. Add a test that a delayed backfill exits after the exact follow row is deleted.
 
-- [ ] **Step 7: Run lifecycle tests**
+- [x] **Step 7: Run lifecycle tests**
 
 Run: `pnpm test:ci -- convex/feed.test.ts convex/posts.test.ts convex/follows.test.ts`
 
 Expected: PASS for fan-out, continuation scheduling, follow backfill, idempotency, and source-write behavior.
 
-- [ ] **Step 8: Commit lifecycle maintenance**
+- [x] **Step 8: Commit lifecycle maintenance**
 
 ```bash
 git add convex/feed.ts convex/feed.test.ts convex/posts.ts convex/posts.test.ts convex/follows.ts convex/follows.test.ts
