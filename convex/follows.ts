@@ -93,6 +93,12 @@ export const toggleFollow = mutation({
       await ctx.db.patch(target._id, {
         followerCount: (target.followerCount ?? 0) - 1,
       });
+      await ctx.scheduler.runAfter(0, internal.feed.deleteForUnfollow, {
+        userId: authUser._id,
+        authorId: args.followingId,
+        followId: existingFollow._id,
+        paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+      });
       return { following: false };
     }
 

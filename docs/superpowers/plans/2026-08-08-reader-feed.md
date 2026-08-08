@@ -295,7 +295,7 @@ git commit -m "feat(feed): materialize posts for followers"
 - Test: `convex/feed.test.ts`
 - Test: `convex/follows.test.ts`
 
-- [ ] **Step 1: Add failing deletion and cleanup tests**
+- [x] **Step 1: Add failing deletion and cleanup tests**
 
 Cover:
 
@@ -308,21 +308,21 @@ Cover:
 - Cleanup deletes dangling rows whose post no longer exists.
 - Overlapping cleanup continuations are safe and idempotent.
 
-- [ ] **Step 2: Run the focused tests and confirm failure**
+- [x] **Step 2: Run the focused tests and confirm failure**
 
 Run: `pnpm test:ci -- convex/feed.test.ts convex/follows.test.ts`
 
 Expected: FAIL because deletion and cleanup functions are not implemented.
 
-- [ ] **Step 3: Implement `deleteForUnfollow`**
+- [x] **Step 3: Implement `deleteForUnfollow`**
 
 Add an internal mutation with `{ userId, authorId, followId, paginationOpts }` that queries `by_userId_and_authorId_and_followId_and_createdAt`, deletes only rows matching the exact `followId`, and schedules itself with the returned cursor until `isDone` is true. The follow-row ID prevents an old deletion chain from removing rows created by a later refollow.
 
-- [ ] **Step 4: Schedule deletion from `toggleFollow`**
+- [x] **Step 4: Schedule deletion from `toggleFollow`**
 
 On the existing `existingFollow` branch, capture `existingFollow._id` before deleting the follow row. Schedule `internal.feed.deleteForUnfollow` with the authenticated user, target author, exact `followId: existingFollow._id`, and `{ numItems: FEED_BATCH_SIZE, cursor: null }` after deleting the follow row and patching counters. Keep the mutation source write committed if the scheduled maintenance later fails.
 
-- [ ] **Step 5: Implement expiration cleanup**
+- [x] **Step 5: Implement expiration cleanup**
 
 Add an internal `cleanupExpired` mutation with validated args
 `{ cutoffAt, paginationOpts }`. Query the feed table's built-in creation-time
@@ -335,7 +335,7 @@ safe because each delete is conditional on the row still existing. Avoid
 reading wall-clock time inside the query; the scheduler caller supplies
 `cutoffAt`.
 
-- [ ] **Step 6: Register daily cleanup**
+- [x] **Step 6: Register daily cleanup**
 
 Create `convex/crons.ts` with a `cronJobs()` declaration and an internal
 `runFeedCleanup` mutation. Register one daily `crons.interval` job that calls
@@ -344,13 +344,13 @@ Create `convex/crons.ts` with a `cronJobs()` declaration and an internal
 `internal.feed.cleanupExpired` with `{ cutoffAt, paginationOpts: { numItems:
 FEED_BATCH_SIZE, cursor: null } }` through `ctx.runMutation`.
 
-- [ ] **Step 7: Run tests**
+- [x] **Step 7: Run tests**
 
 Run: `pnpm test:ci -- convex/feed.test.ts convex/follows.test.ts`
 
 Expected: PASS for deletion isolation, continuation behavior, cleanup, and idempotency.
 
-- [ ] **Step 8: Commit cleanup behavior**
+- [x] **Step 8: Commit cleanup behavior**
 
 ```bash
 git add convex/feed.ts convex/feed.test.ts convex/follows.ts convex/follows.test.ts convex/crons.ts

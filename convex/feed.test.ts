@@ -244,4 +244,159 @@ describe("feed maintenance", () => {
     expect(rows[0].userId).toBe("reader-1");
     expect(rows[0].authorId).toBe("author-1");
   });
+
+  it("deletes only rows for the reader, author, and exact follow generation", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    const { followId, otherFollowId, postIds } = await t.run(async (ctx) => {
+      const followId = await ctx.db.insert("follows", {
+        followerId: "reader-1",
+        followingId: "author-1",
+        createdAt: now,
+      });
+      const otherFollowId = await ctx.db.insert("follows", {
+        followerId: "reader-2",
+        followingId: "author-1",
+        createdAt: now,
+      });
+      const otherAuthorFollowId = await ctx.db.insert("follows", {
+        followerId: "reader-1",
+        followingId: "author-2",
+        createdAt: now,
+      });
+      const postIds = await Promise.all(
+        ["author-1", "author-2", "author-1"].map((authorId) =>
+          ctx.db.insert("posts", {
+            title: authorId,
+            body: "Body",
+            authorId,
+            commentCount: 0,
+            createdAt: now,
+            updatedAt: now,
+          }),
+        ),
+      );
+      await ctx.db.insert("feed", {
+        userId: "reader-1",
+        postId: postIds[0],
+        authorId: "author-1",
+        followId,
+        createdAt: now,
+        insertedAt: now,
+      });
+      await ctx.db.insert("feed", {
+        userId: "reader-2",
+        postId: postIds[0],
+        authorId: "author-1",
+        followId: otherFollowId,
+        createdAt: now,
+        insertedAt: now,
+      });
+      await ctx.db.insert("feed", {
+        userId: "reader-1",
+        postId: postIds[1],
+        authorId: "author-2",
+        followId: otherAuthorFollowId,
+        createdAt: now,
+        insertedAt: now,
+      });
+      await ctx.db.insert("feed", {
+        userId: "reader-1",
+        postId: postIds[2],
+        authorId: "author-1",
+        followId: otherAuthorFollowId,
+        createdAt: now,
+        insertedAt: now,
+      });
+      return { followId, otherFollowId, postIds };
+    });
+
+    await t.mutation(internal.feed.deleteForUnfollow, {
+      userId: "reader-1",
+      authorId: "author-1",
+      followId,
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+    });
+
+    const remaining = await t.run(async (ctx) => ctx.db.query("feed").collect());
+    expect(remaining).toHaveLength(3);
+    expect(
+      remaining.some(
+        (row) => row.userId === "reader-1" && row.postId === postIds[0],
+      ),
+    ).toBe(false);
+    expect(remaining.some((row) => row.followId === otherFollowId)).toBe(true);
+  });
+
+  it("removes expired and dangling rows and drains cleanup continuations", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      const followId = await ctx.db.insert("follows", {
+        followerId: "reader-1",
+        followingId: "author-1",
+        createdAt: now,
+      });
+      const recentPostId = await ctx.db.insert("posts", {
+        title: "Recent",
+        body: "Body",
+        authorId: "author-1",
+        commentCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const expiredPostId = await ctx.db.insert("posts", {
+        title: "Expired",
+        body: "Body",
+        authorId: "author-1",
+        commentCount: 0,
+        createdAt: now - FEED_WINDOW_MS - 1,
+        updatedAt: now - FEED_WINDOW_MS - 1,
+      });
+      const danglingPostId = await ctx.db.insert("posts", {
+        title: "Dangling",
+        body: "Body",
+        authorId: "author-1",
+        commentCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("feed", {
+        userId: "reader-1",
+        postId: recentPostId,
+        authorId: "author-1",
+        followId,
+        createdAt: now,
+        insertedAt: now,
+      });
+      await ctx.db.insert("feed", {
+        userId: "reader-1",
+        postId: expiredPostId,
+        authorId: "author-1",
+        followId,
+        createdAt: now - FEED_WINDOW_MS - 1,
+        insertedAt: now,
+      });
+      await ctx.db.insert("feed", {
+        userId: "reader-1",
+        postId: danglingPostId,
+        authorId: "author-1",
+        followId,
+        createdAt: now,
+        insertedAt: now,
+      });
+      await ctx.db.delete(danglingPostId);
+    });
+
+    await t.mutation(internal.feed.cleanupExpired, {
+      cutoffAt: now - FEED_WINDOW_MS,
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+    });
+
+    const remaining = await t.run(async (ctx) => ctx.db.query("feed").collect());
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].createdAt).toBe(now);
+  });
 });

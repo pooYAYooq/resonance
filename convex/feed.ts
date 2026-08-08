@@ -203,3 +203,71 @@ export const backfillForFollow = internalMutation({
     return { done: true, processed: result.page.length };
   },
 });
+
+export const deleteForUnfollow = internalMutation({
+  args: {
+    userId: v.string(),
+    authorId: v.string(),
+    followId: v.id("follows"),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("feed")
+      .withIndex("by_userId_and_authorId_and_followId_and_createdAt", (q) =>
+        q
+          .eq("userId", args.userId)
+          .eq("authorId", args.authorId)
+          .eq("followId", args.followId),
+      )
+      .paginate(args.paginationOpts);
+
+    for (const row of result.page) {
+      await ctx.db.delete(row._id);
+    }
+
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.feed.deleteForUnfollow, {
+        ...args,
+        paginationOpts: {
+          numItems: args.paginationOpts.numItems,
+          cursor: result.continueCursor,
+        },
+      });
+      return { done: false, processed: result.page.length };
+    }
+    return { done: true, processed: result.page.length };
+  },
+});
+
+export const cleanupExpired = internalMutation({
+  args: {
+    cutoffAt: v.number(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("feed")
+      .order("asc")
+      .paginate(args.paginationOpts);
+
+    for (const row of result.page) {
+      const post = await ctx.db.get(row.postId);
+      if (row.createdAt < args.cutoffAt || !post) {
+        await ctx.db.delete(row._id);
+      }
+    }
+
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.feed.cleanupExpired, {
+        cutoffAt: args.cutoffAt,
+        paginationOpts: {
+          numItems: args.paginationOpts.numItems,
+          cursor: result.continueCursor,
+        },
+      });
+      return { done: false, processed: result.page.length };
+    }
+    return { done: true, processed: result.page.length };
+  },
+});
