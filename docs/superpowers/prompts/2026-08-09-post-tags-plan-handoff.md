@@ -1,42 +1,53 @@
-# Handoff Prompt: Post Tags Implementation Plan
+# Handoff Prompt: Post Tags Implementation
 
 You are continuing work on Resonance in the `feat/post-tags` branch.
 
-Read these files first:
+Read these files before changing code:
 
 - `AGENTS.md`
 - `docs/status.md`
 - `FEATURES.md`
 - `docs/superpowers/specs/2026-08-09-post-tags-design.md`
+- `docs/superpowers/plans/2026-08-09-post-tags.md`
 - `convex/_generated/ai/guidelines.md`
 
-Your task in this session is **planning only**. Do not implement application
-code. Based on the approved design, inspect the current code and write a
-detailed implementation plan at:
+Implement the approved post-tags design by following:
 
 `docs/superpowers/plans/2026-08-09-post-tags.md`
 
-The plan must identify concrete files and symbols to change, in dependency
-order, and include:
+The implementation must use this finalized canonical tag list everywhere:
 
-- The shared canonical tag-list and validation location.
-- The `posts.tags` schema and `createPost` changes.
-- The optional `getPosts` tag argument and exact Convex filtering behavior.
-- Create-form checkbox UX and validation.
-- Reusable tag-pill rendering and links in `PostCard` and post detail.
-- Blog `searchParams.tag`, active-filter UI, and empty-state behavior.
-- Backward compatibility for posts without tags and removed tags.
-- Convex, component, and route-level test coverage.
-- Required updates to `FEATURES.md`, `README.md`, and `docs/ARCHITECTURE.md`.
-- Verification commands in the repository CI order.
+`Technology`, `Design`, `Culture`, `Science`, `Business`, `Music`, `Tutorial`,
+`Theory`, `Architectural`, `Landscape`, `Photography`, `Software`, `Hardware`,
+`Camera`, and `Nature`.
 
-Pay particular attention to whether the proposed Convex array-membership
-filter is valid for the installed Convex version and whether filtering before
-or during pagination has cursor implications. If the approved design contains
-a technically invalid detail, call it out and propose the smallest correction
-in the plan rather than silently implementing around it.
+Enforce a maximum of five tags on every create path, including Convex-side
+validation. Preserve backward compatibility for posts created before tags
+existed by normalizing missing tags to `[]` on reads.
 
-After writing the plan, self-review it for missing files, ambiguous behavior,
-scope creep, and test gaps. Do not commit unless explicitly asked. End your
-session by reporting the plan path and any decisions that need review before
-implementation.
+The implementation plan is authoritative and already includes the required:
+
+- shared canonical tag list and validation;
+- `posts.tags`, `createPost`, and normalized post readers;
+- optional `getPosts` tag filtering with source-cursor pagination semantics;
+- create-form checkbox UX and client/server validation;
+- reusable tag pills and links across all post-card consumers and post detail;
+- blog `searchParams.tag`, active-filter UI, and empty-state behavior;
+- compatibility for legacy posts and tags removed from the canonical list;
+- Convex, component, and route-level tests;
+- updates to `FEATURES.md`, `README.md`, and `docs/ARCHITECTURE.md`; and
+- verification in repository CI order.
+
+Do not replace the plan's Convex pagination correction with a database filter:
+fetch the ordered source page with `.paginate(args.paginationOpts)`, filter the
+page in memory, preserve the source cursor metadata, and hydrate only matching
+posts. Unknown tag filters must return an empty completed page.
+
+Run the focused tests while implementing, then run the full CI sequence:
+
+`pnpm lint` → `pnpm test:ci` → `pnpm test:component` → `pnpm build`
+
+Keep documentation in sync, update the relevant roadmap/status checkboxes only
+when the implementation is genuinely complete, and record any limitations.
+Do not push, create a PR, or merge; this session is limited to local
+implementation and verification unless separately requested.

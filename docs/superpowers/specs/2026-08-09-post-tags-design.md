@@ -3,7 +3,7 @@
 ## Overview
 
 Phase 1.8 (Post Tags) adds classification tags to posts. Authors select up to
-three tags from a small predefined curated list when creating a post. Readers
+five tags from a small predefined curated list when creating a post. Readers
 see selected tags as clickable pills on post cards and the post detail page;
 each pill links to `/blog?tag=<tag>`.
 
@@ -19,7 +19,8 @@ Use one canonical predefined tag list shared by the create form, Convex
 mutation validation, and blog filter. The initial list should contain roughly
 8-12 broad tags, with exact names finalized during implementation. Suggested
 categories include `Technology`, `Design`, `Culture`, `Science`, `Business`,
-`Personal`, `Tutorial`, and `Opinion`.
+`Music`, `Tutorial`, `Theory`, `Architectural`, `Landscape`, `Photography`,
+`Software`, `Hardware`, `Camera`, and `Nature`.
 
 Tag values are canonical strings. Authors choose from the list, so no casing or
 spelling normalization is needed. Removing a tag from the list stops it from
@@ -34,7 +35,7 @@ Add `tags` to `posts` as an optional string array:
 - Optional preserves compatibility with existing documents.
 - Reads normalize missing values to `[]`.
 - New posts always write a canonical array, possibly empty.
-- The array contains at most three canonical tag strings.
+- The array contains at most five canonical tag strings.
 
 No separate `postTags` table ships in this phase. A direct array is the
 smallest correct model and keeps future author editing straightforward. If
@@ -59,12 +60,12 @@ future indexed join table is the path if the scan becomes costly.
 
 Add a checkbox group to `app/(app)/create/page.tsx` using the predefined list.
 
-- Authors can select zero to three tags.
-- Selecting or submitting a fourth tag shows validation feedback.
+- Authors can select zero to five tags.
+- Selecting or submitting a sixth tag shows validation feedback.
 - There is no free-form tag entry.
 - The selector model and validation are extracted for reuse by the future
   edit-post form.
-- `schemas/blog.ts` validates membership and the three-tag maximum.
+- `schemas/blog.ts` validates membership and the five-tag maximum.
 - `createPost` accepts `tags` and independently validates membership and count
   server-side.
 
@@ -95,8 +96,8 @@ shared card.
 
 ### Convex Tests
 
-- Creating a post with zero, one, and three tags succeeds.
-- More than three tags are rejected.
+- Creating a post with zero, one, and five tags succeeds.
+- More than five tags are rejected.
 - Tags outside the predefined list are rejected.
 - `getPosts` returns only matching posts for a supplied tag.
 - `getPosts` returns all posts when no tag is supplied.
@@ -110,7 +111,7 @@ shared card.
 - `PostCard` renders no pills for missing or empty tags.
 - The post detail page renders the same pills and links.
 - The blog page renders the active filter and zero-result empty state.
-- The create form checkbox group enforces the three-tag maximum.
+- The create form checkbox group enforces the five-tag maximum.
 
 Existing authentication-path limitations around Better Auth and `convex-test`
 remain unchanged. Authenticated create behavior is covered by component tests
