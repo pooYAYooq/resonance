@@ -208,5 +208,8 @@ describe("PostCard", () => {
 
     rerender(<PostCard {...basePost} />);
     expect(screen.queryByRole("link", { name: "Technology" })).toBeNull();
+
+    rerender(<PostCard {...basePost} tags={[]} />);
+    expect(screen.queryByRole("link", { name: "Technology" })).toBeNull();
   });
 });

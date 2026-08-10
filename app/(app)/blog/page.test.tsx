@@ -20,4 +20,14 @@ describe("BlogPage", () => {
       "/blog",
     );
   });
+
+  it("does not filter when the tag query parameter is repeated", async () => {
+    render(
+      await BlogPage({
+        searchParams: Promise.resolve({ tag: ["Technology", "Design"] }),
+      }),
+    );
+
+    expect(screen.queryByRole("link", { name: /clear filter/i })).toBeNull();
+  });
 });

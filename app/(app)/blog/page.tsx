@@ -17,8 +17,7 @@ interface BlogPageProps {
 
 export default async function BlogPost({ searchParams }: BlogPageProps) {
   const params = await searchParams;
-  const rawTag = params.tag;
-  const tag = Array.isArray(rawTag) ? rawTag[0] : rawTag;
+  const tag = typeof params.tag === "string" ? params.tag : undefined;
 
   return (
     <div className="container mx-auto">

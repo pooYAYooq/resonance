@@ -3,7 +3,7 @@
 ## Overview
 
 Phase 1.8 (Post Tags) adds classification tags to posts. Authors select up to
-five tags from a small predefined curated list when creating a post. Readers
+five tags from a predefined curated list of fifteen canonical values when creating a post. Readers
 see selected tags as clickable pills on post cards and the post detail page;
 each pill links to `/blog?tag=<tag>`.
 
@@ -16,11 +16,10 @@ reusable so the future edit-post form can update the same `tags` field.
 ### Predefined Tags
 
 Use one canonical predefined tag list shared by the create form, Convex
-mutation validation, and blog filter. The initial list should contain roughly
-8-12 broad tags, with exact names finalized during implementation. Suggested
-categories include `Technology`, `Design`, `Culture`, `Science`, `Business`,
-`Music`, `Tutorial`, `Theory`, `Architectural`, `Landscape`, `Photography`,
-`Software`, `Hardware`, `Camera`, and `Nature`.
+mutation validation, and blog filter. The shipped list contains exactly
+`Technology`, `Design`, `Culture`, `Science`, `Business`, `Music`, `Tutorial`,
+`Theory`, `Architectural`, `Landscape`, `Photography`, `Software`, `Hardware`,
+`Camera`, and `Nature`.
 
 Tag values are canonical strings. Authors choose from the list, so no casing or
 spelling normalization is needed. Removing a tag from the list stops it from
