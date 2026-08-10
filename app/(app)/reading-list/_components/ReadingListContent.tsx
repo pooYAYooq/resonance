@@ -35,12 +35,14 @@ export function ReadingListContent() {
 
   const queryArgs = isAuthenticated ? {} : "skip";
 
-  const { results, status, loadMore, isLoading: listLoading } =
-    usePaginatedQuery(
-      api.bookmarks.getBookmarkedPosts,
-      queryArgs,
-      { initialNumItems: 12 },
-    );
+  const {
+    results,
+    status,
+    loadMore,
+    isLoading: listLoading,
+  } = usePaginatedQuery(api.bookmarks.getBookmarkedPosts, queryArgs, {
+    initialNumItems: 12,
+  });
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -85,6 +87,7 @@ export function ReadingListContent() {
             authorId={post.authorId}
             authorName={post.authorName}
             authorAvatarUrl={post.authorAvatarUrl}
+            tags={post.tags}
           />
         ))}
       </div>

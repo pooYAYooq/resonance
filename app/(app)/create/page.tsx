@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PostTagSelector } from "@/components/web/PostTagSelector";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
@@ -40,6 +41,7 @@ export default function CreateRoute() {
     defaultValues: {
       title: "",
       content: "",
+      tags: [],
       image: undefined,
     },
   });
@@ -91,6 +93,7 @@ export default function CreateRoute() {
         await createPost({
           title: values.title,
           body: values.content,
+          tags: values.tags,
           ...(storageId && { imageStorageId: storageId }),
         });
 
@@ -178,6 +181,16 @@ export default function CreateRoute() {
                       <FieldError errors={[fieldState.error]} />
                     )}
                   </Field>
+                )}
+              />
+              <Controller
+                name="tags"
+                control={form.control}
+                render={({ field }) => (
+                  <PostTagSelector
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
                 )}
               />
               <Button type="submit" disabled={isPending}>

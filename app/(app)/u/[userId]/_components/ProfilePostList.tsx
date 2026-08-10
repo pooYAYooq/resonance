@@ -30,9 +30,7 @@ export function ProfilePostList({ userId }: ProfilePostListProps) {
   );
 
   if (isLoading && results.length === 0) {
-    return (
-      <p className="text-muted-foreground text-sm">Loading posts...</p>
-    );
+    return <p className="text-muted-foreground text-sm">Loading posts...</p>;
   }
 
   if (results.length === 0) {
@@ -62,6 +60,7 @@ export function ProfilePostList({ userId }: ProfilePostListProps) {
             authorId={post.authorId}
             authorName={post.authorName}
             authorAvatarUrl={post.authorAvatarUrl}
+            tags={post.tags}
           />
         ))}
       </div>

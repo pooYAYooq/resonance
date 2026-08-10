@@ -29,6 +29,7 @@ import { MessageSquare } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Id } from "@/convex/_generated/dataModel";
+import { TagPill } from "./TagPill";
 
 const DEFAULT_COVER_IMAGE =
   "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg";
@@ -59,6 +60,8 @@ interface PostCardProps {
    * `UserAvatar` falls back to a DiceBear-generated image.
    */
   authorAvatarUrl?: string | null;
+  /** Stored or normalized display tags. */
+  tags?: string[];
 }
 
 /**
@@ -83,6 +86,7 @@ export function PostCard({
   authorId,
   authorName,
   authorAvatarUrl,
+  tags,
 }: PostCardProps) {
   const displayName = authorName?.trim() || "Unknown";
   const postHref = `/blog/${postId}`;
@@ -134,6 +138,13 @@ export function PostCard({
             {title}
           </h2>
         </Link>
+        {(tags ?? []).length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {(tags ?? []).map((tag) => (
+              <TagPill key={tag} tag={tag} />
+            ))}
+          </div>
+        )}
         <p className="text-muted-foreground line-clamp-3">{body}</p>
       </CardContent>
 
@@ -143,11 +154,7 @@ export function PostCard({
             <MessageSquare className="size-3.5" />
             {commentCount}
           </span>
-          <LikeButton
-            postId={postId}
-            isLiked={isLiked}
-            likeCount={likeCount}
-          />
+          <LikeButton postId={postId} isLiked={isLiked} likeCount={likeCount} />
           <BookmarkButton postId={postId} />
         </span>
         <Link

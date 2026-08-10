@@ -160,6 +160,7 @@ export const getBookmarkedPosts = query({
 
         return {
           ...post,
+          tags: post.tags ?? [],
           imageUrl,
           authorName: author?.displayName ?? null,
           authorAvatarUrl: author?.avatarUrl ?? null,

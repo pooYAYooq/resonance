@@ -117,11 +117,12 @@ app/
       StatsSection.tsx
       ExploreSection.tsx      # Category placeholder grid
     blog/
-      page.tsx                # Blog listing with gradient hero + post grid
+      page.tsx                # Blog listing with gradient hero + optional tag filter
+      _components/            # BlogFilter and cursor-draining BlogPostList
       [postId]/
         page.tsx              # Single post view with likes + comments
     create/
-      page.tsx                # Create new post form
+      page.tsx                # Create new post form with canonical tag checkboxes
     settings/
       page.tsx                # Edit display name + bio
     u/[userId]/
@@ -166,7 +167,9 @@ components/
     Navbar.tsx                # Top nav with avatar dropdown
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
-    PostCard.tsx              # Shared post card (listing, landing, profile)
+    PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
+    TagPill.tsx               # Linked pill for /blog?tag= filters
+    PostTagSelector.tsx       # Controlled five-tag checkbox selector
     LikeButton.tsx
     LikeToggle.tsx              # Generic like-toggle primitive (auth, transition, toasts)
     CommentLikeButton.tsx       # Comment like button wrapper rendered on CommentCard
@@ -186,7 +189,7 @@ components/
 schemas/                      # Zod validation schemas (repo root)
 
 lib/
-  constants/                  # Site-wide constants (seo, footer)
+  constants/                  # Site-wide constants (seo, footer, canonical post tags)
   avatar.ts                   # DiceBear fallback + initials helpers
   utils.ts                    # cn() and other helpers
   auth-client.ts              # Better Auth client setup

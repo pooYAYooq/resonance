@@ -34,4 +34,57 @@ describe("blog schema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts zero, one, and five canonical tags", () => {
+    for (const tags of [
+      [],
+      ["Technology"],
+      ["Technology", "Design", "Music", "Theory", "Landscape"],
+    ]) {
+      expect(
+        postSchema.safeParse({
+          title: "Hello",
+          content: "This is long enough content.",
+          tags,
+        }).success,
+      ).toBe(true);
+    }
+  });
+
+  it("defaults omitted tags to an empty array", () => {
+    const result = postSchema.safeParse({
+      title: "Hello",
+      content: "This is long enough content.",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.tags).toEqual([]);
+    }
+  });
+
+  it("rejects unknown, duplicate, and sixth tags", () => {
+    const base = { title: "Hello", content: "This is long enough content." };
+
+    expect(postSchema.safeParse({ ...base, tags: ["Unknown"] }).success).toBe(
+      false,
+    );
+    expect(
+      postSchema.safeParse({ ...base, tags: ["Technology", "Technology"] })
+        .success,
+    ).toBe(false);
+    expect(
+      postSchema.safeParse({
+        ...base,
+        tags: [
+          "Technology",
+          "Design",
+          "Music",
+          "Theory",
+          "Architectural",
+          "Science",
+        ],
+      }).success,
+    ).toBe(false);
+  });
 });

@@ -54,6 +54,7 @@ export async function RecentPostsSection() {
               authorId={post.authorId}
               authorName={post.authorName}
               authorAvatarUrl={post.authorAvatarUrl}
+              tags={post.tags}
             />
           ))}
         </div>

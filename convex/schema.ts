@@ -22,6 +22,8 @@ export default defineSchema({
   posts: defineTable({
     title: v.string(),
     body: v.string(),
+    /** Optional only for legacy posts; new writes persist a validated array. */
+    tags: v.optional(v.array(v.string())),
     authorId: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
     commentCount: v.number(),

@@ -37,11 +37,12 @@ resonance/
 │   │   │   ├── StatsSection.tsx          # Live total via posts.countPosts
 │   │   │   └── ExploreSection.tsx
 │   │   ├── blog/
-│   │   │   ├── page.tsx        # Blog listing. Server Component. Uses fetchQuery.
+│   │   │   ├── page.tsx        # Blog listing. Server Component. Awaits searchParams.
+│   │   │   ├── _components/    # Active filter + cursor-draining filtered post list
 │   │   │   └── [postId]/
 │   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
 │   │   ├── create/
-│   │   │   └── page.tsx        # Create post form. Client Component. Uses useMutation.
+│   │   │   └── page.tsx        # Create post form + canonical five-tag selector.
 │   │   ├── settings/
 │   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
 │   │   ├── u/[userId]/
@@ -89,7 +90,7 @@ resonance/
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
-│   ├── posts.ts                # createPost, generateImageUploadUrl mutations;
+│   ├── posts.ts                # createPost (including independent tag validation), generateImageUploadUrl mutations;
 │   │                           # getPosts, getPostById, getPostsByAuthorId,
 │   │                           # countPosts queries (countPosts reads the stats table)
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
@@ -148,8 +149,10 @@ resonance/
 │       │                       # optimistic state sync, toasts) — wrapped by LikeButton/CommentLikeButton
 │       ├── CommentLikeButton.tsx # Thin LikeToggle wrapper bound to toggleCommentLike;
 │       │                       # rendered on each CommentCard
-│       ├── PostCard.tsx         # Reusable post card. Title is an <h2> so the
+│       ├── PostCard.tsx         # Reusable post card with optional linked tags. Title is an <h2> so the
 │       │                        # page-level <h1> remains unique per page.
+│       ├── TagPill.tsx          # Shared linked tag pill; preserves legacy stored values.
+│       ├── PostTagSelector.tsx  # Controlled checkbox group, capped at five selections.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
 │       ├── SectionHeading.tsx   # Heading with optional count + right-side action slot
 │       ├── ProfileHeader.tsx    # Reusable profile hero (avatar, name, bio, action,
@@ -190,7 +193,8 @@ resonance/
     ├── avatar.ts               # DiceBear fallback URL + initials helpers
     └── constants/
         ├── seo.ts              # SITE_NAME, getSiteUrl(), truncateForDescription()
-        └── footer.ts           # Footer site name, nav links, social links
+        ├── footer.ts            # Footer site name, nav links, social links
+        └── post-tags.ts         # Fifteen canonical values, max count, pure validators
 ```
 
 ---
@@ -330,6 +334,21 @@ components live in `components/web/`.
 Route groups (the `(app)` folder name) are a Next.js App Router convention. The
 parentheses mean the folder name is not part of the URL. `/blog` resolves to
 `app/(app)/blog/page.tsx`.
+
+### Post Tags and Blog Filtering
+
+Posts store an optional `tags: string[]` field so documents created before the
+feature remain valid. New create requests validate the canonical fifteen-value
+list and reject duplicates or more than five tags in both Zod and Convex.
+Readers normalize missing fields to `[]`; stored legacy values remain visible
+as pills even if their value is no longer canonical.
+
+`getPosts` accepts an optional exact, case-sensitive `tag`. Convex paginates the
+newest-first source query, filters each bounded source page in memory, and
+preserves the source cursor metadata because Convex has no array-membership
+filter operator. The blog list drains those source cursors for active filters
+until it has 50 matches or reaches the end. Unknown query values return an
+empty completed page and never fall back to the unfiltered listing.
 
 ---
 

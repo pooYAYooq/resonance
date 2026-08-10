@@ -83,6 +83,7 @@ export function FeedContent() {
             authorId={post.authorId}
             authorName={post.authorName}
             authorAvatarUrl={post.authorAvatarUrl}
+            tags={post.tags}
           />
         ))}
       </div>
