@@ -20,6 +20,24 @@
 | **Dark Mode**      | System-aware dark/light theme toggle                                                              |
 | **Responsive**     | Mobile-first design, works across all breakpoints                                                 |
 
+## Roadmap and Feature Status
+
+The detailed roadmap lives in [`FEATURES.md`](FEATURES.md). It separates
+shipped functionality from delivery priorities and optional ideas so that a
+deferred feature is not mistaken for unfinished work.
+
+Feature statuses are:
+
+- **Now** — actively being implemented.
+- **Next** — the next agreed delivery focus.
+- **Later** — planned, but not scheduled.
+- **Deferred** — intentionally postponed until its revisit conditions are met.
+- **Shipped** — available in the product.
+
+The short resume point is [`docs/status.md`](docs/status.md). Phase 1C is
+complete after Post Tags (1.8); Trending (1.9), User Activity (1.10), and
+additional Polish (1.11) remain deferred optional features.
+
 ---
 
 ## Tech Stack

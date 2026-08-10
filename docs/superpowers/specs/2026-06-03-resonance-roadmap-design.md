@@ -4,6 +4,11 @@
 
 Resonance is a multi-author publishing platform. The goal of this roadmap is to move from a solid but feature-thin blog toward a compelling, portfolio-worthy product with clear user value at every step.
 
+The roadmap distinguishes delivery commitment from future ideas. Features are
+classified as **Now**, **Next**, **Later**, **Deferred**, or **Shipped**. A
+deferred feature remains documented and traceable, but does not block the next
+phase or imply that implementation is overdue.
+
 We will build in **four phases**, each building on the last:
 
 0. **Phase 0 — Foundation Fix** (Completed)
@@ -67,7 +72,7 @@ We will build in **four phases**, each building on the last:
 
 ## Phase 1 — The Reader
 
-> Goal: Make it delightful to *consume* content. Give readers identity, power, and curation tools.
+> Goal: Make it delightful to _consume_ content. Give readers identity, power, and curation tools.
 
 ### Prerequisite: 1.0 Backward-Compat Cleanup - Done
 
@@ -144,28 +149,28 @@ Build the social graph and personal curation tools.
 - Ordered newest-first, paginated.
 - Empty state encourages following authors.
 
-#### Phase 1C — Discovery & Polish
+#### Phase 1C — Discovery & Polish — Complete after 1.8
 
 Make the platform feel complete and discoverable.
 
-##### 1.8 Post Tags / Categories
+##### 1.8 Post Tags / Categories — Shipped
 
 - Authors tag posts when creating/editing (e.g., "tech", "design", "tutorial").
 - Readers can filter the blog listing by tag.
 - Tags displayed on post cards and post detail.
 
-##### 1.9 Trending / Popular Posts
+##### 1.9 Trending / Popular Posts — Deferred optional feature
 
 - Sort blog listing by like count or comment count.
 - Tab toggle on `/blog`: "Latest" / "Popular".
 - Leverages denormalized `likeCount` and existing `commentCount`.
 
-##### 1.10 User Activity Feed
+##### 1.10 User Activity Feed — Deferred optional feature
 
 - Profile page shows recent activity: "X liked Y's post", "X started following Y".
 - Public on user profiles as social proof.
 
-##### 1.11 Polish
+##### 1.11 Polish — Deferred optional feature
 
 - **Reading Time Estimate:** Calculate from word count (avg 200 wpm), display on post cards and post detail.
 - **Share Links:** Copy-to-clipboard or native Web Share API on post pages.
@@ -174,22 +179,22 @@ Make the platform feel complete and discoverable.
 
 New tables and fields needed across Phase 1:
 
-| Table | Fields | Indexes | Purpose |
-|-------|--------|---------|---------|
-| `likes` | `userId`, `postId`, `createdAt` | `[userId, postId]` unique | One like per user per post |
-| `commentLikes` | `userId`, `commentId`, `createdAt` | `[userId, commentId]` unique | One like per user per comment |
-| `follows` | `followerId`, `followingId`, `createdAt` | `[followerId, followingId]` unique | One follow per user per author |
-| `bookmarks` | `userId`, `postId`, `createdAt` | `[userId, postId]` unique | Private reading list |
-| `notifications` | `userId`, `type`, `postId`, `actorId`, `read`, `createdAt` | `[userId, read]` | "New post from followed author" |
-| `posts` (extend) | `likeCount: v.number()`, `tags: v.array(v.string())` | — | Denormalized count + categorization |
-| `users` (extend) | `followerCount: v.number()`, `followingCount: v.number()` | — | Denormalized social counts |
-| `stats` (extend) | `totalUsers`, `totalComments` | — | Extend the singleton |
+| Table            | Fields                                                     | Indexes                            | Purpose                             |
+| ---------------- | ---------------------------------------------------------- | ---------------------------------- | ----------------------------------- |
+| `likes`          | `userId`, `postId`, `createdAt`                            | `[userId, postId]` unique          | One like per user per post          |
+| `commentLikes`   | `userId`, `commentId`, `createdAt`                         | `[userId, commentId]` unique       | One like per user per comment       |
+| `follows`        | `followerId`, `followingId`, `createdAt`                   | `[followerId, followingId]` unique | One follow per user per author      |
+| `bookmarks`      | `userId`, `postId`, `createdAt`                            | `[userId, postId]` unique          | Private reading list                |
+| `notifications`  | `userId`, `type`, `postId`, `actorId`, `read`, `createdAt` | `[userId, read]`                   | "New post from followed author"     |
+| `posts` (extend) | `likeCount: v.number()`, `tags: v.array(v.string())`       | —                                  | Denormalized count + categorization |
+| `users` (extend) | `followerCount: v.number()`, `followingCount: v.number()`  | —                                  | Denormalized social counts          |
+| `stats` (extend) | `totalUsers`, `totalComments`                              | —                                  | Extend the singleton                |
 
 ---
 
-## Phase 2 — The Author
+## Phase 2 — The Author — Next focus
 
-> Goal: Make it rewarding to *create* content.
+> Goal: Make it rewarding to _create_ content.
 
 ### Tentative Features
 
@@ -217,21 +222,22 @@ New tables and fields needed across Phase 1:
 
 ## Decision Log
 
-| Date | Decision | Rationale |
-|------|----------|-----------|
-| 2026-06-03 | Vertical slices by user journey | Avoids building infrastructure for unused features. Each phase is portfolio-shippable. |
-| 2026-06-03 | Phase 1 = Reader features first | Existing foundation (auth, posts, comments) lacks reader engagement. Easiest path to visible product improvement. |
-| 2026-06-03 | Denormalized counts (followerCount, etc.) | Convex reads are cheap; writes are where we pay. Denormalizing counts avoids aggregation queries for common UI patterns. |
-| 2026-06-03 | User profiles keyed by `userId` (string) | Aligns with Better Auth's user id type. Consistent with existing `authorId` in posts/comments. |
-| 2026-06-03 | Notifications only for "new post from followed author" | Simplest real-time notification to build. Can extend types in Phase 2/3. |
-| 2026-06-09 | `authorId` stays as `v.string()` | No migration to `v.id("users")`. Better Auth user IDs are strings; the `users` table is an enrichment layer keyed by `userId` string, not Convex `_id`. Avoids a breaking schema migration. |
-| 2026-06-09 | `createdAt`/`updatedAt` optional during Phase 0 | Backward compatibility with existing seed data. Tightened to required in Phase 1.0 prerequisite. |
-| 2026-06-09 | Comment avatar enrichment via backend join | `getCommentsByPostId` looks up `avatarUrl` from the `users` table and returns `authorAvatarUrl` per comment. Frontend threads it through `CommentCard` → `UserAvatar`. |
-| 2026-06-09 | Profile URL: `/u/[userId]` | `authorId` is a string (Better Auth ID), not a slug. `/u/[userId]` is simpler and avoids a slug-uniqueness system. |
-| 2026-06-10 | Phase 1 split into 3 sub-parts (1A, 1B, 1C) | Large phase broken into independently shippable slices. 1A builds identity + engagement primitives, 1B builds social graph + curation, 1C adds discovery + polish. Each gets its own plan file. |
-| 2026-06-10 | Plans written one-by-one before execution | Avoids cascading updates — each plan is written with full context of what was just built, not speculatively for all features upfront. |
-| 2026-06-10 | Trivial features bundled as 1.11 Polish | Reading time estimate and share links are ~10 min each with no backend. Bundled into one task rather than separate features. |
-| 2026-06-14 | Added `mapProfileToUser` for Google/GitHub OAuth | Phase 0.1 was structurally complete but missing explicit field mapping. `picture`/`avatar_url` were cast to undefined via `as string`, silently dropping avatars. Fixed post-merge via PR #35. |
+| Date       | Decision                                               | Rationale                                                                                                                                                                                                                              |
+| ---------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-03 | Vertical slices by user journey                        | Avoids building infrastructure for unused features. Each phase is portfolio-shippable.                                                                                                                                                 |
+| 2026-06-03 | Phase 1 = Reader features first                        | Existing foundation (auth, posts, comments) lacks reader engagement. Easiest path to visible product improvement.                                                                                                                      |
+| 2026-06-03 | Denormalized counts (followerCount, etc.)              | Convex reads are cheap; writes are where we pay. Denormalizing counts avoids aggregation queries for common UI patterns.                                                                                                               |
+| 2026-06-03 | User profiles keyed by `userId` (string)               | Aligns with Better Auth's user id type. Consistent with existing `authorId` in posts/comments.                                                                                                                                         |
+| 2026-06-03 | Notifications only for "new post from followed author" | Simplest real-time notification to build. Can extend types in Phase 2/3.                                                                                                                                                               |
+| 2026-06-09 | `authorId` stays as `v.string()`                       | No migration to `v.id("users")`. Better Auth user IDs are strings; the `users` table is an enrichment layer keyed by `userId` string, not Convex `_id`. Avoids a breaking schema migration.                                            |
+| 2026-06-09 | `createdAt`/`updatedAt` optional during Phase 0        | Backward compatibility with existing seed data. Tightened to required in Phase 1.0 prerequisite.                                                                                                                                       |
+| 2026-06-09 | Comment avatar enrichment via backend join             | `getCommentsByPostId` looks up `avatarUrl` from the `users` table and returns `authorAvatarUrl` per comment. Frontend threads it through `CommentCard` → `UserAvatar`.                                                                 |
+| 2026-06-09 | Profile URL: `/u/[userId]`                             | `authorId` is a string (Better Auth ID), not a slug. `/u/[userId]` is simpler and avoids a slug-uniqueness system.                                                                                                                     |
+| 2026-06-10 | Phase 1 split into 3 sub-parts (1A, 1B, 1C)            | Large phase broken into independently shippable slices. 1A builds identity + engagement primitives, 1B builds social graph + curation, 1C adds discovery + polish. Each gets its own plan file.                                        |
+| 2026-06-10 | Plans written one-by-one before execution              | Avoids cascading updates — each plan is written with full context of what was just built, not speculatively for all features upfront.                                                                                                  |
+| 2026-06-10 | Trivial features bundled as 1.11 Polish                | Reading time estimate and share links are ~10 min each with no backend. Bundled into one task rather than separate features.                                                                                                           |
+| 2026-06-14 | Added `mapProfileToUser` for Google/GitHub OAuth       | Phase 0.1 was structurally complete but missing explicit field mapping. `picture`/`avatar_url` were cast to undefined via `as string`, silently dropping avatars. Fixed post-merge via PR #35.                                         |
+| 2026-08-10 | Deferred optional Phase 1C follow-ups                  | Post Tags (1.8) completes the current reader milestone. Trending, activity, and polish remain available in the backlog without blocking Phase 2; revisit them when content volume, engagement, or distribution needs justify the work. |
 
 ---
 
@@ -254,11 +260,11 @@ New tables and fields needed across Phase 1:
 
 ### Phase 1C — Discovery & Polish
 
-- [ ] Authors can tag posts, and readers can filter the blog listing by tag.
-- [ ] Blog listing has a "Popular" tab sorted by like/comment count.
-- [ ] User profiles show recent activity (likes, follows).
-- [ ] Post cards display estimated reading time.
-- [ ] Post pages have a share button.
+- [x] Authors can tag posts, and readers can filter the blog listing by tag.
+- [ ] **Deferred:** Blog listing has a "Popular" tab sorted by like/comment count.
+- [ ] **Deferred:** User profiles show recent activity (likes, follows).
+- [ ] **Deferred:** Post cards display estimated reading time.
+- [ ] **Deferred:** Post pages have a share button.
 
 ### General
 
