@@ -14,6 +14,11 @@ import { PostCard } from "@/components/web/PostCard";
 import { SectionHeading } from "@/components/web/SectionHeading";
 import Link from "next/link";
 
+/**
+ * Renders a responsive section featuring recent community posts.
+ *
+ * @returns The rendered recent posts section.
+ */
 export async function RecentPostsSection() {
   const postsResult = await fetchQuery(api.posts.getPosts, {
     paginationOpts: { numItems: 4, cursor: null },

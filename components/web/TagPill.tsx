@@ -4,6 +4,11 @@ interface TagPillProps {
   tag: string;
 }
 
+/**
+ * Renders a tag that links to blog posts filtered by the tag.
+ *
+ * @param tag - The tag text and filter value.
+ */
 export function TagPill({ tag }: TagPillProps) {
   return (
     <Link

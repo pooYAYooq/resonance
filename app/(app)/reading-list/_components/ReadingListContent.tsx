@@ -23,6 +23,11 @@ import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Loader2, Bookmark } from "lucide-react";
 
+/**
+ * Displays the authenticated user's bookmarked posts with pagination.
+ *
+ * @returns The reading list content, loading state, or empty state.
+ */
 export function ReadingListContent() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();

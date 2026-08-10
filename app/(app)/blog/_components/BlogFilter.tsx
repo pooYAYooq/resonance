@@ -4,6 +4,12 @@ interface BlogFilterProps {
   tag?: string;
 }
 
+/**
+ * Displays the active blog tag filter and a link to clear it.
+ *
+ * @param tag - The blog tag currently used to filter posts
+ * @returns The filter bar when a tag is provided, or `null` otherwise
+ */
 export function BlogFilter({ tag }: BlogFilterProps) {
   if (!tag) return null;
 

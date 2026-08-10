@@ -27,6 +27,12 @@ interface BlogPostListProps {
   tag?: string;
 }
 
+/**
+ * Displays blog posts, optionally filtered by tag.
+ *
+ * @param tag - The optional tag used to filter posts.
+ * @returns A responsive post grid or an empty state when the tag has no matching posts.
+ */
 export async function BlogPostList({ tag }: BlogPostListProps) {
   const posts: BlogPost[] = [];
   let cursor: string | null = null;

@@ -22,6 +22,11 @@ interface ProfilePostListProps {
   userId: string;
 }
 
+/**
+ * Displays a paginated list of posts published by a user.
+ *
+ * @param userId - The ID of the user whose posts should be displayed
+ */
 export function ProfilePostList({ userId }: ProfilePostListProps) {
   const { results, status, loadMore, isLoading } = usePaginatedQuery(
     api.posts.getPostsByAuthorId,

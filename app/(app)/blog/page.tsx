@@ -15,6 +15,12 @@ interface BlogPageProps {
   searchParams: Promise<{ tag?: string | string[] }>;
 }
 
+/**
+ * Renders the blog page with an optional tag filter.
+ *
+ * @param searchParams - Query parameters used to select the active tag.
+ * @returns The rendered blog page.
+ */
 export default async function BlogPost({ searchParams }: BlogPageProps) {
   const params = await searchParams;
   const tag = typeof params.tag === "string" ? params.tag : undefined;
@@ -48,6 +54,9 @@ export default async function BlogPost({ searchParams }: BlogPageProps) {
   );
 }
 
+/**
+ * Renders placeholder cards while blog posts are loading.
+ */
 function SkeletonLoadingUi() {
   return (
     <div className="grid items-stretch px-6 py-6 border-l border-r gap-6 md:grid-cols-2 lg:grid-cols-3">

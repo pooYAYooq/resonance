@@ -29,6 +29,13 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 
+/**
+ * Renders the authenticated blog post creation page.
+ *
+ * Redirects unauthenticated users to the login page and displays a loading state while authentication is unresolved.
+ *
+ * @returns The blog post creation interface
+ */
 export default function CreateRoute() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const [isPending, startTransition] = useTransition();

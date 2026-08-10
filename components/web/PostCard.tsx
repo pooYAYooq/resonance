@@ -65,14 +65,10 @@ interface PostCardProps {
 }
 
 /**
- * Renders a post card with a cover image, author header, title, body
- * excerpt, engagement metrics, and a "Read More" link. The card is
- * divided into three visual sections separated by borders: a header
- * with author info, a content area, and a footer with engagement
- * actions. See {@link PostCardProps} for field-level documentation.
+ * Renders a blog post card with author information, optional tags, engagement metrics, and a link to the full post.
  *
- * @param props - `PostCardProps`: post data to render.
- * @returns JSX.Element: a card linking to the post detail page.
+ * @param props - Post data and metadata used to populate the card.
+ * @returns The rendered post card.
  */
 export function PostCard({
   postId,

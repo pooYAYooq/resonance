@@ -8,6 +8,13 @@ interface PostTagSelectorProps {
   onChange: (value: string[]) => void;
 }
 
+/**
+ * Renders a controlled selector for choosing post tags.
+ *
+ * @param value - The currently selected tags
+ * @param onChange - Called with the updated tag selection
+ * @returns The tag selection fieldset
+ */
 export function PostTagSelector({ value, onChange }: PostTagSelectorProps) {
   const [limitMessage, setLimitMessage] = useState(false);
 
