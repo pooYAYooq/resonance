@@ -15,15 +15,28 @@
 
 ## Status Board
 
-| Phase                               | Goal                                                                   | Status         |
-| ----------------------------------- | ---------------------------------------------------------------------- | -------------- |
-| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                    | ✅ Complete    |
-| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete    |
-| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete    |
-| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete    |
-| Phase 1C — Discovery & Polish       | 1.8 Tags ✅ · 1.9 Trending · 1.10 Activity · 1.11 Polish               | 🔵 1.9 up next |
-| Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics                          | ⚪ Future      |
-| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | ⚪ Future      |
+Feature status is managed with five labels:
+
+- **Now** — actively being implemented.
+- **Next** — the next agreed delivery focus.
+- **Later** — planned, but not scheduled.
+- **Deferred** — intentionally postponed; revisit when its trigger is met.
+- **Shipped** — available in the product.
+
+| Phase                               | Goal                                                                   | Status        |
+| ----------------------------------- | ---------------------------------------------------------------------- | ------------- |
+| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                    | ✅ Complete   |
+| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete   |
+| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete   |
+| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete   |
+| Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                       | ✅ Complete   |
+| Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics                          | 🔵 Next focus |
+| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | 🟡 Later      |
+
+**Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
+documented as optional features and are not current delivery commitments.
+They should be promoted to **Next** only after there is enough content and
+engagement data, or a clear product need for them.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
@@ -34,7 +47,8 @@ server-side fetches, but **no page in the repo uses them**. Every existing `fetc
 unauthenticated, so server-rendered pages (`/blog`, landing `RecentPostsSection`, `/blog/[postId]`)
 hydrate `isLiked` as `false` for signed-in users. This is a pre-existing quirk that is out of scope
 for Phase 1.5; a real fix migrates the affected server queries to `fetchAuthQuery`. Earliest
-reasonable home: Phase 1.9 / 1.10 (data flow / polish).
+reasonable home: a later data-flow or polish slice when the issue is
+prioritized.
 
 ---
 
@@ -124,12 +138,12 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 - **1.5 Bookmarks / Reading List** ✅ — private bookmarks; `/reading-list` page. _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`, **no** denormalized count on `users` (bookmarks are private). The shared `LikeToggle` primitive is the ready seam (Phase 1.3 key decision). See `docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
 - **1.6 Notifications** ✅ — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Fan-out in `createPost` via `ctx.runMutation(internal.notifications.fanOutForPost, ...)`; uses the `follows.by_followingId` index for ordered scanning. See `docs/superpowers/specs/2026-07-28-notifications-design.md` (incl. its **Forward pointers** section) before starting 1.7 — 1.7's feed strategy is its own first-class spec decision; 1.6 only shares the `by_followingId` index, not the feed data path.
 
-### Phase 1C — Discovery & Polish
+### Deferred Phase 1C — Optional Discovery & Polish
 
-- **1.8 Post Tags** ✅ — `tags` array on posts, tag pills, filter `/blog?tag=`. _Medium._
-- **1.9 Trending / Popular** — "Latest" / "Popular" tabs on `/blog` via `likeCount`/`commentCount`. _Low._
-- **1.10 User Activity Feed** — recent activity ("X liked Y's post") on profiles. _Medium._
-- **1.11 Polish** — reading-time estimate (~200 wpm) on cards/detail; share links (copy-to-clipboard / Web Share API). _Low._
+- **1.8 Post Tags** ✅ **Shipped** — `tags` array on posts, tag pills, filter `/blog?tag=`. _Medium._
+- **1.9 Trending / Popular** — **Deferred** — "Latest" / "Popular" tabs on `/blog` via `likeCount`/`commentCount`. Revisit when the site has enough posts and engagement for ranking to be useful. _Low._
+- **1.10 User Activity Feed** — **Deferred** — recent activity ("X liked Y's post") on profiles. Revisit when profiles have enough activity to avoid a noisy or empty feed and privacy rules are defined. _Medium._
+- **1.11 Polish** — **Deferred** — reading-time estimate (~200 wpm) on cards/detail; share links (copy-to-clipboard / Web Share API). Consider share links independently when distribution becomes a priority. _Low._
 
 ### Phase 2 — The Author
 

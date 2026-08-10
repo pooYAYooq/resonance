@@ -4,11 +4,12 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 1C — Discovery & Polish
+Phase 1C — Discovery & Polish (complete)
 
-## Next task
+## Next focus
 
-1.9 Trending — add latest/popular blog sorting.
+Phase 2 planning — choose the first author workflow slice. There is no active
+implementation task; 1.9–1.11 are deferred optional features.
 
 ## Completed phases
 

@@ -17,6 +17,26 @@ built the way they were. Read it top-to-bottom once, then use it as a lookup.
 | Forms     | React Hook Form + Zod                     | Client-side forms with schema validation                |
 | Theming   | next-themes                               | Dark and light mode toggle                              |
 
+## Roadmap and Feature Status
+
+Product planning is separate from the runtime architecture. The source of
+truth for feature priorities is [`FEATURES.md`](../FEATURES.md), while
+[`docs/status.md`](status.md) is the concise resume point for the current
+delivery focus.
+
+Features use five statuses:
+
+- **Now** — actively being implemented.
+- **Next** — the next agreed delivery focus.
+- **Later** — planned, but not scheduled.
+- **Deferred** — intentionally postponed until a revisit condition is met.
+- **Shipped** — available in the product.
+
+Phase 1C is complete after Post Tags (1.8). Trending (1.9), User Activity
+(1.10), and the remaining Polish work (1.11) are retained as deferred,
+optional backlog items. They are not required dependencies for the author
+phase and should only be promoted when their product value is clear.
+
 ---
 
 ## Directory Structure
