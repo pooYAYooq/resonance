@@ -170,12 +170,18 @@ describe("posts functions", () => {
         title: "Visible post",
         body: "Body.",
         authorId: "user-1",
+        tags: ["RemovedTag"],
         commentCount: 0,
         likeCount: 0,
         createdAt: 100,
         updatedAt: 100,
       });
     });
+
+    const unfiltered = await t.query(api.posts.getPosts, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(unfiltered.page[0].tags).toEqual(["RemovedTag"]);
 
     const result = await t.query(api.posts.getPosts, {
       tag: "RemovedTag",

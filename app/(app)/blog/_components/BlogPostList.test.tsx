@@ -47,6 +47,11 @@ describe("BlogPostList", () => {
     render(await BlogPostList({ tag: "Technology" }));
 
     expect(screen.getByText("Tagged post")).toBeInTheDocument();
+    expect(fetchQueryMock).toHaveBeenNthCalledWith(1, "getPosts", {
+      tag: "Technology",
+      paginationOpts: { numItems: 50, cursor: null },
+    });
+    expect(fetchQueryMock).toHaveBeenCalledTimes(2);
     expect(fetchQueryMock).toHaveBeenNthCalledWith(2, "getPosts", {
       tag: "Technology",
       paginationOpts: { numItems: 50, cursor: "next" },
@@ -62,6 +67,10 @@ describe("BlogPostList", () => {
 
     render(await BlogPostList({ tag: "Technology" }));
     expect(screen.getByText("No posts found")).toBeInTheDocument();
+    expect(fetchQueryMock).toHaveBeenCalledWith("getPosts", {
+      tag: "Technology",
+      paginationOpts: { numItems: 50, cursor: null },
+    });
     expect(screen.getByRole("link", { name: /clear filter/i })).toHaveAttribute(
       "href",
       "/blog",

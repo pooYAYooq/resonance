@@ -16,4 +16,12 @@ describe("TagPill", () => {
       "/blog?tag=Design%20%26%20UX",
     );
   });
+
+  it("keeps legacy removed tags visible and linked", () => {
+    render(<TagPill tag="RemovedTag" />);
+    expect(screen.getByRole("link", { name: "RemovedTag" })).toHaveAttribute(
+      "href",
+      "/blog?tag=RemovedTag",
+    );
+  });
 });

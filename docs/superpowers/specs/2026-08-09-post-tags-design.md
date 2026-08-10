@@ -24,8 +24,10 @@ mutation validation, and blog filter. The shipped list contains exactly
 Tag values are canonical strings. Authors choose from the list, so no casing or
 spelling normalization is needed. Removing a tag from the list stops it from
 being selectable for new posts but does not rewrite existing posts. Existing
-posts retain stored values; a later migration may handle legacy values if
-needed.
+posts retain stored values and continue displaying them as pills for backward
+compatibility. A removed/unknown value is not a valid filter, so its pill links
+to an empty completed `/blog?tag=` result. No migration or read-time hiding of
+legacy values ships in this phase.
 
 ### Post Storage
 
@@ -34,7 +36,10 @@ Add `tags` to `posts` as an optional string array:
 - Optional preserves compatibility with existing documents.
 - Reads normalize missing values to `[]`.
 - New posts always write a canonical array, possibly empty.
-- The array contains at most five canonical tag strings.
+- The array contains at most five unique canonical tag strings.
+- The Convex `createPost` validator independently rejects unknown, duplicate,
+  and over-limit values before insertion; the optional schema field only
+  preserves legacy documents.
 
 No separate `postTags` table ships in this phase. A direct array is the
 smallest correct model and keeps future author editing straightforward. If
@@ -51,9 +56,14 @@ Extend the existing post-list query with an optional `tag` argument.
 - The blog route reads `searchParams.tag`, passes it to the query, displays
   the active filter, and provides a path back to the unfiltered listing.
 
-Filtering may use a bounded paginated query with an array-membership predicate
-for the current post volume. This is an accepted scalability tradeoff; a
-future indexed join table is the path if the scan becomes costly.
+Convex 1.34.0 has no array-membership filter operator, so the query paginates
+the newest-first base `posts` query with `.paginate(args.paginationOpts)`,
+filters each bounded source page in JavaScript with
+`(post.tags ?? []).includes(tag)`, and preserves the source cursor metadata.
+Unknown tags return an empty completed page before the base query. The blog
+route drains those source cursors for active filters until it has 50 matching
+posts or reaches `isDone`. This is an accepted scalability tradeoff; a future
+indexed join table is the path if the scan becomes costly.
 
 ### Create Flow
 
@@ -102,6 +112,8 @@ shared card.
 - `getPosts` returns all posts when no tag is supplied.
 - Unknown or removed tags return an empty page.
 - `getPostById` includes tags and normalizes legacy missing tags to `[]`.
+- Legacy stored removed tags remain visible as pills, while filtering by them
+  remains empty.
 - Untagged existing posts remain visible in the unfiltered listing.
 
 ### Component Tests
