@@ -19,6 +19,7 @@ import { CommentSection } from "@/components/web/CommentSection";
 import { LikeButton } from "@/components/web/LikeButton";
 import { BookmarkButton } from "@/components/web/BookmarkButton";
 import { truncateForDescription } from "@/lib/constants/seo";
+import { TagPill } from "@/components/web/TagPill";
 
 /** Props received by the dynamic blog post route. */
 interface PostIdRouteProps {
@@ -121,6 +122,13 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
             year: "numeric",
           })}
         </p>
+        {(post.tags ?? []).length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(post.tags ?? []).map((tag) => (
+              <TagPill key={tag} tag={tag} />
+            ))}
+          </div>
+        )}
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div className="mt-6 prose max-w-none">

@@ -13,6 +13,10 @@ import { paginationOptsValidator } from "convex/server";
 import { api, internal } from "./_generated/api";
 import { FANOUT_BATCH_SIZE } from "./notifications";
 import { FEED_BATCH_SIZE } from "./feed";
+import {
+  isCanonicalPostTag,
+  isValidPostTags,
+} from "../lib/constants/post-tags";
 
 /**
  * Creates a new blog article authored by the currently authenticated user.
@@ -29,6 +33,7 @@ export const createPost = mutation({
   args: {
     title: v.string(),
     body: v.string(),
+    tags: v.optional(v.array(v.string())),
     imageStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
@@ -37,10 +42,16 @@ export const createPost = mutation({
       throw new ConvexError("Unauthorized");
     }
 
+    const tags = args.tags ?? [];
+    if (!isValidPostTags(tags)) {
+      throw new ConvexError("Invalid tags");
+    }
+
     const now = Date.now();
     const blogArticle = await ctx.db.insert("posts", {
       title: args.title,
       body: args.body,
+      tags,
       imageStorageId: args.imageStorageId,
       authorId: user._id,
       commentCount: 0,
@@ -106,17 +117,30 @@ export const createPost = mutation({
 export const getPosts = query({
   args: {
     paginationOpts: paginationOptsValidator,
+    tag: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (args.tag !== undefined && !isCanonicalPostTag(args.tag)) {
+      return {
+        page: [],
+        isDone: true,
+        continueCursor: args.paginationOpts.cursor ?? "",
+      };
+    }
+
     const result = await ctx.db
       .query("posts")
       .order("desc")
       .paginate(args.paginationOpts);
 
+    const sourcePage = args.tag
+      ? result.page.filter((post) => (post.tags ?? []).includes(args.tag!))
+      : result.page;
+
     const authUser = await authComponent.safeGetAuthUser(ctx);
 
     const page = await Promise.all(
-      result.page.map(async (post) => {
+      sourcePage.map(async (post) => {
         const imageUrl = post.imageStorageId
           ? await ctx.storage.getUrl(post.imageStorageId)
           : null;
@@ -139,6 +163,7 @@ export const getPosts = query({
 
         return {
           ...post,
+          tags: post.tags ?? [],
           imageUrl,
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,
@@ -224,7 +249,12 @@ export const getPostById = query({
       isLiked = !!like;
     }
 
-    return { ...post, imageUrl: resolvedImageUrl, isLiked };
+    return {
+      ...post,
+      tags: post.tags ?? [],
+      imageUrl: resolvedImageUrl,
+      isLiked,
+    };
   },
 });
 
@@ -279,6 +309,7 @@ export const getPostsByAuthorId = query({
 
         return {
           ...post,
+          tags: post.tags ?? [],
           imageUrl,
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,

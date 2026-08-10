@@ -21,7 +21,7 @@
 | Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete    |
 | Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete    |
 | Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete    |
-| Phase 1C — Discovery & Polish       | 1.8 Tags · 1.9 Trending · 1.10 Activity · 1.11 Polish                  | 🔵 1.8 up next |
+| Phase 1C — Discovery & Polish       | 1.8 Tags ✅ · 1.9 Trending · 1.10 Activity · 1.11 Polish               | 🔵 1.9 up next |
 | Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics                          | ⚪ Future      |
 | Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | ⚪ Future      |
 
@@ -51,6 +51,8 @@ reasonable home: Phase 1.9 / 1.10 (data flow / polish).
 - Create posts with title, body, and optional cover image (Convex storage)
 - Paginated listing at `/blog` (server-rendered); post detail at `/blog/[postId]` with dynamic OG metadata
 - Denormalized `commentCount` and `likeCount` on posts; O(1) total via `stats` table
+- Curated tags on posts (up to five from a shared fifteen-value list), clickable
+  tag pills, and exact `/blog?tag=<tag>` filtering with legacy-post compatibility
 
 ### Likes
 
@@ -124,7 +126,7 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 
 ### Phase 1C — Discovery & Polish
 
-- **1.8 Post Tags** — `tags` array on posts, tag pills, filter `/blog?tag=`. _Medium._
+- **1.8 Post Tags** ✅ — `tags` array on posts, tag pills, filter `/blog?tag=`. _Medium._
 - **1.9 Trending / Popular** — "Latest" / "Popular" tabs on `/blog` via `likeCount`/`commentCount`. _Low._
 - **1.10 User Activity Feed** — recent activity ("X liked Y's post") on profiles. _Medium._
 - **1.11 Polish** — reading-time estimate (~200 wpm) on cards/detail; share links (copy-to-clipboard / Web Share API). _Low._

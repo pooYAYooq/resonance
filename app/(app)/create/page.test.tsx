@@ -168,6 +168,7 @@ describe("CreateRoute", () => {
       expect(createPostMock).toHaveBeenCalledWith({
         title: "My Post",
         body: "This is enough content for the body.",
+        tags: [],
         imageStorageId: "storage-123",
       });
     });
@@ -237,6 +238,7 @@ describe("CreateRoute", () => {
       expect(createPostMock).toHaveBeenCalledWith({
         title: "My Post",
         body: "This is enough content for the body.",
+        tags: [],
       });
     });
 

@@ -17,6 +17,9 @@ type FeedPost = Doc<"posts"> & {
   isLiked: boolean;
 };
 
+/**
+ * Displays the authenticated user's paginated feed and provides controls for loading additional posts.
+ */
 export function FeedContent() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
@@ -83,6 +86,7 @@ export function FeedContent() {
             authorId={post.authorId}
             authorName={post.authorName}
             authorAvatarUrl={post.authorAvatarUrl}
+            tags={post.tags}
           />
         ))}
       </div>

@@ -18,9 +18,19 @@ vi.mock("../ui/avatar", () => ({
   }: {
     children: React.ReactNode;
     className?: string;
-  }) => <div data-avatar className={className}>{children}</div>,
+  }) => (
+    <div data-avatar className={className}>
+      {children}
+    </div>
+  ),
   AvatarImage: ({ src, alt }: { src: string; alt: string }) => (
-    <div data-avatar-img data-src={src} data-alt={alt} role="img" aria-label={alt} />
+    <div
+      data-avatar-img
+      data-src={src}
+      data-alt={alt}
+      role="img"
+      aria-label={alt}
+    />
   ),
   AvatarFallback: ({ children }: { children: React.ReactNode }) => (
     <span data-avatar-fallback>{children}</span>
@@ -48,12 +58,7 @@ vi.mock("./LikeButton", () => ({
 }));
 
 vi.mock("./BookmarkButton", () => ({
-  BookmarkButton: ({
-    postId,
-  }: {
-    postId: string;
-    size?: "sm" | "default";
-  }) => (
+  BookmarkButton: ({ postId }: { postId: string; size?: "sm" | "default" }) => (
     <button
       aria-label="Save to reading list"
       aria-pressed={false}
@@ -154,7 +159,9 @@ describe("PostCard", () => {
 
   it("renders the author avatar via UserAvatar", () => {
     render(<PostCard {...basePost} />);
-    expect(screen.getAllByRole("img", { name: "Ada Lovelace avatar" })).toHaveLength(1);
+    expect(
+      screen.getAllByRole("img", { name: "Ada Lovelace avatar" }),
+    ).toHaveLength(1);
   });
 
   it("uses a default author name when authorName is null", () => {
@@ -187,5 +194,22 @@ describe("PostCard", () => {
     expect(
       screen.getByRole("button", { name: "Unlike this post" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders linked tag pills and omits them when tags are missing", () => {
+    const { rerender } = render(
+      <PostCard {...basePost} tags={["Technology", "Design"]} />,
+    );
+    expect(screen.getByRole("link", { name: "Technology" })).toHaveAttribute(
+      "href",
+      "/blog?tag=Technology",
+    );
+    expect(screen.getByRole("link", { name: "Design" })).toBeInTheDocument();
+
+    rerender(<PostCard {...basePost} />);
+    expect(screen.queryByRole("link", { name: "Technology" })).toBeNull();
+
+    rerender(<PostCard {...basePost} tags={[]} />);
+    expect(screen.queryByRole("link", { name: "Technology" })).toBeNull();
   });
 });

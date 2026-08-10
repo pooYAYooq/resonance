@@ -66,6 +66,7 @@ export const getFeed = query({
 
       hydrated.push({
         ...post,
+        tags: post.tags ?? [],
         imageUrl,
         authorName: user?.displayName ?? null,
         authorAvatarUrl: user?.avatarUrl ?? null,

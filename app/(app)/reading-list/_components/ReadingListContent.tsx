@@ -23,6 +23,11 @@ import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Loader2, Bookmark } from "lucide-react";
 
+/**
+ * Displays the authenticated user's bookmarked posts with pagination.
+ *
+ * @returns The reading list content, loading state, or empty state.
+ */
 export function ReadingListContent() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
@@ -35,12 +40,14 @@ export function ReadingListContent() {
 
   const queryArgs = isAuthenticated ? {} : "skip";
 
-  const { results, status, loadMore, isLoading: listLoading } =
-    usePaginatedQuery(
-      api.bookmarks.getBookmarkedPosts,
-      queryArgs,
-      { initialNumItems: 12 },
-    );
+  const {
+    results,
+    status,
+    loadMore,
+    isLoading: listLoading,
+  } = usePaginatedQuery(api.bookmarks.getBookmarkedPosts, queryArgs, {
+    initialNumItems: 12,
+  });
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -85,6 +92,7 @@ export function ReadingListContent() {
             authorId={post.authorId}
             authorName={post.authorName}
             authorAvatarUrl={post.authorAvatarUrl}
+            tags={post.tags}
           />
         ))}
       </div>

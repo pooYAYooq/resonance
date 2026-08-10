@@ -9,6 +9,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
+import { isValidPostTags } from "../lib/constants/post-tags";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -88,6 +89,125 @@ describe("posts functions", () => {
       paginationOpts: { numItems: 10, cursor: null },
     });
     expect(result.page.map((post) => post.title)).toEqual(["Newer", "Older"]);
+  });
+
+  it("validates canonical post tags independently on the server", () => {
+    expect(isValidPostTags([])).toBe(true);
+    expect(isValidPostTags(["Technology"])).toBe(true);
+    expect(
+      isValidPostTags(["Technology", "Design", "Music", "Theory", "Landscape"]),
+    ).toBe(true);
+    expect(isValidPostTags(["Unknown"])).toBe(false);
+    expect(isValidPostTags(["Technology", "Technology"])).toBe(false);
+    expect(
+      isValidPostTags([
+        "Technology",
+        "Design",
+        "Music",
+        "Theory",
+        "Landscape",
+        "Science",
+      ]),
+    ).toBe(false);
+  });
+
+  it("filters exact tag membership while preserving source pagination cursors", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("posts", {
+        title: "Newest untagged",
+        body: "Body.",
+        authorId: "user-1",
+        tags: [],
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 300,
+        updatedAt: 300,
+      });
+      await ctx.db.insert("posts", {
+        title: "Tagged technology",
+        body: "Body.",
+        authorId: "user-1",
+        tags: ["Technology", "Design"],
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 200,
+        updatedAt: 200,
+      });
+      await ctx.db.insert("posts", {
+        title: "Old untagged",
+        body: "Body.",
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 100,
+        updatedAt: 100,
+      });
+    });
+
+    const firstPage = await t.query(api.posts.getPosts, {
+      tag: "Technology",
+      paginationOpts: { numItems: 1, cursor: null },
+    });
+    expect(firstPage.page).toEqual([]);
+    expect(firstPage.isDone).toBe(false);
+
+    const secondPage = await t.query(api.posts.getPosts, {
+      tag: "Technology",
+      paginationOpts: { numItems: 1, cursor: firstPage.continueCursor },
+    });
+    expect(secondPage.page.map((post) => post.title)).toEqual([
+      "Tagged technology",
+    ]);
+  });
+
+  it("returns an empty completed page for an unknown tag", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("posts", {
+        title: "Visible post",
+        body: "Body.",
+        authorId: "user-1",
+        tags: ["RemovedTag"],
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 100,
+        updatedAt: 100,
+      });
+    });
+
+    const unfiltered = await t.query(api.posts.getPosts, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(unfiltered.page[0].tags).toEqual(["RemovedTag"]);
+
+    const result = await t.query(api.posts.getPosts, {
+      tag: "RemovedTag",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page).toEqual([]);
+    expect(result.isDone).toBe(true);
+  });
+
+  it("normalizes missing post tags on detail reads", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await t.run(async (ctx) => {
+      return await ctx.db.insert("posts", {
+        title: "Legacy post",
+        body: "Body.",
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 100,
+        updatedAt: 100,
+      });
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+    expect(result?.tags).toEqual([]);
   });
 
   it("returns null when post does not exist", async () => {
@@ -387,7 +507,9 @@ describe("posts functions", () => {
 
     expect(result.page).toHaveLength(1);
     expect(result.page[0].authorName).toBe("Alice");
-    expect(result.page[0].authorAvatarUrl).toBe("https://example.com/alice.png");
+    expect(result.page[0].authorAvatarUrl).toBe(
+      "https://example.com/alice.png",
+    );
   });
 
   it("returns null authorAvatarUrl when user has no users record", async () => {

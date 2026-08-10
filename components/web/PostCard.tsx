@@ -29,6 +29,7 @@ import { MessageSquare } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Id } from "@/convex/_generated/dataModel";
+import { TagPill } from "./TagPill";
 
 const DEFAULT_COVER_IMAGE =
   "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg";
@@ -59,17 +60,15 @@ interface PostCardProps {
    * `UserAvatar` falls back to a DiceBear-generated image.
    */
   authorAvatarUrl?: string | null;
+  /** Stored or normalized display tags. */
+  tags?: string[];
 }
 
 /**
- * Renders a post card with a cover image, author header, title, body
- * excerpt, engagement metrics, and a "Read More" link. The card is
- * divided into three visual sections separated by borders: a header
- * with author info, a content area, and a footer with engagement
- * actions. See {@link PostCardProps} for field-level documentation.
+ * Renders a blog post card with author information, optional tags, engagement metrics, and a link to the full post.
  *
- * @param props - `PostCardProps`: post data to render.
- * @returns JSX.Element: a card linking to the post detail page.
+ * @param props - Post data and metadata used to populate the card.
+ * @returns The rendered post card.
  */
 export function PostCard({
   postId,
@@ -83,6 +82,7 @@ export function PostCard({
   authorId,
   authorName,
   authorAvatarUrl,
+  tags,
 }: PostCardProps) {
   const displayName = authorName?.trim() || "Unknown";
   const postHref = `/blog/${postId}`;
@@ -134,6 +134,13 @@ export function PostCard({
             {title}
           </h2>
         </Link>
+        {(tags ?? []).length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {(tags ?? []).map((tag) => (
+              <TagPill key={tag} tag={tag} />
+            ))}
+          </div>
+        )}
         <p className="text-muted-foreground line-clamp-3">{body}</p>
       </CardContent>
 
@@ -143,11 +150,7 @@ export function PostCard({
             <MessageSquare className="size-3.5" />
             {commentCount}
           </span>
-          <LikeButton
-            postId={postId}
-            isLiked={isLiked}
-            likeCount={likeCount}
-          />
+          <LikeButton postId={postId} isLiked={isLiked} likeCount={likeCount} />
           <BookmarkButton postId={postId} />
         </span>
         <Link

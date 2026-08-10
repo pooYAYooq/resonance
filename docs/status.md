@@ -8,7 +8,7 @@ Phase 1C — Discovery & Polish
 
 ## Next task
 
-1.8 Post Tags — add tags to posts, tag pills, and `/blog?tag=` filtering.
+1.9 Trending — add latest/popular blog sorting.
 
 ## Completed phases
 
@@ -16,6 +16,7 @@ Phase 1C — Discovery & Polish
 - Phase 1.0 — Backward-compat cleanup
 - Phase 1A — Identity & Engagement
 - Phase 1B — Curation & Connection, including 1.7 Reader Feed
+- Phase 1C — Discovery & Polish, including 1.8 Post Tags
 
 ## Where to continue
 
