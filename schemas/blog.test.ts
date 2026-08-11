@@ -1,14 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { postSchema } from "@/schemas/blog";
+import {
+  BLOCKNOTE_FORMAT,
+  MAX_POST_TEXT_LENGTH,
+} from "@/lib/post-content";
 
 const makeFile = (size = 1024, type = "image/png") =>
   new File([new Uint8Array(size)], "image.png", { type });
+
+const validContent = {
+  format: BLOCKNOTE_FORMAT,
+  blocks: [
+    {
+      type: "paragraph",
+      content: [{ type: "text", text: "This is valid content." }],
+    },
+  ],
+};
 
 describe("blog schema", () => {
   it("accepts a valid payload", () => {
     const result = postSchema.safeParse({
       title: "Hello",
-      content: "This is long enough content.",
+      content: validContent,
       image: makeFile(2048, "image/png"),
     });
 
@@ -18,7 +32,7 @@ describe("blog schema", () => {
   it("rejects unsupported image type", () => {
     const result = postSchema.safeParse({
       title: "Hello",
-      content: "This is long enough content.",
+      content: validContent,
       image: makeFile(2048, "image/gif"),
     });
 
@@ -28,7 +42,7 @@ describe("blog schema", () => {
   it("rejects oversized images", () => {
     const result = postSchema.safeParse({
       title: "Hello",
-      content: "This is long enough content.",
+      content: validContent,
       image: makeFile(6 * 1024 * 1024, "image/png"),
     });
 
@@ -44,7 +58,7 @@ describe("blog schema", () => {
       expect(
         postSchema.safeParse({
           title: "Hello",
-          content: "This is long enough content.",
+          content: validContent,
           tags,
         }).success,
       ).toBe(true);
@@ -54,7 +68,7 @@ describe("blog schema", () => {
   it("defaults omitted tags to an empty array", () => {
     const result = postSchema.safeParse({
       title: "Hello",
-      content: "This is long enough content.",
+      content: validContent,
     });
 
     expect(result.success).toBe(true);
@@ -64,7 +78,7 @@ describe("blog schema", () => {
   });
 
   it("rejects unknown, duplicate, and sixth tags", () => {
-    const base = { title: "Hello", content: "This is long enough content." };
+    const base = { title: "Hello", content: validContent };
 
     expect(postSchema.safeParse({ ...base, tags: ["Unknown"] }).success).toBe(
       false,
@@ -86,5 +100,66 @@ describe("blog schema", () => {
         ],
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts structured content and returns the envelope", () => {
+    const result = postSchema.safeParse({
+      title: "Hello",
+      content: validContent,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.content).toEqual(validContent);
+    }
+  });
+
+  it("rejects empty and short structured content", () => {
+    for (const content of [
+      { format: BLOCKNOTE_FORMAT, blocks: [] },
+      {
+        format: BLOCKNOTE_FORMAT,
+        blocks: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "short" }],
+          },
+        ],
+      },
+      {
+        format: BLOCKNOTE_FORMAT,
+        blocks: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "   " }],
+          },
+        ],
+      },
+    ]) {
+      expect(
+        postSchema.safeParse({ title: "Hello", content }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("rejects structured content over the derived text limit", () => {
+    const content = {
+      format: BLOCKNOTE_FORMAT,
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "x".repeat(MAX_POST_TEXT_LENGTH + 1),
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(postSchema.safeParse({ title: "Hello", content }).success).toBe(
+      false,
+    );
   });
 });
