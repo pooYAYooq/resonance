@@ -8,7 +8,15 @@ import {
   defaultBlockSpecs,
   defaultStyleSpecs,
 } from "@blocknote/core";
-import { useCreateBlockNote } from "@blocknote/react";
+import {
+  blockTypeSelectItems,
+  FormattingToolbar,
+  FormattingToolbarController,
+  getDefaultReactSlashMenuItems,
+  SuggestionMenuController,
+  useBlockNoteEditor,
+  useCreateBlockNote,
+} from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import type {
   BlockNoteDocument,
@@ -17,7 +25,10 @@ import type {
   PostTextStyle,
 } from "@/lib/post-content";
 
-const editorSchema = BlockNoteSchema.create({
+const headingPropSchema = { ...defaultBlockSpecs.heading.config.propSchema };
+delete headingPropSchema.isToggleable;
+
+export const editorSchema = BlockNoteSchema.create({
   blockSpecs: {
     paragraph: defaultBlockSpecs.paragraph,
     heading: {
@@ -25,10 +36,10 @@ const editorSchema = BlockNoteSchema.create({
       config: {
         ...defaultBlockSpecs.heading.config,
         propSchema: {
-          ...defaultBlockSpecs.heading.config.propSchema,
+          ...headingPropSchema,
           level: {
-            default: 1,
-            values: [1, 2, 3] as const,
+            default: 2,
+            values: [2, 3] as const,
           },
         },
       },
@@ -47,6 +58,77 @@ const editorSchema = BlockNoteSchema.create({
   },
 });
 
+const APPROVED_SLASH_MENU_KEYS = new Set([
+  "paragraph",
+  "heading_2",
+  "heading_3",
+  "quote",
+  "bullet_list",
+  "numbered_list",
+  "code_block",
+]);
+
+export function getCuratedSlashMenuItems<T>(items: T[]): T[] {
+  return items
+    .filter((item) => {
+      const key = (item as { key?: unknown }).key;
+      return typeof key === "string" && APPROVED_SLASH_MENU_KEYS.has(key);
+    })
+    .map((item) => {
+      const key = (item as { key?: unknown }).key;
+      if (key === "heading_2" || key === "heading_3") {
+        return {
+          ...(item as object),
+          title: key === "heading_2" ? "Section heading" : "Subheading",
+        } as T;
+      }
+      return item;
+    });
+}
+
+const APPROVED_BLOCK_TYPES = new Set([
+  "paragraph",
+  "quote",
+  "bulletListItem",
+  "numberedListItem",
+]);
+
+export function getCuratedBlockTypeSelectItems<T>(items: T[]): T[] {
+  return items
+    .filter((item) => {
+      const value = item as {
+        type?: unknown;
+        props?: { level?: unknown; isToggleable?: unknown };
+      };
+
+      if (typeof value.type !== "string") return false;
+      if (APPROVED_BLOCK_TYPES.has(value.type)) return true;
+      return (
+        value.type === "heading" &&
+        (value.props?.level === 2 || value.props?.level === 3) &&
+        value.props?.isToggleable !== true
+      );
+    })
+    .map((item) => {
+      const value = item as { type?: unknown; props?: { level?: unknown } };
+      if (value.type === "heading" && value.props?.level === 2) {
+        return {
+          ...(item as object),
+          name: "Section heading",
+          props: { level: 2 },
+        } as T;
+      }
+      if (value.type === "heading" && value.props?.level === 3) {
+        return {
+          ...(item as object),
+          name: "Subheading",
+          props: { level: 3 },
+        } as T;
+      }
+      return item;
+    });
+}
+
 const supportedStyles: PostTextStyle[] = [
   "bold",
   "italic",
@@ -61,6 +143,18 @@ type EditorBlock = {
   content: unknown;
   children: EditorBlock[];
 };
+
+function CuratedFormattingToolbar() {
+  const editor = useBlockNoteEditor(editorSchema);
+
+  return (
+    <FormattingToolbar
+      blockTypeSelectItems={getCuratedBlockTypeSelectItems(
+        blockTypeSelectItems(editor.dictionary),
+      )}
+    />
+  );
+}
 
 function normalizeStyles(
   value: unknown,
@@ -98,7 +192,9 @@ function normalizeInlineContent(value: unknown): PostInlineContent[] | string {
         {
           type: "link",
           href: inline.href,
-          content: normalizeInlineContent(inline.content) as PostInlineContent[],
+          content: normalizeInlineContent(
+            inline.content,
+          ) as PostInlineContent[],
         },
       ];
     }
@@ -128,8 +224,7 @@ function normalizeBlock(block: EditorBlock): PostBlock {
   }
 
   if (block.type === "codeBlock") {
-    normalized.content =
-      typeof block.content === "string" ? block.content : "";
+    normalized.content = typeof block.content === "string" ? block.content : "";
   } else {
     normalized.content = normalizeInlineContent(block.content);
   }
@@ -178,15 +273,25 @@ export default function PostBodyEditor({
           });
         }}
         onBlur={onBlur}
-        formattingToolbar
-        slashMenu
+        formattingToolbar={false}
+        slashMenu={false}
         linkToolbar
         sideMenu={false}
         filePanel={false}
         tableHandles={false}
         emojiPicker={false}
         comments={false}
-      />
+      >
+        <FormattingToolbarController
+          formattingToolbar={CuratedFormattingToolbar}
+        />
+        <SuggestionMenuController
+          triggerCharacter="/"
+          getItems={async () =>
+            getCuratedSlashMenuItems(getDefaultReactSlashMenuItems(editor))
+          }
+        />
+      </BlockNoteView>
     </div>
   );
 }

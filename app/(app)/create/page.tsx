@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -30,18 +31,15 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 
-const PostBodyEditor = dynamic(
-  () => import("./_components/PostBodyEditor"),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        className="min-h-80 rounded-md border border-input bg-background px-3 py-2"
-        aria-hidden="true"
-      />
-    ),
-  },
-);
+const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="min-h-80 rounded-md border border-input bg-background px-3 py-2"
+      aria-hidden="true"
+    />
+  ),
+});
 
 const emptyDocument: BlockNoteDocument = {
   format: "blocknote@1",
@@ -161,6 +159,9 @@ export default function CreateRoute() {
                 render={({ field, fieldState }) => (
                   <Field>
                     <FieldLabel>Blog Title</FieldLabel>
+                    <FieldDescription>
+                      This becomes the title of your published post.
+                    </FieldDescription>
                     <Input
                       aria-invalid={fieldState.invalid}
                       placeholder="Give your thought a name"
@@ -177,7 +178,9 @@ export default function CreateRoute() {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel id="blog-content-label">Blog Content</FieldLabel>
+                    <FieldLabel id="blog-content-label">
+                      Blog Content
+                    </FieldLabel>
                     <PostBodyEditor
                       value={field.value}
                       onChange={field.onChange}

@@ -62,7 +62,16 @@ resonance/
 │   │   │   └── [postId]/
 │   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
 │   │   ├── create/
-│   │   │   └── page.tsx        # Create post form + canonical five-tag selector.
+│   │   │   ├── page.tsx        # Create post form + canonical five-tag selector.
+│   │   │   │                   # Loads the BlockNote editor via next/dynamic
+│   │   │   │                   # ({ ssr: false }) and serializes the envelope
+│   │   │   │                   # exactly once on submit.
+│   │   │   └── _components/
+│   │   │       └── PostBodyEditor.tsx # Browser-only BlockNote editor adapter for
+│   │   │                              # React Hook Form. Curated schema (paragraph,
+│   │   │                              # section heading/subheading (H2/H3), quote,
+│   │   │                              # lists, code block). Never
+│   │   │                              # imported by server bundles; loads BlockNote CSS.
 │   │   ├── settings/
 │   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
 │   │   ├── u/[userId]/
@@ -170,7 +179,13 @@ resonance/
 │       ├── CommentLikeButton.tsx # Thin LikeToggle wrapper bound to toggleCommentLike;
 │       │                       # rendered on each CommentCard
 │       ├── PostCard.tsx         # Reusable post card with optional linked tags. Title is an <h2> so the
-│       │                        # page-level <h1> remains unique per page.
+│       │                        # page-level <h1> remains unique per page. Derives excerpts from
+│       │                        # stored bodies via lib/post-content so serialized JSON never leaks.
+│       ├── PostBody.tsx         # Pure Server Component renderer for structured and legacy post bodies.
+│       │                        # No "use client", no dangerouslySetInnerHTML, no sanitizer dep.
+│       │                        # Maps supported BlockNote blocks to explicit elements; unsafe link
+│       │                        # protocols (non http/https/mailto) render as text. Used only on
+│       │                        # /blog/[postId]; cards and metadata use extractPlainText instead.
 │       ├── TagPill.tsx          # Shared linked tag pill; preserves legacy stored values.
 │       ├── PostTagSelector.tsx  # Controlled checkbox group, capped at five selections.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
@@ -211,6 +226,11 @@ resonance/
     ├── auth-server.ts          # Next.js server-side auth helpers
     ├── auth-client.ts          # Browser-side authClient (sign-in, sign-up, sign-out)
     ├── avatar.ts               # DiceBear fallback URL + initials helpers
+    ├── post-content.ts         # Dependency-free structured body contract. Canonical
+    │                           # blocknote@1 envelope types, parser, structural validator,
+    │                           # extractPlainText, and safety limits. Imported by Convex
+    │                           # (createPost), Zod (postSchema), PostCard, metadata, and
+    │                           # PostBody. Never imports BlockNote packages.
     └── constants/
         ├── seo.ts              # SITE_NAME, getSiteUrl(), truncateForDescription()
         ├── footer.ts            # Footer site name, nav links, social links
@@ -369,6 +389,61 @@ preserves the source cursor metadata because Convex has no array-membership
 filter operator. The blog list drains those source cursors for active filters
 until it has 50 matches or reaches the end. Unknown query values return an
 empty completed page and never fall back to the unfiltered listing.
+
+### Post Body Authoring and Rendering
+
+Posts are authored with a curated BlockNote editor and stored as a versioned
+structured document, while legacy plain-text bodies remain readable. The
+constraint is enforced by a single dependency-free module so Convex, Zod,
+cards, metadata, and the Server Component renderer all share one contract.
+
+- **`lib/post-content.ts`** — the canonical boundary. Defines the
+  `blocknote@1` envelope (`{ format, blocks }`), `PostBlock` /
+  `PostInlineContent` types, `parsePostBody`, `isValidBlockNoteDoc`, and
+  `extractPlainText`. The editor authors paragraphs, section headings (H2),
+  subheadings (H3), quotes, bullet and numbered list items, and code blocks;
+  the reader also accepts legacy level-1 heading blocks. It accepts only the
+  approved inline styles (`bold`, `italic`, `underline`, `strike`, `code`).
+  Bounds total blocks,
+  recursive depth, children per block, inline nodes, and derived text (capped
+  at 50,000 readable characters). Imports no packages. `parsePostBody` is
+  read-safe (never throws on malformed stored data) and the write path uses
+  the exact `format: "blocknote@1"` discriminator to reject invalid
+  structured content instead of silently treating it as legacy.
+
+- **`app/(app)/create/_components/PostBodyEditor.tsx`** — the browser-only
+  BlockNote editor adapter, a `"use client"` component loaded through
+  `next/dynamic({ ssr: false })` from `app/(app)/create/page.tsx`. Builds the
+  curated editor schema (excluded blocks are absent from the slash menu and
+  toolbar, not merely ignored), exposes friendly Section heading/Subheading
+  labels for semantic H2/H3 blocks, emits the canonical envelope object to
+  React Hook Form on every change, and loads BlockNote's CSS. Never imported
+  by Server Components, Convex, or `lib/post-content.ts`.
+
+- **`components/web/PostBody.tsx`** — the pure Server Component renderer used
+  on `/blog/[postId]`. No `"use client"`, no `dangerouslySetInnerHTML`, no
+  sanitizer dependency. Calls `parsePostBody`, maps supported blocks to
+  explicit elements/classes (headings render as `h2`/`h3`/`h4` so the page
+  title remains the only `h1`), groups only consecutive list items of the
+  same kind, recurses through nested children, and renders inline styles
+  semantically. Links render as anchors with `rel="noopener noreferrer
+nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
+  unsafe protocols render as plain text. Unknown blocks fall back to readable
+  child text or render nothing without throwing. Legacy bodies render one
+  paragraph with `whitespace-pre-wrap`.
+
+- **`posts.body` storage** — unchanged Convex schema. New bodies persist as
+  `JSON.stringify({ format: "blocknote@1", blocks })` inside the existing
+  `posts.body: string`. `createPost` validates the exact structured envelope
+  and derived text (10–50,000 trimmed characters) before insertion; legacy
+  plain strings remain accepted for backward compatibility. No schema
+  migration, no draft/editing/publishing statuses, no inline media.
+
+- **Card vs. detail boundary** — `PostCard` and Open Graph / Twitter
+  metadata use `extractPlainText` for safe excerpts so serialized JSON never
+  leaks into card text; only `/blog/[postId]` renders the full body through
+  `PostBody`. The same parsed text feeds `truncateForDescription` for
+  metadata.
 
 ---
 

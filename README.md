@@ -140,7 +140,9 @@ app/
       [postId]/
         page.tsx              # Single post view with likes + comments
     create/
-      page.tsx                # Create new post form with canonical tag checkboxes
+      page.tsx                # Create post form with canonical tag checkboxes + BlockNote editor
+      _components/
+        PostBodyEditor.tsx    # Browser-only BlockNote editor adapter (loaded via next/dynamic, ssr:false)
     settings/
       page.tsx                # Edit display name + bio
     u/[userId]/
@@ -186,6 +188,7 @@ components/
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
+    PostBody.tsx              # Pure Server Component renderer for structured & legacy post bodies
     TagPill.tsx               # Linked pill for /blog?tag= filters
     PostTagSelector.tsx       # Controlled five-tag checkbox selector
     LikeButton.tsx
@@ -210,6 +213,7 @@ lib/
   constants/                  # Site-wide constants (seo, footer, canonical post tags)
   avatar.ts                   # DiceBear fallback + initials helpers
   utils.ts                    # cn() and other helpers
+  post-content.ts             # Dependency-free structured body contract (parser + validator + extractPlainText)
   auth-client.ts              # Better Auth client setup
   auth-server.ts              # Server-side auth helpers
 ```
