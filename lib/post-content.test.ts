@@ -188,6 +188,8 @@ describe("isValidBlockNoteDoc", () => {
     ]) {
       expect(isValidBlockNoteDoc([{ type: "image", props }])).toBe(false);
     }
+
+    expect(isValidBlockNoteDoc([{ type: "image" }])).toBe(false);
   });
 
   it("rejects unknown image props and image content or children", () => {
@@ -420,5 +422,20 @@ describe("extractImageStorageIds", () => {
         },
       ]),
     ).toEqual(["first", "second"]);
+  });
+
+  it("does not traverse beyond the global block limit", () => {
+    const blocks: PostBlock[] = Array.from(
+      { length: MAX_BLOCKS + 1 },
+      (_, index) => ({
+        type: "image",
+        props: { storageId: `storage-${index}`, altText: "Image" },
+      }),
+    );
+
+    expect(extractImageStorageIds(blocks)).toHaveLength(MAX_BLOCKS);
+    expect(extractImageStorageIds(blocks)).not.toContain(
+      `storage-${MAX_BLOCKS}`,
+    );
   });
 });

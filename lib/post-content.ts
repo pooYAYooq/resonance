@@ -119,7 +119,7 @@ function validateBlockProps(
   type: string,
   value: unknown,
 ): boolean {
-  if (value === undefined) return true;
+  if (value === undefined) return type !== "image";
   if (!isRecord(value)) return false;
 
   if (type === "heading") {
@@ -263,11 +263,14 @@ export function isValidBlockNoteDoc(blocks: unknown): blocks is PostBlock[] {
 export function extractImageStorageIds(blocks: PostBlock[]): string[] {
   const ids: string[] = [];
   const seen = new Set<string>();
+  let blockCount = 0;
 
   const visitBlocks = (value: unknown, depth: number): void => {
     if (!Array.isArray(value) || depth > MAX_RECURSION_DEPTH) return;
 
     for (const block of value) {
+      blockCount += 1;
+      if (blockCount > MAX_BLOCKS) return;
       if (!isRecord(block)) continue;
 
       if (
