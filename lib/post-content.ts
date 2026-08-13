@@ -275,9 +275,10 @@ export function extractImageStorageIds(blocks: PostBlock[]): string[] {
 
       if (
         block.type === "image" &&
+        !Object.hasOwn(block, "content") &&
+        !Object.hasOwn(block, "children") &&
+        validateBlockProps("image", block.props) &&
         isRecord(block.props) &&
-        typeof block.props.storageId === "string" &&
-        block.props.storageId.trim().length > 0 &&
         !seen.has(block.props.storageId)
       ) {
         seen.add(block.props.storageId);

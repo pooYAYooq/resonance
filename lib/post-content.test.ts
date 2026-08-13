@@ -393,6 +393,29 @@ describe("isValidBlockNoteDoc", () => {
 });
 
 describe("extractImageStorageIds", () => {
+  it("ignores image blocks with malformed props or forbidden fields", () => {
+    const validProps = { storageId: "malformed", altText: "An image" };
+
+    expect(
+      extractImageStorageIds([
+        { type: "image", props: { storageId: "missing-alt" } },
+        { type: "image", props: { ...validProps, altText: "   " } },
+        { type: "image", props: { ...validProps, altText: 42 } },
+        { type: "image", props: { ...validProps, width: 100 } },
+        {
+          type: "image",
+          props: validProps,
+          content: [{ type: "text", text: "not allowed" }],
+        },
+        {
+          type: "image",
+          props: validProps,
+          children: [{ type: "paragraph", content: [] }],
+        },
+      ]),
+    ).toEqual([]);
+  });
+
   it("returns unique nested image storage IDs in document order", () => {
     expect(
       extractImageStorageIds([
