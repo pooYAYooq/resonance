@@ -10,11 +10,9 @@ import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 import { isValidPostTags } from "../lib/constants/post-tags";
-import {
-  BLOCKNOTE_FORMAT,
-  MAX_POST_TEXT_LENGTH,
-} from "../lib/post-content";
-import { isValidCreatePostBody } from "./posts";
+import { BLOCKNOTE_FORMAT, MAX_POST_TEXT_LENGTH } from "../lib/post-content";
+import { isValidCreatePostBody, validateInlineUploadClaims } from "./posts";
+import type { Id } from "./_generated/dataModel";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -34,6 +32,70 @@ const createStorageId = async (t: ReturnType<typeof convexTest>) =>
   });
 
 describe("posts functions", () => {
+  const storageId = "storage-image-1" as Id<"_storage">;
+  const secondStorageId = "storage-image-2" as Id<"_storage">;
+  const sessionId = "session-1" as Id<"pendingUploads">;
+
+  const claim = (
+    overrides: Partial<{
+      _id: Id<"pendingUploads">;
+      userId: string;
+      storageId: Id<"_storage">;
+      expiresAt: number;
+    }> = {},
+  ) => ({
+    _id: sessionId,
+    userId: "author-1",
+    storageId,
+    createdAt: 1,
+    expiresAt: 100,
+    ...overrides,
+  });
+
+  it("accepts unique owned unexpired inline upload claims", () => {
+    expect(
+      validateInlineUploadClaims(
+        [storageId, secondStorageId],
+        [
+          claim(),
+          claim({
+            _id: "session-2" as Id<"pendingUploads">,
+            storageId: secondStorageId,
+          }),
+        ],
+        "author-1",
+        50,
+      ),
+    ).toEqual([sessionId, "session-2"]);
+  });
+
+  it("allows duplicate image references to use one claim", () => {
+    expect(
+      validateInlineUploadClaims([storageId], [claim()], "author-1", 50),
+    ).toEqual([sessionId]);
+  });
+
+  it.each([
+    ["missing", null],
+    ["foreign", claim({ userId: "author-2" })],
+    ["malformed", claim({ storageId: secondStorageId })],
+  ])("rejects %s inline upload claims before insertion", (_reason, value) => {
+    expect(() =>
+      validateInlineUploadClaims([storageId], [value], "author-1", 50),
+    ).toThrow("Invalid inline upload claim");
+  });
+
+  it("reports an expired matching claim distinctly", () => {
+    expect(() =>
+      validateInlineUploadClaims(
+        [storageId],
+        [claim({ expiresAt: 50 })],
+        "author-1",
+        50,
+      ),
+    ).toThrow("Inline image expired");
+  });
+
   it("accepts valid structured and legacy create-post bodies", () => {
     const structuredBody = JSON.stringify({
       format: BLOCKNOTE_FORMAT,

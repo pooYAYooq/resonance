@@ -11,6 +11,7 @@ import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import { paginationOptsValidator } from "convex/server";
 import { api, internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
 import { FANOUT_BATCH_SIZE } from "./notifications";
 import { FEED_BATCH_SIZE } from "./feed";
 import {
@@ -21,6 +22,7 @@ import {
   MAX_POST_TEXT_LENGTH,
   MIN_POST_TEXT_LENGTH,
   extractPlainText,
+  extractImageStorageIds,
   parsePostBody,
 } from "../lib/post-content";
 
@@ -31,9 +33,36 @@ export function isValidCreatePostBody(body: string): boolean {
 
   const textLength = extractPlainText(parsed.document.blocks).trim().length;
   return (
-    textLength >= MIN_POST_TEXT_LENGTH &&
-    textLength <= MAX_POST_TEXT_LENGTH
+    textLength >= MIN_POST_TEXT_LENGTH && textLength <= MAX_POST_TEXT_LENGTH
   );
+}
+
+type InlineUploadClaim = Pick<
+  Doc<"pendingUploads">,
+  "_id" | "userId" | "storageId" | "expiresAt"
+>;
+
+export function validateInlineUploadClaims(
+  storageIds: Id<"_storage">[],
+  claims: (InlineUploadClaim | null)[],
+  userId: string,
+  now: number,
+): Id<"pendingUploads">[] {
+  return storageIds.map((storageId, index) => {
+    const claim = claims[index];
+    if (
+      !claim ||
+      claim.userId !== userId ||
+      claim.storageId === undefined ||
+      claim.storageId !== storageId
+    ) {
+      throw new ConvexError("Invalid inline upload claim");
+    }
+    if (claim.expiresAt <= now) {
+      throw new ConvexError("Inline image expired");
+    }
+    return claim._id;
+  });
 }
 
 /**
@@ -69,6 +98,29 @@ export const createPost = mutation({
     }
 
     const now = Date.now();
+    const parsedBody = parsePostBody(args.body);
+    const inlineStorageIds: Id<"_storage">[] =
+      parsedBody.kind === "structured"
+        ? (extractImageStorageIds(
+            parsedBody.document.blocks,
+          ) as Id<"_storage">[])
+        : [];
+    const inlineClaims = await Promise.all(
+      inlineStorageIds.map(async (storageId) => {
+        const matchingClaims = await ctx.db
+          .query("pendingUploads")
+          .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+          .take(2);
+        return matchingClaims.length === 1 ? matchingClaims[0] : null;
+      }),
+    );
+    const consumedInlineUploadIds = validateInlineUploadClaims(
+      inlineStorageIds,
+      inlineClaims,
+      user._id,
+      now,
+    );
+
     const blogArticle = await ctx.db.insert("posts", {
       title: args.title,
       body: args.body,
@@ -80,6 +132,10 @@ export const createPost = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    for (const sessionId of consumedInlineUploadIds) {
+      await ctx.db.delete(sessionId);
+    }
 
     await ctx.runMutation(internal.stats.incrementPostCount, {});
     try {
