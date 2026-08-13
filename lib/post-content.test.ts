@@ -11,7 +11,11 @@ import {
   isValidBlockNoteDoc,
   parsePostBody,
 } from "./post-content";
-import type { BlockNoteDocument, PostBlock } from "./post-content";
+import type {
+  BlockNoteDocument,
+  PostBlock,
+  PostImageProps,
+} from "./post-content";
 
 const structured = {
   format: "blocknote@1",
@@ -67,6 +71,22 @@ describe("parsePostBody", () => {
         }),
       ),
     ).toMatchObject({ kind: "invalid" });
+  });
+});
+
+describe("post content types", () => {
+  it("keeps generic block props indexable while modeling image props", () => {
+    const heading: PostBlock = {
+      type: "heading",
+      props: { level: 2 },
+    };
+    const image: PostImageProps = {
+      storageId: "storage-1",
+      altText: "A descriptive image",
+    };
+
+    expect(heading.props?.level).toBe(2);
+    expect(image.storageId).toBe("storage-1");
   });
 });
 

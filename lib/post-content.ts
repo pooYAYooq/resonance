@@ -29,7 +29,7 @@ export type PostImageProps = {
 
 export type PostBlock = {
   type?: string;
-  props?: Record<string, unknown> | PostImageProps;
+  props?: Record<string, unknown>;
   content?: PostInlineContent[] | string;
   children?: PostBlock[];
 };
@@ -279,6 +279,7 @@ export function extractImageStorageIds(blocks: PostBlock[]): string[] {
         !Object.hasOwn(block, "children") &&
         validateBlockProps("image", block.props) &&
         isRecord(block.props) &&
+        typeof block.props.storageId === "string" &&
         !seen.has(block.props.storageId)
       ) {
         seen.add(block.props.storageId);
