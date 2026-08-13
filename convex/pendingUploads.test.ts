@@ -45,6 +45,27 @@ describe("pending upload functions", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
+  it("accepts an uploaded storage ID for cleanup tracking", async () => {
+    const t = convexTest(schema, modules);
+    const sessionId = await t.run(async (ctx) =>
+      ctx.db.insert("pendingUploads", {
+        userId: "owner-1",
+        createdAt: 1,
+        expiresAt: 2,
+      }),
+    );
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob([new Uint8Array([1])], { type: "image/png" })),
+    );
+
+    await expect(
+      t.mutation(api.pendingUploads.cleanupPending, {
+        sessionIds: [sessionId],
+        storageIds: [storageId],
+      }),
+    ).rejects.toThrow("Unauthorized");
+  });
+
   it("stores finalized storage IDs and supports the required indexes", async () => {
     const t = convexTest(schema, modules);
     const storageId = await t.run(async (ctx) =>

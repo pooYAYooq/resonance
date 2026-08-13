@@ -6,6 +6,7 @@ import {
 } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
+import type { Id } from "./_generated/dataModel";
 
 export const PENDING_UPLOAD_TTL_MS = 60 * 60 * 1000;
 const MAX_INLINE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -22,6 +23,23 @@ const requireAuthUser = async (ctx: MutationCtx) => {
     throw new ConvexError("Unauthorized");
   }
   return user;
+};
+
+const isValidUploadedImage = async (
+  ctx: MutationCtx,
+  storageId: Id<"_storage">,
+  createdAt: number,
+  now: number,
+) => {
+  const metadata = await ctx.db.system.get("_storage", storageId);
+  return !!(
+    metadata &&
+    metadata._creationTime >= createdAt &&
+    metadata._creationTime <= now &&
+    metadata.contentType &&
+    ALLOWED_INLINE_IMAGE_TYPES.has(metadata.contentType) &&
+    metadata.size <= MAX_INLINE_IMAGE_SIZE_BYTES
+  );
 };
 
 export const createPendingUpload = mutation({
@@ -61,14 +79,13 @@ export const finalizePendingUpload = mutation({
     if (session.expiresAt <= Date.now()) {
       throw new ConvexError("Inline image expired");
     }
-    const metadata = await ctx.db.system.get("_storage", args.storageId);
     if (
-      !metadata ||
-      metadata._creationTime < session.createdAt ||
-      metadata._creationTime > Date.now() ||
-      !metadata.contentType ||
-      !ALLOWED_INLINE_IMAGE_TYPES.has(metadata.contentType) ||
-      metadata.size > MAX_INLINE_IMAGE_SIZE_BYTES
+      !(await isValidUploadedImage(
+        ctx,
+        args.storageId,
+        session.createdAt,
+        Date.now(),
+      ))
     ) {
       throw new ConvexError("Invalid inline upload session");
     }
@@ -89,18 +106,32 @@ export const finalizePendingUpload = mutation({
 export const cleanupPending = mutation({
   args: {
     sessionIds: v.array(v.id("pendingUploads")),
+    storageIds: v.optional(v.array(v.id("_storage"))),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx);
 
-    for (const sessionId of args.sessionIds) {
+    for (const [index, sessionId] of args.sessionIds.entries()) {
       const session = await ctx.db.get(sessionId);
       if (!session || session.userId !== user._id) {
         continue;
       }
       if (session.storageId !== undefined) {
         await ctx.storage.delete(session.storageId);
+      } else {
+        const storageId = args.storageIds?.[index];
+        if (
+          storageId !== undefined &&
+          (await isValidUploadedImage(
+            ctx,
+            storageId,
+            session.createdAt,
+            Date.now(),
+          ))
+        ) {
+          await ctx.storage.delete(storageId);
+        }
       }
       await ctx.db.delete(sessionId);
     }
