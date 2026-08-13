@@ -10,7 +10,11 @@ import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 import { isValidPostTags } from "../lib/constants/post-tags";
-import { BLOCKNOTE_FORMAT, MAX_POST_TEXT_LENGTH } from "../lib/post-content";
+import {
+  BLOCKNOTE_FORMAT,
+  extractImageStorageIds,
+  MAX_POST_TEXT_LENGTH,
+} from "../lib/post-content";
 import { isValidCreatePostBody, validateInlineUploadClaims } from "./posts";
 import type { Id } from "./_generated/dataModel";
 
@@ -70,8 +74,20 @@ describe("posts functions", () => {
   });
 
   it("allows duplicate image references to use one claim", () => {
+    const imageStorageIds = extractImageStorageIds([
+      {
+        type: "image",
+        props: { storageId, altText: "First image" },
+      },
+      {
+        type: "image",
+        props: { storageId, altText: "Repeated image" },
+      },
+    ]);
+
+    expect(imageStorageIds).toEqual([storageId]);
     expect(
-      validateInlineUploadClaims([storageId], [claim()], "author-1", 50),
+      validateInlineUploadClaims(imageStorageIds, [claim()], "author-1", 50),
     ).toEqual([sessionId]);
   });
 
