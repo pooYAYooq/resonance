@@ -18,6 +18,7 @@ import {
   useCreateBlockNote,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
+import { Code2 } from "lucide-react";
 import type {
   BlockNoteDocument,
   PostBlock,
@@ -91,6 +92,7 @@ const APPROVED_BLOCK_TYPES = new Set([
   "quote",
   "bulletListItem",
   "numberedListItem",
+  "codeBlock",
 ]);
 
 export function getCuratedBlockTypeSelectItems<T>(items: T[]): T[] {
@@ -137,12 +139,27 @@ const supportedStyles: PostTextStyle[] = [
   "code",
 ];
 
-type EditorBlock = {
+export type EditorBlock = {
   type: string;
   props: Record<string, unknown>;
   content: unknown;
   children: EditorBlock[];
 };
+
+function normalizeCodeContent(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+
+  return value
+    .map((item) => {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) {
+        return "";
+      }
+      const text = (item as { text?: unknown }).text;
+      return typeof text === "string" ? text : "";
+    })
+    .join("");
+}
 
 function CuratedFormattingToolbar() {
   const editor = useBlockNoteEditor(editorSchema);
@@ -150,7 +167,11 @@ function CuratedFormattingToolbar() {
   return (
     <FormattingToolbar
       blockTypeSelectItems={getCuratedBlockTypeSelectItems(
-        blockTypeSelectItems(editor.dictionary),
+        blockTypeSelectItems(editor.dictionary).concat({
+          name: "Code block",
+          type: "codeBlock",
+          icon: Code2,
+        }),
       )}
     />
   );
@@ -213,7 +234,7 @@ function normalizeInlineContent(value: unknown): PostInlineContent[] | string {
   });
 }
 
-function normalizeBlock(block: EditorBlock): PostBlock {
+export function normalizeBlock(block: EditorBlock): PostBlock {
   const normalized: PostBlock = { type: block.type };
 
   if (block.type === "heading" && typeof block.props.level === "number") {
@@ -224,7 +245,7 @@ function normalizeBlock(block: EditorBlock): PostBlock {
   }
 
   if (block.type === "codeBlock") {
-    normalized.content = typeof block.content === "string" ? block.content : "";
+    normalized.content = normalizeCodeContent(block.content);
   } else {
     normalized.content = normalizeInlineContent(block.content);
   }

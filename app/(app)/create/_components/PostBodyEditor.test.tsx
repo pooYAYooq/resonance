@@ -3,6 +3,7 @@ import {
   editorSchema,
   getCuratedBlockTypeSelectItems,
   getCuratedSlashMenuItems,
+  normalizeBlock,
 } from "./PostBodyEditor";
 
 describe("PostBodyEditor configuration", () => {
@@ -47,6 +48,7 @@ describe("PostBodyEditor configuration", () => {
       { name: "Quote", type: "quote" },
       { name: "Bullet List", type: "bulletListItem" },
       { name: "Numbered List", type: "numberedListItem" },
+      { name: "Code block", type: "codeBlock" },
       { name: "Check List", type: "checkListItem" },
     ];
 
@@ -57,7 +59,23 @@ describe("PostBodyEditor configuration", () => {
       { name: "Quote", type: "quote" },
       { name: "Bullet List", type: "bulletListItem" },
       { name: "Numbered List", type: "numberedListItem" },
+      { name: "Code block", type: "codeBlock" },
     ]);
+  });
+
+  it("serializes BlockNote code content from its inline-node shape", () => {
+    expect(
+      normalizeBlock({
+        type: "codeBlock",
+        props: { language: "ts" },
+        content: [{ type: "text", text: "const answer = 42;", styles: {} }],
+        children: [],
+      }),
+    ).toEqual({
+      type: "codeBlock",
+      props: { language: "ts" },
+      content: "const answer = 42;",
+    });
   });
 
   it("does not expose toggle headings in the heading schema", () => {
