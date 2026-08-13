@@ -22,4 +22,11 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "pending inline upload cleanup",
+  { minutes: 15 },
+  internal.pendingUploads.cleanupExpired,
+  { cursor: null },
+);
+
 export default crons;

@@ -140,4 +140,53 @@ describe("pending upload functions", () => {
     expect(result.live?._id).toBe(ids.live);
     expect(result.file).toBeNull();
   });
+
+  it("continues bounded cleanup without deleting another owner's live session", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const finalizedStorageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob([new Uint8Array([1])], { type: "image/png" })),
+    );
+
+    const expiredIds = await t.run(async (ctx) => {
+      const ids = [];
+      for (let index = 0; index < 100; index += 1) {
+        ids.push(
+          await ctx.db.insert("pendingUploads", {
+            userId: "owner-1",
+            createdAt: now - 2,
+            expiresAt: now - 1,
+          }),
+        );
+      }
+      ids.push(
+        await ctx.db.insert("pendingUploads", {
+          userId: "owner-1",
+          storageId: finalizedStorageId,
+          createdAt: now - 2,
+          expiresAt: now - 1,
+        }),
+      );
+      return ids;
+    });
+    const liveOtherOwnerId = await t.run(async (ctx) =>
+      ctx.db.insert("pendingUploads", {
+        userId: "owner-2",
+        createdAt: now,
+        expiresAt: now + 60 * 60 * 1000,
+      }),
+    );
+
+    await t.mutation(internal.pendingUploads.cleanupExpired, { cursor: null });
+    await t.finishAllScheduledFunctions(() => undefined);
+
+    const result = await t.run(async (ctx) => ({
+      expired: await Promise.all(expiredIds.map((id) => ctx.db.get(id))),
+      liveOtherOwner: await ctx.db.get(liveOtherOwnerId),
+      file: await ctx.storage.get(finalizedStorageId),
+    }));
+    expect(result.expired.every((session) => session === null)).toBe(true);
+    expect(result.liveOtherOwner?._id).toBe(liveOtherOwnerId);
+    expect(result.file).toBeNull();
+  });
 });

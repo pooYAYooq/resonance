@@ -8,8 +8,10 @@ Phase 1C — Discovery & Polish (complete)
 
 ## Next focus
 
-Phase 2 planning — choose the first author workflow slice. There is no active
-implementation task; 1.9–1.11 are deferred optional features.
+Inline image support Task 5 — enable BlockNote image uploads and canonical
+normalization. Tasks 2–4 implementation is in place; convex-test cannot mock
+the Better Auth component for owner-scoped mutation tests. 1.9–1.11 remain
+deferred optional features.
 
 ## Completed phases
 
