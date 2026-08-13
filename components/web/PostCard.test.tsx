@@ -81,6 +81,36 @@ const basePost = {
   authorAvatarUrl: "https://example.com/ada.png",
 };
 
+const structuredBody = JSON.stringify({
+  format: "blocknote@1",
+  blocks: [
+    {
+      type: "heading",
+      props: { level: 2 },
+      content: [{ type: "text", text: "A structured heading" }],
+    },
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "text",
+          text: "Readable styled content",
+          styles: { bold: true },
+        },
+        {
+          type: "link",
+          href: "https://example.com",
+          content: [{ type: "text", text: " with a link" }],
+        },
+      ],
+    },
+    {
+      type: "bulletListItem",
+      content: [{ type: "text", text: "A list item" }],
+    },
+  ],
+});
+
 describe("PostCard", () => {
   it("renders the post title", () => {
     render(<PostCard {...basePost} />);
@@ -94,6 +124,21 @@ describe("PostCard", () => {
     expect(
       screen.getByText(/exploration of hidden patterns/i),
     ).toBeInTheDocument();
+  });
+
+  it("renders readable excerpts for structured bodies", () => {
+    const { container } = render(
+      <PostCard {...basePost} body={structuredBody} />,
+    );
+    const excerpt = container.querySelector("p.line-clamp-3");
+
+    expect(excerpt).toHaveTextContent(
+      "A structured heading Readable styled content with a link A list item",
+    );
+    expect(excerpt).toHaveClass("text-muted-foreground", "line-clamp-3");
+    expect(excerpt).not.toHaveTextContent("format");
+    expect(excerpt).not.toHaveTextContent("blocks");
+    expect(excerpt).not.toHaveTextContent(/[{}\[\]"]+/);
   });
 
   it("renders the comment count", () => {

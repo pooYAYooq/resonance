@@ -20,6 +20,8 @@ import { LikeButton } from "@/components/web/LikeButton";
 import { BookmarkButton } from "@/components/web/BookmarkButton";
 import { truncateForDescription } from "@/lib/constants/seo";
 import { TagPill } from "@/components/web/TagPill";
+import { PostBody } from "@/components/web/PostBody";
+import { extractPlainText, parsePostBody } from "@/lib/post-content";
 
 /** Props received by the dynamic blog post route. */
 interface PostIdRouteProps {
@@ -44,7 +46,14 @@ export async function generateMetadata({
     };
   }
 
-  const description = truncateForDescription(post.body);
+  const parsed = parsePostBody(post.body);
+  const description = truncateForDescription(
+    parsed.kind === "structured"
+      ? extractPlainText(parsed.document.blocks)
+      : parsed.kind === "legacy"
+        ? parsed.text
+        : "",
+  );
   const images = post.imageUrl ? [post.imageUrl] : undefined;
 
   return {
@@ -131,10 +140,8 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
         )}
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
-      <div className="mt-6 prose max-w-none">
-        <p className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap">
-          {post.body}
-        </p>
+      <div className="mt-6 max-w-none">
+        <PostBody body={post.body} />
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div className="flex items-center gap-2 mb-4">

@@ -30,6 +30,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Id } from "@/convex/_generated/dataModel";
 import { TagPill } from "./TagPill";
+import { extractPlainText, parsePostBody } from "@/lib/post-content";
 
 const DEFAULT_COVER_IMAGE =
   "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg";
@@ -87,6 +88,13 @@ export function PostCard({
   const displayName = authorName?.trim() || "Unknown";
   const postHref = `/blog/${postId}`;
   const profileHref = `/u/${authorId}`;
+  const parsedBody = parsePostBody(body);
+  const excerpt =
+    parsedBody.kind === "structured"
+      ? extractPlainText(parsedBody.document.blocks)
+      : parsedBody.kind === "legacy"
+        ? parsedBody.text
+        : "";
 
   return (
     <Card className="pt-0 gap-0 flex flex-col h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
@@ -141,7 +149,7 @@ export function PostCard({
             ))}
           </div>
         )}
-        <p className="text-muted-foreground line-clamp-3">{body}</p>
+        <p className="text-muted-foreground line-clamp-3">{excerpt}</p>
       </CardContent>
 
       <CardFooter className="border-t pt-4 flex items-center justify-between">

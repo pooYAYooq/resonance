@@ -17,6 +17,24 @@ import {
   isCanonicalPostTag,
   isValidPostTags,
 } from "../lib/constants/post-tags";
+import {
+  MAX_POST_TEXT_LENGTH,
+  MIN_POST_TEXT_LENGTH,
+  extractPlainText,
+  parsePostBody,
+} from "../lib/post-content";
+
+export function isValidCreatePostBody(body: string): boolean {
+  const parsed = parsePostBody(body);
+  if (parsed.kind === "legacy") return true;
+  if (parsed.kind === "invalid") return false;
+
+  const textLength = extractPlainText(parsed.document.blocks).trim().length;
+  return (
+    textLength >= MIN_POST_TEXT_LENGTH &&
+    textLength <= MAX_POST_TEXT_LENGTH
+  );
+}
 
 /**
  * Creates a new blog article authored by the currently authenticated user.
@@ -45,6 +63,9 @@ export const createPost = mutation({
     const tags = args.tags ?? [];
     if (!isValidPostTags(tags)) {
       throw new ConvexError("Invalid tags");
+    }
+    if (!isValidCreatePostBody(args.body)) {
+      throw new ConvexError("Invalid content");
     }
 
     const now = Date.now();

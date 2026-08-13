@@ -1,7 +1,48 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { BlockNoteDocument } from "@/lib/post-content";
 import CreateRoute from "./page";
+
+const validEnvelope: BlockNoteDocument = {
+  format: "blocknote@1",
+  blocks: [
+    {
+      type: "paragraph",
+      content: [{ type: "text", text: "This is enough content for the body." }],
+    },
+  ],
+};
+
+const shortEnvelope: BlockNoteDocument = {
+  format: "blocknote@1",
+  blocks: [{ type: "paragraph", content: [{ type: "text", text: "short" }] }],
+};
+
+type MockPostBodyEditorProps = {
+  onChange: (value: BlockNoteDocument) => void;
+};
+
+vi.mock("./_components/PostBodyEditor", () => ({
+  default: ({ onChange }: MockPostBodyEditorProps) => (
+    <>
+      <button
+        type="button"
+        aria-label="Edit blog content"
+        onClick={() => onChange(validEnvelope)}
+      >
+        Edit content
+      </button>
+      <button
+        type="button"
+        aria-label="Set short blog content"
+        onClick={() => onChange(shortEnvelope)}
+      >
+        Set short content
+      </button>
+    </>
+  ),
+}));
 
 const {
   pushMock,
@@ -53,8 +94,8 @@ describe("CreateRoute", () => {
     pushMock.mockClear();
     toastSuccessMock.mockClear();
     toastErrorMock.mockClear();
-    generateImageUploadUrlMock.mockClear();
-    createPostMock.mockClear();
+    generateImageUploadUrlMock.mockReset();
+    createPostMock.mockReset();
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -67,11 +108,8 @@ describe("CreateRoute", () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText(
-        "Let the world know what you are thinking...",
-      ),
-      "Some content here",
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
     );
     await user.upload(
       screen.getByLabelText("Image (optional)"),
@@ -102,11 +140,8 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your thought a name"),
       "My Post",
     );
-    await user.type(
-      screen.getByPlaceholderText(
-        "Let the world know what you are thinking...",
-      ),
-      "This is enough content for the body.",
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
     );
     await user.upload(
       screen.getByLabelText("Image (optional)"),
@@ -139,11 +174,8 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your thought a name"),
       "My Post",
     );
-    await user.type(
-      screen.getByPlaceholderText(
-        "Let the world know what you are thinking...",
-      ),
-      "This is enough content for the body.",
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
     );
     await user.upload(
       screen.getByLabelText("Image (optional)"),
@@ -167,7 +199,7 @@ describe("CreateRoute", () => {
     await waitFor(() => {
       expect(createPostMock).toHaveBeenCalledWith({
         title: "My Post",
-        body: "This is enough content for the body.",
+        body: JSON.stringify(validEnvelope),
         tags: [],
         imageStorageId: "storage-123",
       });
@@ -193,11 +225,8 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your thought a name"),
       "My Post",
     );
-    await user.type(
-      screen.getByPlaceholderText(
-        "Let the world know what you are thinking...",
-      ),
-      "This is enough content for the body.",
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
     );
     await user.upload(
       screen.getByLabelText("Image (optional)"),
@@ -225,11 +254,8 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your thought a name"),
       "My Post",
     );
-    await user.type(
-      screen.getByPlaceholderText(
-        "Let the world know what you are thinking...",
-      ),
-      "This is enough content for the body.",
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
     );
 
     await user.click(screen.getByRole("button", { name: /create post/i }));
@@ -237,7 +263,7 @@ describe("CreateRoute", () => {
     await waitFor(() => {
       expect(createPostMock).toHaveBeenCalledWith({
         title: "My Post",
-        body: "This is enough content for the body.",
+        body: JSON.stringify(validEnvelope),
         tags: [],
       });
     });
@@ -250,5 +276,44 @@ describe("CreateRoute", () => {
     });
 
     expect(generateImageUploadUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty or short structured document before upload or mutation", async () => {
+    const user = userEvent.setup();
+
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "My Post",
+    );
+    await user.upload(
+      screen.getByLabelText("Image (optional)"),
+      new File(["img"], "photo.png", { type: "image/png" }),
+    );
+    await user.click(screen.getByRole("button", { name: /create post/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((t) => t.includes("Content must contain")),
+      ).toBeInTheDocument();
+    });
+
+    expect(generateImageUploadUrlMock).not.toHaveBeenCalled();
+    expect(createPostMock).not.toHaveBeenCalled();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Set short blog content" }),
+    );
+    await user.click(screen.getByRole("button", { name: /create post/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((t) => t.includes("Content must contain")),
+      ).toBeInTheDocument();
+    });
+
+    expect(generateImageUploadUrlMock).not.toHaveBeenCalled();
+    expect(createPostMock).not.toHaveBeenCalled();
   });
 });

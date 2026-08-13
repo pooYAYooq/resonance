@@ -13,21 +13,41 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
+import type { BlockNoteDocument } from "@/lib/post-content";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTransition, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
+
+const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="min-h-80 rounded-md border border-input bg-background px-3 py-2"
+      aria-hidden="true"
+    />
+  ),
+});
+
+const emptyDocument: BlockNoteDocument = {
+  format: "blocknote@1",
+  blocks: [],
+};
+
+type PostFormInput = z.input<typeof postSchema>;
+type PostFormOutput = z.output<typeof postSchema>;
 
 /**
  * Renders the authenticated blog post creation page.
@@ -43,11 +63,11 @@ export default function CreateRoute() {
   const generateImageUploadUrl = useMutation(api.posts.generateImageUploadUrl);
   const createPost = useMutation(api.posts.createPost);
 
-  const form = useForm({
+  const form = useForm<PostFormInput, undefined, PostFormOutput>({
     resolver: zodResolver(postSchema),
     defaultValues: {
       title: "",
-      content: "",
+      content: emptyDocument,
       tags: [],
       image: undefined,
     },
@@ -67,7 +87,7 @@ export default function CreateRoute() {
     );
   }
 
-  function onSubmit(values: z.infer<typeof postSchema>) {
+  function onSubmit(values: PostFormOutput) {
     startTransition(async () => {
       try {
         // Track the uploaded image's storage ID. It stays undefined when no image is provided,
@@ -99,7 +119,7 @@ export default function CreateRoute() {
 
         await createPost({
           title: values.title,
-          body: values.content,
+          body: JSON.stringify(values.content),
           tags: values.tags,
           ...(storageId && { imageStorageId: storageId }),
         });
@@ -139,6 +159,9 @@ export default function CreateRoute() {
                 render={({ field, fieldState }) => (
                   <Field>
                     <FieldLabel>Blog Title</FieldLabel>
+                    <FieldDescription>
+                      This becomes the title of your published post.
+                    </FieldDescription>
                     <Input
                       aria-invalid={fieldState.invalid}
                       placeholder="Give your thought a name"
@@ -154,12 +177,16 @@ export default function CreateRoute() {
                 name="content"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field>
-                    <FieldLabel>Blog Content</FieldLabel>
-                    <Textarea
-                      aria-invalid={fieldState.invalid}
-                      {...field}
-                      placeholder="Let the world know what you are thinking..."
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel id="blog-content-label">
+                      Blog Content
+                    </FieldLabel>
+                    <PostBodyEditor
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      invalid={fieldState.invalid}
+                      labelledBy="blog-content-label"
                     />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />

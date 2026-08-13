@@ -10,6 +10,11 @@ import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 import { isValidPostTags } from "../lib/constants/post-tags";
+import {
+  BLOCKNOTE_FORMAT,
+  MAX_POST_TEXT_LENGTH,
+} from "../lib/post-content";
+import { isValidCreatePostBody } from "./posts";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -29,6 +34,58 @@ const createStorageId = async (t: ReturnType<typeof convexTest>) =>
   });
 
 describe("posts functions", () => {
+  it("accepts valid structured and legacy create-post bodies", () => {
+    const structuredBody = JSON.stringify({
+      format: BLOCKNOTE_FORMAT,
+      blocks: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Valid post content." }],
+        },
+      ],
+    });
+
+    expect(isValidCreatePostBody(structuredBody)).toBe(true);
+    expect(isValidCreatePostBody("Legacy post content.")).toBe(true);
+  });
+
+  it("rejects malformed structured create-post bodies", () => {
+    expect(
+      isValidCreatePostBody(
+        JSON.stringify({
+          format: BLOCKNOTE_FORMAT,
+          blocks: [{ type: "image", props: {} }],
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isValidCreatePostBody(
+        JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects structured create-post bodies over the text limit", () => {
+    expect(
+      isValidCreatePostBody(
+        JSON.stringify({
+          format: BLOCKNOTE_FORMAT,
+          blocks: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "text",
+                  text: "x".repeat(MAX_POST_TEXT_LENGTH + 1),
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it("rejects createPost when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     const imageStorageId = await createStorageId(t);
