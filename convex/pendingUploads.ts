@@ -8,6 +8,12 @@ import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 
 export const PENDING_UPLOAD_TTL_MS = 60 * 60 * 1000;
+const MAX_INLINE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_INLINE_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 const CLEANUP_BATCH_SIZE = 100;
 
 const requireAuthUser = async (ctx: MutationCtx) => {
@@ -54,6 +60,17 @@ export const finalizePendingUpload = mutation({
     }
     if (session.expiresAt <= Date.now()) {
       throw new ConvexError("Inline image expired");
+    }
+    const metadata = await ctx.db.system.get("_storage", args.storageId);
+    if (
+      !metadata ||
+      metadata._creationTime < session.createdAt ||
+      metadata._creationTime > Date.now() ||
+      !metadata.contentType ||
+      !ALLOWED_INLINE_IMAGE_TYPES.has(metadata.contentType) ||
+      metadata.size > MAX_INLINE_IMAGE_SIZE_BYTES
+    ) {
+      throw new ConvexError("Invalid inline upload session");
     }
     if (
       session.storageId !== undefined &&
