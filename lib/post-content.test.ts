@@ -6,6 +6,7 @@ import {
   MAX_INLINE_NODES,
   MAX_POST_TEXT_LENGTH,
   MAX_RECURSION_DEPTH,
+  extractImageStorageIds,
   extractPlainText,
   isValidBlockNoteDoc,
   parsePostBody,
@@ -108,6 +109,22 @@ describe("extractPlainText", () => {
     expect(text).not.toContain("format");
     expect(text).not.toContain("blocks");
   });
+
+  it("extracts image captions but not alt text", () => {
+    const text = extractPlainText([
+      {
+        type: "image",
+        props: {
+          storageId: "storage-1",
+          altText: "descriptive alt text",
+          caption: "A readable caption",
+        },
+      },
+    ]);
+
+    expect(text).toBe("A readable caption");
+    expect(text).not.toContain("descriptive alt text");
+  });
 });
 
 describe("isValidBlockNoteDoc", () => {
@@ -134,13 +151,16 @@ describe("isValidBlockNoteDoc", () => {
           props: { language: "ts" },
           content: "const value = 1;",
         },
+        {
+          type: "image",
+          props: { storageId: "storage-1", altText: "A diagram" },
+        },
       ]),
     ).toBe(true);
   });
 
   it("rejects unsupported block types", () => {
     for (const type of [
-      "image",
       "video",
       "audio",
       "file",
@@ -155,6 +175,63 @@ describe("isValidBlockNoteDoc", () => {
         ]),
       ).toBe(false);
     }
+  });
+
+  it("rejects images with missing, blank, or non-string required props", () => {
+    for (const props of [
+      { storageId: "storage-1" },
+      { storageId: "storage-1", altText: "   " },
+      { storageId: "storage-1", altText: 42 },
+      { altText: "A diagram" },
+      { storageId: "   ", altText: "A diagram" },
+      { storageId: 42, altText: "A diagram" },
+    ]) {
+      expect(isValidBlockNoteDoc([{ type: "image", props }])).toBe(false);
+    }
+  });
+
+  it("rejects unknown image props and image content or children", () => {
+    const validProps = { storageId: "storage-1", altText: "A diagram" };
+
+    expect(
+      isValidBlockNoteDoc([
+        { type: "image", props: { ...validProps, width: 100 } },
+      ]),
+    ).toBe(false);
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "image",
+          props: validProps,
+          content: [{ type: "text", text: "invalid" }],
+        },
+      ]),
+    ).toBe(false);
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "image",
+          props: validProps,
+          children: [{ type: "paragraph", content: [] }],
+        },
+      ]),
+    ).toBe(false);
+  });
+
+  it("preserves authored whitespace around valid image props", () => {
+    const blocks: PostBlock[] = [
+      {
+        type: "image",
+        props: {
+          storageId: " storage-1 ",
+          altText: " A diagram ",
+          caption: " A caption ",
+        },
+      },
+    ];
+
+    expect(isValidBlockNoteDoc(blocks)).toBe(true);
+    expect(extractImageStorageIds(blocks)).toEqual([" storage-1 "]);
   });
 
   it("accepts heading levels 1 through 3 only", () => {
@@ -310,5 +387,38 @@ describe("isValidBlockNoteDoc", () => {
         },
       ]),
     ).toBe(false);
+  });
+});
+
+describe("extractImageStorageIds", () => {
+  it("returns unique nested image storage IDs in document order", () => {
+    expect(
+      extractImageStorageIds([
+        {
+          type: "image",
+          props: { storageId: "first", altText: "First" },
+        },
+        {
+          type: "bulletListItem",
+          content: [{ type: "text", text: "parent" }],
+          children: [
+            {
+              type: "image",
+              props: { storageId: "second", altText: "Second" },
+            },
+            {
+              type: "bulletListItem",
+              content: [{ type: "text", text: "nested" }],
+              children: [
+                {
+                  type: "image",
+                  props: { storageId: "first", altText: "Duplicate" },
+                },
+              ],
+            },
+          ],
+        },
+      ]),
+    ).toEqual(["first", "second"]);
   });
 });
