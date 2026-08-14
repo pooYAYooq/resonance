@@ -16,6 +16,7 @@ describe("PostBodyEditor configuration", () => {
       { key: "emoji", title: "Emoji" },
       { key: "paragraph", title: "Paragraph" },
       { key: "code_block", title: "Code Block" },
+      { key: "image", title: "Image" },
     ];
 
     expect(getCuratedSlashMenuItems(items)).toEqual([
@@ -23,6 +24,7 @@ describe("PostBodyEditor configuration", () => {
       { key: "heading_3", title: "Subheading" },
       { key: "paragraph", title: "Paragraph" },
       { key: "code_block", title: "Code Block" },
+      { key: "image", title: "Image" },
     ]);
   });
 
@@ -49,6 +51,7 @@ describe("PostBodyEditor configuration", () => {
       { name: "Bullet List", type: "bulletListItem" },
       { name: "Numbered List", type: "numberedListItem" },
       { name: "Code block", type: "codeBlock" },
+      { name: "Image", type: "image" },
       { name: "Check List", type: "checkListItem" },
     ];
 
@@ -60,6 +63,7 @@ describe("PostBodyEditor configuration", () => {
       { name: "Bullet List", type: "bulletListItem" },
       { name: "Numbered List", type: "numberedListItem" },
       { name: "Code block", type: "codeBlock" },
+      { name: "Image", type: "image" },
     ]);
   });
 
@@ -75,6 +79,32 @@ describe("PostBodyEditor configuration", () => {
       type: "codeBlock",
       props: { language: "ts" },
       content: "const answer = 42;",
+    });
+  });
+
+  it("includes the curated image block and strips transient image props", () => {
+    expect(editorSchema.blockSpecs.image).toBeDefined();
+    expect(
+      normalizeBlock({
+        type: "image",
+        props: {
+          url: "storage-image-1",
+          name: "A mountain lake",
+          caption: "Morning light",
+          textAlignment: "center",
+          previewWidth: 500,
+          showPreview: true,
+        },
+        content: [],
+        children: [],
+      }),
+    ).toEqual({
+      type: "image",
+      props: {
+        storageId: "storage-image-1",
+        altText: "A mountain lake",
+        caption: "Morning light",
+      },
     });
   });
 

@@ -19,6 +19,10 @@ import {
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import { Code2 } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type {
   BlockNoteDocument,
   PostBlock,
@@ -49,6 +53,7 @@ export const editorSchema = BlockNoteSchema.create({
     bulletListItem: defaultBlockSpecs.bulletListItem,
     numberedListItem: defaultBlockSpecs.numberedListItem,
     codeBlock: defaultBlockSpecs.codeBlock,
+    image: defaultBlockSpecs.image,
   },
   styleSpecs: {
     bold: defaultStyleSpecs.bold,
@@ -67,6 +72,7 @@ const APPROVED_SLASH_MENU_KEYS = new Set([
   "bullet_list",
   "numbered_list",
   "code_block",
+  "image",
 ]);
 
 export function getCuratedSlashMenuItems<T>(items: T[]): T[] {
@@ -93,6 +99,7 @@ const APPROVED_BLOCK_TYPES = new Set([
   "bulletListItem",
   "numberedListItem",
   "codeBlock",
+  "image",
 ]);
 
 export function getCuratedBlockTypeSelectItems<T>(items: T[]): T[] {
@@ -235,6 +242,22 @@ function normalizeInlineContent(value: unknown): PostInlineContent[] | string {
 }
 
 export function normalizeBlock(block: EditorBlock): PostBlock {
+  if (block.type === "image") {
+    const props = block.props;
+    const url = props.url;
+    const name = props.name;
+    const caption = props.caption;
+
+    return {
+      type: "image",
+      props: {
+        storageId: typeof url === "string" ? url : "",
+        altText: typeof name === "string" ? name : "",
+        ...(typeof caption === "string" && caption !== "" && { caption }),
+      },
+    };
+  }
+
   const normalized: PostBlock = { type: block.type };
 
   if (block.type === "heading" && typeof block.props.level === "number") {
@@ -263,16 +286,80 @@ export type PostBodyEditorProps = {
   onBlur: () => void;
   invalid?: boolean;
   labelledBy?: string;
+  onUploadSessionCreated?: (sessionId: Id<"pendingUploads">) => void;
 };
+
+async function retryFinalize(
+  finalizePendingUpload: (args: {
+    sessionId: Id<"pendingUploads">;
+    storageId: Id<"_storage">;
+  }) => Promise<null>,
+  args: { sessionId: Id<"pendingUploads">; storageId: Id<"_storage"> },
+) {
+  try {
+    return await finalizePendingUpload(args);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return finalizePendingUpload(args);
+  }
+}
 
 export default function PostBodyEditor({
   onChange,
   onBlur,
   invalid = false,
   labelledBy,
+  onUploadSessionCreated,
 }: PostBodyEditorProps) {
+  const createPendingUpload = useMutation(api.pendingUploads.createPendingUpload);
+  const finalizePendingUpload = useMutation(
+    api.pendingUploads.finalizePendingUpload,
+  );
+  const objectUrls = useRef(new Map<string, string>());
+  const onUploadSessionCreatedRef = useRef(onUploadSessionCreated);
+
+  useEffect(() => {
+    onUploadSessionCreatedRef.current = onUploadSessionCreated;
+  }, [onUploadSessionCreated]);
+
+  useEffect(() => {
+    const urls = objectUrls.current;
+    return () => {
+      for (const url of urls.values()) {
+        URL.revokeObjectURL(url);
+      }
+      urls.clear();
+    };
+  }, []);
+
   const editor = useCreateBlockNote({
     schema: editorSchema,
+    uploadFile: async (file) => {
+      const session = await createPendingUpload({});
+      const uploadResult = await fetch(session.uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!uploadResult.ok) {
+        throw new Error("Failed to upload inline image");
+      }
+
+      const result = (await uploadResult.json()) as {
+        storageId: Id<"_storage">;
+      };
+      await retryFinalize(finalizePendingUpload, {
+        sessionId: session.sessionId,
+        storageId: result.storageId,
+      });
+
+      onUploadSessionCreatedRef.current?.(session.sessionId);
+      objectUrls.current.set(result.storageId, URL.createObjectURL(file));
+      return result.storageId;
+    },
+    resolveFileUrl: async (storageId) =>
+      objectUrls.current.get(storageId) ?? "",
   });
 
   return (

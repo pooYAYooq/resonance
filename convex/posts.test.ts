@@ -334,8 +334,8 @@ describe("posts functions", () => {
 
   it("normalizes missing post tags on detail reads", async () => {
     const t = convexTest(schema, modules);
-    const postId = await t.run(async (ctx) => {
-      return await ctx.db.insert("posts", {
+    const postId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
         title: "Legacy post",
         body: "Body.",
         authorId: "user-1",
@@ -343,8 +343,8 @@ describe("posts functions", () => {
         likeCount: 0,
         createdAt: 100,
         updatedAt: 100,
-      });
-    });
+      }),
+    );
 
     const result = await t.query(api.posts.getPostById, { postId });
     expect(result?.tags).toEqual([]);
@@ -426,6 +426,97 @@ describe("posts functions", () => {
     expect(result).not.toBeNull();
     expect(result?.title).toBe("Post without image");
     expect(result?.imageUrl).toBeNull();
+    expect(result?.inlineImages).toEqual([]);
+  });
+
+  it("hydrates unique inline image URLs in document order", async () => {
+    const t = convexTest(schema, modules);
+    const { postId, first, second } = await t.run(async (ctx) => {
+      const first = await ctx.storage.store(
+        new Blob([new Uint8Array([1])], { type: "image/png" }),
+      );
+      const second = await ctx.storage.store(
+        new Blob([new Uint8Array([2])], { type: "image/png" }),
+      );
+
+      return {
+        postId: await ctx.db.insert("posts", {
+        title: "Inline images",
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "image",
+              props: { storageId: first, altText: "First" },
+            },
+            {
+              type: "bulletListItem",
+              content: [{ type: "text", text: "Nested image" }],
+              children: [
+                {
+                  type: "image",
+                  props: { storageId: second, altText: "Second" },
+                },
+              ],
+            },
+            {
+              type: "image",
+              props: { storageId: first, altText: "Repeated" },
+            },
+          ],
+        }),
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        }),
+        first,
+        second,
+      };
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result?.inlineImages).toHaveLength(2);
+    expect(result?.inlineImages[0].storageId).toBe(first);
+    expect(result?.inlineImages[0].url).toBeTruthy();
+    expect(result?.inlineImages[1].storageId).toBe(second);
+    expect(result?.inlineImages[1].url).toBeTruthy();
+  });
+
+  it("retains unresolved inline image entries as null URLs", async () => {
+    const t = convexTest(schema, modules);
+    const { postId, storageId } = await t.run(async (ctx) => {
+      const storageId = await ctx.storage.store(
+        new Blob([new Uint8Array([1])], { type: "image/png" }),
+      );
+      const postId = await ctx.db.insert("posts", {
+        title: "Missing inline image",
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "image",
+              props: { storageId, altText: "Missing" },
+            },
+          ],
+        }),
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.storage.delete(storageId);
+      return { postId, storageId };
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result?.inlineImages).toEqual([
+      { storageId, url: null },
+    ]);
   });
 
   it("returns commentCount in getPosts", async () => {

@@ -141,7 +141,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div className="mt-6 max-w-none">
-        <PostBody body={post.body} />
+        <PostBody body={post.body} inlineImages={post.inlineImages} />
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div className="flex items-center gap-2 mb-4">

@@ -26,7 +26,7 @@ import { useMutation, useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useTransition, useEffect } from "react";
+import { useTransition, useEffect, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
@@ -61,7 +61,9 @@ export default function CreateRoute() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const generateImageUploadUrl = useMutation(api.posts.generateImageUploadUrl);
+  const cleanupPendingUploads = useMutation(api.pendingUploads.cleanupPending);
   const createPost = useMutation(api.posts.createPost);
+  const inlineSessionIds = useRef<Set<Id<"pendingUploads">>>(new Set());
 
   const form = useForm<PostFormInput, undefined, PostFormOutput>({
     resolver: zodResolver(postSchema),
@@ -89,6 +91,7 @@ export default function CreateRoute() {
 
   function onSubmit(values: PostFormOutput) {
     startTransition(async () => {
+      const submitSessionIds = inlineSessionIds.current;
       try {
         // Track the uploaded image's storage ID. It stays undefined when no image is provided,
         // allowing posts to be created without an attached image.
@@ -124,11 +127,28 @@ export default function CreateRoute() {
           ...(storageId && { imageStorageId: storageId }),
         });
 
+        submitSessionIds.clear();
         toast.success("Post created successfully!");
         router.push("/blog");
       } catch (error) {
         console.error("Create post failed", error);
-        toast.error("Failed to create post");
+        if (submitSessionIds.size > 0) {
+          try {
+            await cleanupPendingUploads({
+              sessionIds: [...submitSessionIds],
+            });
+          } catch (cleanupError) {
+            console.error("Failed to clean up inline uploads", cleanupError);
+          }
+          submitSessionIds.clear();
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        toast.error(
+          message.includes("Inline image expired")
+            ? "An inline image expired. Re-upload it and try again."
+            : "Failed to create post",
+        );
       }
     });
   }
@@ -151,7 +171,12 @@ export default function CreateRoute() {
           <CardDescription>Create a new blog article</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void form.handleSubmit(onSubmit)(event);
+            }}
+          >
             <FieldGroup className="gap-y-4">
               <Controller
                 name="title"
@@ -181,13 +206,16 @@ export default function CreateRoute() {
                     <FieldLabel id="blog-content-label">
                       Blog Content
                     </FieldLabel>
-                    <PostBodyEditor
+                      <PostBodyEditor
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       invalid={fieldState.invalid}
-                      labelledBy="blog-content-label"
-                    />
+                        labelledBy="blog-content-label"
+                        onUploadSessionCreated={(sessionId) =>
+                          inlineSessionIds.current.add(sessionId)
+                        }
+                      />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}

@@ -314,6 +314,18 @@ export const getPostById = query({
         ? await ctx.storage.getUrl(post.imageStorageId)
         : null;
 
+    const parsedBody = parsePostBody(post.body);
+    const inlineStorageIds =
+      parsedBody.kind === "structured"
+        ? (extractImageStorageIds(parsedBody.document.blocks) as Id<"_storage">[])
+        : [];
+    const inlineImages = await Promise.all(
+      inlineStorageIds.map(async (storageId) => ({
+        storageId,
+        url: await ctx.storage.getUrl(storageId),
+      })),
+    );
+
     let isLiked = false;
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (authUser) {
@@ -330,6 +342,7 @@ export const getPostById = query({
       ...post,
       tags: post.tags ?? [],
       imageUrl: resolvedImageUrl,
+      inlineImages,
       isLiked,
     };
   },

@@ -6,8 +6,14 @@ import type {
 import { parsePostBody } from "@/lib/post-content";
 import type { ReactNode } from "react";
 
+export type ResolvedInlineImage = {
+  storageId: string;
+  url: string | null;
+};
+
 type PostBodyProps = {
   body: string;
+  inlineImages?: ResolvedInlineImage[];
 };
 
 const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
@@ -77,15 +83,20 @@ function renderBlockContent(block: PostBlock, key: string): ReactNode {
   return renderInlineContent(block.content, key);
 }
 
-function renderNestedBlocks(block: PostBlock, key: string): ReactNode {
+function renderNestedBlocks(
+  block: PostBlock,
+  key: string,
+  inlineImages: Map<string, string>,
+): ReactNode {
   if (!block.children?.length) return null;
-  return renderBlocks(block.children, `${key}-children`);
+  return renderBlocks(block.children, `${key}-children`, inlineImages);
 }
 
 function renderList(
   blocks: PostBlock[],
   type: "bulletListItem" | "numberedListItem",
   key: string,
+  inlineImages: Map<string, string>,
 ): ReactNode {
   const List = type === "bulletListItem" ? "ul" : "ol";
 
@@ -103,7 +114,7 @@ function renderList(
         return (
           <li key={itemKey}>
             {renderBlockContent(block, itemKey)}
-            {renderNestedBlocks(block, itemKey)}
+            {renderNestedBlocks(block, itemKey, inlineImages)}
           </li>
         );
       })}
@@ -111,9 +122,36 @@ function renderList(
   );
 }
 
-function renderBlock(block: PostBlock, key: string): ReactNode {
+function renderBlock(
+  block: PostBlock,
+  key: string,
+  inlineImages: Map<string, string>,
+): ReactNode {
+  if (block.type === "image") {
+    const storageId = block.props?.storageId;
+    const altText = block.props?.altText;
+    if (typeof storageId !== "string" || typeof altText !== "string") {
+      return null;
+    }
+
+    const url = inlineImages.get(storageId);
+    if (!url) return null;
+
+    const caption = block.props?.caption;
+    return (
+      <figure key={key}>
+        {/* Inline image URLs are already resolved by the server query. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={altText} />
+        {typeof caption === "string" && caption ? (
+          <figcaption>{caption}</figcaption>
+        ) : null}
+      </figure>
+    );
+  }
+
   const content = renderBlockContent(block, key);
-  const nestedBlocks = renderNestedBlocks(block, key);
+  const nestedBlocks = renderNestedBlocks(block, key, inlineImages);
 
   switch (block.type) {
     case "paragraph":
@@ -160,7 +198,11 @@ function renderBlock(block: PostBlock, key: string): ReactNode {
   }
 }
 
-function renderBlocks(blocks: PostBlock[], keyPrefix: string): ReactNode[] {
+function renderBlocks(
+  blocks: PostBlock[],
+  keyPrefix: string,
+  inlineImages: Map<string, string>,
+): ReactNode[] {
   const nodes: ReactNode[] = [];
 
   for (let index = 0; index < blocks.length; index += 1) {
@@ -176,17 +218,19 @@ function renderBlocks(blocks: PostBlock[], keyPrefix: string): ReactNode[] {
       }
 
       index -= 1;
-      nodes.push(renderList(list, type, `${keyPrefix}-list-${index}`));
+       nodes.push(
+         renderList(list, type, `${keyPrefix}-list-${index}`, inlineImages),
+       );
       continue;
     }
 
-    nodes.push(renderBlock(block, `${keyPrefix}-block-${index}`));
+    nodes.push(renderBlock(block, `${keyPrefix}-block-${index}`, inlineImages));
   }
 
   return nodes;
 }
 
-export function PostBody({ body }: PostBodyProps) {
+export function PostBody({ body, inlineImages = [] }: PostBodyProps) {
   const parsed = parsePostBody(body);
 
   if (parsed.kind === "legacy") {
@@ -201,9 +245,15 @@ export function PostBody({ body }: PostBodyProps) {
 
   if (parsed.kind !== "structured") return null;
 
+  const resolvedImages = new Map(
+    inlineImages.flatMap(({ storageId, url }) =>
+      url ? [[storageId, url] as const] : [],
+    ),
+  );
+
   return (
     <div data-slot="post-body" className="space-y-5 text-lg">
-      {renderBlocks(parsed.document.blocks, "post")}
+      {renderBlocks(parsed.document.blocks, "post", resolvedImages)}
     </div>
   );
 }
