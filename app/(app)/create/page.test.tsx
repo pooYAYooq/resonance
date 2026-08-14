@@ -374,6 +374,12 @@ describe("CreateRoute", () => {
     await user.click(screen.getByRole("button", { name: /create post/i }));
 
     await waitFor(() => {
+      expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
+        sessionIds: ["session-inline-1"],
+      });
+    });
+
+    await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
         "An inline image expired. Re-upload it and try again.",
       );
@@ -381,6 +387,8 @@ describe("CreateRoute", () => {
   });
 
   it("does not clean up an inline upload registered after submission starts", async () => {
+    // The first claim is consumed by createPost; the second is newer than the
+    // submission snapshot. Neither session belongs in failed-submit cleanup.
     const user = userEvent.setup();
     let rejectCreatePost: ((error: Error) => void) | undefined;
     createPostMock.mockImplementation(
