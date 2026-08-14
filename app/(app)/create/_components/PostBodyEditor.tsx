@@ -286,7 +286,10 @@ export type PostBodyEditorProps = {
   onBlur: () => void;
   invalid?: boolean;
   labelledBy?: string;
-  onUploadSessionCreated?: (sessionId: Id<"pendingUploads">) => void;
+  onUploadSessionCreated?: (
+    sessionId: Id<"pendingUploads">,
+    storageId: Id<"_storage">,
+  ) => void;
 };
 
 async function retryFinalize(
@@ -354,7 +357,7 @@ export default function PostBodyEditor({
         storageId: result.storageId,
       });
 
-      onUploadSessionCreatedRef.current?.(session.sessionId);
+      onUploadSessionCreatedRef.current?.(session.sessionId, result.storageId);
       objectUrls.current.set(result.storageId, URL.createObjectURL(file));
       return result.storageId;
     },

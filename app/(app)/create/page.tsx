@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument } from "@/lib/post-content";
+import { extractImageStorageIds } from "@/lib/post-content";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
@@ -63,7 +64,9 @@ export default function CreateRoute() {
   const generateImageUploadUrl = useMutation(api.posts.generateImageUploadUrl);
   const cleanupPendingUploads = useMutation(api.pendingUploads.cleanupPending);
   const createPost = useMutation(api.posts.createPost);
-  const inlineSessionIds = useRef<Set<Id<"pendingUploads">>>(new Set());
+  const inlineSessions = useRef(
+    new Map<Id<"pendingUploads">, Id<"_storage">>(),
+  );
 
   const form = useForm<PostFormInput, undefined, PostFormOutput>({
     resolver: zodResolver(postSchema),
@@ -91,7 +94,13 @@ export default function CreateRoute() {
 
   function onSubmit(values: PostFormOutput) {
     startTransition(async () => {
-      const submitSessionIds = inlineSessionIds.current;
+      const submitSessions = new Map(inlineSessions.current);
+      const referencedStorageIds = new Set(
+        extractImageStorageIds(values.content.blocks),
+      );
+      const submitSessionIds = [...submitSessions.entries()]
+        .filter(([, storageId]) => referencedStorageIds.has(storageId))
+        .map(([sessionId]) => sessionId);
       try {
         // Track the uploaded image's storage ID. It stays undefined when no image is provided,
         // allowing posts to be created without an attached image.
@@ -127,20 +136,27 @@ export default function CreateRoute() {
           ...(storageId && { imageStorageId: storageId }),
         });
 
-        submitSessionIds.clear();
+        for (const sessionId of submitSessionIds) {
+          inlineSessions.current.delete(sessionId);
+        }
         toast.success("Post created successfully!");
         router.push("/blog");
       } catch (error) {
         console.error("Create post failed", error);
-        if (submitSessionIds.size > 0) {
+        const cleanupSessionIds = [...submitSessions.entries()]
+          .filter(([, storageId]) => !referencedStorageIds.has(storageId))
+          .map(([sessionId]) => sessionId);
+        if (cleanupSessionIds.length > 0) {
           try {
             await cleanupPendingUploads({
-              sessionIds: [...submitSessionIds],
+              sessionIds: cleanupSessionIds,
             });
           } catch (cleanupError) {
             console.error("Failed to clean up inline uploads", cleanupError);
           }
-          submitSessionIds.clear();
+          for (const sessionId of cleanupSessionIds) {
+            inlineSessions.current.delete(sessionId);
+          }
         }
 
         const message = error instanceof Error ? error.message : String(error);
@@ -212,8 +228,8 @@ export default function CreateRoute() {
                       onBlur={field.onBlur}
                       invalid={fieldState.invalid}
                         labelledBy="blog-content-label"
-                        onUploadSessionCreated={(sessionId) =>
-                          inlineSessionIds.current.add(sessionId)
+                        onUploadSessionCreated={(sessionId, storageId) =>
+                          inlineSessions.current.set(sessionId, storageId)
                         }
                       />
                     {fieldState.invalid && (
