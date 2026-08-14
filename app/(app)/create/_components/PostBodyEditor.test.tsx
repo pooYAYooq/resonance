@@ -90,6 +90,7 @@ describe("PostBodyEditor configuration", () => {
         props: {
           url: "storage-image-1",
           name: "A mountain lake",
+          altText: "A mountain lake",
           caption: "Morning light",
           textAlignment: "center",
           previewWidth: 500,
@@ -105,6 +106,41 @@ describe("PostBodyEditor configuration", () => {
         altText: "A mountain lake",
         caption: "Morning light",
       },
+    });
+  });
+
+  it("serializes dedicated alt text without using the file name", () => {
+    expect(
+      normalizeBlock({
+        type: "image",
+        props: {
+          url: "storage-image-1",
+          name: "mountain-lake.jpg",
+          altText: "A mountain lake at sunrise",
+        },
+        content: [],
+        children: [],
+      }),
+    ).toEqual({
+      type: "image",
+      props: {
+        storageId: "storage-image-1",
+        altText: "A mountain lake at sunrise",
+      },
+    });
+  });
+
+  it("uses an empty alt text when an image has no alt text", () => {
+    expect(
+      normalizeBlock({
+        type: "image",
+        props: { url: "storage-image-2", name: "mountain-lake.jpg" },
+        content: [],
+        children: [],
+      }),
+    ).toEqual({
+      type: "image",
+      props: { storageId: "storage-image-2", altText: "" },
     });
   });
 

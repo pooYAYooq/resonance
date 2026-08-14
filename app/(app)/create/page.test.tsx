@@ -139,7 +139,6 @@ vi.mock("@/convex/_generated/api", () => ({
     posts: {
       generateImageUploadUrl: "generateImageUploadUrl",
       createPost: "createPost",
-      cleanupPending: "cleanupPending",
     },
   },
 }));
@@ -346,13 +345,19 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your thought a name"),
       "My Post",
     );
-    await user.click(await screen.findByRole("button", { name: "Edit blog content" }));
-    await user.click(screen.getByRole("button", { name: "Register inline upload" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Register inline upload" }),
+    );
     await user.click(screen.getByRole("button", { name: /create post/i }));
 
     await waitFor(() => {
       expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
-        sessionIds: ["session-inline-1"],
+        uploads: [
+          { sessionId: "session-inline-1", storageId: "storage-inline-1" },
+        ],
       });
     });
     expect(toastErrorMock).toHaveBeenCalledWith("Failed to create post");
@@ -369,13 +374,19 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your thought a name"),
       "My Post",
     );
-    await user.click(await screen.findByRole("button", { name: "Edit blog content" }));
-    await user.click(screen.getByRole("button", { name: "Register inline upload" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Register inline upload" }),
+    );
     await user.click(screen.getByRole("button", { name: /create post/i }));
 
     await waitFor(() => {
       expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
-        sessionIds: ["session-inline-1"],
+        uploads: [
+          { sessionId: "session-inline-1", storageId: "storage-inline-1" },
+        ],
       });
     });
 
@@ -405,8 +416,12 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your thought a name"),
       "My Post",
     );
-    await user.click(screen.getByRole("button", { name: "Edit inline content" }));
-    await user.click(screen.getByRole("button", { name: "Register inline upload" }));
+    await user.click(
+      screen.getByRole("button", { name: "Edit inline content" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Register inline upload" }),
+    );
     await user.click(screen.getByRole("button", { name: /create post/i }));
 
     await waitFor(() => expect(createPostMock).toHaveBeenCalled());

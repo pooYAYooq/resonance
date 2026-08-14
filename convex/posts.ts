@@ -39,7 +39,7 @@ export function isValidCreatePostBody(body: string): boolean {
 
 type InlineUploadClaim = Pick<
   Doc<"pendingUploads">,
-  "_id" | "userId" | "storageId" | "expiresAt"
+  "_id" | "userId" | "storageId" | "expiresAt" | "consumedAt"
 >;
 
 export function validateInlineUploadClaims(
@@ -54,7 +54,8 @@ export function validateInlineUploadClaims(
       !claim ||
       claim.userId !== userId ||
       claim.storageId === undefined ||
-      claim.storageId !== storageId
+      claim.storageId !== storageId ||
+      claim.consumedAt !== undefined
     ) {
       throw new ConvexError("Invalid inline upload claim");
     }
@@ -134,7 +135,10 @@ export const createPost = mutation({
     });
 
     for (const sessionId of consumedInlineUploadIds) {
-      await ctx.db.delete(sessionId);
+      await ctx.db.patch(sessionId, {
+        consumedAt: now,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
     }
 
     await ctx.runMutation(internal.stats.incrementPostCount, {});
@@ -317,7 +321,9 @@ export const getPostById = query({
     const parsedBody = parsePostBody(post.body);
     const inlineStorageIds =
       parsedBody.kind === "structured"
-        ? (extractImageStorageIds(parsedBody.document.blocks) as Id<"_storage">[])
+        ? (extractImageStorageIds(
+            parsedBody.document.blocks,
+          ) as Id<"_storage">[])
         : [];
     const inlineImages = await Promise.all(
       inlineStorageIds.map(async (storageId) => ({

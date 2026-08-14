@@ -268,10 +268,17 @@ export default defineSchema({
   pendingUploads: defineTable({
     userId: v.string(),
     storageId: v.optional(v.id("_storage")),
+    consumedAt: v.optional(v.number()),
     createdAt: v.number(),
     expiresAt: v.number(),
   })
     .index("by_storageId", ["storageId"])
     .index("by_userId", ["userId"])
     .index("by_expiresAt", ["expiresAt"]),
+
+  /** Lease guarding the scheduled pending-upload cleanup chain. */
+  pendingUploadCleanupLocks: defineTable({
+    key: v.literal("pending-inline-uploads"),
+    lockedUntil: v.number(),
+  }).index("by_key", ["key"]),
 });

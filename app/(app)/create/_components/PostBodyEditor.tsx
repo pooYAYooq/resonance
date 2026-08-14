@@ -29,6 +29,11 @@ import type {
   PostInlineContent,
   PostTextStyle,
 } from "@/lib/post-content";
+import {
+  isAllowedInlineImageType,
+  MAX_INLINE_IMAGE_SIZE_BYTES,
+} from "@/lib/inline-image";
+import { useSelectedBlocks } from "@blocknote/react";
 
 const headingPropSchema = { ...defaultBlockSpecs.heading.config.propSchema };
 delete headingPropSchema.isToggleable;
@@ -53,7 +58,16 @@ export const editorSchema = BlockNoteSchema.create({
     bulletListItem: defaultBlockSpecs.bulletListItem,
     numberedListItem: defaultBlockSpecs.numberedListItem,
     codeBlock: defaultBlockSpecs.codeBlock,
-    image: defaultBlockSpecs.image,
+    image: {
+      ...defaultBlockSpecs.image,
+      config: {
+        ...defaultBlockSpecs.image.config,
+        propSchema: {
+          ...defaultBlockSpecs.image.config.propSchema,
+          altText: { default: "" },
+        },
+      },
+    },
   },
   styleSpecs: {
     bold: defaultStyleSpecs.bold,
@@ -245,14 +259,14 @@ export function normalizeBlock(block: EditorBlock): PostBlock {
   if (block.type === "image") {
     const props = block.props;
     const url = props.url;
-    const name = props.name;
+    const altText = props.altText;
     const caption = props.caption;
 
     return {
       type: "image",
       props: {
         storageId: typeof url === "string" ? url : "",
-        altText: typeof name === "string" ? name : "",
+        altText: typeof altText === "string" ? altText : "",
         ...(typeof caption === "string" && caption !== "" && { caption }),
       },
     };
@@ -281,7 +295,6 @@ export function normalizeBlock(block: EditorBlock): PostBlock {
 }
 
 export type PostBodyEditorProps = {
-  value: BlockNoteDocument;
   onChange: (value: BlockNoteDocument) => void;
   onBlur: () => void;
   invalid?: boolean;
@@ -307,6 +320,37 @@ async function retryFinalize(
   }
 }
 
+function InlineImageAltTextControl() {
+  const editor = useBlockNoteEditor(editorSchema);
+  const selectedBlocks = useSelectedBlocks(editor);
+  const image =
+    selectedBlocks.length === 1 && selectedBlocks[0].type === "image"
+      ? selectedBlocks[0]
+      : undefined;
+
+  if (!image) return null;
+
+  const altText =
+    typeof image.props.altText === "string" ? image.props.altText : "";
+
+  return (
+    <label className="mt-2 block text-sm" htmlFor={`alt-text-${image.id}`}>
+      <span className="mb-1 block font-medium">Alt text</span>
+      <input
+        id={`alt-text-${image.id}`}
+        className="w-full rounded-md border border-input bg-background px-3 py-2"
+        value={altText}
+        placeholder="Describe this image"
+        onChange={(event) =>
+          editor.updateBlock(image, {
+            props: { altText: event.currentTarget.value },
+          })
+        }
+      />
+    </label>
+  );
+}
+
 export default function PostBodyEditor({
   onChange,
   onBlur,
@@ -314,7 +358,10 @@ export default function PostBodyEditor({
   labelledBy,
   onUploadSessionCreated,
 }: PostBodyEditorProps) {
-  const createPendingUpload = useMutation(api.pendingUploads.createPendingUpload);
+  const createPendingUpload = useMutation(
+    api.pendingUploads.createPendingUpload,
+  );
+  const cleanupPending = useMutation(api.pendingUploads.cleanupPending);
   const finalizePendingUpload = useMutation(
     api.pendingUploads.finalizePendingUpload,
   );
@@ -338,28 +385,56 @@ export default function PostBodyEditor({
   const editor = useCreateBlockNote({
     schema: editorSchema,
     uploadFile: async (file) => {
-      const session = await createPendingUpload({});
-      const uploadResult = await fetch(session.uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!uploadResult.ok) {
-        throw new Error("Failed to upload inline image");
+      if (
+        !isAllowedInlineImageType(file.type) ||
+        file.size > MAX_INLINE_IMAGE_SIZE_BYTES
+      ) {
+        throw new Error("Invalid inline image file");
       }
 
-      const result = (await uploadResult.json()) as {
-        storageId: Id<"_storage">;
-      };
-      await retryFinalize(finalizePendingUpload, {
-        sessionId: session.sessionId,
-        storageId: result.storageId,
-      });
+      const session = await createPendingUpload({});
+      let uploadedStorageId: Id<"_storage"> | undefined;
+      try {
+        const uploadResult = await fetch(session.uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
 
-      onUploadSessionCreatedRef.current?.(session.sessionId, result.storageId);
-      objectUrls.current.set(result.storageId, URL.createObjectURL(file));
-      return result.storageId;
+        if (!uploadResult.ok) {
+          throw new Error("Failed to upload inline image");
+        }
+
+        const result = (await uploadResult.json()) as {
+          storageId: Id<"_storage">;
+        };
+        uploadedStorageId = result.storageId;
+        await retryFinalize(finalizePendingUpload, {
+          sessionId: session.sessionId,
+          storageId: result.storageId,
+        });
+
+        onUploadSessionCreatedRef.current?.(
+          session.sessionId,
+          result.storageId,
+        );
+        objectUrls.current.set(result.storageId, URL.createObjectURL(file));
+        return result.storageId;
+      } catch (error) {
+        try {
+          await cleanupPending({
+            uploads: [
+              {
+                sessionId: session.sessionId,
+                ...(uploadedStorageId && { storageId: uploadedStorageId }),
+              },
+            ],
+          });
+        } catch {
+          // Preserve the upload/finalization error if cleanup also fails.
+        }
+        throw error;
+      }
     },
     resolveFileUrl: async (storageId) =>
       objectUrls.current.get(storageId) ?? "",
@@ -403,6 +478,7 @@ export default function PostBodyEditor({
           }
         />
       </BlockNoteView>
+      <InlineImageAltTextControl />
     </div>
   );
 }

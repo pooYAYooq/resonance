@@ -41,11 +41,11 @@ describe("pending upload functions", () => {
     const t = convexTest(schema, modules);
 
     await expect(
-      t.mutation(api.pendingUploads.cleanupPending, { sessionIds: [] }),
+      t.mutation(api.pendingUploads.cleanupPending, { uploads: [] }),
     ).rejects.toThrow("Unauthorized");
   });
 
-  it("accepts an uploaded storage ID for cleanup tracking", async () => {
+  it("rejects unauthenticated cleanup with an uploaded storage ID fallback", async () => {
     const t = convexTest(schema, modules);
     const sessionId = await t.run(async (ctx) =>
       ctx.db.insert("pendingUploads", {
@@ -60,8 +60,7 @@ describe("pending upload functions", () => {
 
     await expect(
       t.mutation(api.pendingUploads.cleanupPending, {
-        sessionIds: [sessionId],
-        storageIds: [storageId],
+        uploads: [{ sessionId, storageId }],
       }),
     ).rejects.toThrow("Unauthorized");
   });

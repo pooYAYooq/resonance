@@ -98,9 +98,9 @@ export default function CreateRoute() {
       const referencedStorageIds = new Set(
         extractImageStorageIds(values.content.blocks),
       );
-      const submitSessionIds = [...submitSessions.entries()]
-        .filter(([, storageId]) => referencedStorageIds.has(storageId))
-        .map(([sessionId]) => sessionId);
+      const unconsumedUploads = [...submitSessions.entries()]
+        .filter(([, storageId]) => !referencedStorageIds.has(storageId))
+        .map(([sessionId, storageId]) => ({ sessionId, storageId }));
       try {
         // Track the uploaded image's storage ID. It stays undefined when no image is provided,
         // allowing posts to be created without an attached image.
@@ -136,26 +136,32 @@ export default function CreateRoute() {
           ...(storageId && { imageStorageId: storageId }),
         });
 
-        for (const sessionId of submitSessionIds) {
-          inlineSessions.current.delete(sessionId);
+        if (unconsumedUploads.length > 0) {
+          try {
+            await cleanupPendingUploads({ uploads: unconsumedUploads });
+          } catch (cleanupError) {
+            console.error("Failed to clean up inline uploads", cleanupError);
+          }
+        }
+        for (const [sessionId, storageId] of submitSessions) {
+          if (inlineSessions.current.get(sessionId) === storageId) {
+            inlineSessions.current.delete(sessionId);
+          }
         }
         toast.success("Post created successfully!");
         router.push("/blog");
       } catch (error) {
         console.error("Create post failed", error);
-        const cleanupSessionIds = [...submitSessions.entries()]
-          .filter(([, storageId]) => !referencedStorageIds.has(storageId))
-          .map(([sessionId]) => sessionId);
-        if (cleanupSessionIds.length > 0) {
+        if (unconsumedUploads.length > 0) {
           try {
-            await cleanupPendingUploads({
-              sessionIds: cleanupSessionIds,
-            });
+            await cleanupPendingUploads({ uploads: unconsumedUploads });
           } catch (cleanupError) {
             console.error("Failed to clean up inline uploads", cleanupError);
           }
-          for (const sessionId of cleanupSessionIds) {
-            inlineSessions.current.delete(sessionId);
+          for (const { sessionId, storageId } of unconsumedUploads) {
+            if (inlineSessions.current.get(sessionId) === storageId) {
+              inlineSessions.current.delete(sessionId);
+            }
           }
         }
 
@@ -222,16 +228,15 @@ export default function CreateRoute() {
                     <FieldLabel id="blog-content-label">
                       Blog Content
                     </FieldLabel>
-                      <PostBodyEditor
-                      value={field.value}
+                    <PostBodyEditor
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       invalid={fieldState.invalid}
-                        labelledBy="blog-content-label"
-                        onUploadSessionCreated={(sessionId, storageId) =>
-                          inlineSessions.current.set(sessionId, storageId)
-                        }
-                      />
+                      labelledBy="blog-content-label"
+                      onUploadSessionCreated={(sessionId, storageId) =>
+                        inlineSessions.current.set(sessionId, storageId)
+                      }
+                    />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}
