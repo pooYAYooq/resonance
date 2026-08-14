@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
@@ -41,11 +41,11 @@ describe("pending upload functions", () => {
     const t = convexTest(schema, modules);
 
     await expect(
-      t.mutation(api.pendingUploads.cleanupPending, { sessionIds: [] }),
+      t.mutation(api.pendingUploads.cleanupPending, { uploads: [] }),
     ).rejects.toThrow("Unauthorized");
   });
 
-  it("accepts an uploaded storage ID for cleanup tracking", async () => {
+  it("rejects unauthenticated cleanup with an uploaded storage ID fallback", async () => {
     const t = convexTest(schema, modules);
     const sessionId = await t.run(async (ctx) =>
       ctx.db.insert("pendingUploads", {
@@ -60,8 +60,7 @@ describe("pending upload functions", () => {
 
     await expect(
       t.mutation(api.pendingUploads.cleanupPending, {
-        sessionIds: [sessionId],
-        storageIds: [storageId],
+        uploads: [{ sessionId, storageId }],
       }),
     ).rejects.toThrow("Unauthorized");
   });
@@ -188,5 +187,57 @@ describe("pending upload functions", () => {
     expect(result.expired.every((session) => session === null)).toBe(true);
     expect(result.liveOtherOwner?._id).toBe(liveOtherOwnerId);
     expect(result.file).toBeNull();
+  });
+
+  it("isolates a new cleanup run from a stale continuation after lease expiry", async () => {
+    vi.useFakeTimers();
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      for (let index = 0; index <= 200; index += 1) {
+        await ctx.db.insert("pendingUploads", {
+          userId: "owner-1",
+          createdAt: now - 2,
+          expiresAt: now - 1,
+        });
+      }
+    });
+
+    await t.mutation(internal.pendingUploads.cleanupExpired, { cursor: null });
+    const oldLock = await t.run(async (ctx) =>
+      ctx.db
+        .query("pendingUploadCleanupLocks")
+        .withIndex("by_key", (q) => q.eq("key", "pending-inline-uploads"))
+        .unique(),
+    );
+    if (!oldLock) {
+      throw new Error("Expected the first cleanup run to acquire a lock");
+    }
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch(oldLock._id, { lockedUntil: 0 });
+    });
+    await t.mutation(internal.pendingUploads.cleanupExpired, { cursor: null });
+
+    const newLock = await t.run(async (ctx) =>
+      ctx.db
+        .query("pendingUploadCleanupLocks")
+        .withIndex("by_key", (q) => q.eq("key", "pending-inline-uploads"))
+        .unique(),
+    );
+    expect(newLock).not.toBeNull();
+    expect(newLock?._id).not.toBe(oldLock._id);
+
+    await t.mutation(internal.pendingUploads.cleanupExpired, {
+      cursor: null,
+      runId: oldLock._id,
+    });
+
+    const survivingLock = await t.run(async (ctx) =>
+      ctx.db.get(newLock?._id ?? oldLock._id),
+    );
+    expect(survivingLock?._id).toBe(newLock?._id);
+    vi.useRealTimers();
   });
 });

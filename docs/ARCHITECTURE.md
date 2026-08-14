@@ -442,7 +442,8 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
     directly to Convex Storage, finalizes the returned storage ID, and keeps a
     session-local object URL only for the current preview. Failed submissions
     clean up only their unconsumed sessions; a 15-minute cron removes expired
-    rows and finalized files.
+    rows and finalized files. Published claims are retained as consumed
+    markers so a storage ID cannot be finalized or published again.
 
 - **`posts.body` storage** — unchanged Convex schema. New bodies persist as
   `JSON.stringify({ format: "blocknote@1", blocks })` inside the existing

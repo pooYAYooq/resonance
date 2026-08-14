@@ -116,6 +116,34 @@ describe("PostBody", () => {
     expect(screen.getByText("Nested bullet")).toBeInTheDocument();
   });
 
+  it("does not nest block children inside paragraph elements", () => {
+    render(
+      <PostBody
+        body={JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Intro" }],
+              children: [
+                {
+                  type: "heading",
+                  props: { level: 3 },
+                  content: [{ type: "text", text: "Nested heading" }],
+                },
+              ],
+            },
+          ],
+        })}
+      />,
+    );
+
+    const nestedHeading = screen.getByRole("heading", {
+      name: "Nested heading",
+    });
+    expect(nestedHeading.closest("p")).toBeNull();
+  });
+
   it("renders quotes and code blocks safely", () => {
     const { container } = render(<PostBody body={structuredBody} />);
     const code = container.querySelector("pre > code");

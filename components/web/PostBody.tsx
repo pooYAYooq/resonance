@@ -4,7 +4,7 @@ import type {
   PostTextStyle,
 } from "@/lib/post-content";
 import { parsePostBody } from "@/lib/post-content";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 export type ResolvedInlineImage = {
   storageId: string;
@@ -156,19 +156,19 @@ function renderBlock(
   switch (block.type) {
     case "paragraph":
       return (
-        <p key={key} className="leading-relaxed text-foreground/90">
-          {content}
+        <Fragment key={key}>
+          <p className="leading-relaxed text-foreground/90">{content}</p>
           {nestedBlocks}
-        </p>
+        </Fragment>
       );
     case "heading": {
       const level = block.props?.level;
       const Heading = level === 1 ? "h2" : level === 2 ? "h3" : "h4";
       return (
-        <Heading key={key} className="font-semibold tracking-tight">
-          {content}
+        <Fragment key={key}>
+          <Heading className="font-semibold tracking-tight">{content}</Heading>
           {nestedBlocks}
-        </Heading>
+        </Fragment>
       );
     }
     case "quote":
@@ -218,9 +218,9 @@ function renderBlocks(
       }
 
       index -= 1;
-       nodes.push(
-         renderList(list, type, `${keyPrefix}-list-${index}`, inlineImages),
-       );
+      nodes.push(
+        renderList(list, type, `${keyPrefix}-list-${index}`, inlineImages),
+      );
       continue;
     }
 

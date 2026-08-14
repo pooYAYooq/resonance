@@ -46,6 +46,7 @@ describe("posts functions", () => {
       userId: string;
       storageId: Id<"_storage">;
       expiresAt: number;
+      consumedAt: number;
     }> = {},
   ) => ({
     _id: sessionId,
@@ -115,6 +116,17 @@ describe("posts functions", () => {
         50,
       ),
     ).toThrow("Inline image expired");
+  });
+
+  it("rejects a claim that was already consumed by a published post", () => {
+    expect(() =>
+      validateInlineUploadClaims(
+        [storageId],
+        [claim({ consumedAt: 75 })],
+        "author-1",
+        50,
+      ),
+    ).toThrow("Invalid inline upload claim");
   });
 
   it("accepts valid structured and legacy create-post bodies", () => {
@@ -441,35 +453,35 @@ describe("posts functions", () => {
 
       return {
         postId: await ctx.db.insert("posts", {
-        title: "Inline images",
-        body: JSON.stringify({
-          format: "blocknote@1",
-          blocks: [
-            {
-              type: "image",
-              props: { storageId: first, altText: "First" },
-            },
-            {
-              type: "bulletListItem",
-              content: [{ type: "text", text: "Nested image" }],
-              children: [
-                {
-                  type: "image",
-                  props: { storageId: second, altText: "Second" },
-                },
-              ],
-            },
-            {
-              type: "image",
-              props: { storageId: first, altText: "Repeated" },
-            },
-          ],
-        }),
-        authorId: "user-1",
-        commentCount: 0,
-        likeCount: 0,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+          title: "Inline images",
+          body: JSON.stringify({
+            format: "blocknote@1",
+            blocks: [
+              {
+                type: "image",
+                props: { storageId: first, altText: "First" },
+              },
+              {
+                type: "bulletListItem",
+                content: [{ type: "text", text: "Nested image" }],
+                children: [
+                  {
+                    type: "image",
+                    props: { storageId: second, altText: "Second" },
+                  },
+                ],
+              },
+              {
+                type: "image",
+                props: { storageId: first, altText: "Repeated" },
+              },
+            ],
+          }),
+          authorId: "user-1",
+          commentCount: 0,
+          likeCount: 0,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         }),
         first,
         second,
@@ -514,9 +526,7 @@ describe("posts functions", () => {
 
     const result = await t.query(api.posts.getPostById, { postId });
 
-    expect(result?.inlineImages).toEqual([
-      { storageId, url: null },
-    ]);
+    expect(result?.inlineImages).toEqual([{ storageId, url: null }]);
   });
 
   it("returns commentCount in getPosts", async () => {
