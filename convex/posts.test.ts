@@ -87,7 +87,12 @@ describe("posts functions", () => {
 
     expect(imageStorageIds).toEqual([storageId]);
     expect(
-      validateInlineUploadClaims(imageStorageIds, [claim()], "author-1", 50),
+      validateInlineUploadClaims(
+        imageStorageIds as Id<"_storage">[],
+        [claim()],
+        "author-1",
+        50,
+      ),
     ).toEqual([sessionId]);
   });
 
