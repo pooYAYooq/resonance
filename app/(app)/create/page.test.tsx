@@ -14,6 +14,28 @@ const validEnvelope: BlockNoteDocument = {
   ],
 };
 
+const inlineEnvelope: BlockNoteDocument = {
+  format: "blocknote@1",
+  blocks: [
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "text",
+          text: "This is enough content for the inline image post.",
+        },
+      ],
+    },
+    {
+      type: "image",
+      props: {
+        storageId: "storage-inline-1",
+        altText: "Inline image",
+      },
+    },
+  ],
+};
+
 const shortEnvelope: BlockNoteDocument = {
   format: "blocknote@1",
   blocks: [{ type: "paragraph", content: [{ type: "text", text: "short" }] }],
@@ -21,10 +43,11 @@ const shortEnvelope: BlockNoteDocument = {
 
 type MockPostBodyEditorProps = {
   onChange: (value: BlockNoteDocument) => void;
+  onUploadSessionCreated?: (sessionId: string, storageId: string) => void;
 };
 
 vi.mock("./_components/PostBodyEditor", () => ({
-  default: ({ onChange }: MockPostBodyEditorProps) => (
+  default: ({ onChange, onUploadSessionCreated }: MockPostBodyEditorProps) => (
     <>
       <button
         type="button"
@@ -32,6 +55,31 @@ vi.mock("./_components/PostBodyEditor", () => ({
         onClick={() => onChange(validEnvelope)}
       >
         Edit content
+      </button>
+      <button
+        type="button"
+        aria-label="Register inline upload"
+        onClick={() =>
+          onUploadSessionCreated?.("session-inline-1", "storage-inline-1")
+        }
+      >
+        Register inline upload
+      </button>
+      <button
+        type="button"
+        aria-label="Register later inline upload"
+        onClick={() =>
+          onUploadSessionCreated?.("session-inline-2", "storage-inline-2")
+        }
+      >
+        Register later inline upload
+      </button>
+      <button
+        type="button"
+        aria-label="Edit inline content"
+        onClick={() => onChange(inlineEnvelope)}
+      >
+        Edit inline content
       </button>
       <button
         type="button"
@@ -49,12 +97,14 @@ const {
   toastSuccessMock,
   toastErrorMock,
   generateImageUploadUrlMock,
+  cleanupPendingUploadsMock,
   createPostMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   toastErrorMock: vi.fn(),
   generateImageUploadUrlMock: vi.fn(),
+  cleanupPendingUploadsMock: vi.fn(),
   createPostMock: vi.fn(),
 }));
 
@@ -74,6 +124,7 @@ vi.mock("sonner", () => ({
 vi.mock("convex/react", () => ({
   useMutation: (apiRef: unknown) => {
     if (apiRef === "generateImageUploadUrl") return generateImageUploadUrlMock;
+    if (apiRef === "cleanupPending") return cleanupPendingUploadsMock;
     if (apiRef === "createPost") return createPostMock;
     return vi.fn();
   },
@@ -82,9 +133,13 @@ vi.mock("convex/react", () => ({
 
 vi.mock("@/convex/_generated/api", () => ({
   api: {
+    pendingUploads: {
+      cleanupPending: "cleanupPending",
+    },
     posts: {
       generateImageUploadUrl: "generateImageUploadUrl",
       createPost: "createPost",
+      cleanupPending: "cleanupPending",
     },
   },
 }));
@@ -95,6 +150,7 @@ describe("CreateRoute", () => {
     toastSuccessMock.mockClear();
     toastErrorMock.mockClear();
     generateImageUploadUrlMock.mockReset();
+    cleanupPendingUploadsMock.mockReset();
     createPostMock.mockReset();
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -276,6 +332,94 @@ describe("CreateRoute", () => {
     });
 
     expect(generateImageUploadUrlMock).not.toHaveBeenCalled();
+    expect(cleanupPendingUploadsMock).not.toHaveBeenCalled();
+  });
+
+  it("cleans up only the current submit's inline sessions after a failure", async () => {
+    const user = userEvent.setup();
+    createPostMock.mockRejectedValue(new Error("Invalid inline upload claim"));
+    cleanupPendingUploadsMock.mockResolvedValue(null);
+
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "My Post",
+    );
+    await user.click(await screen.findByRole("button", { name: "Edit blog content" }));
+    await user.click(screen.getByRole("button", { name: "Register inline upload" }));
+    await user.click(screen.getByRole("button", { name: /create post/i }));
+
+    await waitFor(() => {
+      expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
+        sessionIds: ["session-inline-1"],
+      });
+    });
+    expect(toastErrorMock).toHaveBeenCalledWith("Failed to create post");
+  });
+
+  it("shows the inline expiry recovery message and preserves it when cleanup fails", async () => {
+    const user = userEvent.setup();
+    createPostMock.mockRejectedValue(new Error("Inline image expired"));
+    cleanupPendingUploadsMock.mockRejectedValue(new Error("cleanup failed"));
+
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "My Post",
+    );
+    await user.click(await screen.findByRole("button", { name: "Edit blog content" }));
+    await user.click(screen.getByRole("button", { name: "Register inline upload" }));
+    await user.click(screen.getByRole("button", { name: /create post/i }));
+
+    await waitFor(() => {
+      expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
+        sessionIds: ["session-inline-1"],
+      });
+    });
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "An inline image expired. Re-upload it and try again.",
+      );
+    });
+  });
+
+  it("does not clean up an inline upload registered after submission starts", async () => {
+    // The first claim is consumed by createPost; the second is newer than the
+    // submission snapshot. Neither session belongs in failed-submit cleanup.
+    const user = userEvent.setup();
+    let rejectCreatePost: ((error: Error) => void) | undefined;
+    createPostMock.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectCreatePost = reject;
+        }),
+    );
+    cleanupPendingUploadsMock.mockResolvedValue(null);
+
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "My Post",
+    );
+    await user.click(screen.getByRole("button", { name: "Edit inline content" }));
+    await user.click(screen.getByRole("button", { name: "Register inline upload" }));
+    await user.click(screen.getByRole("button", { name: /create post/i }));
+
+    await waitFor(() => expect(createPostMock).toHaveBeenCalled());
+
+    await user.click(
+      screen.getByRole("button", { name: "Register later inline upload" }),
+    );
+    rejectCreatePost?.(new Error("Invalid inline upload claim"));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("Failed to create post");
+    });
+    expect(cleanupPendingUploadsMock).not.toHaveBeenCalled();
   });
 
   it("rejects an empty or short structured document before upload or mutation", async () => {

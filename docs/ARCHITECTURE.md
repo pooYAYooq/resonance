@@ -70,7 +70,8 @@ resonance/
 │   │   │       └── PostBodyEditor.tsx # Browser-only BlockNote editor adapter for
 │   │   │                              # React Hook Form. Curated schema (paragraph,
 │   │   │                              # section heading/subheading (H2/H3), quote,
-│   │   │                              # lists, code block). Never
+│   │   │                              # lists, code block, and block-level images).
+│   │   │                              # Never
 │   │   │                              # imported by server bundles; loads BlockNote CSS.
 │   │   ├── settings/
 │   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
@@ -119,9 +120,12 @@ resonance/
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
-│   ├── posts.ts                # createPost (including independent tag validation), generateImageUploadUrl mutations;
+│   ├── posts.ts                # createPost (tag validation and inline claim consumption),
+│   │                           # generateImageUploadUrl, and detail URL hydration;
 │   │                           # getPosts, getPostById, getPostsByAuthorId,
 │   │                           # countPosts queries (countPosts reads the stats table)
+│   ├── pendingUploads.ts       # Owner-bound inline upload sessions, finalization,
+│   │                           # failed-submit cleanup, and bounded expiry cleanup
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
 │   │                           # (paginated, enriches authorAvatarUrl, isLiked, likeCount)
 │   ├── likes.ts                # toggleLike + toggleCommentLike mutations (idempotent); keeps
@@ -147,7 +151,7 @@ resonance/
 │   ├── feed.ts                 # Private getFeed query plus 30-day materialized
 │   │                           # fan-out, follow backfill, unfollow deletion,
 │   │                           # and bounded expiration cleanup.
-│   ├── crons.ts                # Daily scheduled feed expiration cleanup.
+│   ├── crons.ts                # Daily feed expiration and 15-minute inline upload cleanup.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserById,
@@ -181,7 +185,8 @@ resonance/
 │       ├── PostCard.tsx         # Reusable post card with optional linked tags. Title is an <h2> so the
 │       │                        # page-level <h1> remains unique per page. Derives excerpts from
 │       │                        # stored bodies via lib/post-content so serialized JSON never leaks.
-│       ├── PostBody.tsx         # Pure Server Component renderer for structured and legacy post bodies.
+│       ├── PostBody.tsx         # Pure Server Component renderer for structured and legacy bodies,
+│       │                         # including hydrated inline images.
 │       │                        # No "use client", no dangerouslySetInnerHTML, no sanitizer dep.
 │       │                        # Maps supported BlockNote blocks to explicit elements; unsafe link
 │       │                        # protocols (non http/https/mailto) render as text. Used only on
@@ -432,12 +437,29 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   child text or render nothing without throwing. Legacy bodies render one
   paragraph with `whitespace-pre-wrap`.
 
+- **Inline image upload lifecycle** — each authenticated upload gets an
+    owner-bound `pendingUploads` row. The editor creates a session, uploads
+    directly to Convex Storage, finalizes the returned storage ID, and keeps a
+    session-local object URL only for the current preview. Failed submissions
+    clean up only their unconsumed sessions; a 15-minute cron removes expired
+    rows and finalized files.
+
 - **`posts.body` storage** — unchanged Convex schema. New bodies persist as
   `JSON.stringify({ format: "blocknote@1", blocks })` inside the existing
   `posts.body: string`. `createPost` validates the exact structured envelope
   and derived text (10–50,000 trimmed characters) before insertion; legacy
-  plain strings remain accepted for backward compatibility. No schema
-  migration, no draft/editing/publishing statuses, no inline media.
+  plain strings remain accepted for backward compatibility. Image blocks have
+  exact props (`storageId`, nonblank `altText`, optional `caption`) and no
+  children/content. `createPost` verifies owner-bound, unexpired claims and
+  consumes each unique claim in the same transaction before insertion.
+
+- **Detail hydration** — `getPostById` extracts unique image storage IDs in
+  document order, resolves their URLs in parallel, and returns one
+  `inlineImages` collection. The detail page passes that collection to
+  `PostBody`; unresolved URLs are omitted rather than rendered as storage IDs.
+
+  Drafts, editing, publishing statuses, paragraph-inline images, and general
+  storage garbage collection remain outside this phase.
 
 - **Card vs. detail boundary** — `PostCard` and Open Graph / Twitter
   metadata use `extractPlainText` for safe excerpts so serialized JSON never

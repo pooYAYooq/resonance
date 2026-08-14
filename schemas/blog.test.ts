@@ -162,4 +162,24 @@ describe("blog schema", () => {
       false,
     );
   });
+
+  it("counts image captions but not alt text as readable content", () => {
+    const content = {
+      format: BLOCKNOTE_FORMAT,
+      blocks: [
+        {
+          type: "image",
+          props: {
+            storageId: "storage-1",
+            altText: "This alt text must not count",
+            caption: "This caption counts as readable content.",
+          },
+        },
+      ],
+    };
+
+    expect(postSchema.safeParse({ title: "Hello", content }).success).toBe(
+      true,
+    );
+  });
 });

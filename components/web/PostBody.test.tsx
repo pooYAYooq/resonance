@@ -164,4 +164,69 @@ describe("PostBody", () => {
     expect(container).toBeEmptyDOMElement();
     expect(container).not.toHaveTextContent("format");
   });
+
+  it("renders hydrated inline images with captions", () => {
+    const storageId = "storage-image-1";
+    const { container } = render(
+      <PostBody
+        body={JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "image",
+              props: {
+                storageId,
+                altText: "A mountain lake",
+                caption: "Morning light over the lake",
+              },
+            },
+          ],
+        })}
+        inlineImages={[{ storageId, url: "https://cdn.example/image.png" }]}
+      />,
+    );
+
+    expect(container.querySelector("figure")).toBeInTheDocument();
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://cdn.example/image.png",
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "alt",
+      "A mountain lake",
+    );
+    expect(container.querySelector("figcaption")).toHaveTextContent(
+      "Morning light over the lake",
+    );
+    expect(container).not.toHaveTextContent(storageId);
+  });
+
+  it("omits unresolved inline images while preserving adjacent content", () => {
+    const { container } = render(
+      <PostBody
+        body={JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Before image" }],
+            },
+            {
+              type: "image",
+              props: { storageId: "missing-image", altText: "Missing" },
+            },
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "After image" }],
+            },
+          ],
+        })}
+        inlineImages={[{ storageId: "missing-image", url: null }]}
+      />,
+    );
+
+    expect(container.querySelector("figure")).not.toBeInTheDocument();
+    expect(screen.getByText("Before image")).toBeInTheDocument();
+    expect(screen.getByText("After image")).toBeInTheDocument();
+  });
 });

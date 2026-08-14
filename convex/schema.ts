@@ -260,4 +260,18 @@ export default defineSchema({
   stats: defineTable({
     totalPosts: v.number(),
   }),
+
+  /**
+   * Short-lived claims for files uploaded for an inline image. A claim is
+   * owned by the Better Auth user and is consumed when a post is published.
+   */
+  pendingUploads: defineTable({
+    userId: v.string(),
+    storageId: v.optional(v.id("_storage")),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_storageId", ["storageId"])
+    .index("by_userId", ["userId"])
+    .index("by_expiresAt", ["expiresAt"]),
 });

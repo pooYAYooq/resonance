@@ -10,7 +10,7 @@
 | Feature            | Description                                                                                       |
 | ------------------ | ------------------------------------------------------------------------------------------------- |
 | **Landing Page**   | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA         |
-| **Blog**           | Create posts with cover images, browse paginated listings, read individual posts                  |
+| **Blog**           | Create structured posts with cover images and block-level inline images, browse paginated listings, read individual posts |
 | **Likes**          | Like/unlike posts with live counts on cards and post pages                                        |
 | **Comments**       | Paginated comments with author avatars, real-time updates                                         |
 | **Follows**        | Follow/unfollow authors; live follower/following counts on profile headers                        |
@@ -140,9 +140,9 @@ app/
       [postId]/
         page.tsx              # Single post view with likes + comments
     create/
-      page.tsx                # Create post form with canonical tag checkboxes + BlockNote editor
+      page.tsx                # Create form with tags, cover image, inline cleanup, and BlockNote editor
       _components/
-        PostBodyEditor.tsx    # Browser-only BlockNote editor adapter (loaded via next/dynamic, ssr:false)
+        PostBodyEditor.tsx    # Browser-only BlockNote adapter with image upload/finalization (ssr:false)
     settings/
       page.tsx                # Edit display name + bio
     u/[userId]/
@@ -164,8 +164,9 @@ app/
   api/auth/[...all]/          # Better Auth route handler → Convex HTTP
 
 convex/
-  schema.ts                   # Database schema (posts, comments, likes, commentLikes, follows, bookmarks, notifications, feed, users, stats)
-  posts.ts                    # Post queries, mutations, image upload
+  schema.ts                   # Database schema, including owner-bound pendingUploads sessions
+  posts.ts                    # Post queries, mutations, cover upload, inline claim consumption, and URL hydration
+  pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations
   follows.ts                  # toggleFollow + isFollowing + getFollowCounts (1.4). by_followerId_and_followingId
@@ -213,7 +214,7 @@ lib/
   constants/                  # Site-wide constants (seo, footer, canonical post tags)
   avatar.ts                   # DiceBear fallback + initials helpers
   utils.ts                    # cn() and other helpers
-  post-content.ts             # Dependency-free structured body contract (parser + validator + extractPlainText)
+  post-content.ts             # Dependency-free body contract, image validation, captions, and storage-ID extraction
   auth-client.ts              # Better Auth client setup
   auth-server.ts              # Server-side auth helpers
 ```
@@ -246,7 +247,7 @@ User and session records live in the same Convex DB as application data.
 | Landing stats | `fetchQuery(api.posts.countPosts)`                 | Live total post count              |
 | Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`  | Paginated, wrapped in `<Suspense>` |
 | Blog listing  | `fetchQuery(api.posts.getPosts, { numItems: 50 })` | Full paginated grid                |
-| Post detail   | `fetchQuery(api.posts.getPostById)`                | Single post + image URL resolution |
+| Post detail   | `fetchQuery(api.posts.getPostById)`                | Single post + cover/inline image URL resolution |
 
 ---
 

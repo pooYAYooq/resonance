@@ -21,6 +21,12 @@ export type PostInlineContent = {
   content?: PostInlineContent[];
 };
 
+export type PostImageProps = {
+  storageId: string;
+  altText: string;
+  caption?: string;
+};
+
 export type PostBlock = {
   type?: string;
   props?: Record<string, unknown>;
@@ -45,6 +51,7 @@ const SUPPORTED_BLOCK_TYPES = new Set([
   "bulletListItem",
   "numberedListItem",
   "codeBlock",
+  "image",
 ]);
 
 const SUPPORTED_STYLES = new Set<PostTextStyle>([
@@ -112,7 +119,7 @@ function validateBlockProps(
   type: string,
   value: unknown,
 ): boolean {
-  if (value === undefined) return true;
+  if (value === undefined) return type !== "image";
   if (!isRecord(value)) return false;
 
   if (type === "heading") {
@@ -126,6 +133,17 @@ function validateBlockProps(
     return (
       hasOnlyKeys(value, ["language"]) &&
       (value.language === undefined || typeof value.language === "string")
+    );
+  }
+
+  if (type === "image") {
+    return (
+      hasOnlyKeys(value, ["storageId", "altText", "caption"]) &&
+      typeof value.storageId === "string" &&
+      value.storageId.trim().length > 0 &&
+      typeof value.altText === "string" &&
+      value.altText.trim().length > 0 &&
+      (value.caption === undefined || typeof value.caption === "string")
     );
   }
 
@@ -152,7 +170,14 @@ function validateBlocks(
     }
     if (!validateBlockProps(type, block.props)) return false;
 
-    if (type === "codeBlock") {
+    if (type === "image") {
+      if (Object.hasOwn(block, "content") || Object.hasOwn(block, "children")) {
+        return false;
+      }
+      if (isRecord(block.props) && typeof block.props.caption === "string") {
+        state.textLength += block.props.caption.length;
+      }
+    } else if (type === "codeBlock") {
       if (typeof block.content !== "string") return false;
       state.textLength += block.content.length;
     } else if (!validateInlineContent(block.content, state)) {
@@ -203,6 +228,12 @@ export function extractPlainText(blocks: PostBlock[]): string {
       if (!isRecord(block)) continue;
       if (typeof block.content === "string") {
         parts.push(block.content);
+      } else if (
+        block.type === "image" &&
+        isRecord(block.props) &&
+        typeof block.props.caption === "string"
+      ) {
+        parts.push(block.props.caption);
       } else {
         visitInline(block.content);
       }
@@ -227,6 +258,45 @@ export function extractPlainText(blocks: PostBlock[]): string {
 export function isValidBlockNoteDoc(blocks: unknown): blocks is PostBlock[] {
   const state = { blocks: 0, inlineNodes: 0, textLength: 0 };
   return validateBlocks(blocks, 0, state);
+}
+
+export function extractImageStorageIds(blocks: PostBlock[]): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  let blockCount = 0;
+
+  const visitBlocks = (value: unknown, depth: number): void => {
+    if (!Array.isArray(value) || depth > MAX_RECURSION_DEPTH) return;
+
+    for (const block of value) {
+      blockCount += 1;
+      if (blockCount > MAX_BLOCKS) return;
+      if (!isRecord(block)) continue;
+
+      if (
+        block.type === "image" &&
+        !Object.hasOwn(block, "content") &&
+        !Object.hasOwn(block, "children") &&
+        validateBlockProps("image", block.props) &&
+        isRecord(block.props) &&
+        typeof block.props.storageId === "string" &&
+        !seen.has(block.props.storageId)
+      ) {
+        seen.add(block.props.storageId);
+        ids.push(block.props.storageId);
+      }
+
+      if (
+        Array.isArray(block.children) &&
+        block.children.length <= MAX_CHILDREN_PER_BLOCK
+      ) {
+        visitBlocks(block.children, depth + 1);
+      }
+    }
+  };
+
+  visitBlocks(blocks, 0);
+  return ids;
 }
 
 export function parsePostBody(body: string): ParsedPostBody {

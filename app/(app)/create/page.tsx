@@ -21,12 +21,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument } from "@/lib/post-content";
+import { extractImageStorageIds } from "@/lib/post-content";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useTransition, useEffect } from "react";
+import { useTransition, useEffect, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
@@ -61,7 +62,11 @@ export default function CreateRoute() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const generateImageUploadUrl = useMutation(api.posts.generateImageUploadUrl);
+  const cleanupPendingUploads = useMutation(api.pendingUploads.cleanupPending);
   const createPost = useMutation(api.posts.createPost);
+  const inlineSessions = useRef(
+    new Map<Id<"pendingUploads">, Id<"_storage">>(),
+  );
 
   const form = useForm<PostFormInput, undefined, PostFormOutput>({
     resolver: zodResolver(postSchema),
@@ -89,6 +94,13 @@ export default function CreateRoute() {
 
   function onSubmit(values: PostFormOutput) {
     startTransition(async () => {
+      const submitSessions = new Map(inlineSessions.current);
+      const referencedStorageIds = new Set(
+        extractImageStorageIds(values.content.blocks),
+      );
+      const submitSessionIds = [...submitSessions.entries()]
+        .filter(([, storageId]) => referencedStorageIds.has(storageId))
+        .map(([sessionId]) => sessionId);
       try {
         // Track the uploaded image's storage ID. It stays undefined when no image is provided,
         // allowing posts to be created without an attached image.
@@ -124,11 +136,35 @@ export default function CreateRoute() {
           ...(storageId && { imageStorageId: storageId }),
         });
 
+        for (const sessionId of submitSessionIds) {
+          inlineSessions.current.delete(sessionId);
+        }
         toast.success("Post created successfully!");
         router.push("/blog");
       } catch (error) {
         console.error("Create post failed", error);
-        toast.error("Failed to create post");
+        const cleanupSessionIds = [...submitSessions.entries()]
+          .filter(([, storageId]) => !referencedStorageIds.has(storageId))
+          .map(([sessionId]) => sessionId);
+        if (cleanupSessionIds.length > 0) {
+          try {
+            await cleanupPendingUploads({
+              sessionIds: cleanupSessionIds,
+            });
+          } catch (cleanupError) {
+            console.error("Failed to clean up inline uploads", cleanupError);
+          }
+          for (const sessionId of cleanupSessionIds) {
+            inlineSessions.current.delete(sessionId);
+          }
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        toast.error(
+          message.includes("Inline image expired")
+            ? "An inline image expired. Re-upload it and try again."
+            : "Failed to create post",
+        );
       }
     });
   }
@@ -151,7 +187,12 @@ export default function CreateRoute() {
           <CardDescription>Create a new blog article</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void form.handleSubmit(onSubmit)(event);
+            }}
+          >
             <FieldGroup className="gap-y-4">
               <Controller
                 name="title"
@@ -181,13 +222,16 @@ export default function CreateRoute() {
                     <FieldLabel id="blog-content-label">
                       Blog Content
                     </FieldLabel>
-                    <PostBodyEditor
+                      <PostBodyEditor
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       invalid={fieldState.invalid}
-                      labelledBy="blog-content-label"
-                    />
+                        labelledBy="blog-content-label"
+                        onUploadSessionCreated={(sessionId, storageId) =>
+                          inlineSessions.current.set(sessionId, storageId)
+                        }
+                      />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}

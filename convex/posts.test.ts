@@ -12,9 +12,11 @@ import schema from "./schema";
 import { isValidPostTags } from "../lib/constants/post-tags";
 import {
   BLOCKNOTE_FORMAT,
+  extractImageStorageIds,
   MAX_POST_TEXT_LENGTH,
 } from "../lib/post-content";
-import { isValidCreatePostBody } from "./posts";
+import { isValidCreatePostBody, validateInlineUploadClaims } from "./posts";
+import type { Id } from "./_generated/dataModel";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -34,6 +36,87 @@ const createStorageId = async (t: ReturnType<typeof convexTest>) =>
   });
 
 describe("posts functions", () => {
+  const storageId = "storage-image-1" as Id<"_storage">;
+  const secondStorageId = "storage-image-2" as Id<"_storage">;
+  const sessionId = "session-1" as Id<"pendingUploads">;
+
+  const claim = (
+    overrides: Partial<{
+      _id: Id<"pendingUploads">;
+      userId: string;
+      storageId: Id<"_storage">;
+      expiresAt: number;
+    }> = {},
+  ) => ({
+    _id: sessionId,
+    userId: "author-1",
+    storageId,
+    createdAt: 1,
+    expiresAt: 100,
+    ...overrides,
+  });
+
+  it("accepts unique owned unexpired inline upload claims", () => {
+    expect(
+      validateInlineUploadClaims(
+        [storageId, secondStorageId],
+        [
+          claim(),
+          claim({
+            _id: "session-2" as Id<"pendingUploads">,
+            storageId: secondStorageId,
+          }),
+        ],
+        "author-1",
+        50,
+      ),
+    ).toEqual([sessionId, "session-2"]);
+  });
+
+  it("allows duplicate image references to use one claim", () => {
+    const imageStorageIds = extractImageStorageIds([
+      {
+        type: "image",
+        props: { storageId, altText: "First image" },
+      },
+      {
+        type: "image",
+        props: { storageId, altText: "Repeated image" },
+      },
+    ]);
+
+    expect(imageStorageIds).toEqual([storageId]);
+    expect(
+      validateInlineUploadClaims(
+        imageStorageIds as Id<"_storage">[],
+        [claim()],
+        "author-1",
+        50,
+      ),
+    ).toEqual([sessionId]);
+  });
+
+  it.each([
+    ["missing", null],
+    ["foreign", claim({ userId: "author-2" })],
+    ["malformed", claim({ storageId: secondStorageId })],
+  ])("rejects %s inline upload claims before insertion", (_reason, value) => {
+    expect(() =>
+      validateInlineUploadClaims([storageId], [value], "author-1", 50),
+    ).toThrow("Invalid inline upload claim");
+  });
+
+  it("reports an expired matching claim distinctly", () => {
+    expect(() =>
+      validateInlineUploadClaims(
+        [storageId],
+        [claim({ expiresAt: 50 })],
+        "author-1",
+        50,
+      ),
+    ).toThrow("Inline image expired");
+  });
+
   it("accepts valid structured and legacy create-post bodies", () => {
     const structuredBody = JSON.stringify({
       format: BLOCKNOTE_FORMAT,
@@ -251,8 +334,8 @@ describe("posts functions", () => {
 
   it("normalizes missing post tags on detail reads", async () => {
     const t = convexTest(schema, modules);
-    const postId = await t.run(async (ctx) => {
-      return await ctx.db.insert("posts", {
+    const postId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
         title: "Legacy post",
         body: "Body.",
         authorId: "user-1",
@@ -260,8 +343,8 @@ describe("posts functions", () => {
         likeCount: 0,
         createdAt: 100,
         updatedAt: 100,
-      });
-    });
+      }),
+    );
 
     const result = await t.query(api.posts.getPostById, { postId });
     expect(result?.tags).toEqual([]);
@@ -343,6 +426,97 @@ describe("posts functions", () => {
     expect(result).not.toBeNull();
     expect(result?.title).toBe("Post without image");
     expect(result?.imageUrl).toBeNull();
+    expect(result?.inlineImages).toEqual([]);
+  });
+
+  it("hydrates unique inline image URLs in document order", async () => {
+    const t = convexTest(schema, modules);
+    const { postId, first, second } = await t.run(async (ctx) => {
+      const first = await ctx.storage.store(
+        new Blob([new Uint8Array([1])], { type: "image/png" }),
+      );
+      const second = await ctx.storage.store(
+        new Blob([new Uint8Array([2])], { type: "image/png" }),
+      );
+
+      return {
+        postId: await ctx.db.insert("posts", {
+        title: "Inline images",
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "image",
+              props: { storageId: first, altText: "First" },
+            },
+            {
+              type: "bulletListItem",
+              content: [{ type: "text", text: "Nested image" }],
+              children: [
+                {
+                  type: "image",
+                  props: { storageId: second, altText: "Second" },
+                },
+              ],
+            },
+            {
+              type: "image",
+              props: { storageId: first, altText: "Repeated" },
+            },
+          ],
+        }),
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        }),
+        first,
+        second,
+      };
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result?.inlineImages).toHaveLength(2);
+    expect(result?.inlineImages[0].storageId).toBe(first);
+    expect(result?.inlineImages[0].url).toBeTruthy();
+    expect(result?.inlineImages[1].storageId).toBe(second);
+    expect(result?.inlineImages[1].url).toBeTruthy();
+  });
+
+  it("retains unresolved inline image entries as null URLs", async () => {
+    const t = convexTest(schema, modules);
+    const { postId, storageId } = await t.run(async (ctx) => {
+      const storageId = await ctx.storage.store(
+        new Blob([new Uint8Array([1])], { type: "image/png" }),
+      );
+      const postId = await ctx.db.insert("posts", {
+        title: "Missing inline image",
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "image",
+              props: { storageId, altText: "Missing" },
+            },
+          ],
+        }),
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.storage.delete(storageId);
+      return { postId, storageId };
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result?.inlineImages).toEqual([
+      { storageId, url: null },
+    ]);
   });
 
   it("returns commentCount in getPosts", async () => {
