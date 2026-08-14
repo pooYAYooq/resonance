@@ -117,7 +117,7 @@ describe("PostBody", () => {
   });
 
   it("does not nest block children inside paragraph elements", () => {
-    const { container } = render(
+    render(
       <PostBody
         body={JSON.stringify({
           format: "blocknote@1",
@@ -138,10 +138,10 @@ describe("PostBody", () => {
       />,
     );
 
-    expect(container.querySelector("p > h4")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Nested heading" }),
-    ).toBeInTheDocument();
+    const nestedHeading = screen.getByRole("heading", {
+      name: "Nested heading",
+    });
+    expect(nestedHeading.closest("p")).toBeNull();
   });
 
   it("renders quotes and code blocks safely", () => {

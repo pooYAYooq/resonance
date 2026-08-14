@@ -175,14 +175,12 @@ export const cleanupExpired = internalMutation({
         return null;
       }
       if (existingLock) {
-        runId = existingLock._id;
-        await ctx.db.patch(runId, { lockedUntil: now + CLEANUP_LEASE_MS });
-      } else {
-        runId = await ctx.db.insert("pendingUploadCleanupLocks", {
-          key: "pending-inline-uploads",
-          lockedUntil: now + CLEANUP_LEASE_MS,
-        });
+        await ctx.db.delete(existingLock._id);
       }
+      runId = await ctx.db.insert("pendingUploadCleanupLocks", {
+        key: "pending-inline-uploads",
+        lockedUntil: now + CLEANUP_LEASE_MS,
+      });
     } else {
       const lock = await ctx.db.get(runId);
       if (!lock || lock.lockedUntil <= now) {
