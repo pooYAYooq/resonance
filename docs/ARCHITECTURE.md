@@ -412,9 +412,10 @@ cards, metadata, and the Server Component renderer all share one contract.
   Bounds total blocks,
   recursive depth, children per block, inline nodes, and derived text (capped
   at 50,000 readable characters). Imports no packages. `parsePostBody` is
-  read-safe (never throws on malformed stored data) and the write path uses
-  the exact `format: "blocknote@1"` discriminator to reject invalid
-  structured content instead of silently treating it as legacy.
+  read-safe (never throws on malformed stored data) and the
+  write path uses the exact `format: "blocknote@1"` discriminator to reject
+  both legacy bodies and invalid structured content for new posts instead of
+  silently accepting them.
 
 - **`app/(app)/create/_components/PostBodyEditor.tsx`** — the browser-only
   BlockNote editor adapter, a `"use client"` component loaded through
@@ -438,21 +439,23 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   paragraph with `whitespace-pre-wrap`.
 
 - **Inline image upload lifecycle** — each authenticated upload gets an
-    owner-bound `pendingUploads` row. The editor creates a session, uploads
-    directly to Convex Storage, finalizes the returned storage ID, and keeps a
-    session-local object URL only for the current preview. Failed submissions
-    clean up only their unconsumed sessions; a 15-minute cron removes expired
-    rows and finalized files. Published claims are retained as consumed
-    markers so a storage ID cannot be finalized or published again.
+  owner-bound `pendingUploads` row. The editor creates a session, uploads
+  directly to Convex Storage, finalizes the returned storage ID, and keeps a
+  session-local object URL only for the current preview. Failed submissions
+  clean up only their unconsumed sessions; a 15-minute cron removes expired
+  rows and finalized files. Published claims are retained as consumed
+  markers so a storage ID cannot be finalized or published again.
 
 - **`posts.body` storage** — unchanged Convex schema. New bodies persist as
   `JSON.stringify({ format: "blocknote@1", blocks })` inside the existing
   `posts.body: string`. `createPost` validates the exact structured envelope
-  and derived text (10–50,000 trimmed characters) before insertion; legacy
-  plain strings remain accepted for backward compatibility. Image blocks have
-  exact props (`storageId`, nonblank `altText`, optional `caption`) and no
-  children/content. `createPost` verifies owner-bound, unexpired claims and
-  consumes each unique claim in the same transaction before insertion.
+  and derived text (10–50,000 trimmed characters) before insertion and rejects
+  both legacy plain-text bodies and malformed structured envelopes for new
+  posts; legacy bodies stored by earlier phases remain readable as read-only
+  compatibility data and are never reserialized. Image blocks have exact props
+  (`storageId`, nonblank `altText`, optional `caption`) and no children/content.
+  `createPost` verifies owner-bound, unexpired claims and consumes each unique
+  claim in the same transaction before insertion.
 
 - **Detail hydration** — `getPostById` extracts unique image storage IDs in
   document order, resolves their URLs in parallel, and returns one

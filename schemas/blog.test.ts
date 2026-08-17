@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { postSchema } from "@/schemas/blog";
 import {
   BLOCKNOTE_FORMAT,
+  MIN_POST_TEXT_LENGTH,
   MAX_POST_TEXT_LENGTH,
 } from "@/lib/post-content";
 
@@ -136,9 +137,9 @@ describe("blog schema", () => {
         ],
       },
     ]) {
-      expect(
-        postSchema.safeParse({ title: "Hello", content }).success,
-      ).toBe(false);
+      expect(postSchema.safeParse({ title: "Hello", content }).success).toBe(
+        false,
+      );
     }
   });
 
@@ -174,6 +175,42 @@ describe("blog schema", () => {
             altText: "This alt text must not count",
             caption: "This caption counts as readable content.",
           },
+        },
+      ],
+    };
+
+    expect(postSchema.safeParse({ title: "Hello", content }).success).toBe(
+      true,
+    );
+  });
+
+  it("rejects legacy plain-text content for new posts", () => {
+    const content = "This is a legacy plain-text body that is long enough.";
+
+    expect(postSchema.safeParse({ title: "Hello", content }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects envelopes without the blocknote discriminator or blocks", () => {
+    for (const content of [
+      { blocks: [] },
+      { format: "other@1", blocks: [] },
+      { format: BLOCKNOTE_FORMAT },
+    ]) {
+      expect(postSchema.safeParse({ title: "Hello", content }).success).toBe(
+        false,
+      );
+    }
+  });
+
+  it("accepts content at the exact minimum readable length", () => {
+    const content = {
+      format: BLOCKNOTE_FORMAT,
+      blocks: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "x".repeat(MIN_POST_TEXT_LENGTH) }],
         },
       ],
     };

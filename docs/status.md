@@ -4,28 +4,30 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 2.2 — Inline Image Support (complete)
+Phase 2.3 — Structured Content Publishing (complete)
 
 ## Next focus
 
-Phase 2.3 — Structured Content Publishing. Phase 2.2 supports published,
-block-level images with required alt text and optional captions. Drafts, editing,
-paragraph-inline images, and general storage garbage collection remain out of
-scope. Convex owner-scoped mutation tests remain limited by the Better Auth
-component fixture in `convex-test`.
+Phase 2.4 — Drafts & Publishing Workflow. Phase 2.3 hardened the
+structured-content contract: new posts must be valid `blocknote@1` documents,
+legacy plain-text posts remain readable as read-only compatibility data, and
+excerpts never expose serialized JSON. Drafts, editing, publishing workflow,
+new block or inline types, paragraph-inline images, content migration, and
+general storage garbage collection remain out of scope.
 
-## Phase 2.2 verification
+## Phase 2.3 verification
 
 - `pnpm lint` — passed.
-- `pnpm test:ci` — passed: 14 files, 125 tests.
-- `pnpm test:component` — passed: 29 files, 178 tests.
+- `pnpm test:ci` — passed: 14 files, 144 tests.
+- `pnpm test:component` — passed: 30 files, 190 tests.
 - `pnpm build` — passed, including TypeScript validation.
-- Security review confirmed owner-bound claims, canonical storage IDs, exact
-  image props, atomic claim consumption, bounded cleanup, and omission of
-  unresolved URLs.
-- Scope review confirmed cover images, legacy bodies, listing/excerpt paths,
-  and existing safety bounds remain compatible. No drafts, editing,
-  paragraph-inline images, or general storage garbage collection were added.
+- Contract audit confirmed `lib/post-content.ts` as the single canonical
+  contract; targeted fixes: `createPost` now rejects legacy bodies for new
+  posts, and link nodes carrying a stray `text` key are rejected.
+- Known limitation: authenticated owner-scoped `createPost` mutation tests
+  remain limited by the Better Auth component fixture in `convex-test`.
+  Verbatim body persistence is pinned by a `getPostById` round-trip test plus
+  code inspection of the untransformed `ctx.db.insert("posts", ...)` call.
 - The Convex test harness prints a scheduled-cleanup transaction warning in one
   passing test; it is a fixture limitation, not a failing assertion.
 
@@ -38,6 +40,7 @@ component fixture in `convex-test`.
 - Phase 1C — Discovery & Polish, including 1.8 Post Tags
 - Phase 2.1 — Rich Text Editor Foundation
 - Phase 2.2 — Inline Image Support
+- Phase 2.3 — Structured Content Publishing
 
 ## Where to continue
 

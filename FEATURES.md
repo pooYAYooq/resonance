@@ -23,15 +23,15 @@ Feature status is managed with five labels:
 - **Deferred** — intentionally postponed; revisit when its trigger is met.
 - **Shipped** — available in the product.
 
-| Phase                               | Goal                                                                   | Status        |
-| ----------------------------------- | ---------------------------------------------------------------------- | ------------- |
-| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                    | ✅ Complete   |
-| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete   |
-| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete   |
-| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete   |
-| Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                       | ✅ Complete   |
+| Phase                               | Goal                                                                   | Status         |
+| ----------------------------------- | ---------------------------------------------------------------------- | -------------- |
+| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                    | ✅ Complete    |
+| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete    |
+| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete    |
+| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete    |
+| Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                       | ✅ Complete    |
 | Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics                          | 🔵 In progress |
-| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | 🟡 Later      |
+| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | 🟡 Later       |
 
 **Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
 documented as optional features and are not current delivery commitments.
@@ -66,6 +66,9 @@ prioritized.
 - Create posts with block-level inline images through the BlockNote editor;
   uploads require nonblank alt text, support optional captions, and store
   canonical Convex Storage IDs separately from the cover-image flow
+- New post bodies are validated as `blocknote@1` structured documents at both
+  the browser form and the Convex write boundary; legacy plain-text posts
+  remain readable but can no longer be created
 - Paginated listing at `/blog` (server-rendered); post detail at `/blog/[postId]` with dynamic OG metadata
 - Denormalized `commentCount` and `likeCount` on posts; O(1) total via `stats` table
 - Curated tags on posts (up to five from a shared fifteen-value list), clickable
@@ -152,8 +155,8 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 
 1. **2.1 Rich Text Editor Foundation** — replace the plain-text body with a structured editor and define the canonical content format. ✅ Shipped
 2. **2.2 Inline Image Support** — upload block-level images to Convex Storage, publish canonical storage IDs, and support required alt text plus optional captions. ✅ Shipped
-3. **2.3 Structured Content Publishing** — update post creation, rendering, validation, and legacy plain-text compatibility.
-4. **2.4 Drafts & Publishing Workflow** — add `draft`/`published` status, save drafts, resume editing, and publish intentionally.
+3. **2.3 Structured Content Publishing** — harden the structured-content contract end to end: new posts must be validated `blocknote@1` documents at both the form and the Convex write boundary, legacy plain-text posts remain readable as read-only compatibility data, and card/metadata excerpts never expose serialized JSON. ✅ Shipped
+4. **2.4 Drafts & Publishing Workflow** — add `draft`/`published` status, save drafts, resume editing, and publish intentionally. 🔵 Up next
 5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, and author actions.
 6. **2.6 Post Editing** — allow authors to edit drafts and published posts with ownership checks.
 7. **2.7 Analytics Foundation** — track views and expose likes, views, and follower-growth summaries.
@@ -165,9 +168,10 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 - **Editor Keyboard Navigation** — improve focus management and keyboard navigation for slash menus and floating formatting menus. _Medium._
 - **Editor Interaction Polish** — improve menu focus, shortcut discoverability, accessible labels, and mobile behavior. _Medium._
 
-Phase 2.2 does not include drafts, post editing, paragraph-inline images, or
-general storage garbage collection. Those remain separate author-workflow
-scope items or operational follow-ups.
+Phases 2.2 and 2.3 do not include drafts, post editing, paragraph-inline
+images, content migration or legacy-body reserialization, or general storage
+garbage collection. Those remain separate author-workflow scope items or
+operational follow-ups.
 
 ### Phase 3 — The Platform
 
