@@ -1,6 +1,9 @@
 /**
  * Unit tests for Convex post queries and mutations.
- * Covers auth rejection, pagination, image URL resolution, and comment counting.
+ * Covers the structured-only createPost body contract, inline upload claims,
+ * auth rejection, pagination, image URL resolution, comment counting, and the
+ * authenticated-owner test harness limitation because `safeGetAuthUser` uses
+ * the Better Auth component (see convex/bookmarks.test.ts:1-12).
  */
 
 /// <reference types="vite/client" />
@@ -13,6 +16,7 @@ import { isValidPostTags } from "../lib/constants/post-tags";
 import {
   BLOCKNOTE_FORMAT,
   extractImageStorageIds,
+  MIN_POST_TEXT_LENGTH,
   MAX_POST_TEXT_LENGTH,
 } from "../lib/post-content";
 import { isValidCreatePostBody, validateInlineUploadClaims } from "./posts";
@@ -129,7 +133,7 @@ describe("posts functions", () => {
     ).toThrow("Invalid inline upload claim");
   });
 
-  it("accepts valid structured and legacy create-post bodies", () => {
+  it("accepts valid structured create-post bodies", () => {
     const structuredBody = JSON.stringify({
       format: BLOCKNOTE_FORMAT,
       blocks: [
@@ -141,7 +145,38 @@ describe("posts functions", () => {
     });
 
     expect(isValidCreatePostBody(structuredBody)).toBe(true);
-    expect(isValidCreatePostBody("Legacy post content.")).toBe(true);
+  });
+
+  it("rejects legacy and non-blocknote bodies for new posts", () => {
+    expect(isValidCreatePostBody("Legacy post content.")).toBe(false);
+    expect(isValidCreatePostBody("")).toBe(false);
+    expect(isValidCreatePostBody("null")).toBe(false);
+    expect(
+      isValidCreatePostBody(JSON.stringify({ format: "other@1", blocks: [] })),
+    ).toBe(false);
+  });
+
+  it("accepts structured bodies at the exact readable-text boundaries", () => {
+    const bodyWithText = (text: string) =>
+      JSON.stringify({
+        format: BLOCKNOTE_FORMAT,
+        blocks: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text }],
+          },
+        ],
+      });
+
+    expect(
+      isValidCreatePostBody(bodyWithText("x".repeat(MIN_POST_TEXT_LENGTH))),
+    ).toBe(true);
+    expect(
+      isValidCreatePostBody(bodyWithText("x".repeat(MIN_POST_TEXT_LENGTH - 1))),
+    ).toBe(false);
+    expect(
+      isValidCreatePostBody(bodyWithText("x".repeat(MAX_POST_TEXT_LENGTH))),
+    ).toBe(true);
   });
 
   it("rejects malformed structured create-post bodies", () => {
@@ -527,6 +562,78 @@ describe("posts functions", () => {
     const result = await t.query(api.posts.getPostById, { postId });
 
     expect(result?.inlineImages).toEqual([{ storageId, url: null }]);
+  });
+
+  it("returns the stored structured body verbatim from getPostById", async () => {
+    const t = convexTest(schema, modules);
+    const body = JSON.stringify({
+      format: BLOCKNOTE_FORMAT,
+      blocks: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Stored structured body" }],
+        },
+      ],
+    });
+    const postId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Structured post",
+        body,
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 100,
+        updatedAt: 100,
+      }),
+    );
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result?.body).toBe(body);
+  });
+
+  it("keeps stored legacy bodies readable with no inline images", async () => {
+    const t = convexTest(schema, modules);
+    const body = "Legacy stored body";
+    const postId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Legacy post",
+        body,
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 100,
+        updatedAt: 100,
+      }),
+    );
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result?.body).toBe(body);
+    expect(result?.inlineImages).toEqual([]);
+  });
+
+  it("serves malformed stored structured bodies without inline images", async () => {
+    const t = convexTest(schema, modules);
+    const body = JSON.stringify({
+      format: BLOCKNOTE_FORMAT,
+      blocks: [{ type: "image", props: {} }],
+    });
+    const postId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Malformed structured post",
+        body,
+        authorId: "user-1",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 100,
+        updatedAt: 100,
+      }),
+    );
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result?.inlineImages).toEqual([]);
   });
 
   it("returns commentCount in getPosts", async () => {

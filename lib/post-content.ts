@@ -6,12 +6,7 @@ export const MAX_RECURSION_DEPTH = 8;
 export const MAX_CHILDREN_PER_BLOCK = 20;
 export const MAX_INLINE_NODES = 500;
 
-export type PostTextStyle =
-  | "bold"
-  | "italic"
-  | "underline"
-  | "strike"
-  | "code";
+export type PostTextStyle = "bold" | "italic" | "underline" | "strike" | "code";
 
 export type PostInlineContent = {
   type?: "text" | "link";
@@ -109,16 +104,14 @@ function validateInlineContent(
     }
 
     if (typeof inline.href !== "string") return false;
+    if (inline.text !== undefined) return false;
     if (!validateInlineContent(inline.content, state)) return false;
   }
 
   return true;
 }
 
-function validateBlockProps(
-  type: string,
-  value: unknown,
-): boolean {
+function validateBlockProps(type: string, value: unknown): boolean {
   if (value === undefined) return type !== "image";
   if (!isRecord(value)) return false;
 

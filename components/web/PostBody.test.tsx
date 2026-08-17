@@ -174,6 +174,51 @@ describe("PostBody", () => {
     expect(screen.getByText("unsafe link")).toBeInTheDocument();
   });
 
+  it("renders mailto links as anchors and other unsafe protocols as text", () => {
+    render(
+      <PostBody
+        body={JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "link",
+                  href: "mailto:hello@example.com",
+                  content: [{ type: "text", text: "email link" }],
+                },
+                {
+                  type: "link",
+                  href: "data:text/html;base64,PHNjcmlwdD4=",
+                  content: [{ type: "text", text: "data link" }],
+                },
+                {
+                  type: "link",
+                  href: "//protocol-relative.example/path",
+                  content: [{ type: "text", text: "relative link" }],
+                },
+              ],
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "email link" })).toHaveAttribute(
+      "href",
+      "mailto:hello@example.com",
+    );
+    expect(
+      screen.queryByRole("link", { name: "data link" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "relative link" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("data link")).toBeInTheDocument();
+    expect(screen.getByText("relative link")).toBeInTheDocument();
+  });
+
   it("does not throw or render serialized content for unknown blocks", () => {
     const { container } = render(
       <PostBody
@@ -191,6 +236,30 @@ describe("PostBody", () => {
 
     expect(container).toBeEmptyDOMElement();
     expect(container).not.toHaveTextContent("format");
+  });
+
+  it("renders nothing for malformed blocknote envelopes without leaking storage IDs", () => {
+    const { container } = render(
+      <PostBody
+        body={JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Before" }],
+            },
+            {
+              type: "image",
+              props: { storageId: "secret-storage-id" },
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    expect(container).not.toHaveTextContent("secret-storage-id");
+    expect(container).not.toHaveTextContent("Before");
   });
 
   it("renders hydrated inline images with captions", () => {
@@ -256,5 +325,43 @@ describe("PostBody", () => {
     expect(container.querySelector("figure")).not.toBeInTheDocument();
     expect(screen.getByText("Before image")).toBeInTheDocument();
     expect(screen.getByText("After image")).toBeInTheDocument();
+  });
+
+  it("renders images nested inside list items", () => {
+    const { container } = render(
+      <PostBody
+        body={JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "bulletListItem",
+              content: [{ type: "text", text: "Parent item text" }],
+              children: [
+                {
+                  type: "image",
+                  props: {
+                    storageId: "nested-image",
+                    altText: "Nested chart",
+                  },
+                },
+              ],
+            },
+          ],
+        })}
+        inlineImages={[
+          { storageId: "nested-image", url: "https://cdn.example/nested.png" },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://cdn.example/nested.png",
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "alt",
+      "Nested chart",
+    );
+    expect(screen.getByText("Parent item text")).toBeInTheDocument();
   });
 });

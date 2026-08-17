@@ -141,6 +141,42 @@ describe("PostCard", () => {
     expect(excerpt).not.toHaveTextContent(/[{}\[\]"]+/);
   });
 
+  it("renders an empty excerpt for malformed structured bodies without leaking JSON", () => {
+    const malformed = JSON.stringify({
+      format: "blocknote@1",
+      blocks: [{ type: "image", props: { storageId: "secret-storage-id" } }],
+    });
+    const { container } = render(<PostCard {...basePost} body={malformed} />);
+    const excerpt = container.querySelector("p.line-clamp-3");
+
+    expect(excerpt).toBeInTheDocument();
+    expect(excerpt?.textContent).toBe("");
+    expect(excerpt).not.toHaveTextContent("secret-storage-id");
+    expect(excerpt).not.toHaveTextContent(/[{}\[\]"]+/);
+  });
+
+  it("excerpts image captions but never alt text or storage IDs", () => {
+    const body = JSON.stringify({
+      format: "blocknote@1",
+      blocks: [
+        {
+          type: "image",
+          props: {
+            storageId: "storage-secret-1",
+            altText: "internal alt description",
+            caption: "A readable caption",
+          },
+        },
+      ],
+    });
+    const { container } = render(<PostCard {...basePost} body={body} />);
+    const excerpt = container.querySelector("p.line-clamp-3");
+
+    expect(excerpt?.textContent).toBe("A readable caption");
+    expect(excerpt).not.toHaveTextContent("internal alt description");
+    expect(excerpt).not.toHaveTextContent("storage-secret-1");
+  });
+
   it("renders the comment count", () => {
     render(<PostCard {...basePost} />);
     expect(screen.getByText("3")).toBeInTheDocument();

@@ -28,8 +28,8 @@ import {
 
 export function isValidCreatePostBody(body: string): boolean {
   const parsed = parsePostBody(body);
-  if (parsed.kind === "legacy") return true;
-  if (parsed.kind === "invalid") return false;
+  // New posts must be valid blocknote@1; legacy bodies remain readable.
+  if (parsed.kind !== "structured") return false;
 
   const textLength = extractPlainText(parsed.document.blocks).trim().length;
   return (
@@ -70,7 +70,7 @@ export function validateInlineUploadClaims(
  * Creates a new blog article authored by the currently authenticated user.
  *
  * @param title - `string`: The article's display title.
- * @param body - `string`: The article's Markdown or HTML body content.
+ * @param body - `string`: The serialized `blocknote@1` envelope, for example `JSON.stringify({ format: "blocknote@1", blocks })`. Legacy plain-text bodies are rejected for new posts.
  * @param imageStorageId - `Id<"_storage"> | undefined`: Optional storage ID for the post's
  *   cover image. Pass `undefined` when no image is attached.
  * @returns `Id<"posts">`: The auto-generated document ID of the newly inserted post.

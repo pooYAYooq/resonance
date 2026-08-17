@@ -72,6 +72,32 @@ describe("parsePostBody", () => {
       ),
     ).toMatchObject({ kind: "invalid" });
   });
+
+  it("treats JSON primitives and non-BlockNote envelopes as legacy text", () => {
+    expect(parsePostBody("null")).toEqual({ kind: "legacy", text: "null" });
+    expect(parsePostBody("42")).toEqual({ kind: "legacy", text: "42" });
+    expect(parsePostBody("[1,2,3]")).toEqual({
+      kind: "legacy",
+      text: "[1,2,3]",
+    });
+    expect(parsePostBody('"just a string"')).toEqual({
+      kind: "legacy",
+      text: '"just a string"',
+    });
+  });
+
+  it("rejects incomplete BlockNote envelopes", () => {
+    expect(parsePostBody(JSON.stringify({ format: BLOCKNOTE_FORMAT }))).toEqual(
+      {
+        kind: "invalid",
+      },
+    );
+    expect(
+      parsePostBody(
+        JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: "not an array" }),
+      ),
+    ).toEqual({ kind: "invalid" });
+  });
 });
 
 describe("post content types", () => {
@@ -130,6 +156,26 @@ describe("extractPlainText", () => {
     expect(text).not.toContain("blocks");
   });
 
+  it("does not extract text beyond the maximum recursion depth", () => {
+    let block: PostBlock = {
+      type: "paragraph",
+      content: [{ type: "text", text: "too deep" }],
+    };
+
+    for (let depth = 0; depth <= MAX_RECURSION_DEPTH; depth += 1) {
+      block = {
+        type: "bulletListItem",
+        content: [{ type: "text", text: "level" }],
+        children: [block],
+      };
+    }
+
+    const text = extractPlainText([block]);
+
+    expect(text).toContain("level");
+    expect(text).not.toContain("too deep");
+  });
+
   it("extracts image captions but not alt text", () => {
     const text = extractPlainText([
       {
@@ -177,6 +223,104 @@ describe("isValidBlockNoteDoc", () => {
         },
       ]),
     ).toBe(true);
+  });
+
+  it("accepts links with nested styled text, link styles, and implicit text nodes", () => {
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "paragraph",
+          content: [
+            { text: "implicit text node" },
+            {
+              type: "link",
+              href: "https://example.com",
+              styles: { bold: true },
+              content: [
+                { type: "text", text: "styled link", styles: { italic: true } },
+              ],
+            },
+          ],
+        },
+      ]),
+    ).toBe(true);
+  });
+
+  it("rejects extra block, inline, and props keys", () => {
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "paragraph",
+          id: "block-id",
+          content: [{ type: "text", text: "text" }],
+        },
+      ]),
+    ).toBe(false);
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "paragraph",
+          content: [{ type: "text", id: "inline-id", text: "text" }],
+        },
+      ]),
+    ).toBe(false);
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "heading",
+          props: { level: 2, anchor: "heading-anchor" },
+          content: [{ type: "text", text: "heading" }],
+        },
+      ]),
+    ).toBe(false);
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "codeBlock",
+          props: { language: "ts", theme: "dark" },
+          content: "code",
+        },
+      ]),
+    ).toBe(false);
+  });
+
+  it("rejects malformed inline and link content", () => {
+    const invalidContent = [
+      [{ type: "link", content: [{ type: "text", text: "missing href" }] }],
+      [
+        {
+          type: "link",
+          href: 42,
+          content: [{ type: "text", text: "non-string href" }],
+        },
+      ],
+      [
+        {
+          type: "link",
+          href: "https://example.com",
+          text: "stray text",
+          content: [{ type: "text", text: "link" }],
+        },
+      ],
+      [{ type: "link", href: "https://example.com", content: "not an array" }],
+      [{ type: "text", text: "text", href: "https://example.com" }],
+      [{ type: "text", text: "text", content: [] }],
+      [{ type: "mention", text: "unknown inline type" }],
+      ["not an inline record"],
+    ];
+
+    for (const content of invalidContent) {
+      expect(isValidBlockNoteDoc([{ type: "paragraph", content }])).toBe(false);
+    }
+
+    expect(
+      isValidBlockNoteDoc([{ type: "paragraph", content: "not an array" }]),
+    ).toBe(false);
+  });
+
+  it("accepts an empty blocks array structurally", () => {
+    // The readable minimum is enforced at write boundaries.
+    expect(isValidBlockNoteDoc([])).toBe(true);
   });
 
   it("rejects unsupported block types", () => {
@@ -331,9 +475,7 @@ describe("isValidBlockNoteDoc", () => {
       ]),
     ).toBe(false);
     expect(
-      isValidBlockNoteDoc([
-        { type: "paragraph", content: "plain string" },
-      ]),
+      isValidBlockNoteDoc([{ type: "paragraph", content: "plain string" }]),
     ).toBe(false);
     expect(
       isValidBlockNoteDoc([
@@ -480,5 +622,46 @@ describe("extractImageStorageIds", () => {
     expect(extractImageStorageIds(blocks)).not.toContain(
       `storage-${MAX_BLOCKS}`,
     );
+  });
+
+  it("does not traverse oversized children arrays", () => {
+    expect(
+      extractImageStorageIds([
+        {
+          type: "bulletListItem",
+          children: Array.from({ length: MAX_CHILDREN_PER_BLOCK + 1 }, () => ({
+            type: "image",
+            props: { storageId: "oversized", altText: "Image" },
+          })),
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("does not return images beyond the maximum recursion depth", () => {
+    let tooDeep: PostBlock = {
+      type: "image",
+      props: { storageId: "too-deep", altText: "Too deep" },
+    };
+    for (let depth = 0; depth <= MAX_RECURSION_DEPTH; depth += 1) {
+      tooDeep = {
+        type: "bulletListItem",
+        children: [tooDeep],
+      };
+    }
+
+    let shallow: PostBlock = {
+      type: "image",
+      props: { storageId: "shallow", altText: "Shallow" },
+    };
+    for (let depth = 0; depth < MAX_RECURSION_DEPTH - 1; depth += 1) {
+      shallow = {
+        type: "bulletListItem",
+        children: [shallow],
+      };
+    }
+
+    expect(extractImageStorageIds([tooDeep])).toEqual([]);
+    expect(extractImageStorageIds([shallow])).toEqual(["shallow"]);
   });
 });
