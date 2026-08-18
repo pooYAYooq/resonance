@@ -120,7 +120,7 @@ resonance/
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
-│   ├── posts.ts                # createPost (tag validation and inline claim consumption),
+│   ├── posts.ts                # saveDraft/publishPost (tag validation and claim transitions),
 │   │                           # generateImageUploadUrl, and detail URL hydration;
 │   │                           # getPosts, getPostById, getPostsByAuthorId,
 │   │                           # countPosts queries (countPosts reads the stats table)
@@ -234,7 +234,7 @@ resonance/
     ├── post-content.ts         # Dependency-free structured body contract. Canonical
     │                           # blocknote@1 envelope types, parser, structural validator,
     │                           # extractPlainText, and safety limits. Imported by Convex
-    │                           # (createPost), Zod (postSchema), PostCard, metadata, and
+     │                           # (saveDraft/publishPost), Zod (postSchema), PostCard, metadata, and
     │                           # PostBody. Never imports BlockNote packages.
     └── constants/
         ├── seo.ts              # SITE_NAME, getSiteUrl(), truncateForDescription()
@@ -448,22 +448,24 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
 
 - **`posts.body` storage** — unchanged Convex schema. New bodies persist as
   `JSON.stringify({ format: "blocknote@1", blocks })` inside the existing
-  `posts.body: string`. `createPost` validates the exact structured envelope
-  and derived text (10–50,000 trimmed characters) before insertion and rejects
+  `posts.body: string`. `saveDraft` validates the exact structured envelope
+  and derived text upper bound before insertion; `publishPost` enforces the
+  10–50,000 trimmed character rule and rejects
   both legacy plain-text bodies and malformed structured envelopes for new
   posts; legacy bodies stored by earlier phases remain readable as read-only
   compatibility data and are never reserialized. Image blocks have exact props
   (`storageId`, nonblank `altText`, optional `caption`) and no children/content.
-  `createPost` verifies owner-bound, unexpired claims and consumes each unique
-  claim in the same transaction before insertion.
+  `saveDraft` verifies owner-bound, unexpired claims and binds each unique
+  claim to the draft; `publishPost` consumes those claims in the publication
+  transaction.
 
 - **Detail hydration** — `getPostById` extracts unique image storage IDs in
   document order, resolves their URLs in parallel, and returns one
   `inlineImages` collection. The detail page passes that collection to
   `PostBody`; unresolved URLs are omitted rather than rendered as storage IDs.
 
-  Drafts, editing, publishing statuses, paragraph-inline images, and general
-  storage garbage collection remain outside this phase.
+  Draft listing/resume/delete UI, paragraph-inline images, and general storage
+  garbage collection remain future work.
 
 - **Card vs. detail boundary** — `PostCard` and Open Graph / Twitter
   metadata use `extractPlainText` for safe excerpts so serialized JSON never
@@ -584,11 +586,12 @@ Two distinct rendering patterns are used depending on what the page needs.
 │      │  React Hook Form + Zod             │                      │
 │      │  validates input                   │                      │
 │      │                                    │                      │
-│      │── useMutation(api.posts            │                      │
-│      │     .createPost) ─────────────────>│                      │
+│      │── useMutation(api.posts.saveDraft) │                      │
+│      │── useMutation(api.posts.publishPost) ────────────────>│   │
 │      │                                    │── safeGetAuthUser()  │
 │      │                                    │   throws if unauthed │
-│      │                                    │── writes to posts    │
+│      │                                    │── saves draft        │
+│      │                                    │── publishes explicitly│
 │      │<── result ─────────────────────────│                      │
 └──────────────────────────────────────────────────────────────────┘
 
@@ -715,8 +718,8 @@ single-file edit, not a sweep.
 
 Convex has no built-in count operation, and `.collect().length` loads every
 post into memory. The landing page stats section needs an O(1) read, so
-`createPost` calls the internal `incrementPostCount` mutation after every
-insert and `posts.countPosts` simply reads the single `stats` row. Writes
+`publishPost` increments the published counter in the same transaction and
+`posts.countPosts` simply reads the single `stats` row. Writes
 are where we pay; reads stay cheap.
 
 ### 11. Why is `likes` a separate table instead of an array on posts?

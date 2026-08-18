@@ -91,6 +91,15 @@ describe("users functions", () => {
           updatedAt: 1000 + i,
         });
       }
+      await ctx.db.insert("posts", {
+        title: "Draft",
+        body: "Draft body.",
+        authorId: "alice-auth-id",
+        status: "draft",
+        commentCount: 0,
+        createdAt: 1002,
+        updatedAt: 1002,
+      });
 
       return "alice-auth-id";
     });

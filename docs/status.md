@@ -4,16 +4,14 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 2.3 — Structured Content Publishing (complete)
+Phase 2.4 — Drafts & Publishing Workflow (in progress)
 
 ## Next focus
 
-Phase 2.4 — Drafts & Publishing Workflow. Phase 2.3 hardened the
-structured-content contract: new posts must be valid `blocknote@1` documents,
-legacy plain-text posts remain readable as read-only compatibility data, and
-excerpts never expose serialized JSON. Drafts, editing, publishing workflow,
-new block or inline types, paragraph-inline images, content migration, and
-general storage garbage collection remain out of scope.
+Phase 2.4 is in progress. The lifecycle schema, legacy backfill, published-only
+reader boundary, draft-safe validation, and the `saveDraft` -> `publishPost`
+transition are implemented. Draft listing/resume/delete UI and production
+rollout gates remain outstanding.
 
 ## Phase 2.3 verification
 
@@ -22,14 +20,16 @@ general storage garbage collection remain out of scope.
 - `pnpm test:component` — passed: 30 files, 190 tests.
 - `pnpm build` — passed, including TypeScript validation.
 - Contract audit confirmed `lib/post-content.ts` as the single canonical
-  contract; targeted fixes: `createPost` now rejects legacy bodies for new
+  contract; targeted fixes: new post writes now reject legacy bodies for new
   posts, and link nodes carrying a stray `text` key are rejected.
-- Known limitation: authenticated owner-scoped `createPost` mutation tests
+- Known limitation: authenticated owner-scoped post mutation tests
   remain limited by the Better Auth component fixture in `convex-test`.
   Verbatim body persistence is pinned by a `getPostById` round-trip test plus
   code inspection of the untransformed `ctx.db.insert("posts", ...)` call.
 - The Convex test harness prints a scheduled-cleanup transaction warning in one
   passing test; it is a fixture limitation, not a failing assertion.
+- Task 3 follow-up verification: 55 focused Convex/schema tests, 9 create-page
+  component tests, and `pnpm exec tsc --noEmit` passed.
 
 ## Completed phases
 

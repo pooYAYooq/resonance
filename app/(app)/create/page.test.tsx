@@ -96,16 +96,20 @@ const {
   pushMock,
   toastSuccessMock,
   toastErrorMock,
-  generateImageUploadUrlMock,
   cleanupPendingUploadsMock,
-  createPostMock,
+  createPendingUploadMock,
+  finalizePendingUploadMock,
+  saveDraftMock,
+  publishPostMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   toastErrorMock: vi.fn(),
-  generateImageUploadUrlMock: vi.fn(),
+  createPendingUploadMock: vi.fn(),
+  finalizePendingUploadMock: vi.fn(),
   cleanupPendingUploadsMock: vi.fn(),
-  createPostMock: vi.fn(),
+  saveDraftMock: vi.fn(),
+  publishPostMock: vi.fn(),
 }));
 
 let fetchMock = vi.fn();
@@ -123,9 +127,11 @@ vi.mock("sonner", () => ({
 
 vi.mock("convex/react", () => ({
   useMutation: (apiRef: unknown) => {
-    if (apiRef === "generateImageUploadUrl") return generateImageUploadUrlMock;
+    if (apiRef === "createPendingUpload") return createPendingUploadMock;
+    if (apiRef === "finalizePendingUpload") return finalizePendingUploadMock;
     if (apiRef === "cleanupPending") return cleanupPendingUploadsMock;
-    if (apiRef === "createPost") return createPostMock;
+    if (apiRef === "saveDraft") return saveDraftMock;
+    if (apiRef === "publishPost") return publishPostMock;
     return vi.fn();
   },
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
@@ -134,11 +140,13 @@ vi.mock("convex/react", () => ({
 vi.mock("@/convex/_generated/api", () => ({
   api: {
     pendingUploads: {
+      createPendingUpload: "createPendingUpload",
+      finalizePendingUpload: "finalizePendingUpload",
       cleanupPending: "cleanupPending",
     },
     posts: {
-      generateImageUploadUrl: "generateImageUploadUrl",
-      createPost: "createPost",
+      saveDraft: "saveDraft",
+      publishPost: "publishPost",
     },
   },
 }));
@@ -148,9 +156,19 @@ describe("CreateRoute", () => {
     pushMock.mockClear();
     toastSuccessMock.mockClear();
     toastErrorMock.mockClear();
-    generateImageUploadUrlMock.mockReset();
+    createPendingUploadMock.mockReset();
+    finalizePendingUploadMock.mockReset();
     cleanupPendingUploadsMock.mockReset();
-    createPostMock.mockReset();
+    saveDraftMock.mockReset();
+    publishPostMock.mockReset();
+    createPendingUploadMock.mockResolvedValue({
+      sessionId: "session-cover",
+      uploadUrl: "https://upload.url",
+      expiresAt: 1_000,
+    });
+    finalizePendingUploadMock.mockResolvedValue(null);
+    saveDraftMock.mockResolvedValue({ draftId: "draft-1", updatedAt: 1 });
+    publishPostMock.mockResolvedValue("draft-1");
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -170,7 +188,7 @@ describe("CreateRoute", () => {
       screen.getByLabelText("Image (optional)"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
-    await user.click(screen.getByRole("button", { name: /create post/i }));
+    await user.click(screen.getByRole("button", { name: /publish/i }));
 
     await waitFor(() => {
       expect(
@@ -178,14 +196,14 @@ describe("CreateRoute", () => {
       ).toBeInTheDocument();
     });
 
-    expect(createPostMock).not.toHaveBeenCalled();
+    expect(saveDraftMock).not.toHaveBeenCalled();
   });
 
   it("disables submit button while pending", async () => {
     const user = userEvent.setup();
 
     // Hang the mutation so the pending state stays visible
-    generateImageUploadUrlMock.mockImplementation(
+    createPendingUploadMock.mockImplementation(
       () => new Promise<string>(() => {}),
     );
 
@@ -203,25 +221,23 @@ describe("CreateRoute", () => {
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
-    const button = screen.getByRole("button", { name: /create post/i });
+    const button = screen.getByRole("button", { name: /publish/i });
     await user.click(button);
 
     await waitFor(() => {
       expect(button).toBeDisabled();
     });
 
-    expect(screen.getByText(/creating/i)).toBeInTheDocument();
+    expect(screen.getByText(/saving/i)).toBeInTheDocument();
   });
 
   it("submits successfully and redirects", async () => {
     const user = userEvent.setup();
 
-    generateImageUploadUrlMock.mockResolvedValue("https://upload.url");
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({ storageId: "storage-123" }),
     });
-    createPostMock.mockResolvedValue(undefined);
 
     render(<CreateRoute />);
 
@@ -237,10 +253,10 @@ describe("CreateRoute", () => {
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
-    await user.click(screen.getByRole("button", { name: /create post/i }));
+    await user.click(screen.getByRole("button", { name: /publish/i }));
 
     await waitFor(() => {
-      expect(generateImageUploadUrlMock).toHaveBeenCalled();
+      expect(createPendingUploadMock).toHaveBeenCalled();
     });
 
     await waitFor(() => {
@@ -252,7 +268,8 @@ describe("CreateRoute", () => {
     });
 
     await waitFor(() => {
-      expect(createPostMock).toHaveBeenCalledWith({
+      expect(saveDraftMock).toHaveBeenCalledWith({
+        draftId: undefined,
         title: "My Post",
         body: JSON.stringify(validEnvelope),
         tags: [],
@@ -260,9 +277,11 @@ describe("CreateRoute", () => {
       });
     });
 
+    expect(publishPostMock).toHaveBeenCalledWith({ draftId: "draft-1" });
+
     await waitFor(() => {
       expect(toastSuccessMock).toHaveBeenCalledWith(
-        "Post created successfully!",
+        "Post published successfully!",
       );
       expect(pushMock).toHaveBeenCalledWith("/blog");
     });
@@ -271,7 +290,6 @@ describe("CreateRoute", () => {
   it("shows error toast when image upload fails", async () => {
     const user = userEvent.setup();
 
-    generateImageUploadUrlMock.mockResolvedValue("https://upload.url");
     fetchMock.mockResolvedValue({ ok: false });
 
     render(<CreateRoute />);
@@ -288,20 +306,18 @@ describe("CreateRoute", () => {
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
-    await user.click(screen.getByRole("button", { name: /create post/i }));
+    await user.click(screen.getByRole("button", { name: /publish/i }));
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith("Failed to upload image");
     });
 
-    expect(createPostMock).not.toHaveBeenCalled();
+    expect(saveDraftMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
   });
 
   it("creates a text-only post successfully without imageStorageId", async () => {
     const user = userEvent.setup();
-
-    createPostMock.mockResolvedValue(undefined);
 
     render(<CreateRoute />);
 
@@ -313,30 +329,32 @@ describe("CreateRoute", () => {
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
 
-    await user.click(screen.getByRole("button", { name: /create post/i }));
+    await user.click(screen.getByRole("button", { name: /publish/i }));
 
     await waitFor(() => {
-      expect(createPostMock).toHaveBeenCalledWith({
+      expect(saveDraftMock).toHaveBeenCalledWith({
+        draftId: undefined,
         title: "My Post",
         body: JSON.stringify(validEnvelope),
         tags: [],
       });
     });
+    expect(publishPostMock).toHaveBeenCalledWith({ draftId: "draft-1" });
 
     await waitFor(() => {
       expect(toastSuccessMock).toHaveBeenCalledWith(
-        "Post created successfully!",
+        "Post published successfully!",
       );
       expect(pushMock).toHaveBeenCalledWith("/blog");
     });
 
-    expect(generateImageUploadUrlMock).not.toHaveBeenCalled();
+    expect(createPendingUploadMock).not.toHaveBeenCalled();
     expect(cleanupPendingUploadsMock).not.toHaveBeenCalled();
   });
 
   it("cleans up only the current submit's inline sessions after a failure", async () => {
     const user = userEvent.setup();
-    createPostMock.mockRejectedValue(new Error("Invalid inline upload claim"));
+    saveDraftMock.mockRejectedValue(new Error("Invalid inline upload claim"));
     cleanupPendingUploadsMock.mockResolvedValue(null);
 
     render(<CreateRoute />);
@@ -351,7 +369,7 @@ describe("CreateRoute", () => {
     await user.click(
       screen.getByRole("button", { name: "Register inline upload" }),
     );
-    await user.click(screen.getByRole("button", { name: /create post/i }));
+    await user.click(screen.getByRole("button", { name: /publish/i }));
 
     await waitFor(() => {
       expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
@@ -360,12 +378,12 @@ describe("CreateRoute", () => {
         ],
       });
     });
-    expect(toastErrorMock).toHaveBeenCalledWith("Failed to create post");
+    expect(toastErrorMock).toHaveBeenCalledWith("Failed to save post");
   });
 
   it("shows the inline expiry recovery message and preserves it when cleanup fails", async () => {
     const user = userEvent.setup();
-    createPostMock.mockRejectedValue(new Error("Inline image expired"));
+    saveDraftMock.mockRejectedValue(new Error("Inline image expired"));
     cleanupPendingUploadsMock.mockRejectedValue(new Error("cleanup failed"));
 
     render(<CreateRoute />);
@@ -380,7 +398,7 @@ describe("CreateRoute", () => {
     await user.click(
       screen.getByRole("button", { name: "Register inline upload" }),
     );
-    await user.click(screen.getByRole("button", { name: /create post/i }));
+    await user.click(screen.getByRole("button", { name: /publish/i }));
 
     await waitFor(() => {
       expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
@@ -398,14 +416,15 @@ describe("CreateRoute", () => {
   });
 
   it("does not clean up an inline upload registered after submission starts", async () => {
-    // The first claim is consumed by createPost; the second is newer than the
-    // submission snapshot. Neither session belongs in failed-submit cleanup.
+    // The first claim is consumed by saveDraft/publishPost; the second is
+    // newer than the submission snapshot and must not be cleaned up.
     const user = userEvent.setup();
-    let rejectCreatePost: ((error: Error) => void) | undefined;
-    createPostMock.mockImplementation(
+    let rejectPublishPost: ((error: Error) => void) | undefined;
+    saveDraftMock.mockResolvedValue({ draftId: "draft-1", updatedAt: 1 });
+    publishPostMock.mockImplementation(
       () =>
         new Promise((_, reject) => {
-          rejectCreatePost = reject;
+          rejectPublishPost = reject;
         }),
     );
     cleanupPendingUploadsMock.mockResolvedValue(null);
@@ -422,17 +441,17 @@ describe("CreateRoute", () => {
     await user.click(
       screen.getByRole("button", { name: "Register inline upload" }),
     );
-    await user.click(screen.getByRole("button", { name: /create post/i }));
+    await user.click(screen.getByRole("button", { name: /publish/i }));
 
-    await waitFor(() => expect(createPostMock).toHaveBeenCalled());
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalled());
 
     await user.click(
       screen.getByRole("button", { name: "Register later inline upload" }),
     );
-    rejectCreatePost?.(new Error("Invalid inline upload claim"));
+    rejectPublishPost?.(new Error("Invalid inline upload claim"));
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith("Failed to create post");
+      expect(toastErrorMock).toHaveBeenCalledWith("Failed to save post");
     });
     expect(cleanupPendingUploadsMock).not.toHaveBeenCalled();
   });
@@ -450,7 +469,7 @@ describe("CreateRoute", () => {
       screen.getByLabelText("Image (optional)"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
-    await user.click(screen.getByRole("button", { name: /create post/i }));
+    await user.click(screen.getByRole("button", { name: /publish/i }));
 
     await waitFor(() => {
       expect(
@@ -458,13 +477,13 @@ describe("CreateRoute", () => {
       ).toBeInTheDocument();
     });
 
-    expect(generateImageUploadUrlMock).not.toHaveBeenCalled();
-    expect(createPostMock).not.toHaveBeenCalled();
+    expect(createPendingUploadMock).not.toHaveBeenCalled();
+    expect(saveDraftMock).not.toHaveBeenCalled();
 
     await user.click(
       await screen.findByRole("button", { name: "Set short blog content" }),
     );
-    await user.click(screen.getByRole("button", { name: /create post/i }));
+    await user.click(screen.getByRole("button", { name: /publish/i }));
 
     await waitFor(() => {
       expect(
@@ -472,7 +491,7 @@ describe("CreateRoute", () => {
       ).toBeInTheDocument();
     });
 
-    expect(generateImageUploadUrlMock).not.toHaveBeenCalled();
-    expect(createPostMock).not.toHaveBeenCalled();
+    expect(createPendingUploadMock).not.toHaveBeenCalled();
+    expect(saveDraftMock).not.toHaveBeenCalled();
   });
 });

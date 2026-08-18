@@ -1,6 +1,6 @@
 "use client";
 
-import { postSchema } from "@/schemas/blog";
+import { draftPostSchema, publishPostSchema } from "@/schemas/blog";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ import { useMutation, useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useTransition, useEffect, useRef } from "react";
+import { useTransition, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
@@ -47,8 +47,9 @@ const emptyDocument: BlockNoteDocument = {
   blocks: [],
 };
 
-type PostFormInput = z.input<typeof postSchema>;
-type PostFormOutput = z.output<typeof postSchema>;
+type PostFormInput = z.input<typeof draftPostSchema>;
+type PostFormOutput = z.output<typeof draftPostSchema>;
+type SubmitMode = "draft" | "publish";
 
 /**
  * Renders the authenticated blog post creation page.
@@ -60,16 +61,24 @@ type PostFormOutput = z.output<typeof postSchema>;
 export default function CreateRoute() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const [isPending, startTransition] = useTransition();
+  const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
   const router = useRouter();
-  const generateImageUploadUrl = useMutation(api.posts.generateImageUploadUrl);
+  const createPendingUpload = useMutation(
+    api.pendingUploads.createPendingUpload,
+  );
+  const finalizePendingUpload = useMutation(
+    api.pendingUploads.finalizePendingUpload,
+  );
   const cleanupPendingUploads = useMutation(api.pendingUploads.cleanupPending);
-  const createPost = useMutation(api.posts.createPost);
+  const saveDraft = useMutation(api.posts.saveDraft);
+  const publishPost = useMutation(api.posts.publishPost);
   const inlineSessions = useRef(
     new Map<Id<"pendingUploads">, Id<"_storage">>(),
   );
+  const submitMode = useRef<SubmitMode>("publish");
 
   const form = useForm<PostFormInput, undefined, PostFormOutput>({
-    resolver: zodResolver(postSchema),
+    resolver: zodResolver(draftPostSchema),
     defaultValues: {
       title: "",
       content: emptyDocument,
@@ -92,25 +101,32 @@ export default function CreateRoute() {
     );
   }
 
-  function onSubmit(values: PostFormOutput) {
+  function onSubmit(values: PostFormOutput, mode: SubmitMode) {
+    if (mode === "publish") {
+      const publishValues = publishPostSchema.safeParse(values);
+      if (!publishValues.success) {
+        const issue = publishValues.error.issues[0];
+        const field = issue?.path[0];
+        if (field === "title" || field === "content") {
+          form.setError(field, { message: issue.message });
+        }
+        return;
+      }
+    }
+
     startTransition(async () => {
       const submitSessions = new Map(inlineSessions.current);
-      const referencedStorageIds = new Set(
-        extractImageStorageIds(values.content.blocks),
-      );
-      const unconsumedUploads = [...submitSessions.entries()]
-        .filter(([, storageId]) => !referencedStorageIds.has(storageId))
-        .map(([sessionId, storageId]) => ({ sessionId, storageId }));
+      let draftSaved = false;
+      let unconsumedUploads: {
+        sessionId: Id<"pendingUploads">;
+        storageId: Id<"_storage">;
+      }[] = [];
       try {
-        // Track the uploaded image's storage ID. It stays undefined when no image is provided,
-        // allowing posts to be created without an attached image.
         let storageId: Id<"_storage"> | undefined;
 
-        // Only attempt to upload when the user selected an image. The field is optional in the form schema.
         if (values.image) {
-          // Request a pre-signed upload URL from Convex so we can POST the file directly to storage.
-          const imageUrl = await generateImageUploadUrl({});
-          const uploadResult = await fetch(imageUrl, {
+          const session = await createPendingUpload({});
+          const uploadResult = await fetch(session.uploadUrl, {
             method: "POST",
             headers: {
               "Content-Type": values.image.type,
@@ -127,14 +143,40 @@ export default function CreateRoute() {
             storageId: Id<"_storage">;
           };
           storageId = result.storageId;
+          await finalizePendingUpload({
+            sessionId: session.sessionId,
+            storageId,
+          });
+          submitSessions.set(session.sessionId, storageId);
         }
 
-        await createPost({
+        const referencedStorageIds = new Set([
+          ...extractImageStorageIds(values.content.blocks),
+          ...(storageId ? [storageId] : []),
+        ]);
+        unconsumedUploads = [...submitSessions.entries()]
+          .filter(
+            ([, currentStorageId]) =>
+              !referencedStorageIds.has(currentStorageId),
+          )
+          .map(([sessionId, currentStorageId]) => ({
+            sessionId,
+            storageId: currentStorageId,
+          }));
+
+        const saved = await saveDraft({
+          ...(draftId && { draftId }),
           title: values.title,
           body: JSON.stringify(values.content),
           tags: values.tags,
           ...(storageId && { imageStorageId: storageId }),
         });
+        draftSaved = true;
+        setDraftId(saved.draftId);
+
+        if (mode === "publish") {
+          await publishPost({ draftId: saved.draftId });
+        }
 
         if (unconsumedUploads.length > 0) {
           try {
@@ -144,14 +186,26 @@ export default function CreateRoute() {
           }
         }
         for (const [sessionId, storageId] of submitSessions) {
-          if (inlineSessions.current.get(sessionId) === storageId) {
+          if (
+            inlineSessions.current.get(sessionId) === storageId &&
+            referencedStorageIds.has(storageId)
+          ) {
             inlineSessions.current.delete(sessionId);
           }
         }
-        toast.success("Post created successfully!");
-        router.push("/blog");
+        if (mode === "publish") {
+          toast.success("Post published successfully!");
+          router.push("/blog");
+        } else {
+          toast.success("Draft saved successfully!");
+        }
       } catch (error) {
-        console.error("Create post failed", error);
+        console.error("Save post failed", error);
+        if (!draftSaved && unconsumedUploads.length === 0) {
+          unconsumedUploads = [...submitSessions.entries()].map(
+            ([sessionId, storageId]) => ({ sessionId, storageId }),
+          );
+        }
         if (unconsumedUploads.length > 0) {
           try {
             await cleanupPendingUploads({ uploads: unconsumedUploads });
@@ -169,7 +223,7 @@ export default function CreateRoute() {
         toast.error(
           message.includes("Inline image expired")
             ? "An inline image expired. Re-upload it and try again."
-            : "Failed to create post",
+            : "Failed to save post",
         );
       }
     });
@@ -196,7 +250,9 @@ export default function CreateRoute() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void form.handleSubmit(onSubmit)(event);
+              void form.handleSubmit((values) =>
+                onSubmit(values, submitMode.current),
+              )(event);
             }}
           >
             <FieldGroup className="gap-y-4">
@@ -276,16 +332,34 @@ export default function CreateRoute() {
                   />
                 )}
               />
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
-                  <>
-                    <Loader2 className="animate-spin size-4" />
-                    <span className="ml-2">Creating...</span>
-                  </>
-                ) : (
-                  <span>Create Post</span>
-                )}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => {
+                    submitMode.current = "draft";
+                  }}
+                >
+                  Save Draft
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isPending}
+                  onClick={() => {
+                    submitMode.current = "publish";
+                  }}
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="animate-spin size-4" />
+                      <span className="ml-2">Saving...</span>
+                    </>
+                  ) : (
+                    <span>Publish</span>
+                  )}
+                </Button>
+              </div>
             </FieldGroup>
           </form>
         </CardContent>

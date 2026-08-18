@@ -14,6 +14,7 @@
 import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
+import { getPostStatus } from "./postLifecycle";
 
 /**
  * Idempotent upsert: creates or updates the app-level user record
@@ -164,12 +165,15 @@ export const getUserProfile = query({
 
     if (!user) return null;
 
-    const posts = await ctx.db
+    let postCount = 0;
+    const posts = ctx.db
       .query("posts")
-      .withIndex("by_authorId", (q) => q.eq("authorId", args.userId))
-      .collect();
+      .withIndex("by_authorId", (q) => q.eq("authorId", args.userId));
+    for await (const post of posts) {
+      if (getPostStatus(post) === "published") postCount += 1;
+    }
 
-    return { ...user, postCount: posts.length };
+    return { ...user, postCount };
   },
 });
 

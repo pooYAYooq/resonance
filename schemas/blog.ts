@@ -19,31 +19,31 @@ export const postTagsSchema = z
   })
   .default([]);
 
-export const postSchema = z.object({
-  title: z.string().min(1).max(100),
-  content: z.custom<BlockNoteDocument>(
-    (value): value is BlockNoteDocument => {
-      if (
-        typeof value !== "object" ||
-        value === null ||
-        !Object.hasOwn(value, "format") ||
-        !Object.hasOwn(value, "blocks") ||
-        (value as { format?: unknown }).format !== "blocknote@1"
-      ) {
-        return false;
-      }
+const blockNoteDocumentSchema = z.custom<BlockNoteDocument>(
+  (value): value is BlockNoteDocument => {
+    if (
+      typeof value !== "object" ||
+      value === null ||
+      !Object.hasOwn(value, "format") ||
+      !Object.hasOwn(value, "blocks") ||
+      (value as { format?: unknown }).format !== "blocknote@1"
+    ) {
+      return false;
+    }
 
-      const document = value as BlockNoteDocument;
-      if (!isValidBlockNoteDoc(document.blocks)) return false;
+    const document = value as BlockNoteDocument;
+    if (!isValidBlockNoteDoc(document.blocks)) return false;
 
-      const textLength = extractPlainText(document.blocks).trim().length;
-      return (
-        textLength >= MIN_POST_TEXT_LENGTH &&
-        textLength <= MAX_POST_TEXT_LENGTH
-      );
-    },
-    "Content must contain between 10 and 50,000 readable characters.",
-  ),
+    return (
+      extractPlainText(document.blocks).trim().length <= MAX_POST_TEXT_LENGTH
+    );
+  },
+  "Content must be a valid BlockNote document with no more than 50,000 readable characters.",
+);
+
+export const draftPostSchema = z.object({
+  title: z.string().max(100),
+  content: blockNoteDocumentSchema,
   tags: postTagsSchema,
   image: z
     .instanceof(File, { message: "Please select an image file." })
@@ -56,3 +56,14 @@ export const postSchema = z.object({
     // Image is optional so users can create text-only posts.
     .optional(),
 });
+
+export const publishPostSchema = draftPostSchema.extend({
+  title: z.string().min(1).max(100),
+  content: blockNoteDocumentSchema.refine(
+    (document) =>
+      extractPlainText(document.blocks).trim().length >= MIN_POST_TEXT_LENGTH,
+    "Content must contain between 10 and 50,000 readable characters.",
+  ),
+});
+
+export const postSchema = publishPostSchema;

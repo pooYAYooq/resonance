@@ -1,6 +1,6 @@
 /**
  * Unit tests for Convex post queries and mutations.
- * Covers the structured-only createPost body contract, inline upload claims,
+ * Covers the structured-only publish body contract, inline upload claims,
  * auth rejection, pagination, image URL resolution, comment counting, and the
  * authenticated-owner test harness limitation because `safeGetAuthUser` uses
  * the Better Auth component (see convex/bookmarks.test.ts:1-12).
@@ -9,8 +9,8 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { describe, expect, it, vi } from "vitest";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import { isValidPostTags } from "../lib/constants/post-tags";
 import {
@@ -19,27 +19,342 @@ import {
   MIN_POST_TEXT_LENGTH,
   MAX_POST_TEXT_LENGTH,
 } from "../lib/post-content";
-import { isValidCreatePostBody, validateInlineUploadClaims } from "./posts";
+import {
+  isValidDraftPostBody,
+  isValidPublishPostBody,
+  validateInlineUploadClaims,
+} from "./posts";
+import {
+  getPostStatus,
+  getPublishedAt,
+  getPublishedPost,
+  requirePublishedPost,
+} from "./postLifecycle";
 import type { Id } from "./_generated/dataModel";
 
 const modules = import.meta.glob("./**/*.ts");
 
-/**
- * Stores a minimal PNG blob in Convex test storage and returns its ID.
- *
- * @param t - `ReturnType<typeof convexTest>`: the convex test runner instance.
- * @returns `Promise<Id<"_storage">>`: the generated storage document ID.
- */
-const createStorageId = async (t: ReturnType<typeof convexTest>) =>
-  t.run(async (ctx) => {
-    return await ctx.storage.store(
-      new Blob([new Uint8Array([1, 2, 3])], {
-        type: "image/png",
+describe("posts functions", () => {
+  it("normalizes legacy lifecycle fields without hiding drafts", () => {
+    expect(getPostStatus({ status: undefined })).toBe("published");
+    expect(getPostStatus({ status: "draft" })).toBe("draft");
+    expect(
+      getPublishedAt({
+        status: undefined,
+        publishedAt: undefined,
+        createdAt: 42,
       }),
-    );
+    ).toBe(42);
+    expect(
+      getPublishedAt({
+        status: "published",
+        publishedAt: undefined,
+        createdAt: 42,
+      }),
+    ).toBe(42);
+    expect(
+      getPublishedAt({ status: "published", publishedAt: 99, createdAt: 42 }),
+    ).toBe(99);
+    expect(
+      getPublishedAt({
+        status: "draft",
+        publishedAt: undefined,
+        createdAt: 42,
+      }),
+    ).toBeUndefined();
   });
 
-describe("posts functions", () => {
+  it("uses one generic published-post contract for missing and draft rows", async () => {
+    const t = convexTest(schema, modules);
+    const ids = await t.run(async (ctx) => {
+      const legacy = await ctx.db.insert("posts", {
+        title: "Legacy",
+        body: "Legacy body",
+        authorId: "author-1",
+        commentCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const published = await ctx.db.insert("posts", {
+        title: "Published",
+        body: "Published body",
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 2,
+        commentCount: 0,
+        createdAt: 2,
+        updatedAt: 2,
+      });
+      const draft = await ctx.db.insert("posts", {
+        title: "Draft",
+        body: "Draft body",
+        authorId: "author-1",
+        status: "draft",
+        commentCount: 0,
+        createdAt: 3,
+        updatedAt: 3,
+      });
+      const missing = await ctx.db.insert("posts", {
+        title: "Missing",
+        body: "Missing body",
+        authorId: "author-1",
+        commentCount: 0,
+        createdAt: 4,
+        updatedAt: 4,
+      });
+      await ctx.db.delete(missing);
+      return { legacy, published, draft, missing };
+    });
+
+    await t.run(async (ctx) => {
+      await expect(getPublishedPost(ctx, ids.legacy)).resolves.toMatchObject({
+        _id: ids.legacy,
+      });
+      await expect(getPublishedPost(ctx, ids.published)).resolves.toMatchObject(
+        {
+          _id: ids.published,
+        },
+      );
+      await expect(getPublishedPost(ctx, ids.draft)).resolves.toBeNull();
+      await expect(getPublishedPost(ctx, ids.missing)).resolves.toBeNull();
+      await expect(requirePublishedPost(ctx, ids.draft)).rejects.toThrow(
+        "Post not found.",
+      );
+      await expect(requirePublishedPost(ctx, ids.missing)).rejects.toThrow(
+        "Post not found.",
+      );
+    });
+  });
+
+  it("hides draft rows from global, author, and detail reads", async () => {
+    const t = convexTest(schema, modules);
+    const ids = await t.run(async (ctx) => ({
+      legacy: await ctx.db.insert("posts", {
+        title: "Legacy",
+        body: "Legacy body",
+        authorId: "author-1",
+        commentCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+      published: await ctx.db.insert("posts", {
+        title: "Published",
+        body: "Published body",
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 2,
+        commentCount: 0,
+        createdAt: 2,
+        updatedAt: 2,
+      }),
+      draft: await ctx.db.insert("posts", {
+        title: "Draft",
+        body: "Draft body",
+        authorId: "author-1",
+        status: "draft",
+        commentCount: 0,
+        createdAt: 3,
+        updatedAt: 3,
+      }),
+    }));
+
+    const global = await t.query(api.posts.getPosts, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(global.page.map((post) => post.title)).toEqual([
+      "Published",
+      "Legacy",
+    ]);
+
+    const author = await t.query(api.posts.getPostsByAuthorId, {
+      authorId: "author-1",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(author.page.map((post) => post.title)).toEqual([
+      "Published",
+      "Legacy",
+    ]);
+    expect(
+      await t.query(api.posts.getPostById, { postId: ids.draft }),
+    ).toBeNull();
+    expect(
+      (await t.query(api.posts.getPostById, { postId: ids.published }))?.title,
+    ).toBe("Published");
+    expect(
+      (await t.query(api.posts.getPostById, { postId: ids.legacy }))?.title,
+    ).toBe("Legacy");
+  });
+
+  it("backfills legacy posts in bounded, idempotent pages", async () => {
+    vi.useFakeTimers();
+    try {
+      const t = convexTest(schema, modules);
+      const ids = await t.run(async (ctx) => {
+        const legacyFirst = await ctx.db.insert("posts", {
+          title: "Legacy first",
+          body: "legacy body 1",
+          authorId: "author-1",
+          commentCount: 0,
+          createdAt: 10,
+          updatedAt: 11,
+        });
+        const publishedWithoutTimestamp = await ctx.db.insert("posts", {
+          title: "Published without timestamp",
+          body: "legacy body 2",
+          authorId: "author-1",
+          status: "published",
+          commentCount: 0,
+          createdAt: 20,
+          updatedAt: 21,
+        });
+        const draft = await ctx.db.insert("posts", {
+          title: "Draft",
+          body: "draft body",
+          authorId: "author-1",
+          status: "draft",
+          commentCount: 0,
+          createdAt: 30,
+          updatedAt: 31,
+        });
+        const normalized = await ctx.db.insert("posts", {
+          title: "Normalized",
+          body: "normalized body",
+          authorId: "author-1",
+          status: "published",
+          publishedAt: 40,
+          commentCount: 0,
+          createdAt: 40,
+          updatedAt: 41,
+        });
+        const legacySecond = await ctx.db.insert("posts", {
+          title: "Legacy second",
+          body: "legacy body 3",
+          authorId: "author-1",
+          commentCount: 0,
+          createdAt: 50,
+          updatedAt: 51,
+        });
+        return {
+          legacyFirst,
+          publishedWithoutTimestamp,
+          draft,
+          normalized,
+          legacySecond,
+        };
+      });
+
+      const firstPage = await t.mutation(
+        internal.postLifecycle.backfillPublishedPosts,
+        {
+          paginationOpts: { numItems: 2, cursor: null },
+        },
+      );
+      expect(firstPage).toMatchObject({ done: false, processed: 2 });
+
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+      const afterBackfill = await t.run(async (ctx) =>
+        Promise.all(
+          [
+            ids.legacyFirst,
+            ids.publishedWithoutTimestamp,
+            ids.draft,
+            ids.normalized,
+            ids.legacySecond,
+          ].map((id) => ctx.db.get(id)),
+        ),
+      );
+      expect(afterBackfill[0]).toMatchObject({
+        status: "published",
+        publishedAt: 10,
+      });
+      expect(afterBackfill[1]).toMatchObject({
+        status: "published",
+        publishedAt: 20,
+      });
+      expect(afterBackfill[2]).toMatchObject({ status: "draft" });
+      expect(afterBackfill[2]?.publishedAt).toBeUndefined();
+      expect(afterBackfill[3]).toMatchObject({
+        status: "published",
+        publishedAt: 40,
+      });
+      expect(afterBackfill[4]).toMatchObject({
+        status: "published",
+        publishedAt: 50,
+      });
+      expect(afterBackfill.map((post) => post?.updatedAt)).toEqual([
+        11, 21, 31, 41, 51,
+      ]);
+      expect(afterBackfill.map((post) => post?.body)).toEqual([
+        "legacy body 1",
+        "legacy body 2",
+        "draft body",
+        "normalized body",
+        "legacy body 3",
+      ]);
+
+      const beforeRetry = afterBackfill.map((post) => ({
+        status: post?.status,
+        publishedAt: post?.publishedAt,
+        updatedAt: post?.updatedAt,
+        body: post?.body,
+      }));
+      await t.mutation(internal.postLifecycle.backfillPublishedPosts, {
+        paginationOpts: { numItems: 2, cursor: null },
+      });
+      const afterRetry = await t.run(async (ctx) =>
+        Promise.all(
+          [
+            ids.legacyFirst,
+            ids.publishedWithoutTimestamp,
+            ids.draft,
+            ids.normalized,
+            ids.legacySecond,
+          ].map((id) => ctx.db.get(id)),
+        ),
+      );
+      expect(
+        afterRetry.map((post) => ({
+          status: post?.status,
+          publishedAt: post?.publishedAt,
+          updatedAt: post?.updatedAt,
+          body: post?.body,
+        })),
+      ).toEqual(beforeRetry);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts the lifecycle backfill from the operator entry point", async () => {
+    vi.useFakeTimers();
+    try {
+      const t = convexTest(schema, modules);
+      const postId = await t.run(async (ctx) =>
+        ctx.db.insert("posts", {
+          title: "Legacy post",
+          body: "legacy body",
+          authorId: "author-1",
+          commentCount: 0,
+          createdAt: 100,
+          updatedAt: 101,
+        }),
+      );
+
+      expect(
+        await t.mutation(internal.crons.runPostLifecycleBackfill, {}),
+      ).toBeNull();
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+      await t.run(async (ctx) => {
+        const post = await ctx.db.get(postId);
+        expect(post).toMatchObject({ status: "published", publishedAt: 100 });
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   const storageId = "storage-image-1" as Id<"_storage">;
   const secondStorageId = "storage-image-2" as Id<"_storage">;
   const sessionId = "session-1" as Id<"pendingUploads">;
@@ -133,7 +448,7 @@ describe("posts functions", () => {
     ).toThrow("Invalid inline upload claim");
   });
 
-  it("accepts valid structured create-post bodies", () => {
+  it("accepts valid structured publish bodies", () => {
     const structuredBody = JSON.stringify({
       format: BLOCKNOTE_FORMAT,
       blocks: [
@@ -144,15 +459,15 @@ describe("posts functions", () => {
       ],
     });
 
-    expect(isValidCreatePostBody(structuredBody)).toBe(true);
+    expect(isValidPublishPostBody(structuredBody)).toBe(true);
   });
 
   it("rejects legacy and non-blocknote bodies for new posts", () => {
-    expect(isValidCreatePostBody("Legacy post content.")).toBe(false);
-    expect(isValidCreatePostBody("")).toBe(false);
-    expect(isValidCreatePostBody("null")).toBe(false);
+    expect(isValidPublishPostBody("Legacy post content.")).toBe(false);
+    expect(isValidPublishPostBody("")).toBe(false);
+    expect(isValidPublishPostBody("null")).toBe(false);
     expect(
-      isValidCreatePostBody(JSON.stringify({ format: "other@1", blocks: [] })),
+      isValidPublishPostBody(JSON.stringify({ format: "other@1", blocks: [] })),
     ).toBe(false);
   });
 
@@ -169,19 +484,21 @@ describe("posts functions", () => {
       });
 
     expect(
-      isValidCreatePostBody(bodyWithText("x".repeat(MIN_POST_TEXT_LENGTH))),
+      isValidPublishPostBody(bodyWithText("x".repeat(MIN_POST_TEXT_LENGTH))),
     ).toBe(true);
     expect(
-      isValidCreatePostBody(bodyWithText("x".repeat(MIN_POST_TEXT_LENGTH - 1))),
+      isValidPublishPostBody(
+        bodyWithText("x".repeat(MIN_POST_TEXT_LENGTH - 1)),
+      ),
     ).toBe(false);
     expect(
-      isValidCreatePostBody(bodyWithText("x".repeat(MAX_POST_TEXT_LENGTH))),
+      isValidPublishPostBody(bodyWithText("x".repeat(MAX_POST_TEXT_LENGTH))),
     ).toBe(true);
   });
 
   it("rejects malformed structured create-post bodies", () => {
     expect(
-      isValidCreatePostBody(
+      isValidPublishPostBody(
         JSON.stringify({
           format: BLOCKNOTE_FORMAT,
           blocks: [{ type: "image", props: {} }],
@@ -189,7 +506,7 @@ describe("posts functions", () => {
       ),
     ).toBe(false);
     expect(
-      isValidCreatePostBody(
+      isValidPublishPostBody(
         JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
       ),
     ).toBe(false);
@@ -197,7 +514,7 @@ describe("posts functions", () => {
 
   it("rejects structured create-post bodies over the text limit", () => {
     expect(
-      isValidCreatePostBody(
+      isValidPublishPostBody(
         JSON.stringify({
           format: BLOCKNOTE_FORMAT,
           blocks: [
@@ -216,16 +533,50 @@ describe("posts functions", () => {
     ).toBe(false);
   });
 
-  it("rejects createPost when unauthenticated", async () => {
+  it("keeps draft validation permissive and publish validation strict", () => {
+    const emptyBody = JSON.stringify({
+      format: BLOCKNOTE_FORMAT,
+      blocks: [],
+    });
+    const shortBody = JSON.stringify({
+      format: BLOCKNOTE_FORMAT,
+      blocks: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "short" }],
+        },
+      ],
+    });
+
+    expect(isValidDraftPostBody(emptyBody)).toBe(true);
+    expect(isValidDraftPostBody(shortBody)).toBe(true);
+    expect(isValidPublishPostBody(emptyBody)).toBe(false);
+    expect(isValidPublishPostBody(shortBody)).toBe(false);
+  });
+
+  it("rejects draft and publish mutations when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    const imageStorageId = await createStorageId(t);
+    const draftId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Draft",
+        body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+        authorId: "author-1",
+        status: "draft",
+        commentCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
 
     await expect(
-      t.mutation(api.posts.createPost, {
-        title: "My title",
-        body: "This is post body content.",
-        imageStorageId,
+      t.mutation(api.posts.saveDraft, {
+        title: "",
+        body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+        tags: [],
       }),
+    ).rejects.toThrow("Unauthorized");
+    await expect(
+      t.mutation(api.posts.publishPost, { draftId }),
     ).rejects.toThrow("Unauthorized");
   });
 
