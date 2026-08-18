@@ -580,6 +580,33 @@ describe("posts functions", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
+  it("fails softly for unauthenticated draft reads", async () => {
+    const t = convexTest(schema, modules);
+
+    expect(
+      await t.query(api.posts.getDrafts, {
+        paginationOpts: { numItems: 12, cursor: null },
+      }),
+    ).toMatchObject({ page: [], isDone: true });
+
+    const draftId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Private draft",
+        body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+        authorId: "author-1",
+        status: "draft",
+        commentCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
+
+    expect(await t.query(api.posts.getDraftById, { draftId })).toBeNull();
+    await expect(t.mutation(api.posts.deleteDraft, { draftId })).rejects.toThrow(
+      "Unauthorized",
+    );
+  });
+
   it("rejects upload URL generation when unauthenticated", async () => {
     const t = convexTest(schema, modules);
 

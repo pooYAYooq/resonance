@@ -299,6 +299,8 @@ export type PostBodyEditorProps = {
   onBlur: () => void;
   invalid?: boolean;
   labelledBy?: string;
+  initialContent?: BlockNoteDocument;
+  resolvedImageUrls?: Record<string, string | null>;
   onUploadSessionCreated?: (
     sessionId: Id<"pendingUploads">,
     storageId: Id<"_storage">,
@@ -356,6 +358,8 @@ export default function PostBodyEditor({
   onBlur,
   invalid = false,
   labelledBy,
+  initialContent,
+  resolvedImageUrls = {},
   onUploadSessionCreated,
 }: PostBodyEditorProps) {
   const createPendingUpload = useMutation(
@@ -384,6 +388,7 @@ export default function PostBodyEditor({
 
   const editor = useCreateBlockNote({
     schema: editorSchema,
+    initialContent: initialContent?.blocks as never,
     uploadFile: async (file) => {
       if (
         !isAllowedInlineImageType(file.type) ||
@@ -437,8 +442,13 @@ export default function PostBodyEditor({
       }
     },
     resolveFileUrl: async (storageId) =>
-      objectUrls.current.get(storageId) ?? "",
+      objectUrls.current.get(storageId) ?? resolvedImageUrls[storageId] ?? "",
   });
+
+  useEffect(() => {
+    if (!initialContent) return;
+    void editor.replaceBlocks(editor.document, initialContent.blocks as never);
+  }, [editor, initialContent]);
 
   return (
     <div

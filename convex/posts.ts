@@ -273,6 +273,119 @@ export const publishPost = mutation({
   },
 });
 
+export const getDrafts = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) {
+      return {
+        page: [],
+        isDone: true,
+        continueCursor: args.paginationOpts.cursor ?? "",
+      };
+    }
+
+    const result = await ctx.db
+      .query("posts")
+      .withIndex("by_authorId", (q) => q.eq("authorId", user._id))
+      .filter((q) => q.eq(q.field("status"), "draft"))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    return {
+      ...result,
+      page: result.page.map((draft) => {
+        const parsed = parsePostBody(draft.body);
+        const excerpt =
+          parsed.kind === "structured"
+            ? extractPlainText(parsed.document.blocks).slice(0, 240)
+            : "";
+        return {
+          _id: draft._id,
+          title: draft.title,
+          tags: draft.tags ?? [],
+          updatedAt: draft.updatedAt,
+          excerpt,
+        };
+      }),
+    };
+  },
+});
+
+export const getDraftById = query({
+  args: { draftId: v.id("posts") },
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return null;
+
+    const draft = await ctx.db.get(args.draftId);
+    if (
+      !draft ||
+      draft.authorId !== user._id ||
+      getPostStatus(draft) !== "draft"
+    ) {
+      return null;
+    }
+
+    const imageUrl = draft.imageStorageId
+      ? await ctx.storage.getUrl(draft.imageStorageId)
+      : null;
+    const parsed = parsePostBody(draft.body);
+    const inlineStorageIds =
+      parsed.kind === "structured"
+        ? (extractImageStorageIds(parsed.document.blocks) as Id<"_storage">[])
+        : [];
+    const inlineImages = await Promise.all(
+      inlineStorageIds.map(async (storageId) => ({
+        storageId,
+        url: await ctx.storage.getUrl(storageId),
+      })),
+    );
+
+    return {
+      _id: draft._id,
+      title: draft.title,
+      body: draft.body,
+      tags: draft.tags ?? [],
+      imageStorageId: draft.imageStorageId ?? null,
+      imageUrl,
+      inlineImages,
+      updatedAt: draft.updatedAt,
+    };
+  },
+});
+
+export const deleteDraft = mutation({
+  args: { draftId: v.id("posts") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) throw new ConvexError("Unauthorized");
+
+    const draft = await ctx.db.get(args.draftId);
+    if (
+      !draft ||
+      draft.authorId !== user._id ||
+      getPostStatus(draft) !== "draft"
+    ) {
+      throw new ConvexError("Post not found.");
+    }
+
+    const claims = ctx.db
+      .query("pendingUploads")
+      .withIndex("by_postId", (q) => q.eq("postId", draft._id));
+    for await (const claim of claims) {
+      if (claim.consumedAt !== undefined) continue;
+      if (claim.storageId !== undefined) {
+        await ctx.storage.delete(claim.storageId);
+      }
+      await ctx.db.delete(claim._id);
+    }
+    await ctx.db.delete(draft._id);
+    return null;
+  },
+});
+
 /**
  * Retrieves a paginated list of blog posts, ordered by creation time in descending order.
  *

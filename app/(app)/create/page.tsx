@@ -21,13 +21,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument } from "@/lib/post-content";
-import { extractImageStorageIds } from "@/lib/post-content";
+import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useConvexAuth } from "convex/react";
+import { useMutation, useConvexAuth, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
-import { useTransition, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useTransition, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
@@ -59,10 +59,37 @@ type SubmitMode = "draft" | "publish";
  * @returns The blog post creation interface
  */
 export default function CreateRoute() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center py-12">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <CreateEditor />
+    </Suspense>
+  );
+}
+
+function CreateEditor() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const [isPending, startTransition] = useTransition();
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
+  const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
+  const [initialContent, setInitialContent] = useState<BlockNoteDocument>();
+  const [resolvedImageUrls, setResolvedImageUrls] = useState<
+    Record<string, string | null>
+  >({});
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedDraftId = searchParams.get("draftId");
+  const hydratedDraft = useQuery(
+    api.posts.getDraftById,
+    !isLoading && isAuthenticated && requestedDraftId
+      ? { draftId: requestedDraftId as Id<"posts"> }
+      : "skip",
+  );
   const createPendingUpload = useMutation(
     api.pendingUploads.createPendingUpload,
   );
@@ -92,6 +119,42 @@ export default function CreateRoute() {
       router.push("/auth/login");
     }
   }, [isLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!requestedDraftId || hydratedDraft === undefined) return;
+    if (hydratedDraft === null) {
+      toast.error("That draft is unavailable.");
+      router.replace("/drafts");
+      return;
+    }
+
+    const parsed = parsePostBody(hydratedDraft.body);
+    if (parsed.kind !== "structured") {
+      toast.error("That draft is unavailable.");
+      router.replace("/drafts");
+      return;
+    }
+
+    queueMicrotask(() => {
+      form.reset({
+        title: hydratedDraft.title,
+        content: parsed.document,
+        tags: hydratedDraft.tags as PostFormInput["tags"],
+        image: undefined,
+      });
+      setDraftId(hydratedDraft._id);
+      setCoverStorageId(hydratedDraft.imageStorageId ?? undefined);
+      setInitialContent(parsed.document);
+      setResolvedImageUrls(
+        Object.fromEntries(
+          hydratedDraft.inlineImages.map(({ storageId, url }) => [
+            storageId,
+            url,
+          ]),
+        ),
+      );
+    });
+  }, [form, hydratedDraft, requestedDraftId, router]);
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -150,9 +213,10 @@ export default function CreateRoute() {
           submitSessions.set(session.sessionId, storageId);
         }
 
+        const savedCoverStorageId = storageId ?? coverStorageId;
         const referencedStorageIds = new Set([
           ...extractImageStorageIds(values.content.blocks),
-          ...(storageId ? [storageId] : []),
+          ...(savedCoverStorageId ? [savedCoverStorageId] : []),
         ]);
         unconsumedUploads = [...submitSessions.entries()]
           .filter(
@@ -169,10 +233,11 @@ export default function CreateRoute() {
           title: values.title,
           body: JSON.stringify(values.content),
           tags: values.tags,
-          ...(storageId && { imageStorageId: storageId }),
+          ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
         });
         draftSaved = true;
         setDraftId(saved.draftId);
+        setCoverStorageId(savedCoverStorageId);
 
         if (mode === "publish") {
           await publishPost({ draftId: saved.draftId });
@@ -288,8 +353,10 @@ export default function CreateRoute() {
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       invalid={fieldState.invalid}
-                      labelledBy="blog-content-label"
-                      onUploadSessionCreated={(sessionId, storageId) =>
+                       labelledBy="blog-content-label"
+                       initialContent={initialContent}
+                       resolvedImageUrls={resolvedImageUrls}
+                       onUploadSessionCreated={(sessionId, storageId) =>
                         inlineSessions.current.set(sessionId, storageId)
                       }
                     />

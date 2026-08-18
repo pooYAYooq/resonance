@@ -9,9 +9,10 @@ Phase 2.4 — Drafts & Publishing Workflow (in progress)
 ## Next focus
 
 Phase 2.4 is in progress. The lifecycle schema, legacy backfill, published-only
-reader boundary, draft-safe validation, and the `saveDraft` -> `publishPost`
-transition are implemented. Draft listing/resume/delete UI and production
-rollout gates remain outstanding.
+reader boundary, draft-safe validation, upload claim ownership, owner-scoped
+draft reads/deletion, resume hydration, the `/drafts` UI, and the
+`saveDraft` -> `publishPost` transition are implemented. Production rollout
+gates remain outstanding.
 
 ## Phase 2.3 verification
 
@@ -30,6 +31,17 @@ rollout gates remain outstanding.
   passing test; it is a fixture limitation, not a failing assertion.
 - Task 3 follow-up verification: 55 focused Convex/schema tests, 9 create-page
   component tests, and `pnpm exec tsc --noEmit` passed.
+- Draft-read follow-up: `pnpm test -- convex/posts.test.ts --run` passed with
+  14 files and 141 tests; the anonymous draft read/delete boundary is covered.
+- Draft-read type/lint verification: `pnpm exec tsc --noEmit` and `pnpm lint`
+  passed. `getDrafts` currently uses the existing author index plus a draft
+  filter because the staged lifecycle indexes remain deferred until Gate C.
+- Commits `bb0c323` and `2f8c013` were reconciled against the current plan.
+- Resume/drafts verification: the full backend suite passed with 14 files and
+  141 tests; the full component suite passed with 31 files and 198 tests.
+- Final verification: `pnpm lint`, `pnpm test:ci`, `pnpm test:component`, and
+  `pnpm build` all passed. The build includes static `/create` and `/drafts`
+  routes.
 
 ## Completed phases
 

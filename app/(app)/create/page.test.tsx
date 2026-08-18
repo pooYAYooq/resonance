@@ -44,11 +44,17 @@ const shortEnvelope: BlockNoteDocument = {
 type MockPostBodyEditorProps = {
   onChange: (value: BlockNoteDocument) => void;
   onUploadSessionCreated?: (sessionId: string, storageId: string) => void;
+  initialContent?: BlockNoteDocument;
 };
 
 vi.mock("./_components/PostBodyEditor", () => ({
-  default: ({ onChange, onUploadSessionCreated }: MockPostBodyEditorProps) => (
+  default: ({
+    onChange,
+    onUploadSessionCreated,
+    initialContent,
+  }: MockPostBodyEditorProps) => (
     <>
+      {initialContent && <output>{JSON.stringify(initialContent)}</output>}
       <button
         type="button"
         aria-label="Edit blog content"
@@ -101,6 +107,9 @@ const {
   finalizePendingUploadMock,
   saveDraftMock,
   publishPostMock,
+  getDraftByIdMock,
+  draftIdParam,
+  routerMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   toastSuccessMock: vi.fn(),
@@ -110,12 +119,16 @@ const {
   cleanupPendingUploadsMock: vi.fn(),
   saveDraftMock: vi.fn(),
   publishPostMock: vi.fn(),
+  getDraftByIdMock: vi.fn(),
+  draftIdParam: { value: undefined as string | undefined },
+  routerMock: { push: vi.fn(), replace: vi.fn() },
 }));
 
 let fetchMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock }),
+  useRouter: () => routerMock,
+  useSearchParams: () => ({ get: () => draftIdParam.value }),
 }));
 
 vi.mock("sonner", () => ({
@@ -134,6 +147,8 @@ vi.mock("convex/react", () => ({
     if (apiRef === "publishPost") return publishPostMock;
     return vi.fn();
   },
+  useQuery: (apiRef: unknown) =>
+    apiRef === "getDraftById" ? getDraftByIdMock() : undefined,
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
 }));
 
@@ -147,12 +162,15 @@ vi.mock("@/convex/_generated/api", () => ({
     posts: {
       saveDraft: "saveDraft",
       publishPost: "publishPost",
+      getDraftById: "getDraftById",
     },
   },
 }));
 
 describe("CreateRoute", () => {
   beforeEach(() => {
+    routerMock.push = pushMock;
+    routerMock.replace = pushMock;
     pushMock.mockClear();
     toastSuccessMock.mockClear();
     toastErrorMock.mockClear();
@@ -161,6 +179,8 @@ describe("CreateRoute", () => {
     cleanupPendingUploadsMock.mockReset();
     saveDraftMock.mockReset();
     publishPostMock.mockReset();
+    getDraftByIdMock.mockReset();
+    draftIdParam.value = undefined;
     createPendingUploadMock.mockResolvedValue({
       sessionId: "session-cover",
       uploadUrl: "https://upload.url",
@@ -169,12 +189,41 @@ describe("CreateRoute", () => {
     finalizePendingUploadMock.mockResolvedValue(null);
     saveDraftMock.mockResolvedValue({ draftId: "draft-1", updatedAt: 1 });
     publishPostMock.mockResolvedValue("draft-1");
+    getDraftByIdMock.mockReturnValue(undefined);
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("hydrates a draft when opened with a draft ID", async () => {
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Resumed title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["technology"],
+      imageStorageId: "cover-1",
+      imageUrl: "https://cover.example/image.png",
+      inlineImages: [],
+      updatedAt: 123,
+    });
+
+    render(<CreateRoute />);
+
+    expect(await screen.findByDisplayValue("Resumed title")).toBeInTheDocument();
+    expect(screen.getByText(JSON.stringify(validEnvelope))).toBeInTheDocument();
+  });
+
+  it("redirects an unavailable draft to the drafts route", async () => {
+    draftIdParam.value = "missing-draft";
+    getDraftByIdMock.mockReturnValue(null);
+
+    render(<CreateRoute />);
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/drafts"));
   });
 
   it("shows validation error for empty title", async () => {
