@@ -477,8 +477,8 @@ export default function PostBodyEditor({
             getCuratedSlashMenuItems(getDefaultReactSlashMenuItems(editor))
           }
         />
+        <InlineImageAltTextControl />
       </BlockNoteView>
-      <InlineImageAltTextControl />
     </div>
   );
 }
