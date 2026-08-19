@@ -41,7 +41,7 @@ migration has been run or is required for this disposable development database.
   routes.
 - Cleanup verification: `pnpm lint`, `pnpm test:ci`, `pnpm test:component`,
   `pnpm build`, and `git diff --check` passed. The backend suite passed with
-  14 files and 137 tests. The component suite passed with 31 files and 197
+  14 files and 138 tests. The component suite passed with 31 files and 197
   tests.
 
 ## Completed phases

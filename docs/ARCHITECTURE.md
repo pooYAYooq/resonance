@@ -830,7 +830,8 @@ The feed uses three indexes with exact field order:
   deletion.
 
 New posts fan out to current followers in bounded scheduler batches. Following
-starts a bounded backfill from the `posts.by_authorId_and_createdAt` index,
+starts a bounded backfill from the
+`posts.by_authorId_and_status_and_publishedAt` index,
 while unfollowing deletes only rows
 for the exact follow-row generation. A daily cron removes expired or dangling
 rows. These maintenance operations are intentionally eventually consistent:

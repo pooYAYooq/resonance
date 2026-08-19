@@ -27,6 +27,7 @@ describe("feed schema", () => {
         tags: [],
         authorId: "author-1",
         status: "published",
+        publishedAt: NOW,
         commentCount: 0,
         likeCount: 0,
         createdAt: 100,
@@ -140,6 +141,7 @@ describe("feed maintenance", () => {
         tags: [],
         authorId: "author-1",
         status: "published",
+        publishedAt: now,
         commentCount: 0,
         likeCount: 0,
         createdAt: now,
@@ -183,6 +185,7 @@ describe("feed maintenance", () => {
         tags: [],
         authorId: "popular-author",
         status: "published",
+        publishedAt: now,
         commentCount: 0,
         likeCount: 0,
         createdAt: now,
@@ -207,6 +210,43 @@ describe("feed maintenance", () => {
 
     expect(result).toEqual({ done: false, processed: FEED_BATCH_SIZE });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
+  });
+
+  it("does not fan out a published post without a publication timestamp", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    const postId = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Missing publication time",
+        body: "Body",
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("follows", {
+        followerId: "reader-1",
+        followingId: "author-1",
+        createdAt: now,
+      });
+      return postId;
+    });
+
+    const result = await t.mutation(internal.feed.fanOutForPost, {
+      postId,
+      authorId: "author-1",
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+      retryCount: 0,
+    });
+
+    expect(result).toEqual({ done: true, processed: 0 });
+    await expect(
+      t.run(async (ctx) => ctx.db.query("feed").collect()),
+    ).resolves.toEqual([]);
   });
 
   it("backfills only recent posts and is idempotent", async () => {

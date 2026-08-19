@@ -90,7 +90,10 @@ export const fanOutForPost = internalMutation({
     if (!post || post.status !== "published" || post.authorId !== args.authorId) {
       return { done: true, processed: 0 };
     }
-    const publicationTime = post.publishedAt ?? post.createdAt;
+    const publicationTime = post.publishedAt;
+    if (publicationTime === undefined) {
+      return { done: true, processed: 0 };
+    }
     if (publicationTime < Date.now() - FEED_WINDOW_MS) {
       return { done: true, processed: 0 };
     }
