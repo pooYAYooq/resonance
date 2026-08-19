@@ -9,6 +9,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { authComponent } from "./auth";
+import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
 
 /**
  * Fetches paginated comments for a given post, ordered newest-first.
@@ -16,8 +17,7 @@ import { authComponent } from "./auth";
  * @param args.postId - `Id<"posts">`: the document ID of the target post.
  * @param args.paginationOpts - `PaginationOptions`: Convex pagination config.
  * @returns `PaginationResult`: paginated result where `page` contains comments with
- *   `authorAvatarUrl` (`string | null`), `likeCount` (`number`, defaulting to 0 for
- *   legacy comments), `isLiked` (`boolean`, always `false` for unauthenticated
+ *   `authorAvatarUrl` (`string | null`), `likeCount` (`number`), `isLiked` (`boolean`, always `false` for unauthenticated
  *   callers), plus `isDone` and `continueCursor`.
  */
 export const getCommentsByPostId = query({
@@ -26,6 +26,14 @@ export const getCommentsByPostId = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
+    if (!(await getPublishedPost(ctx, args.postId))) {
+      return {
+        page: [],
+        isDone: true,
+        continueCursor: args.paginationOpts.cursor ?? "",
+      };
+    }
+
     const result = await ctx.db
       .query("comments")
       .withIndex("by_postId", (q) => q.eq("postId", args.postId))
@@ -54,7 +62,7 @@ export const getCommentsByPostId = query({
 
         return {
           ...comment,
-          likeCount: comment.likeCount ?? 0,
+          likeCount: comment.likeCount,
           authorAvatarUrl: user?.avatarUrl ?? null,
           isLiked,
         };
@@ -93,10 +101,7 @@ export const createComment = mutation({
       throw new ConvexError("Comment must be between 3 and 1000 characters.");
     }
 
-    const post = await ctx.db.get(args.postId);
-    if (!post) {
-      throw new ConvexError("Post not found.");
-    }
+    const post = await requirePublishedPost(ctx, args.postId);
 
     const commentId = await ctx.db.insert("comments", {
       postId: args.postId,

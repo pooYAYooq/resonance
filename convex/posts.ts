@@ -26,7 +26,6 @@ import {
   parsePostBody,
 } from "../lib/post-content";
 import {
-  getPostStatus,
   getPublishedPost,
   validateDraftUploadClaims,
 } from "./postLifecycle";
@@ -148,7 +147,7 @@ export const saveDraft = mutation({
       args.draftId !== undefined &&
       (!draft ||
         draft.authorId !== user._id ||
-        getPostStatus(draft) !== "draft")
+        draft.status !== "draft")
     ) {
       throw new ConvexError("Post not found.");
     }
@@ -218,7 +217,7 @@ export const publishPost = mutation({
     if (
       !draft ||
       draft.authorId !== user._id ||
-      getPostStatus(draft) !== "draft"
+      draft.status !== "draft"
     ) {
       throw new ConvexError("Post not found.");
     }
@@ -228,7 +227,7 @@ export const publishPost = mutation({
     ) {
       throw new ConvexError("Invalid content");
     }
-    if (!isValidPostTags(draft.tags ?? [])) {
+    if (!isValidPostTags(draft.tags)) {
       throw new ConvexError("Invalid tags");
     }
 
@@ -287,8 +286,9 @@ export const getDrafts = query({
 
     const result = await ctx.db
       .query("posts")
-      .withIndex("by_authorId", (q) => q.eq("authorId", user._id))
-      .filter((q) => q.eq(q.field("status"), "draft"))
+      .withIndex("by_authorId_and_status_and_updatedAt", (q) =>
+        q.eq("authorId", user._id).eq("status", "draft"),
+      )
       .order("desc")
       .paginate(args.paginationOpts);
 
@@ -303,7 +303,7 @@ export const getDrafts = query({
         return {
           _id: draft._id,
           title: draft.title,
-          tags: draft.tags ?? [],
+          tags: draft.tags,
           updatedAt: draft.updatedAt,
           excerpt,
         };
@@ -322,7 +322,7 @@ export const getDraftById = query({
     if (
       !draft ||
       draft.authorId !== user._id ||
-      getPostStatus(draft) !== "draft"
+      draft.status !== "draft"
     ) {
       return null;
     }
@@ -346,7 +346,7 @@ export const getDraftById = query({
       _id: draft._id,
       title: draft.title,
       body: draft.body,
-      tags: draft.tags ?? [],
+      tags: draft.tags,
       imageStorageId: draft.imageStorageId ?? null,
       imageUrl,
       inlineImages,
@@ -366,7 +366,7 @@ export const deleteDraft = mutation({
     if (
       !draft ||
       draft.authorId !== user._id ||
-      getPostStatus(draft) !== "draft"
+      draft.status !== "draft"
     ) {
       throw new ConvexError("Post not found.");
     }
@@ -419,13 +419,15 @@ export const getPosts = query({
 
     const result = await ctx.db
       .query("posts")
+      .withIndex("by_status_and_publishedAt", (q) =>
+        q.eq("status", "published"),
+      )
       .order("desc")
       .paginate(args.paginationOpts);
 
     const sourcePage = result.page.filter(
       (post) =>
-        getPostStatus(post) === "published" &&
-        (args.tag === undefined || (post.tags ?? []).includes(args.tag)),
+        args.tag === undefined || post.tags.includes(args.tag),
     );
 
     const authUser = await authComponent.safeGetAuthUser(ctx);
@@ -454,7 +456,7 @@ export const getPosts = query({
 
         return {
           ...post,
-          tags: post.tags ?? [],
+          tags: post.tags,
           imageUrl,
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,
@@ -556,7 +558,7 @@ export const getPostById = query({
 
     return {
       ...post,
-      tags: post.tags ?? [],
+      tags: post.tags,
       imageUrl: resolvedImageUrl,
       inlineImages,
       isLiked,
@@ -585,7 +587,9 @@ export const getPostsByAuthorId = query({
   handler: async (ctx, args) => {
     const result = await ctx.db
       .query("posts")
-      .withIndex("by_authorId", (q) => q.eq("authorId", args.authorId))
+      .withIndex("by_authorId_and_status_and_publishedAt", (q) =>
+        q.eq("authorId", args.authorId).eq("status", "published"),
+      )
       .order("desc")
       .paginate(args.paginationOpts);
 
@@ -596,12 +600,8 @@ export const getPostsByAuthorId = query({
 
     const authUser = await authComponent.safeGetAuthUser(ctx);
 
-    const sourcePage = result.page.filter(
-      (post) => getPostStatus(post) === "published",
-    );
-
     const page = await Promise.all(
-      sourcePage.map(async (post) => {
+      result.page.map(async (post) => {
         const imageUrl = post.imageStorageId
           ? await ctx.storage.getUrl(post.imageStorageId)
           : null;
@@ -619,7 +619,7 @@ export const getPostsByAuthorId = query({
 
         return {
           ...post,
-          tags: post.tags ?? [],
+          tags: post.tags,
           imageUrl,
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,

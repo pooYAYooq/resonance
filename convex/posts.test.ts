@@ -9,8 +9,8 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { describe, expect, it, vi } from "vitest";
-import { api, internal } from "./_generated/api";
+import { describe, expect, it } from "vitest";
+import { api } from "./_generated/api";
 import schema from "./schema";
 import { isValidPostTags } from "../lib/constants/post-tags";
 import {
@@ -24,64 +24,24 @@ import {
   isValidPublishPostBody,
   validateInlineUploadClaims,
 } from "./posts";
-import {
-  getPostStatus,
-  getPublishedAt,
-  getPublishedPost,
-  requirePublishedPost,
-} from "./postLifecycle";
+import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
 import type { Id } from "./_generated/dataModel";
 
 const modules = import.meta.glob("./**/*.ts");
 
 describe("posts functions", () => {
-  it("normalizes legacy lifecycle fields without hiding drafts", () => {
-    expect(getPostStatus({ status: undefined })).toBe("published");
-    expect(getPostStatus({ status: "draft" })).toBe("draft");
-    expect(
-      getPublishedAt({
-        status: undefined,
-        publishedAt: undefined,
-        createdAt: 42,
-      }),
-    ).toBe(42);
-    expect(
-      getPublishedAt({
-        status: "published",
-        publishedAt: undefined,
-        createdAt: 42,
-      }),
-    ).toBe(42);
-    expect(
-      getPublishedAt({ status: "published", publishedAt: 99, createdAt: 42 }),
-    ).toBe(99);
-    expect(
-      getPublishedAt({
-        status: "draft",
-        publishedAt: undefined,
-        createdAt: 42,
-      }),
-    ).toBeUndefined();
-  });
-
-  it("uses one generic published-post contract for missing and draft rows", async () => {
+  it("uses one generic published-post contract for published and draft rows", async () => {
     const t = convexTest(schema, modules);
     const ids = await t.run(async (ctx) => {
-      const legacy = await ctx.db.insert("posts", {
-        title: "Legacy",
-        body: "Legacy body",
-        authorId: "author-1",
-        commentCount: 0,
-        createdAt: 1,
-        updatedAt: 1,
-      });
       const published = await ctx.db.insert("posts", {
         title: "Published",
         body: "Published body",
         authorId: "author-1",
         status: "published",
         publishedAt: 2,
+        tags: [],
         commentCount: 0,
+        likeCount: 0,
         createdAt: 2,
         updatedAt: 2,
       });
@@ -90,37 +50,23 @@ describe("posts functions", () => {
         body: "Draft body",
         authorId: "author-1",
         status: "draft",
+        tags: [],
         commentCount: 0,
+        likeCount: 0,
         createdAt: 3,
         updatedAt: 3,
       });
-      const missing = await ctx.db.insert("posts", {
-        title: "Missing",
-        body: "Missing body",
-        authorId: "author-1",
-        commentCount: 0,
-        createdAt: 4,
-        updatedAt: 4,
-      });
-      await ctx.db.delete(missing);
-      return { legacy, published, draft, missing };
+      return { published, draft };
     });
 
     await t.run(async (ctx) => {
-      await expect(getPublishedPost(ctx, ids.legacy)).resolves.toMatchObject({
-        _id: ids.legacy,
-      });
       await expect(getPublishedPost(ctx, ids.published)).resolves.toMatchObject(
         {
           _id: ids.published,
         },
       );
       await expect(getPublishedPost(ctx, ids.draft)).resolves.toBeNull();
-      await expect(getPublishedPost(ctx, ids.missing)).resolves.toBeNull();
       await expect(requirePublishedPost(ctx, ids.draft)).rejects.toThrow(
-        "Post not found.",
-      );
-      await expect(requirePublishedPost(ctx, ids.missing)).rejects.toThrow(
         "Post not found.",
       );
     });
@@ -129,21 +75,15 @@ describe("posts functions", () => {
   it("hides draft rows from global, author, and detail reads", async () => {
     const t = convexTest(schema, modules);
     const ids = await t.run(async (ctx) => ({
-      legacy: await ctx.db.insert("posts", {
-        title: "Legacy",
-        body: "Legacy body",
-        authorId: "author-1",
-        commentCount: 0,
-        createdAt: 1,
-        updatedAt: 1,
-      }),
       published: await ctx.db.insert("posts", {
         title: "Published",
         body: "Published body",
         authorId: "author-1",
         status: "published",
         publishedAt: 2,
+        tags: [],
         commentCount: 0,
+        likeCount: 0,
         createdAt: 2,
         updatedAt: 2,
       }),
@@ -152,7 +92,9 @@ describe("posts functions", () => {
         body: "Draft body",
         authorId: "author-1",
         status: "draft",
+        tags: [],
         commentCount: 0,
+        likeCount: 0,
         createdAt: 3,
         updatedAt: 3,
       }),
@@ -161,198 +103,19 @@ describe("posts functions", () => {
     const global = await t.query(api.posts.getPosts, {
       paginationOpts: { numItems: 10, cursor: null },
     });
-    expect(global.page.map((post) => post.title)).toEqual([
-      "Published",
-      "Legacy",
-    ]);
+    expect(global.page.map((post) => post.title)).toEqual(["Published"]);
 
     const author = await t.query(api.posts.getPostsByAuthorId, {
       authorId: "author-1",
       paginationOpts: { numItems: 10, cursor: null },
     });
-    expect(author.page.map((post) => post.title)).toEqual([
-      "Published",
-      "Legacy",
-    ]);
+    expect(author.page.map((post) => post.title)).toEqual(["Published"]);
     expect(
       await t.query(api.posts.getPostById, { postId: ids.draft }),
     ).toBeNull();
     expect(
       (await t.query(api.posts.getPostById, { postId: ids.published }))?.title,
     ).toBe("Published");
-    expect(
-      (await t.query(api.posts.getPostById, { postId: ids.legacy }))?.title,
-    ).toBe("Legacy");
-  });
-
-  it("backfills legacy posts in bounded, idempotent pages", async () => {
-    vi.useFakeTimers();
-    try {
-      const t = convexTest(schema, modules);
-      const ids = await t.run(async (ctx) => {
-        const legacyFirst = await ctx.db.insert("posts", {
-          title: "Legacy first",
-          body: "legacy body 1",
-          authorId: "author-1",
-          commentCount: 0,
-          createdAt: 10,
-          updatedAt: 11,
-        });
-        const publishedWithoutTimestamp = await ctx.db.insert("posts", {
-          title: "Published without timestamp",
-          body: "legacy body 2",
-          authorId: "author-1",
-          status: "published",
-          commentCount: 0,
-          createdAt: 20,
-          updatedAt: 21,
-        });
-        const draft = await ctx.db.insert("posts", {
-          title: "Draft",
-          body: "draft body",
-          authorId: "author-1",
-          status: "draft",
-          commentCount: 0,
-          createdAt: 30,
-          updatedAt: 31,
-        });
-        const normalized = await ctx.db.insert("posts", {
-          title: "Normalized",
-          body: "normalized body",
-          authorId: "author-1",
-          status: "published",
-          publishedAt: 40,
-          commentCount: 0,
-          createdAt: 40,
-          updatedAt: 41,
-        });
-        const legacySecond = await ctx.db.insert("posts", {
-          title: "Legacy second",
-          body: "legacy body 3",
-          authorId: "author-1",
-          commentCount: 0,
-          createdAt: 50,
-          updatedAt: 51,
-        });
-        return {
-          legacyFirst,
-          publishedWithoutTimestamp,
-          draft,
-          normalized,
-          legacySecond,
-        };
-      });
-
-      const firstPage = await t.mutation(
-        internal.postLifecycle.backfillPublishedPosts,
-        {
-          paginationOpts: { numItems: 2, cursor: null },
-        },
-      );
-      expect(firstPage).toMatchObject({ done: false, processed: 2 });
-
-      await t.finishAllScheduledFunctions(vi.runAllTimers);
-
-      const afterBackfill = await t.run(async (ctx) =>
-        Promise.all(
-          [
-            ids.legacyFirst,
-            ids.publishedWithoutTimestamp,
-            ids.draft,
-            ids.normalized,
-            ids.legacySecond,
-          ].map((id) => ctx.db.get(id)),
-        ),
-      );
-      expect(afterBackfill[0]).toMatchObject({
-        status: "published",
-        publishedAt: 10,
-      });
-      expect(afterBackfill[1]).toMatchObject({
-        status: "published",
-        publishedAt: 20,
-      });
-      expect(afterBackfill[2]).toMatchObject({ status: "draft" });
-      expect(afterBackfill[2]?.publishedAt).toBeUndefined();
-      expect(afterBackfill[3]).toMatchObject({
-        status: "published",
-        publishedAt: 40,
-      });
-      expect(afterBackfill[4]).toMatchObject({
-        status: "published",
-        publishedAt: 50,
-      });
-      expect(afterBackfill.map((post) => post?.updatedAt)).toEqual([
-        11, 21, 31, 41, 51,
-      ]);
-      expect(afterBackfill.map((post) => post?.body)).toEqual([
-        "legacy body 1",
-        "legacy body 2",
-        "draft body",
-        "normalized body",
-        "legacy body 3",
-      ]);
-
-      const beforeRetry = afterBackfill.map((post) => ({
-        status: post?.status,
-        publishedAt: post?.publishedAt,
-        updatedAt: post?.updatedAt,
-        body: post?.body,
-      }));
-      await t.mutation(internal.postLifecycle.backfillPublishedPosts, {
-        paginationOpts: { numItems: 2, cursor: null },
-      });
-      const afterRetry = await t.run(async (ctx) =>
-        Promise.all(
-          [
-            ids.legacyFirst,
-            ids.publishedWithoutTimestamp,
-            ids.draft,
-            ids.normalized,
-            ids.legacySecond,
-          ].map((id) => ctx.db.get(id)),
-        ),
-      );
-      expect(
-        afterRetry.map((post) => ({
-          status: post?.status,
-          publishedAt: post?.publishedAt,
-          updatedAt: post?.updatedAt,
-          body: post?.body,
-        })),
-      ).toEqual(beforeRetry);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("starts the lifecycle backfill from the operator entry point", async () => {
-    vi.useFakeTimers();
-    try {
-      const t = convexTest(schema, modules);
-      const postId = await t.run(async (ctx) =>
-        ctx.db.insert("posts", {
-          title: "Legacy post",
-          body: "legacy body",
-          authorId: "author-1",
-          commentCount: 0,
-          createdAt: 100,
-          updatedAt: 101,
-        }),
-      );
-
-      expect(
-        await t.mutation(internal.crons.runPostLifecycleBackfill, {}),
-      ).toBeNull();
-      await t.finishAllScheduledFunctions(vi.runAllTimers);
-
-      await t.run(async (ctx) => {
-        const post = await ctx.db.get(postId);
-        expect(post).toMatchObject({ status: "published", publishedAt: 100 });
-      });
-    } finally {
-      vi.useRealTimers();
-    }
   });
 
   const storageId = "storage-image-1" as Id<"_storage">;
@@ -462,8 +225,8 @@ describe("posts functions", () => {
     expect(isValidPublishPostBody(structuredBody)).toBe(true);
   });
 
-  it("rejects legacy and non-blocknote bodies for new posts", () => {
-    expect(isValidPublishPostBody("Legacy post content.")).toBe(false);
+  it("rejects non-canonical bodies for new posts", () => {
+    expect(isValidPublishPostBody("Plain text content.")).toBe(false);
     expect(isValidPublishPostBody("")).toBe(false);
     expect(isValidPublishPostBody("null")).toBe(false);
     expect(
@@ -562,7 +325,9 @@ describe("posts functions", () => {
         body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
         authorId: "author-1",
         status: "draft",
+        tags: [],
         commentCount: 0,
+        likeCount: 0,
         createdAt: 1,
         updatedAt: 1,
       }),
@@ -595,7 +360,9 @@ describe("posts functions", () => {
         body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
         authorId: "author-1",
         status: "draft",
+        tags: [],
         commentCount: 0,
+        likeCount: 0,
         createdAt: 1,
         updatedAt: 1,
       }),
@@ -627,6 +394,8 @@ describe("posts functions", () => {
         title: "Older",
         body: "Older body content.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         imageStorageId: firstImage,
         commentCount: 0,
         likeCount: 0,
@@ -642,6 +411,8 @@ describe("posts functions", () => {
         title: "Newer",
         body: "Newer body content.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         imageStorageId: secondImage,
         commentCount: 0,
         likeCount: 0,
@@ -685,6 +456,7 @@ describe("posts functions", () => {
         body: "Body.",
         authorId: "user-1",
         tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: 300,
@@ -695,6 +467,7 @@ describe("posts functions", () => {
         body: "Body.",
         authorId: "user-1",
         tags: ["Technology", "Design"],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: 200,
@@ -704,6 +477,8 @@ describe("posts functions", () => {
         title: "Old untagged",
         body: "Body.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: 100,
@@ -736,6 +511,7 @@ describe("posts functions", () => {
         body: "Body.",
         authorId: "user-1",
         tags: ["RemovedTag"],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: 100,
@@ -757,24 +533,6 @@ describe("posts functions", () => {
     expect(result.isDone).toBe(true);
   });
 
-  it("normalizes missing post tags on detail reads", async () => {
-    const t = convexTest(schema, modules);
-    const postId = await t.run(async (ctx) =>
-      ctx.db.insert("posts", {
-        title: "Legacy post",
-        body: "Body.",
-        authorId: "user-1",
-        commentCount: 0,
-        likeCount: 0,
-        createdAt: 100,
-        updatedAt: 100,
-      }),
-    );
-
-    const result = await t.query(api.posts.getPostById, { postId });
-    expect(result?.tags).toEqual([]);
-  });
-
   it("returns null when post does not exist", async () => {
     const t = convexTest(schema, modules);
 
@@ -783,6 +541,8 @@ describe("posts functions", () => {
         title: "To be deleted",
         body: "Body content.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -811,6 +571,8 @@ describe("posts functions", () => {
         title: "Post with image",
         body: "Body content.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         imageStorageId,
         commentCount: 0,
         likeCount: 0,
@@ -837,6 +599,8 @@ describe("posts functions", () => {
         title: "Post without image",
         body: "Body content.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -891,6 +655,8 @@ describe("posts functions", () => {
             ],
           }),
           authorId: "user-1",
+          tags: [],
+          status: "published",
           commentCount: 0,
           likeCount: 0,
           createdAt: Date.now(),
@@ -928,6 +694,8 @@ describe("posts functions", () => {
           ],
         }),
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -958,6 +726,8 @@ describe("posts functions", () => {
         title: "Structured post",
         body,
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: 100,
@@ -968,27 +738,6 @@ describe("posts functions", () => {
     const result = await t.query(api.posts.getPostById, { postId });
 
     expect(result?.body).toBe(body);
-  });
-
-  it("keeps stored legacy bodies readable with no inline images", async () => {
-    const t = convexTest(schema, modules);
-    const body = "Legacy stored body";
-    const postId = await t.run(async (ctx) =>
-      ctx.db.insert("posts", {
-        title: "Legacy post",
-        body,
-        authorId: "user-1",
-        commentCount: 0,
-        likeCount: 0,
-        createdAt: 100,
-        updatedAt: 100,
-      }),
-    );
-
-    const result = await t.query(api.posts.getPostById, { postId });
-
-    expect(result?.body).toBe(body);
-    expect(result?.inlineImages).toEqual([]);
   });
 
   it("serves malformed stored structured bodies without inline images", async () => {
@@ -1002,6 +751,8 @@ describe("posts functions", () => {
         title: "Malformed structured post",
         body,
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: 100,
@@ -1022,6 +773,8 @@ describe("posts functions", () => {
         title: "Post with comments",
         body: "Body.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 2,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1047,12 +800,17 @@ describe("posts functions", () => {
         userId: "user-1",
         displayName: "Bob",
         avatarUrl: "https://example.com/bob.png",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
       await ctx.db.insert("posts", {
         title: "Bob's post",
         body: "Body.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1076,6 +834,8 @@ describe("posts functions", () => {
         title: "Ghost post",
         body: "Body.",
         authorId: "unknown-user",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1098,6 +858,8 @@ describe("posts functions", () => {
         title: "First",
         body: "Body one.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1107,6 +869,8 @@ describe("posts functions", () => {
         title: "Second",
         body: "Body two.",
         authorId: "user-2",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1116,6 +880,8 @@ describe("posts functions", () => {
         title: "Third",
         body: "Body three.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1143,6 +909,8 @@ describe("posts functions", () => {
         title: "First",
         body: "Body one.",
         authorId: "alice",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1152,6 +920,8 @@ describe("posts functions", () => {
         title: "Second",
         body: "Body two.",
         authorId: "bob",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1161,6 +931,8 @@ describe("posts functions", () => {
         title: "Third",
         body: "Body three.",
         authorId: "alice",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1187,6 +959,8 @@ describe("posts functions", () => {
           title: `Post ${i}`,
           body: "Body.",
           authorId: "alice",
+          tags: [],
+          status: "published",
           commentCount: 0,
           likeCount: 0,
           createdAt: 1000 + i,
@@ -1213,12 +987,17 @@ describe("posts functions", () => {
         userId: "alice",
         displayName: "Alice",
         avatarUrl: "https://example.com/alice.png",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
       await ctx.db.insert("posts", {
         title: "Alice's post",
         body: "Body.",
         authorId: "alice",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1246,6 +1025,8 @@ describe("posts functions", () => {
         title: "Ghost post",
         body: "Body.",
         authorId: "unknown-user",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -1282,6 +1063,8 @@ describe("posts functions", () => {
         title: "Post with likeCount",
         body: "Body.",
         authorId: "user-1",
+        tags: [],
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),

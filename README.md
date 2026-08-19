@@ -189,7 +189,7 @@ components/
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
-    PostBody.tsx              # Pure Server Component renderer for structured & legacy post bodies
+    PostBody.tsx              # Pure Server Component renderer for structured post bodies
     TagPill.tsx               # Linked pill for /blog?tag= filters
     PostTagSelector.tsx       # Controlled five-tag checkbox selector
     LikeButton.tsx

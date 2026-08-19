@@ -10,6 +10,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { authComponent } from "./auth";
+import { requirePublishedPost } from "./postLifecycle";
 
 /**
  * Toggles a like on a post for the currently authenticated user.
@@ -35,10 +36,7 @@ export const toggleLike = mutation({
       throw new ConvexError("Unauthorized");
     }
 
-    const post = await ctx.db.get(args.postId);
-    if (!post) {
-      throw new ConvexError("Post not found.");
-    }
+    const post = await requirePublishedPost(ctx, args.postId);
 
     const existingLike = await ctx.db
       .query("likes")
@@ -49,7 +47,7 @@ export const toggleLike = mutation({
 
     if (existingLike) {
       await ctx.db.delete(existingLike._id);
-      const nextCount = (post.likeCount ?? 0) - 1;
+      const nextCount = post.likeCount - 1;
       await ctx.db.patch(args.postId, {
         likeCount: nextCount,
       });
@@ -61,7 +59,7 @@ export const toggleLike = mutation({
       userId: user._id,
       createdAt: Date.now(),
     });
-    const nextCount = (post.likeCount ?? 0) + 1;
+    const nextCount = post.likeCount + 1;
     await ctx.db.patch(args.postId, {
       likeCount: nextCount,
     });
@@ -95,6 +93,7 @@ export const toggleCommentLike = mutation({
     if (!comment) {
       throw new ConvexError("Comment not found.");
     }
+    await requirePublishedPost(ctx, comment.postId);
 
     const existingLike = await ctx.db
       .query("commentLikes")
@@ -105,7 +104,7 @@ export const toggleCommentLike = mutation({
 
     if (existingLike) {
       await ctx.db.delete(existingLike._id);
-      const nextCount = (comment.likeCount ?? 0) - 1;
+      const nextCount = comment.likeCount - 1;
       await ctx.db.patch(args.commentId, {
         likeCount: nextCount,
       });
@@ -117,7 +116,7 @@ export const toggleCommentLike = mutation({
       userId: user._id,
       createdAt: Date.now(),
     });
-    const nextCount = (comment.likeCount ?? 0) + 1;
+    const nextCount = comment.likeCount + 1;
     await ctx.db.patch(args.commentId, {
       likeCount: nextCount,
     });

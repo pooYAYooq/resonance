@@ -24,8 +24,11 @@ describe("feed schema", () => {
       const postId = await ctx.db.insert("posts", {
         title: "Feed post",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: 100,
         updatedAt: 100,
       });
@@ -134,8 +137,11 @@ describe("feed maintenance", () => {
       const postId = await ctx.db.insert("posts", {
         title: "New post",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -174,8 +180,11 @@ describe("feed maintenance", () => {
       const postId = await ctx.db.insert("posts", {
         title: "Popular post",
         body: "Body",
+        tags: [],
         authorId: "popular-author",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -213,16 +222,22 @@ describe("feed maintenance", () => {
       await ctx.db.insert("posts", {
         title: "Recent",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now - FEED_WINDOW_MS + 1,
         updatedAt: now - FEED_WINDOW_MS + 1,
       });
       await ctx.db.insert("posts", {
         title: "Expired",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now - FEED_WINDOW_MS - 1,
         updatedAt: now - FEED_WINDOW_MS - 1,
       });
@@ -270,8 +285,11 @@ describe("feed maintenance", () => {
           ctx.db.insert("posts", {
             title: authorId,
             body: "Body",
+            tags: [],
             authorId,
+            status: "published",
             commentCount: 0,
+            likeCount: 0,
             createdAt: now,
             updatedAt: now,
           }),
@@ -342,24 +360,33 @@ describe("feed maintenance", () => {
       const recentPostId = await ctx.db.insert("posts", {
         title: "Recent",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now,
         updatedAt: now,
       });
       const expiredPostId = await ctx.db.insert("posts", {
         title: "Expired",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now - FEED_WINDOW_MS - 1,
         updatedAt: now - FEED_WINDOW_MS - 1,
       });
       const danglingPostId = await ctx.db.insert("posts", {
         title: "Dangling",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now,
         updatedAt: now,
       });

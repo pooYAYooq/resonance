@@ -54,9 +54,11 @@ describe("pending upload functions", () => {
       const postId = await ctx.db.insert("posts", {
         title: "Draft",
         body: "draft body",
+        tags: [],
         authorId: "owner-1",
         status: "draft",
         commentCount: 0,
+        likeCount: 0,
         createdAt: 1,
         updatedAt: 1,
       });

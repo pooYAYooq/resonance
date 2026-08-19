@@ -27,6 +27,9 @@ describe("follows functions", () => {
       await ctx.db.insert("users", {
         userId: "author-auth-id",
         displayName: "Author",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
     });
@@ -45,6 +48,9 @@ describe("follows functions", () => {
       await ctx.db.insert("users", {
         userId: "author-auth-id",
         displayName: "Author",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
     });
@@ -62,6 +68,9 @@ describe("follows functions", () => {
       await ctx.db.insert("users", {
         userId: "author-auth-id",
         displayName: "Author",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
       // A follow row exists, but its follower is someone else — and
@@ -87,6 +96,9 @@ describe("follows functions", () => {
       await ctx.db.insert("users", {
         userId: "author-auth-id",
         displayName: "Author",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
     });
@@ -106,6 +118,7 @@ describe("follows functions", () => {
         displayName: "Author",
         followerCount: 7,
         followingCount: 3,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
     });

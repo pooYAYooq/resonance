@@ -1,32 +1,18 @@
 import type { Doc, Id } from "./_generated/dataModel";
-import { internal } from "./_generated/api";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { internalMutation } from "./_generated/server";
-import { paginationOptsValidator } from "convex/server";
-import { ConvexError, v } from "convex/values";
+import { ConvexError } from "convex/values";
 
 type UploadClaimContext = Pick<MutationCtx, "db">;
 
 export const POST_STATUSES = ["draft", "published"] as const;
 export type PostStatus = (typeof POST_STATUSES)[number];
 
-export function getPostStatus(post: Pick<Doc<"posts">, "status">): PostStatus {
-  return post.status ?? "published";
-}
-
-export function getPublishedAt(
-  post: Pick<Doc<"posts">, "status" | "publishedAt" | "createdAt">,
-): number | undefined {
-  if (getPostStatus(post) !== "published") return undefined;
-  return post.publishedAt ?? post.createdAt;
-}
-
 export async function getPublishedPost(
   ctx: Pick<QueryCtx | MutationCtx, "db">,
   postId: Id<"posts">,
 ): Promise<Doc<"posts"> | null> {
   const post = await ctx.db.get(postId);
-  return post && getPostStatus(post) === "published" ? post : null;
+  return post && post.status === "published" ? post : null;
 }
 
 export async function requirePublishedPost(
@@ -75,51 +61,3 @@ export async function validateDraftUploadClaims(
 
   return claimIds;
 }
-
-export const backfillPublishedPosts = internalMutation({
-  args: {
-    paginationOpts: paginationOptsValidator,
-  },
-  returns: v.object({
-    done: v.boolean(),
-    processed: v.number(),
-  }),
-  handler: async (ctx, args) => {
-    const result = await ctx.db
-      .query("posts")
-      .order("asc")
-      .paginate(args.paginationOpts);
-
-    for (const post of result.page) {
-      const current = await ctx.db.get(post._id);
-      if (!current) continue;
-
-      if (current.status === undefined) {
-        await ctx.db.patch(current._id, {
-          status: "published",
-          publishedAt: current.createdAt,
-        });
-      } else if (
-        current.status === "published" &&
-        current.publishedAt === undefined
-      ) {
-        await ctx.db.patch(current._id, { publishedAt: current.createdAt });
-      }
-    }
-
-    if (!result.isDone) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.postLifecycle.backfillPublishedPosts,
-        {
-          paginationOpts: {
-            ...args.paginationOpts,
-            cursor: result.continueCursor,
-          },
-        },
-      );
-    }
-
-    return { done: result.isDone, processed: result.page.length };
-  },
-});

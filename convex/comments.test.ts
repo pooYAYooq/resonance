@@ -21,11 +21,48 @@ describe("comments functions", () => {
       return await ctx.db.insert("posts", {
         title: "No comments",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
+    });
+
+    const result = await t.query(api.comments.getCommentsByPostId, {
+      postId,
+      paginationOpts: { numItems: 50, cursor: null },
+    });
+
+    expect(result.page).toEqual([]);
+    expect(result.isDone).toBe(true);
+  });
+
+  it("hides comments for a draft post", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("posts", {
+        title: "Draft",
+        body: "Body.",
+        tags: [],
+        authorId: "user-1",
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("comments", {
+        postId: id,
+        authorId: "user-2",
+        authorName: "Alice",
+        body: "Hidden",
+        likeCount: 0,
+        createdAt: Date.now(),
+      });
+      return id;
     });
 
     const result = await t.query(api.comments.getCommentsByPostId, {
@@ -44,8 +81,11 @@ describe("comments functions", () => {
       const id = await ctx.db.insert("posts", {
         title: "With comments",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -54,6 +94,7 @@ describe("comments functions", () => {
         authorId: "user-2",
         authorName: "Alice",
         body: "Older",
+        likeCount: 0,
         createdAt: 1000,
       });
       await ctx.db.insert("comments", {
@@ -61,6 +102,7 @@ describe("comments functions", () => {
         authorId: "user-3",
         authorName: "Bob",
         body: "Newer",
+        likeCount: 0,
         createdAt: 2000,
       });
       return id;
@@ -84,8 +126,11 @@ describe("comments functions", () => {
       const id = await ctx.db.insert("posts", {
         title: "Many comments",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -94,6 +139,7 @@ describe("comments functions", () => {
           postId: id,
           authorId: `user-${i}`,
           authorName: `User ${i}`,
+          likeCount: 0,
           body: `Comment ${i}`,
           createdAt: 1000 + i,
         });
@@ -118,8 +164,11 @@ describe("comments functions", () => {
       return await ctx.db.insert("posts", {
         title: "Target post",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -140,8 +189,11 @@ describe("comments functions", () => {
       const id = await ctx.db.insert("posts", {
         title: "Avatar test",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -149,8 +201,11 @@ describe("comments functions", () => {
         userId: "user-2",
         displayName: "Alice",
         email: "alice@example.com",
-        avatarUrl: "https://example.com/alice.png",
-        bio: "",
+          avatarUrl: "https://example.com/alice.png",
+          bio: "",
+          followerCount: 0,
+          followingCount: 0,
+          unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
       await ctx.db.insert("comments", {
@@ -158,6 +213,7 @@ describe("comments functions", () => {
         authorId: "user-2",
         authorName: "Alice",
         body: "Great post!",
+        likeCount: 0,
         createdAt: 1000,
       });
       return id;
@@ -179,8 +235,11 @@ describe("comments functions", () => {
       const id = await ctx.db.insert("posts", {
         title: "No user record",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -189,6 +248,7 @@ describe("comments functions", () => {
         authorId: "unknown-user",
         authorName: "Ghost",
         body: "Orphan comment",
+        likeCount: 0,
         createdAt: 1000,
       });
       return id;
@@ -203,15 +263,18 @@ describe("comments functions", () => {
     expect(result.page[0].authorAvatarUrl).toBeNull();
   });
 
-  it("getCommentsByPostId returns isLiked false and likeCount 0 for comments without stored likeCount", async () => {
+  it("getCommentsByPostId returns isLiked false and the stored likeCount", async () => {
     const t = convexTest(schema, modules);
 
     const postId = await t.run(async (ctx) => {
       const id = await ctx.db.insert("posts", {
         title: "Like default",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -220,6 +283,7 @@ describe("comments functions", () => {
         authorId: "user-2",
         authorName: "Alice",
         body: "Old comment without likeCount field.",
+        likeCount: 0,
         createdAt: 1000,
       });
       return id;
@@ -242,8 +306,11 @@ describe("comments functions", () => {
       const id = await ctx.db.insert("posts", {
         title: "Stored count",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });

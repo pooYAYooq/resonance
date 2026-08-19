@@ -75,6 +75,11 @@ export const fanOutForPost = internalMutation({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (!post || post.status !== "published" || post.authorId !== args.authorId) {
+      return { done: true, processed: 0 };
+    }
+
     const result = await ctx.db
       .query("follows")
       .withIndex("by_followingId", (q) => q.eq("followingId", args.authorId))
@@ -94,7 +99,7 @@ export const fanOutForPost = internalMutation({
         .unique();
       if (recipient) {
         await ctx.db.patch(recipient._id, {
-          unreadNotificationCount: (recipient.unreadNotificationCount ?? 0) + 1,
+          unreadNotificationCount: recipient.unreadNotificationCount + 1,
         });
       }
     }
@@ -149,7 +154,7 @@ export const getUnreadCount = query({
 type HydratedNotification = Doc<"notifications"> & {
   actorName: string | null;
   actorAvatarUrl: string | null;
-  postTitle: string | null;
+  postTitle: string;
 };
 
 /**
@@ -210,10 +215,13 @@ export const getNotifications = query({
     );
     const actorById = new Map<string, Doc<"users"> | null>(actorDocs);
 
-    const hydrated: HydratedNotification[] = await Promise.all(
+    const hydrated: (HydratedNotification | null)[] = await Promise.all(
       result.page.map(async (notification) => {
         const actor = actorById.get(notification.actorId) ?? null;
         const post = await ctx.db.get(notification.postId);
+        if (!post || post.status !== "published") {
+          return null;
+        }
         return {
           ...notification,
           actorName: actor?.displayName ?? null,
@@ -223,7 +231,13 @@ export const getNotifications = query({
       }),
     );
 
-    return { ...result, page: hydrated };
+    return {
+      ...result,
+      page: hydrated.filter(
+        (notification): notification is HydratedNotification =>
+          notification !== null,
+      ),
+    };
   },
 });
 

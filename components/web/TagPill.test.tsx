@@ -17,7 +17,7 @@ describe("TagPill", () => {
     );
   });
 
-  it("keeps legacy removed tags visible and linked", () => {
+  it("links tags that are no longer in the selector", () => {
     render(<TagPill tag="RemovedTag" />);
     expect(screen.getByRole("link", { name: "RemovedTag" })).toHaveAttribute(
       "href",

@@ -81,14 +81,6 @@ const structuredBody = JSON.stringify({
 });
 
 describe("PostBody", () => {
-  it("renders legacy text as a whitespace-preserving paragraph", () => {
-    const { container } = render(<PostBody body={"Line one\nLine two"} />);
-    const paragraph = container.querySelector("p");
-
-    expect(paragraph?.textContent).toBe("Line one\nLine two");
-    expect(paragraph).toHaveClass("whitespace-pre-wrap");
-  });
-
   it("renders headings below the page title heading level", () => {
     render(<PostBody body={structuredBody} />);
 

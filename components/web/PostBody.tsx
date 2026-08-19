@@ -233,16 +233,6 @@ function renderBlocks(
 export function PostBody({ body, inlineImages = [] }: PostBodyProps) {
   const parsed = parsePostBody(body);
 
-  if (parsed.kind === "legacy") {
-    return (
-      <div data-slot="post-body">
-        <p className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap">
-          {parsed.text}
-        </p>
-      </div>
-    );
-  }
-
   if (parsed.kind !== "structured") return null;
 
   const resolvedImages = new Map(

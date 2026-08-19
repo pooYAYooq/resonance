@@ -185,13 +185,13 @@ resonance/
 │       ├── PostCard.tsx         # Reusable post card with optional linked tags. Title is an <h2> so the
 │       │                        # page-level <h1> remains unique per page. Derives excerpts from
 │       │                        # stored bodies via lib/post-content so serialized JSON never leaks.
-│       ├── PostBody.tsx         # Pure Server Component renderer for structured and legacy bodies,
+│       ├── PostBody.tsx         # Pure Server Component renderer for structured bodies,
 │       │                         # including hydrated inline images.
 │       │                        # No "use client", no dangerouslySetInnerHTML, no sanitizer dep.
 │       │                        # Maps supported BlockNote blocks to explicit elements; unsafe link
 │       │                        # protocols (non http/https/mailto) render as text. Used only on
 │       │                        # /blog/[postId]; cards and metadata use extractPlainText instead.
-│       ├── TagPill.tsx          # Shared linked tag pill; preserves legacy stored values.
+│       ├── TagPill.tsx          # Shared linked tag pill.
 │       ├── PostTagSelector.tsx  # Controlled checkbox group, capped at five selections.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
 │       ├── SectionHeading.tsx   # Heading with optional count + right-side action slot
@@ -382,11 +382,9 @@ parentheses mean the folder name is not part of the URL. `/blog` resolves to
 
 ### Post Tags and Blog Filtering
 
-Posts store an optional `tags: string[]` field so documents created before the
-feature remain valid. New create requests validate the canonical fifteen-value
-list and reject duplicates or more than five tags in both Zod and Convex.
-Readers normalize missing fields to `[]`; stored legacy values remain visible
-as pills even if their value is no longer canonical.
+Posts store a required `tags: string[]` field. New create requests validate the
+canonical fifteen-value list and reject duplicates or more than five tags in
+both Zod and Convex.
 
 `getPosts` accepts an optional exact, case-sensitive `tag`. Convex paginates the
 newest-first source query, filters each bounded source page in memory, and
@@ -398,7 +396,7 @@ empty completed page and never fall back to the unfiltered listing.
 ### Post Body Authoring and Rendering
 
 Posts are authored with a curated BlockNote editor and stored as a versioned
-structured document, while legacy plain-text bodies remain readable. The
+structured document. The
 constraint is enforced by a single dependency-free module so Convex, Zod,
 cards, metadata, and the Server Component renderer all share one contract.
 
@@ -407,15 +405,14 @@ cards, metadata, and the Server Component renderer all share one contract.
   `PostInlineContent` types, `parsePostBody`, `isValidBlockNoteDoc`, and
   `extractPlainText`. The editor authors paragraphs, section headings (H2),
   subheadings (H3), quotes, bullet and numbered list items, and code blocks;
-  the reader also accepts legacy level-1 heading blocks. It accepts only the
+  the reader also accepts level-1 heading blocks. It accepts only the
   approved inline styles (`bold`, `italic`, `underline`, `strike`, `code`).
   Bounds total blocks,
   recursive depth, children per block, inline nodes, and derived text (capped
   at 50,000 readable characters). Imports no packages. `parsePostBody` is
   read-safe (never throws on malformed stored data) and the
   write path uses the exact `format: "blocknote@1"` discriminator to reject
-  both legacy bodies and invalid structured content for new posts instead of
-  silently accepting them.
+  invalid structured content for new posts instead of silently accepting it.
 
 - **`app/(app)/create/_components/PostBodyEditor.tsx`** — the browser-only
   BlockNote editor adapter, a `"use client"` component loaded through
@@ -435,8 +432,7 @@ cards, metadata, and the Server Component renderer all share one contract.
   semantically. Links render as anchors with `rel="noopener noreferrer
 nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   unsafe protocols render as plain text. Unknown blocks fall back to readable
-  child text or render nothing without throwing. Legacy bodies render one
-  paragraph with `whitespace-pre-wrap`.
+  child text or render nothing without throwing.
 
 - **Inline image upload lifecycle** — each authenticated upload gets an
   owner-bound `pendingUploads` row. The editor creates a session, uploads
@@ -450,10 +446,8 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   `JSON.stringify({ format: "blocknote@1", blocks })` inside the existing
   `posts.body: string`. `saveDraft` validates the exact structured envelope
   and derived text upper bound before insertion; `publishPost` enforces the
-  10–50,000 trimmed character rule and rejects
-  both legacy plain-text bodies and malformed structured envelopes for new
-  posts; legacy bodies stored by earlier phases remain readable as read-only
-  compatibility data and are never reserialized. Image blocks have exact props
+  10–50,000 trimmed character rule and rejects malformed structured envelopes.
+  Image blocks have exact props
   (`storageId`, nonblank `altText`, optional `caption`) and no children/content.
   `saveDraft` verifies owner-bound, unexpired claims and binds each unique
   claim to the draft; `publishPost` consumes those claims in the publication
@@ -762,9 +756,8 @@ future agent needs to know:
   1.6 ship. Phase 1.6 added `by_followingId` — ordered
   `(followingId, createdAt)` — so the notification fan-out can resume a
   batched scan via `.eq("followingId", ...).gt("createdAt", last)`. The
-  `staged: true` flag was considered for the 1.6 deploy but the table
-  was small enough to backfill synchronously; a larger dataset would
-  require it to avoid blocking the deploy. Any future follower-list
+  The table was small enough to activate synchronously; a larger dataset would
+  require an operational rollout before changing the index. Any future follower-list
   route reuses the same index (prefix scan on `followingId`).
 
 - **The count bump rides Convex reactivity, not the mutation return.**
@@ -837,8 +830,8 @@ The feed uses three indexes with exact field order:
   deletion.
 
 New posts fan out to current followers in bounded scheduler batches. Following
-starts a bounded backfill from the staged-then-active
-`posts.by_authorId_and_createdAt` index, while unfollowing deletes only rows
+starts a bounded backfill from the `posts.by_authorId_and_createdAt` index,
+while unfollowing deletes only rows
 for the exact follow-row generation. A daily cron removes expired or dangling
 rows. These maintenance operations are intentionally eventually consistent:
 the source post/follow write remains committed if a maintenance subtransaction
