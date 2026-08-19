@@ -45,6 +45,45 @@ describe("pending upload functions", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
+  it("preserves expired claims associated with a draft", async () => {
+    const t = convexTest(schema, modules);
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob([new Uint8Array([1])], { type: "image/png" })),
+    );
+    const { postId, claimId } = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Draft",
+        body: "draft body",
+        tags: [],
+        authorId: "owner-1",
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const claimId = await ctx.db.insert("pendingUploads", {
+        userId: "owner-1",
+        postId,
+        storageId,
+        createdAt: 1,
+        expiresAt: 1,
+      });
+      return { postId, claimId };
+    });
+
+    await t.mutation(internal.pendingUploads.cleanupExpired, { cursor: null });
+
+    const result = await t.run(async (ctx) => ({
+      claim: await ctx.db.get(claimId),
+      hasFile: (await ctx.storage.get(storageId)) !== null,
+      post: await ctx.db.get(postId),
+    }));
+    expect(result.claim?._id).toBe(claimId);
+    expect(result.hasFile).toBe(true);
+    expect(result.post?._id).toBe(postId);
+  });
+
   it("rejects unauthenticated cleanup with an uploaded storage ID fallback", async () => {
     const t = convexTest(schema, modules);
     const sessionId = await t.run(async (ctx) =>

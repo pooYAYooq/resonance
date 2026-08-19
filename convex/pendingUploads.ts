@@ -134,6 +134,9 @@ export const cleanupPending = mutation({
       if (session.consumedAt !== undefined) {
         continue;
       }
+      if (session.postId !== undefined) {
+        continue;
+      }
       if (session.storageId !== undefined) {
         await ctx.storage.delete(session.storageId);
       } else {
@@ -194,6 +197,9 @@ export const cleanupExpired = internalMutation({
       .paginate({ numItems: CLEANUP_BATCH_SIZE, cursor: args.cursor });
 
     for (const session of page.page) {
+      if (session.postId !== undefined) {
+        continue;
+      }
       if (session.storageId !== undefined) {
         await ctx.storage.delete(session.storageId);
       }

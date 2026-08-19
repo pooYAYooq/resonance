@@ -28,7 +28,9 @@ describe("bookmarks functions", () => {
       return await ctx.db.insert("posts", {
         title: "Bookmark target",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -48,7 +50,9 @@ describe("bookmarks functions", () => {
       return await ctx.db.insert("posts", {
         title: "Post",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -67,7 +71,9 @@ describe("bookmarks functions", () => {
       const id = await ctx.db.insert("posts", {
         title: "Post",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),

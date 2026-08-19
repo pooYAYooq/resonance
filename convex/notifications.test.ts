@@ -65,27 +65,6 @@ describe("notifications functions", () => {
       expect(result).toBe(0);
     });
 
-    it("returns 0 for a user without the counter field (pre-Phase-1.6 doc) — verified by code inspection only", async () => {
-      // In convex-test, safeGetAuthUser always returns null (Better Auth
-      // component is not mocked), so this exercises the unauth
-      // short-circuit rather than the `?? 0` fallback for a missing
-      // `unreadNotificationCount` field. The fallback itself is verified
-      // by code inspection of notifications.ts (line ~127) — the
-      // `user?.unreadNotificationCount ?? 0` expression is the
-      // post-Phase-1.6 backward-compat contract.
-      const t = convexTest(schema, modules);
-
-      await t.run(async (ctx) => {
-        await ctx.db.insert("users", {
-          userId: "alice",
-          displayName: "Alice",
-          createdAt: Date.now(),
-        });
-      });
-
-      const result = await t.query(api.notifications.getUnreadCount, {});
-      expect(result).toBe(0);
-    });
   });
 
   describe("getNotifications", () => {
@@ -108,7 +87,9 @@ describe("notifications functions", () => {
         const postId = await ctx.db.insert("posts", {
           title: "New post",
           body: "Body.",
+          tags: [],
           authorId: "author-1",
+          status: "published",
           commentCount: 0,
           likeCount: 0,
           createdAt: Date.now(),
@@ -118,6 +99,9 @@ describe("notifications functions", () => {
           await ctx.db.insert("users", {
             userId: followerId,
             displayName: followerId,
+            followerCount: 0,
+            followingCount: 0,
+            unreadNotificationCount: 0,
             createdAt: Date.now(),
           });
           await ctx.db.insert("follows", {
@@ -177,7 +161,9 @@ describe("notifications functions", () => {
         const postId = await ctx.db.insert("posts", {
           title: "New post",
           body: "Body.",
+          tags: [],
           authorId: "author-1",
+          status: "published",
           commentCount: 0,
           likeCount: 0,
           createdAt: Date.now(),
@@ -212,7 +198,9 @@ describe("notifications functions", () => {
         const postId = await ctx.db.insert("posts", {
           title: "Big-fanout post",
           body: "Body.",
+          tags: [],
           authorId: "popular-author",
+          status: "published",
           commentCount: 0,
           likeCount: 0,
           createdAt: Date.now(),
@@ -254,7 +242,9 @@ describe("notifications functions", () => {
         const postId = await ctx.db.insert("posts", {
           title: "Small-fanout post",
           body: "Body.",
+          tags: [],
           authorId: "small-author",
+          status: "published",
           commentCount: 0,
           likeCount: 0,
           createdAt: Date.now(),

@@ -92,9 +92,7 @@ export function PostCard({
   const excerpt =
     parsedBody.kind === "structured"
       ? extractPlainText(parsedBody.document.blocks)
-      : parsedBody.kind === "legacy"
-        ? parsedBody.text
-        : "";
+      : "";
 
   return (
     <Card className="pt-0 gap-0 flex flex-col h-full transition-all hover:-translate-y-0.5 hover:shadow-md">

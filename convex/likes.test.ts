@@ -20,7 +20,9 @@ describe("likes functions", () => {
       return await ctx.db.insert("posts", {
         title: "Like target",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
         likeCount: 0,
         createdAt: Date.now(),
@@ -40,8 +42,11 @@ describe("likes functions", () => {
       const postId = await ctx.db.insert("posts", {
         title: "Post",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -50,6 +55,7 @@ describe("likes functions", () => {
         authorId: "user-2",
         authorName: "Alice",
         body: "Nice post.",
+        likeCount: 0,
         createdAt: Date.now(),
       });
       return { commentId: id };
@@ -67,7 +73,9 @@ describe("likes functions", () => {
       const id = await ctx.db.insert("posts", {
         title: "Liked post",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
         likeCount: 1,
         createdAt: Date.now(),
@@ -93,7 +101,9 @@ describe("likes functions", () => {
       const id = await ctx.db.insert("posts", {
         title: "Liked post",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
         likeCount: 1,
         createdAt: Date.now(),
@@ -122,7 +132,9 @@ describe("likes functions", () => {
       const id = await ctx.db.insert("posts", {
         title: "Liked post",
         body: "Body.",
+        tags: [],
         authorId: "user-1",
+        status: "published",
         commentCount: 0,
         likeCount: 1,
         createdAt: Date.now(),

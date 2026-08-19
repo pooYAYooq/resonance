@@ -47,22 +47,19 @@ const structured = {
 } satisfies BlockNoteDocument;
 
 describe("parsePostBody", () => {
-  it("parses structured and legacy posts", () => {
+  it("parses structured posts and rejects non-canonical bodies", () => {
     expect(parsePostBody(JSON.stringify(structured))).toEqual({
       kind: "structured",
       document: structured,
     });
-    expect(parsePostBody("old\nplain post")).toEqual({
-      kind: "legacy",
-      text: "old\nplain post",
-    });
-    expect(parsePostBody("{")).toEqual({ kind: "legacy", text: "{" });
+    expect(parsePostBody("old\nplain post")).toEqual({ kind: "invalid" });
+    expect(parsePostBody("{")).toEqual({ kind: "invalid" });
     expect(
       parsePostBody(JSON.stringify({ format: "other@1", blocks: [] })),
-    ).toMatchObject({ kind: "legacy" });
+    ).toEqual({ kind: "invalid" });
   });
 
-  it("distinguishes an invalid structured envelope from legacy text", () => {
+  it("distinguishes an invalid structured envelope", () => {
     expect(
       parsePostBody(
         JSON.stringify({
@@ -73,17 +70,11 @@ describe("parsePostBody", () => {
     ).toMatchObject({ kind: "invalid" });
   });
 
-  it("treats JSON primitives and non-BlockNote envelopes as legacy text", () => {
-    expect(parsePostBody("null")).toEqual({ kind: "legacy", text: "null" });
-    expect(parsePostBody("42")).toEqual({ kind: "legacy", text: "42" });
-    expect(parsePostBody("[1,2,3]")).toEqual({
-      kind: "legacy",
-      text: "[1,2,3]",
-    });
-    expect(parsePostBody('"just a string"')).toEqual({
-      kind: "legacy",
-      text: '"just a string"',
-    });
+  it("rejects JSON primitives and non-BlockNote envelopes", () => {
+    expect(parsePostBody("null")).toEqual({ kind: "invalid" });
+    expect(parsePostBody("42")).toEqual({ kind: "invalid" });
+    expect(parsePostBody("[1,2,3]")).toEqual({ kind: "invalid" });
+    expect(parsePostBody('"just a string"')).toEqual({ kind: "invalid" });
   });
 
   it("rejects incomplete BlockNote envelopes", () => {

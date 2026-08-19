@@ -67,6 +67,9 @@ export const syncUser = mutation({
       email: authUser.email ?? undefined,
       avatarUrl: authUser.image ?? undefined,
       bio: "",
+      followerCount: 0,
+      followingCount: 0,
+      unreadNotificationCount: 0,
       createdAt: Date.now(),
     });
 
@@ -164,12 +167,17 @@ export const getUserProfile = query({
 
     if (!user) return null;
 
-    const posts = await ctx.db
+    let postCount = 0;
+    const posts = ctx.db
       .query("posts")
-      .withIndex("by_authorId", (q) => q.eq("authorId", args.userId))
-      .collect();
+      .withIndex("by_authorId_and_status_and_publishedAt", (q) =>
+        q.eq("authorId", args.userId).eq("status", "published"),
+      );
+    for await (const post of posts) {
+      postCount += post.status === "published" ? 1 : 0;
+    }
 
-    return { ...user, postCount: posts.length };
+    return { ...user, postCount };
   },
 });
 

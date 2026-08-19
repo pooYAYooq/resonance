@@ -70,7 +70,20 @@ vi.mock("./BookmarkButton", () => ({
 const basePost = {
   postId: "post-123" as Id<"posts">,
   title: "Echoes in the Static",
-  body: "An exploration of hidden patterns in everyday noise and why resonance matters more than volume.",
+  body: JSON.stringify({
+    format: "blocknote@1",
+    blocks: [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "An exploration of hidden patterns in everyday noise and why resonance matters more than volume.",
+          },
+        ],
+      },
+    ],
+  }),
   imageUrl: "https://example.com/cover.png",
   commentCount: 3,
   likeCount: 5,

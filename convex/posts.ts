@@ -5,7 +5,7 @@
  * All write paths require an active Better Auth session.
  */
 
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
@@ -25,16 +25,32 @@ import {
   extractImageStorageIds,
   parsePostBody,
 } from "../lib/post-content";
+import {
+  getPublishedPost,
+  validateDraftUploadClaims,
+} from "./postLifecycle";
+import { incrementPostCountInTransaction } from "./stats";
 
-export function isValidCreatePostBody(body: string): boolean {
+function getStructuredPostBody(body: string) {
   const parsed = parsePostBody(body);
-  // New posts must be valid blocknote@1; legacy bodies remain readable.
-  if (parsed.kind !== "structured") return false;
+  return parsed.kind === "structured" ? parsed.document : null;
+}
 
-  const textLength = extractPlainText(parsed.document.blocks).trim().length;
+export function isValidDraftPostBody(body: string): boolean {
+  const document = getStructuredPostBody(body);
+  if (!document) return false;
+
   return (
-    textLength >= MIN_POST_TEXT_LENGTH && textLength <= MAX_POST_TEXT_LENGTH
+    extractPlainText(document.blocks).trim().length <= MAX_POST_TEXT_LENGTH
   );
+}
+
+export function isValidPublishPostBody(body: string): boolean {
+  if (!isValidDraftPostBody(body)) return false;
+  const document = getStructuredPostBody(body);
+  if (!document) return false;
+  const textLength = extractPlainText(document.blocks).trim().length;
+  return textLength >= MIN_POST_TEXT_LENGTH;
 }
 
 type InlineUploadClaim = Pick<
@@ -66,115 +82,307 @@ export function validateInlineUploadClaims(
   });
 }
 
-/**
- * Creates a new blog article authored by the currently authenticated user.
- *
- * @param title - `string`: The article's display title.
- * @param body - `string`: The serialized `blocknote@1` envelope, for example `JSON.stringify({ format: "blocknote@1", blocks })`. Legacy plain-text bodies are rejected for new posts.
- * @param imageStorageId - `Id<"_storage"> | undefined`: Optional storage ID for the post's
- *   cover image. Pass `undefined` when no image is attached.
- * @returns `Id<"posts">`: The auto-generated document ID of the newly inserted post.
- *
- * @throws `ConvexError("Unauthorized")` if the caller has no valid session.
- */
-export const createPost = mutation({
+async function deleteRemovedDraftClaims(
+  ctx: MutationCtx,
+  draftId: Id<"posts">,
+  retainedStorageIds: Set<string>,
+) {
+  const claims = ctx.db
+    .query("pendingUploads")
+    .withIndex("by_postId", (q) => q.eq("postId", draftId));
+
+  for await (const claim of claims) {
+    if (
+      claim.consumedAt === undefined &&
+      (claim.storageId === undefined ||
+        !retainedStorageIds.has(claim.storageId))
+    ) {
+      if (claim.storageId !== undefined) {
+        await ctx.storage.delete(claim.storageId);
+      }
+      await ctx.db.delete(claim._id);
+    }
+  }
+}
+
+function getReferencedStorageIds(
+  body: string,
+  imageStorageId?: Id<"_storage">,
+): Id<"_storage">[] {
+  const document = getStructuredPostBody(body);
+  if (!document) return [];
+  return [
+    ...(imageStorageId === undefined ? [] : [imageStorageId]),
+    ...(extractImageStorageIds(document.blocks) as Id<"_storage">[]),
+  ];
+}
+
+export const saveDraft = mutation({
   args: {
+    draftId: v.optional(v.id("posts")),
     title: v.string(),
     body: v.string(),
     tags: v.optional(v.array(v.string())),
     imageStorageId: v.optional(v.id("_storage")),
   },
+  returns: v.object({
+    draftId: v.id("posts"),
+    updatedAt: v.number(),
+  }),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
-    if (!user) {
-      throw new ConvexError("Unauthorized");
-    }
+    if (!user) throw new ConvexError("Unauthorized");
 
     const tags = args.tags ?? [];
-    if (!isValidPostTags(tags)) {
-      throw new ConvexError("Invalid tags");
-    }
-    if (!isValidCreatePostBody(args.body)) {
+    if (args.title.length > 100) throw new ConvexError("Invalid title");
+    if (!isValidDraftPostBody(args.body)) {
       throw new ConvexError("Invalid content");
+    }
+    if (!isValidPostTags(tags)) throw new ConvexError("Invalid tags");
+
+    const now = Date.now();
+    const draft =
+      args.draftId === undefined ? null : await ctx.db.get(args.draftId);
+    if (
+      args.draftId !== undefined &&
+      (!draft ||
+        draft.authorId !== user._id ||
+        draft.status !== "draft")
+    ) {
+      throw new ConvexError("Post not found.");
+    }
+
+    const referencedStorageIds = getReferencedStorageIds(
+      args.body,
+      args.imageStorageId,
+    );
+    const claimIds = await validateDraftUploadClaims(
+      ctx,
+      referencedStorageIds,
+      user._id,
+      now,
+      draft?._id,
+    );
+    const retainedStorageIds = new Set(referencedStorageIds);
+
+    if (draft) {
+      await deleteRemovedDraftClaims(ctx, draft._id, retainedStorageIds);
+      await ctx.db.patch(draft._id, {
+        title: args.title,
+        body: args.body,
+        tags,
+        imageStorageId: args.imageStorageId,
+        updatedAt: now,
+      });
+    } else {
+      const draftId = await ctx.db.insert("posts", {
+        title: args.title,
+        body: args.body,
+        tags,
+        imageStorageId: args.imageStorageId,
+        authorId: user._id,
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      for (const claimId of claimIds) {
+        await ctx.db.patch(claimId, {
+          postId: draftId,
+          expiresAt: Number.MAX_SAFE_INTEGER,
+        });
+      }
+      return { draftId, updatedAt: now };
+    }
+
+    for (const claimId of claimIds) {
+      await ctx.db.patch(claimId, {
+        postId: draft._id,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+    }
+    return { draftId: draft._id, updatedAt: now };
+  },
+});
+
+export const publishPost = mutation({
+  args: { draftId: v.id("posts") },
+  returns: v.id("posts"),
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) throw new ConvexError("Unauthorized");
+
+    const draft = await ctx.db.get(args.draftId);
+    if (
+      !draft ||
+      draft.authorId !== user._id ||
+      draft.status !== "draft"
+    ) {
+      throw new ConvexError("Post not found.");
+    }
+    if (
+      draft.title.trim().length === 0 ||
+      !isValidPublishPostBody(draft.body)
+    ) {
+      throw new ConvexError("Invalid content");
+    }
+    if (!isValidPostTags(draft.tags)) {
+      throw new ConvexError("Invalid tags");
     }
 
     const now = Date.now();
-    const parsedBody = parsePostBody(args.body);
-    const inlineStorageIds: Id<"_storage">[] =
-      parsedBody.kind === "structured"
-        ? (extractImageStorageIds(
-            parsedBody.document.blocks,
-          ) as Id<"_storage">[])
-        : [];
-    const inlineClaims = await Promise.all(
-      inlineStorageIds.map(async (storageId) => {
-        const matchingClaims = await ctx.db
-          .query("pendingUploads")
-          .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-          .take(2);
-        return matchingClaims.length === 1 ? matchingClaims[0] : null;
-      }),
+    const referencedStorageIds = getReferencedStorageIds(
+      draft.body,
+      draft.imageStorageId,
     );
-    const consumedInlineUploadIds = validateInlineUploadClaims(
-      inlineStorageIds,
-      inlineClaims,
+    const claimIds = await validateDraftUploadClaims(
+      ctx,
+      referencedStorageIds,
       user._id,
       now,
+      draft._id,
     );
 
-    const blogArticle = await ctx.db.insert("posts", {
-      title: args.title,
-      body: args.body,
-      tags,
-      imageStorageId: args.imageStorageId,
-      authorId: user._id,
-      commentCount: 0,
-      likeCount: 0,
-      createdAt: now,
+    await ctx.db.patch(draft._id, {
+      status: "published",
+      publishedAt: draft.publishedAt ?? now,
       updatedAt: now,
     });
-
-    for (const sessionId of consumedInlineUploadIds) {
-      await ctx.db.patch(sessionId, {
+    for (const claimId of claimIds) {
+      await ctx.db.patch(claimId, {
         consumedAt: now,
         expiresAt: Number.MAX_SAFE_INTEGER,
       });
     }
+    await incrementPostCountInTransaction(ctx);
+    await ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, {
+      postId: draft._id,
+      authorId: draft.authorId,
+      paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
+    });
+    await ctx.scheduler.runAfter(0, internal.feed.fanOutForPost, {
+      postId: draft._id,
+      authorId: draft.authorId,
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+      retryCount: 0,
+    });
 
-    await ctx.runMutation(internal.stats.incrementPostCount, {});
-    try {
-      await ctx.runMutation(internal.notifications.fanOutForPost, {
-        postId: blogArticle,
-        authorId: user._id,
-        paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
-      });
-    } catch (error) {
-      // The fan-out's own writes (notification rows, counter bumps)
-      // have rolled back because Convex subtransactions are
-      // independent — but the post insert and stats increment above
-      // stay committed. The post is the source of truth; the
-      // notification is a hint. Log and continue so the user gets
-      // their post ID and a success toast.
-      console.error("notifications.fanOutForPost failed", error);
-    }
-    try {
-      await ctx.runMutation(internal.feed.fanOutForPost, {
-        postId: blogArticle,
-        authorId: user._id,
-        paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
-        retryCount: 0,
-      });
-    } catch (error) {
-      console.error("feed.fanOutForPost failed", error);
-      await ctx.scheduler.runAfter(0, internal.feed.fanOutForPost, {
-        postId: blogArticle,
-        authorId: user._id,
-        paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
-        retryCount: 1,
-      });
+    return draft._id;
+  },
+});
+
+export const getDrafts = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) {
+      return {
+        page: [],
+        isDone: true,
+        continueCursor: args.paginationOpts.cursor ?? "",
+      };
     }
 
-    return blogArticle;
+    const result = await ctx.db
+      .query("posts")
+      .withIndex("by_authorId_and_status_and_updatedAt", (q) =>
+        q.eq("authorId", user._id).eq("status", "draft"),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    return {
+      ...result,
+      page: result.page.map((draft) => {
+        const parsed = parsePostBody(draft.body);
+        const excerpt =
+          parsed.kind === "structured"
+            ? extractPlainText(parsed.document.blocks).slice(0, 240)
+            : "";
+        return {
+          _id: draft._id,
+          title: draft.title,
+          tags: draft.tags,
+          updatedAt: draft.updatedAt,
+          excerpt,
+        };
+      }),
+    };
+  },
+});
+
+export const getDraftById = query({
+  args: { draftId: v.id("posts") },
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return null;
+
+    const draft = await ctx.db.get(args.draftId);
+    if (
+      !draft ||
+      draft.authorId !== user._id ||
+      draft.status !== "draft"
+    ) {
+      return null;
+    }
+
+    const imageUrl = draft.imageStorageId
+      ? await ctx.storage.getUrl(draft.imageStorageId)
+      : null;
+    const parsed = parsePostBody(draft.body);
+    const inlineStorageIds =
+      parsed.kind === "structured"
+        ? (extractImageStorageIds(parsed.document.blocks) as Id<"_storage">[])
+        : [];
+    const inlineImages = await Promise.all(
+      inlineStorageIds.map(async (storageId) => ({
+        storageId,
+        url: await ctx.storage.getUrl(storageId),
+      })),
+    );
+
+    return {
+      _id: draft._id,
+      title: draft.title,
+      body: draft.body,
+      tags: draft.tags,
+      imageStorageId: draft.imageStorageId ?? null,
+      imageUrl,
+      inlineImages,
+      updatedAt: draft.updatedAt,
+    };
+  },
+});
+
+export const deleteDraft = mutation({
+  args: { draftId: v.id("posts") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) throw new ConvexError("Unauthorized");
+
+    const draft = await ctx.db.get(args.draftId);
+    if (
+      !draft ||
+      draft.authorId !== user._id ||
+      draft.status !== "draft"
+    ) {
+      throw new ConvexError("Post not found.");
+    }
+
+    const claims = ctx.db
+      .query("pendingUploads")
+      .withIndex("by_postId", (q) => q.eq("postId", draft._id));
+    for await (const claim of claims) {
+      if (claim.consumedAt !== undefined) continue;
+      if (claim.storageId !== undefined) {
+        await ctx.storage.delete(claim.storageId);
+      }
+      await ctx.db.delete(claim._id);
+    }
+    await ctx.db.delete(draft._id);
+    return null;
   },
 });
 
@@ -211,12 +419,16 @@ export const getPosts = query({
 
     const result = await ctx.db
       .query("posts")
+      .withIndex("by_status_and_publishedAt", (q) =>
+        q.eq("status", "published"),
+      )
       .order("desc")
       .paginate(args.paginationOpts);
 
-    const sourcePage = args.tag
-      ? result.page.filter((post) => (post.tags ?? []).includes(args.tag!))
-      : result.page;
+    const sourcePage = result.page.filter(
+      (post) =>
+        args.tag === undefined || post.tags.includes(args.tag),
+    );
 
     const authUser = await authComponent.safeGetAuthUser(ctx);
 
@@ -244,7 +456,7 @@ export const getPosts = query({
 
         return {
           ...post,
-          tags: post.tags ?? [],
+          tags: post.tags,
           imageUrl,
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,
@@ -308,7 +520,7 @@ export const countPosts = query({
 export const getPostById = query({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    const post = await ctx.db.get(args.postId);
+    const post = await getPublishedPost(ctx, args.postId);
     if (!post) {
       return null;
     }
@@ -346,7 +558,7 @@ export const getPostById = query({
 
     return {
       ...post,
-      tags: post.tags ?? [],
+      tags: post.tags,
       imageUrl: resolvedImageUrl,
       inlineImages,
       isLiked,
@@ -375,7 +587,9 @@ export const getPostsByAuthorId = query({
   handler: async (ctx, args) => {
     const result = await ctx.db
       .query("posts")
-      .withIndex("by_authorId", (q) => q.eq("authorId", args.authorId))
+      .withIndex("by_authorId_and_status_and_publishedAt", (q) =>
+        q.eq("authorId", args.authorId).eq("status", "published"),
+      )
       .order("desc")
       .paginate(args.paginationOpts);
 
@@ -405,7 +619,7 @@ export const getPostsByAuthorId = query({
 
         return {
           ...post,
-          tags: post.tags ?? [],
+          tags: post.tags,
           imageUrl,
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,

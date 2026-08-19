@@ -35,6 +35,9 @@ describe("users functions", () => {
       const id = await ctx.db.insert("users", {
         userId: "auth-user-123",
         displayName: "Test",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
       await ctx.db.delete(id);
@@ -78,6 +81,9 @@ describe("users functions", () => {
         email: "alice@example.com",
         avatarUrl: "https://example.com/alice.png",
         bio: "Hello, I'm Alice!",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
 
@@ -85,12 +91,26 @@ describe("users functions", () => {
         await ctx.db.insert("posts", {
           title: `Post ${i + 1}`,
           body: "Body.",
+          tags: [],
           authorId: "alice-auth-id",
+          status: "published",
           commentCount: 0,
+          likeCount: 0,
           createdAt: 1000 + i,
           updatedAt: 1000 + i,
         });
       }
+      await ctx.db.insert("posts", {
+        title: "Draft",
+        body: "Draft body.",
+        tags: [],
+        authorId: "alice-auth-id",
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 1002,
+        updatedAt: 1002,
+      });
 
       return "alice-auth-id";
     });

@@ -70,15 +70,15 @@ describe("blog post generateMetadata", () => {
     expect(metadata.openGraph?.description).toBe(metadata.description);
   });
 
-  it("uses legacy plain-text bodies directly as the description", async () => {
+  it("uses an empty description for a non-canonical body", async () => {
     fetchQueryMock.mockResolvedValue({
       ...basePost,
-      body: "A legacy plain-text body for metadata.",
+       body: "A non-canonical body for metadata.",
     });
 
     const metadata = await generateMetadata({ params });
 
-    expect(metadata.description).toBe("A legacy plain-text body for metadata.");
+    expect(metadata.description).toBe("");
   });
 
   it("falls back to an empty description for malformed structured bodies", async () => {

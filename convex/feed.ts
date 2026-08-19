@@ -46,7 +46,7 @@ export const getFeed = query({
       seenPostIds.add(row.postId);
 
       const post = await ctx.db.get(row.postId);
-      if (!post) {
+      if (!post || post.status !== "published") {
         continue;
       }
 
@@ -66,7 +66,7 @@ export const getFeed = query({
 
       hydrated.push({
         ...post,
-        tags: post.tags ?? [],
+        tags: post.tags,
         imageUrl,
         authorName: user?.displayName ?? null,
         authorAvatarUrl: user?.avatarUrl ?? null,
@@ -87,10 +87,14 @@ export const fanOutForPost = internalMutation({
   },
   handler: async (ctx, args) => {
     const post = await ctx.db.get(args.postId);
-    if (!post || post.authorId !== args.authorId) {
+    if (!post || post.status !== "published" || post.authorId !== args.authorId) {
       return { done: true, processed: 0 };
     }
-    if (post.createdAt < Date.now() - FEED_WINDOW_MS) {
+    const publicationTime = post.publishedAt;
+    if (publicationTime === undefined) {
+      return { done: true, processed: 0 };
+    }
+    if (publicationTime < Date.now() - FEED_WINDOW_MS) {
       return { done: true, processed: 0 };
     }
 
@@ -118,7 +122,7 @@ export const fanOutForPost = internalMutation({
           postId: args.postId,
           authorId: post.authorId,
           followId: currentFollow._id,
-          createdAt: post.createdAt,
+          createdAt: publicationTime,
           insertedAt: Date.now(),
         });
       } else if (existing.followId !== currentFollow._id) {
@@ -162,8 +166,11 @@ export const backfillForFollow = internalMutation({
 
     const result = await ctx.db
       .query("posts")
-      .withIndex("by_authorId_and_createdAt", (q) =>
-        q.eq("authorId", args.authorId).gte("createdAt", args.cutoffAt),
+      .withIndex("by_authorId_and_status_and_publishedAt", (q) =>
+        q
+          .eq("authorId", args.authorId)
+          .eq("status", "published")
+          .gte("publishedAt", args.cutoffAt),
       )
       .order("desc")
       .paginate(args.paginationOpts);
@@ -182,7 +189,7 @@ export const backfillForFollow = internalMutation({
           postId: post._id,
           authorId: post.authorId,
           followId: args.followId,
-          createdAt: post.createdAt,
+          createdAt: post.publishedAt!,
           insertedAt: Date.now(),
         });
       } else if (existing.followId !== args.followId) {

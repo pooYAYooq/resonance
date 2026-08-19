@@ -24,8 +24,12 @@ describe("feed schema", () => {
       const postId = await ctx.db.insert("posts", {
         title: "Feed post",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
+        publishedAt: NOW,
         commentCount: 0,
+        likeCount: 0,
         createdAt: 100,
         updatedAt: 100,
       });
@@ -134,8 +138,12 @@ describe("feed maintenance", () => {
       const postId = await ctx.db.insert("posts", {
         title: "New post",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
+        publishedAt: now,
         commentCount: 0,
+        likeCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -174,8 +182,12 @@ describe("feed maintenance", () => {
       const postId = await ctx.db.insert("posts", {
         title: "Popular post",
         body: "Body",
+        tags: [],
         authorId: "popular-author",
+        status: "published",
+        publishedAt: now,
         commentCount: 0,
+        likeCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -200,6 +212,43 @@ describe("feed maintenance", () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
   });
 
+  it("does not fan out a published post without a publication timestamp", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    const postId = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Missing publication time",
+        body: "Body",
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("follows", {
+        followerId: "reader-1",
+        followingId: "author-1",
+        createdAt: now,
+      });
+      return postId;
+    });
+
+    const result = await t.mutation(internal.feed.fanOutForPost, {
+      postId,
+      authorId: "author-1",
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+      retryCount: 0,
+    });
+
+    expect(result).toEqual({ done: true, processed: 0 });
+    await expect(
+      t.run(async (ctx) => ctx.db.query("feed").collect()),
+    ).resolves.toEqual([]);
+  });
+
   it("backfills only recent posts and is idempotent", async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
@@ -213,16 +262,24 @@ describe("feed maintenance", () => {
       await ctx.db.insert("posts", {
         title: "Recent",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
+        publishedAt: now - FEED_WINDOW_MS + 1,
         commentCount: 0,
+        likeCount: 0,
         createdAt: now - FEED_WINDOW_MS + 1,
         updatedAt: now - FEED_WINDOW_MS + 1,
       });
       await ctx.db.insert("posts", {
         title: "Expired",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
+        publishedAt: now - FEED_WINDOW_MS - 1,
         commentCount: 0,
+        likeCount: 0,
         createdAt: now - FEED_WINDOW_MS - 1,
         updatedAt: now - FEED_WINDOW_MS - 1,
       });
@@ -243,6 +300,44 @@ describe("feed maintenance", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].userId).toBe("reader-1");
     expect(rows[0].authorId).toBe("author-1");
+  });
+
+  it("backfills a post published recently even when its draft is old", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    const { followId } = await t.run(async (ctx) => {
+      const followId = await ctx.db.insert("follows", {
+        followerId: "reader-1",
+        followingId: "author-1",
+        createdAt: now,
+      });
+      await ctx.db.insert("posts", {
+        title: "Old draft, new publication",
+        body: "Body",
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: now - 1,
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: now - FEED_WINDOW_MS - 1,
+        updatedAt: now,
+      });
+      return { followId };
+    });
+
+    await t.mutation(internal.feed.backfillForFollow, {
+      userId: "reader-1",
+      authorId: "author-1",
+      followId,
+      cutoffAt: now - FEED_WINDOW_MS,
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+    });
+
+    const rows = await t.run(async (ctx) => ctx.db.query("feed").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0].createdAt).toBe(now - 1);
   });
 
   it("deletes only rows for the reader, author, and exact follow generation", async () => {
@@ -270,8 +365,11 @@ describe("feed maintenance", () => {
           ctx.db.insert("posts", {
             title: authorId,
             body: "Body",
+            tags: [],
             authorId,
+            status: "published",
             commentCount: 0,
+            likeCount: 0,
             createdAt: now,
             updatedAt: now,
           }),
@@ -342,24 +440,33 @@ describe("feed maintenance", () => {
       const recentPostId = await ctx.db.insert("posts", {
         title: "Recent",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now,
         updatedAt: now,
       });
       const expiredPostId = await ctx.db.insert("posts", {
         title: "Expired",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now - FEED_WINDOW_MS - 1,
         updatedAt: now - FEED_WINDOW_MS - 1,
       });
       const danglingPostId = await ctx.db.insert("posts", {
         title: "Dangling",
         body: "Body",
+        tags: [],
         authorId: "author-1",
+        status: "published",
         commentCount: 0,
+        likeCount: 0,
         createdAt: now,
         updatedAt: now,
       });

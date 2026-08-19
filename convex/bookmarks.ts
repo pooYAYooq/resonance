@@ -16,6 +16,7 @@ import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import { paginationOptsValidator } from "convex/server";
 import { Doc } from "./_generated/dataModel";
+import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
 
 /**
  * Toggles a bookmark on a post for the currently authenticated user.
@@ -39,10 +40,7 @@ export const toggleBookmark = mutation({
       throw new ConvexError("Unauthorized");
     }
 
-    const post = await ctx.db.get(args.postId);
-    if (!post) {
-      throw new ConvexError("Post not found.");
-    }
+    await requirePublishedPost(ctx, args.postId);
 
     const existing = await ctx.db
       .query("bookmarks")
@@ -82,6 +80,9 @@ export const isBookmarked = query({
   handler: async (ctx, args): Promise<boolean> => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
+      return false;
+    }
+    if (!(await getPublishedPost(ctx, args.postId))) {
       return false;
     }
 
@@ -137,7 +138,7 @@ export const getBookmarkedPosts = query({
     const hydrated = await Promise.all(
       result.page.map(async (bookmark): Promise<HydratedPost | null> => {
         const post = await ctx.db.get(bookmark.postId);
-        if (!post) {
+        if (!post || post.status !== "published") {
           // Dangling bookmark — post deleted. Skip it.
           return null;
         }
@@ -160,7 +161,7 @@ export const getBookmarkedPosts = query({
 
         return {
           ...post,
-          tags: post.tags ?? [],
+          tags: post.tags,
           imageUrl,
           authorName: author?.displayName ?? null,
           authorAvatarUrl: author?.avatarUrl ?? null,

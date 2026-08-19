@@ -36,7 +36,6 @@ export type BlockNoteDocument = {
 
 export type ParsedPostBody =
   | { kind: "structured"; document: BlockNoteDocument }
-  | { kind: "legacy"; text: string }
   | { kind: "invalid" };
 
 const SUPPORTED_BLOCK_TYPES = new Set([
@@ -298,11 +297,11 @@ export function parsePostBody(body: string): ParsedPostBody {
   try {
     value = JSON.parse(body);
   } catch {
-    return { kind: "legacy", text: body };
+    return { kind: "invalid" };
   }
 
   if (!isRecord(value) || value.format !== BLOCKNOTE_FORMAT) {
-    return { kind: "legacy", text: body };
+    return { kind: "invalid" };
   }
 
   if (!isValidBlockNoteDoc(value.blocks)) {

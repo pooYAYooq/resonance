@@ -22,17 +22,18 @@ export default defineSchema({
   posts: defineTable({
     title: v.string(),
     body: v.string(),
-    /** Optional only for legacy posts; new writes persist a validated array. */
-    tags: v.optional(v.array(v.string())),
+    tags: v.array(v.string()),
     authorId: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
+    status: v.union(v.literal("draft"), v.literal("published")),
+    publishedAt: v.optional(v.number()),
     commentCount: v.number(),
     /**
      * Denormalized like counter, kept in sync by the `toggleLike` mutation.
      * Optional for backward compatibility with posts created before Phase 1.2;
-     * UI consumers should fall back to 0 via `post.likeCount ?? 0`.
+     * UI consumers can read this denormalized count directly.
      */
-    likeCount: v.optional(v.number()),
+    likeCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -41,7 +42,16 @@ export default defineSchema({
      * user-specific post listings without scanning the entire table.
      */
     .index("by_authorId", ["authorId"])
-    .index("by_authorId_and_createdAt", ["authorId", "createdAt"]),
+    .index("by_authorId_and_createdAt", ["authorId", "createdAt"])
+    .index("by_status_and_publishedAt", {
+      fields: ["status", "publishedAt"],
+    })
+    .index("by_authorId_and_status_and_publishedAt", {
+      fields: ["authorId", "status", "publishedAt"],
+    })
+    .index("by_authorId_and_status_and_updatedAt", {
+      fields: ["authorId", "status", "updatedAt"],
+    }),
 
   /** Comments attached to a single post. */
   comments: defineTable({
@@ -49,7 +59,7 @@ export default defineSchema({
     authorId: v.string(),
     authorName: v.string(),
     body: v.string(),
-    likeCount: v.optional(v.number()),
+    likeCount: v.number(),
     createdAt: v.number(),
   }).index("by_postId", ["postId"]),
 
@@ -167,7 +177,9 @@ export default defineSchema({
     actorId: v.string(),
     postId: v.id("posts"),
     createdAt: v.number(),
-  }).index("by_recipientId_and_createdAt", ["recipientId", "createdAt"]),
+  })
+    .index("by_recipientId_and_createdAt", ["recipientId", "createdAt"])
+    .index("by_recipientId_and_postId", ["recipientId", "postId"]),
 
   /**
    * Bounded, denormalized reader feed rows. These rows cover only the most
@@ -211,23 +223,11 @@ export default defineSchema({
     email: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     bio: v.optional(v.string()),
-    /**
-     * Denormalized follower/following counts, kept in sync by the
-     * `toggleFollow` mutation. Optional for backward compatibility with
-     * user docs created before Phase 1.4; UI consumers should fall back
-     * to 0 via `user.followerCount ?? 0` / `user.followingCount ?? 0`.
-     */
-    followerCount: v.optional(v.number()),
-    followingCount: v.optional(v.number()),
-    /**
-     * Denormalized count of unread notifications, kept in sync by
-     * `internal.notifications.fanOutForPost` (increments on fan-out)
-     * and `notifications.markAllRead` (resets to 0 on page visit).
-     * Optional for backward compatibility with user docs created
-     * before Phase 1.6; UI consumers should fall back to 0 via
-     * `user.unreadNotificationCount ?? 0`.
-     */
-    unreadNotificationCount: v.optional(v.number()),
+    /** Denormalized follow counts maintained by `toggleFollow`. */
+    followerCount: v.number(),
+    followingCount: v.number(),
+    /** Denormalized unread count maintained by notification mutations. */
+    unreadNotificationCount: v.number(),
     createdAt: v.number(),
   })
     /**
@@ -254,8 +254,7 @@ export default defineSchema({
    * Why denormalize?
    * Convex has no built-in count operation, and `.collect().length` loads
    * every post into memory. For a landing page stats section, we need an
-   * O(1) read. `incrementPostCount` is called by `createPost` on every
-   * successful insert to keep this value accurate.
+   * O(1) read. Published transitions update this value transactionally.
    */
   stats: defineTable({
     totalPosts: v.number(),
@@ -267,12 +266,14 @@ export default defineSchema({
    */
   pendingUploads: defineTable({
     userId: v.string(),
+    postId: v.optional(v.id("posts")),
     storageId: v.optional(v.id("_storage")),
     consumedAt: v.optional(v.number()),
     createdAt: v.number(),
     expiresAt: v.number(),
   })
     .index("by_storageId", ["storageId"])
+    .index("by_postId", ["postId"])
     .index("by_userId", ["userId"])
     .index("by_expiresAt", ["expiresAt"]),
 

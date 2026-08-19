@@ -50,9 +50,7 @@ export async function generateMetadata({
   const description = truncateForDescription(
     parsed.kind === "structured"
       ? extractPlainText(parsed.document.blocks)
-      : parsed.kind === "legacy"
-        ? parsed.text
-        : "",
+      : "",
   );
   const images = post.imageUrl ? [post.imageUrl] : undefined;
 
