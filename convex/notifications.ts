@@ -76,7 +76,11 @@ export const fanOutForPost = internalMutation({
   },
   handler: async (ctx, args) => {
     const post = await ctx.db.get(args.postId);
-    if (!post || post.status !== "published" || post.authorId !== args.authorId) {
+    if (
+      !post ||
+      post.status !== "published" ||
+      post.authorId !== args.authorId
+    ) {
       return { done: true, processed: 0 };
     }
 
@@ -86,6 +90,16 @@ export const fanOutForPost = internalMutation({
       .paginate(args.paginationOpts);
 
     for (const follower of result.page) {
+      const existing = await ctx.db
+        .query("notifications")
+        .withIndex("by_recipientId_and_postId", (q) =>
+          q.eq("recipientId", follower.followerId).eq("postId", args.postId),
+        )
+        .unique();
+      if (existing) {
+        continue;
+      }
+
       await ctx.db.insert("notifications", {
         recipientId: follower.followerId,
         actorId: args.authorId,

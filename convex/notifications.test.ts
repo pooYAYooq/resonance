@@ -35,6 +35,7 @@ import {
 } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
+import { FANOUT_BATCH_SIZE } from "./notifications";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -152,6 +153,94 @@ describe("notifications functions", () => {
         "follower-2": 1,
         "follower-3": 1,
       });
+    });
+
+    it("does not duplicate notifications or unread counts when retried", async () => {
+      const t = convexTest(schema, modules);
+
+      const { postId } = await t.run(async (ctx) => {
+        const postId = await ctx.db.insert("posts", {
+          title: "Retried post",
+          body: "Body.",
+          tags: [],
+          authorId: "author-1",
+          status: "published",
+          publishedAt: Date.now(),
+          commentCount: 0,
+          likeCount: 0,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        await ctx.db.insert("users", {
+          userId: "follower-1",
+          displayName: "Follower",
+          followerCount: 0,
+          followingCount: 0,
+          unreadNotificationCount: 0,
+          createdAt: Date.now(),
+        });
+        await ctx.db.insert("follows", {
+          followerId: "follower-1",
+          followingId: "author-1",
+          createdAt: Date.now(),
+        });
+        return { postId };
+      });
+
+      const args = {
+        postId,
+        authorId: "author-1",
+        paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
+      };
+      await t.mutation(internal.notifications.fanOutForPost, args);
+      await t.mutation(internal.notifications.fanOutForPost, args);
+
+      const state = await t.run(async (ctx) => {
+        const notifications = await ctx.db.query("notifications").collect();
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_userId", (q) => q.eq("userId", "follower-1"))
+          .unique();
+        return { notifications, unreadNotificationCount: user?.unreadNotificationCount };
+      });
+
+      expect(state.notifications).toHaveLength(1);
+      expect(state.unreadNotificationCount).toBe(1);
+    });
+
+    it("does not fan out a draft post", async () => {
+      const t = convexTest(schema, modules);
+
+      const postId = await t.run(async (ctx) => {
+        const postId = await ctx.db.insert("posts", {
+          title: "Draft post",
+          body: "Body.",
+          tags: [],
+          authorId: "author-1",
+          status: "draft",
+          commentCount: 0,
+          likeCount: 0,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        await ctx.db.insert("follows", {
+          followerId: "follower-1",
+          followingId: "author-1",
+          createdAt: Date.now(),
+        });
+        return postId;
+      });
+
+      const result = await t.mutation(internal.notifications.fanOutForPost, {
+        postId,
+        authorId: "author-1",
+        paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
+      });
+
+      expect(result).toEqual({ done: true, processed: 0 });
+      await expect(
+        t.run(async (ctx) => ctx.db.query("notifications").collect()),
+      ).resolves.toEqual([]);
     });
 
     it("inserts a notification even when the recipient's users doc is missing (AuthSync race)", async () => {

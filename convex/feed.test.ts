@@ -249,6 +249,43 @@ describe("feed maintenance", () => {
     ).resolves.toEqual([]);
   });
 
+  it("does not fan out a draft post", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+
+    const postId = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Draft post",
+        body: "Body",
+        tags: [],
+        authorId: "author-1",
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("follows", {
+        followerId: "reader-1",
+        followingId: "author-1",
+        createdAt: now,
+      });
+      return postId;
+    });
+
+    const result = await t.mutation(internal.feed.fanOutForPost, {
+      postId,
+      authorId: "author-1",
+      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
+      retryCount: 0,
+    });
+
+    expect(result).toEqual({ done: true, processed: 0 });
+    await expect(
+      t.run(async (ctx) => ctx.db.query("feed").collect()),
+    ).resolves.toEqual([]);
+  });
+
   it("backfills only recent posts and is idempotent", async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();

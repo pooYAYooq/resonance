@@ -248,6 +248,48 @@ describe("CreateRoute", () => {
     expect(saveDraftMock).not.toHaveBeenCalled();
   });
 
+  it("saves an incomplete draft without publishing", async () => {
+    const user = userEvent.setup();
+
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Unfinished thought",
+    );
+    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+
+    await waitFor(() => {
+      expect(saveDraftMock).toHaveBeenCalledWith({
+        draftId: undefined,
+        title: "Unfinished thought",
+        body: JSON.stringify({ format: "blocknote@1", blocks: [] }),
+        tags: [],
+      });
+    });
+    expect(publishPostMock).not.toHaveBeenCalled();
+    expect(toastSuccessMock).toHaveBeenCalledWith("Draft saved successfully!");
+  });
+
+  it("keeps the editor mounted when publish validation fails", async () => {
+    const user = userEvent.setup();
+
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "A titled post",
+    );
+    await user.click(screen.getByRole("button", { name: /publish/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Content must contain/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Edit blog content" })).toBeInTheDocument();
+    expect(saveDraftMock).not.toHaveBeenCalled();
+    expect(publishPostMock).not.toHaveBeenCalled();
+  });
+
   it("disables submit button while pending", async () => {
     const user = userEvent.setup();
 
