@@ -156,7 +156,7 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 2. **2.2 Inline Image Support** — upload block-level images to Convex Storage, publish canonical storage IDs, and support required alt text plus optional captions. ✅ Shipped
 3. **2.3 Structured Content Publishing** — harden the structured-content contract end to end: posts use validated `blocknote@1` documents at both the form and the Convex write boundary, and card/metadata excerpts never expose serialized JSON. ✅ Shipped
 4. **2.4 Drafts & Publishing Workflow** — add `draft`/`published` status, save drafts, resume editing, and publish intentionally. ✅ Shipped
-5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, and author actions.
+5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, and author actions. 🔵 up next
 6. **2.6 Post Editing** — allow authors to edit drafts and published posts with ownership checks.
 7. **2.7 Analytics Foundation** — track views and expose likes, views, and follower-growth summaries.
 8. **2.8 Analytics Dashboard UI** — add simple charts and summary cards to the dashboard.
