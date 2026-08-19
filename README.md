@@ -10,11 +10,12 @@
 | Feature            | Description                                                                                       |
 | ------------------ | ------------------------------------------------------------------------------------------------- |
 | **Landing Page**   | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA         |
-| **Blog**           | Create structured posts with cover images and block-level inline images, browse paginated listings, read individual posts |
+| **Blog**           | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, browse paginated listings, read individual posts |
 | **Likes**          | Like/unlike posts with live counts on cards and post pages                                        |
 | **Comments**       | Paginated comments with author avatars, real-time updates                                         |
 | **Follows**        | Follow/unfollow authors; live follower/following counts on profile headers                        |
 | **Profiles**       | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings` |
+| **Drafts**         | Private owner-scoped draft list with resume and delete actions at `/drafts` |
 | **Authentication** | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                         |
 | **SEO**            | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                    |
 | **Dark Mode**      | System-aware dark/light theme toggle                                                              |
@@ -143,6 +144,9 @@ app/
       page.tsx                # Create form with tags, cover image, inline cleanup, and BlockNote editor
       _components/
         PostBodyEditor.tsx    # Browser-only BlockNote adapter with image upload/finalization (ssr:false)
+    drafts/
+      page.tsx                # Private, noindex owner-scoped draft list
+      _components/            # Draft summaries, resume links, and delete action
     settings/
       page.tsx                # Edit display name + bio
     u/[userId]/
@@ -165,7 +169,7 @@ app/
 
 convex/
   schema.ts                   # Database schema, including owner-bound pendingUploads sessions
-  posts.ts                    # Post queries, mutations, cover upload, inline claim consumption, and URL hydration
+  posts.ts                    # Draft save/publish/delete, published-only reads, cover upload, inline claim consumption, and URL hydration
   pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations
@@ -173,8 +177,8 @@ convex/
                               # index only — by_followingId deferred to 1.6 (notification fan-out)
   bookmarks.ts                # toggleBookmark + isBookmarked + getBookmarkedPosts (1.5).
                               # Private reading list, no denormalized counters.
-  notifications.ts            # Notifications fan-out (batched 200 + scheduler), unread count, list, mark-all-read
-  feed.ts                     # 30-day materialized reader feed, fan-out/backfill/deletion/cleanup, paginated query
+  notifications.ts            # Published-post fan-out (batched 200 + scheduler, retry-idempotent), unread count, list, mark-all-read
+  feed.ts                     # Published-only 30-day materialized reader feed, fan-out/backfill/deletion/cleanup, paginated query
   users.ts                    # User sync, profile queries, updateProfile
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth)

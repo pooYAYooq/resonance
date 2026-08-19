@@ -73,6 +73,9 @@ resonance/
 │   │   │                              # lists, code block, and block-level images).
 │   │   │                              # Never
 │   │   │                              # imported by server bundles; loads BlockNote CSS.
+│   │   ├── drafts/
+│   │   │   ├── page.tsx        # Private, noindex owner draft list.
+│   │   │   └── _components/    # Draft summaries, resume, and delete interactions.
 │   │   ├── settings/
 │   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
 │   │   ├── u/[userId]/
@@ -120,7 +123,8 @@ resonance/
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
-│   ├── posts.ts                # saveDraft/publishPost (tag validation and claim transitions),
+│   ├── posts.ts                # saveDraft/publishPost (owner-scoped drafts, tag validation,
+│   │                           # and claim transitions),
 │   │                           # generateImageUploadUrl, and detail URL hydration;
 │   │                           # getPosts, getPostById, getPostsByAuthorId,
 │   │                           # countPosts queries (countPosts reads the stats table)
@@ -145,7 +149,7 @@ resonance/
 │   │                           # scheduler continuation via
 │   │                           # follows.by_followingId), getUnreadCount,
 │   │                           # getNotifications (paginated, hydrated
-│   │                           # actor + post), markAllRead (resets the
+│   │                           # actor + published post, retry-idempotent), markAllRead (resets the
 │   │                           # denormalized users.unreadNotificationCount;
 │   │                           # rows remain as visual history)
 │   ├── feed.ts                 # Private getFeed query plus 30-day materialized
@@ -458,8 +462,10 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   `inlineImages` collection. The detail page passes that collection to
   `PostBody`; unresolved URLs are omitted rather than rendered as storage IDs.
 
-  Draft listing/resume/delete UI, paragraph-inline images, and general storage
-  garbage collection remain future work.
+  The private `/drafts` route lists owner-scoped summaries, resumes through
+  `/create?draftId=...`, and deletes only drafts. There is no public draft
+  preview. Paragraph-inline images and general storage garbage collection
+  remain future work.
 
 - **Card vs. detail boundary** — `PostCard` and Open Graph / Twitter
   metadata use `extractPlainText` for safe excerpts so serialized JSON never
