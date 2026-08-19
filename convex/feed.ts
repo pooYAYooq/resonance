@@ -90,7 +90,8 @@ export const fanOutForPost = internalMutation({
     if (!post || post.status !== "published" || post.authorId !== args.authorId) {
       return { done: true, processed: 0 };
     }
-    if (post.createdAt < Date.now() - FEED_WINDOW_MS) {
+    const publicationTime = post.publishedAt ?? post.createdAt;
+    if (publicationTime < Date.now() - FEED_WINDOW_MS) {
       return { done: true, processed: 0 };
     }
 
@@ -118,7 +119,7 @@ export const fanOutForPost = internalMutation({
           postId: args.postId,
           authorId: post.authorId,
           followId: currentFollow._id,
-          createdAt: post.publishedAt ?? post.createdAt,
+          createdAt: publicationTime,
           insertedAt: Date.now(),
         });
       } else if (existing.followId !== currentFollow._id) {
@@ -162,16 +163,16 @@ export const backfillForFollow = internalMutation({
 
     const result = await ctx.db
       .query("posts")
-      .withIndex("by_authorId_and_createdAt", (q) =>
-        q.eq("authorId", args.authorId).gte("createdAt", args.cutoffAt),
+      .withIndex("by_authorId_and_status_and_publishedAt", (q) =>
+        q
+          .eq("authorId", args.authorId)
+          .eq("status", "published")
+          .gte("publishedAt", args.cutoffAt),
       )
       .order("desc")
       .paginate(args.paginationOpts);
 
     for (const post of result.page) {
-      if (post.status !== "published") {
-        continue;
-      }
       const existing = await ctx.db
         .query("feed")
         .withIndex("by_userId_and_postId", (q) =>
@@ -185,7 +186,7 @@ export const backfillForFollow = internalMutation({
           postId: post._id,
           authorId: post.authorId,
           followId: args.followId,
-          createdAt: post.createdAt,
+          createdAt: post.publishedAt!,
           insertedAt: Date.now(),
         });
       } else if (existing.followId !== args.followId) {
