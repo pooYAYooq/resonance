@@ -73,6 +73,19 @@ prioritized.
 - Curated tags on posts (up to five from a shared fifteen-value list), clickable
   tag pills, and exact `/blog?tag=<tag>` filtering
 
+### Drafts & Publishing
+
+- Authenticated authors can save incomplete structured posts as private drafts
+  and update them through the owner-scoped `saveDraft` mutation
+- `/drafts` lists the current author's drafts with excerpts, tags, last-updated
+  dates, resume links, and delete actions
+- Resuming a draft opens `/create?draftId=<id>` with its content, tags, and
+  images hydrated into the editor
+- Publishing validates the stored draft, transitions it to `published`, and
+  triggers published-only feed and notification fan-out
+- Public readers, likes, bookmarks, comments, notifications, and feed rows do
+  not expose or act on drafts
+
 ### Likes
 
 - `toggleLike` — idempotent, one like per user per post, records in a separate `likes` table

@@ -13,38 +13,21 @@ required lifecycle status, published-only public readers, owner-scoped drafts,
 and the `saveDraft` -> `publishPost` transition are implemented. No deployment
 migration has been run or is required for this disposable development database.
 
-## Phase 2.3 verification
+Phase 2.5 — Author Dashboard is next. The current `/drafts` route is the
+owner-scoped draft surface that the dashboard design can build on.
+
+## Current verification
 
 - `pnpm lint` — passed.
-- `pnpm test:ci` — passed: 14 files, 144 tests.
-- `pnpm test:component` — passed: 31 files, 197 tests.
-- `pnpm build` — passed, including TypeScript validation.
-- Contract audit confirmed `lib/post-content.ts` as the single canonical
-  content contract; link nodes carrying a stray `text` key are rejected.
-- Known limitation: authenticated owner-scoped post mutation tests
-  remain limited by the Better Auth component fixture in `convex-test`.
-  Verbatim body persistence is pinned by a `getPostById` round-trip test plus
-  code inspection of the untransformed `ctx.db.insert("posts", ...)` call.
+- `pnpm test:ci` — passed: 14 files, 141 tests.
+- `pnpm test:component` — passed: 31 files, 199 tests.
+- `pnpm build` — passed, including TypeScript validation and static `/create`
+  and `/drafts` routes.
+- `git diff --check` — passed.
+- Known limitation: authenticated owner-scoped post mutation tests remain
+  limited by the Better Auth component fixture in `convex-test`.
 - The Convex test harness prints a scheduled-cleanup transaction warning in one
   passing test; it is a fixture limitation, not a failing assertion.
-- Task 3 follow-up verification: 55 focused Convex/schema tests, 9 create-page
-  component tests, and `pnpm exec tsc --noEmit` passed.
-- Draft-read follow-up: `pnpm test -- convex/posts.test.ts --run` passed with
-  14 files and 141 tests; the anonymous draft read/delete boundary is covered.
-- Draft-read type/lint verification: `pnpm exec tsc --noEmit` and `pnpm lint`
-  passed. `getDrafts` uses the owner-scoped draft lifecycle index.
-- Commits `bb0c323` and `2f8c013` were reconciled against the current plan.
-- Resume/drafts verification: the full backend suite passed with 14 files and
-  141 tests; the full component suite passed with 31 files and 198 tests.
-- Final verification: `pnpm lint`, `pnpm test:ci`, `pnpm test:component`, and
-  `pnpm build` all passed. The build includes static `/create` and `/drafts`
-  routes.
-- Cleanup verification: `pnpm lint`, `pnpm test:ci`, `pnpm test:component`,
-  `pnpm build`, and `git diff --check` passed. The backend suite passed with
-  14 files and 138 tests. The component suite passed with 31 files and 197
-  tests.
-- Phase 2 follow-up verification passed; detailed evidence is recorded in the
-  implementation plan.
 
 ## Completed phases
 
