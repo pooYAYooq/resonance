@@ -58,14 +58,38 @@ describe("SavedSection", () => {
     expect(paginatedArgs).toHaveBeenCalledWith("skip");
   });
 
+  it("announces authentication loading status", () => {
+    authState.mockReturnValue({ isAuthenticated: false, isLoading: true });
+
+    render(<SavedSection />);
+
+    expect(
+      screen.getByRole("status", { name: "Loading saved posts" }),
+    ).toBeInTheDocument();
+  });
+
+  it("announces saved post loading status", () => {
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "LoadingFirstPage",
+      loadMore: vi.fn(),
+      isLoading: true,
+    });
+
+    render(<SavedSection />);
+
+    expect(
+      screen.getByRole("status", { name: "Loading saved posts" }),
+    ).toBeInTheDocument();
+  });
+
   it("offers the Blog when there are no saved posts", () => {
     render(<SavedSection />);
 
     expect(screen.getByText("No saved posts")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Browse the Blog" })).toHaveAttribute(
-      "href",
-      "/blog",
-    );
+    expect(
+      screen.getByRole("link", { name: "Browse the Blog" }),
+    ).toHaveAttribute("href", "/blog");
     expect(paginatedArgs).toHaveBeenCalledWith({});
   });
 });

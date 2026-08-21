@@ -209,6 +209,23 @@ describe("Navbar", () => {
     expect(trigger).not.toHaveFocus();
   });
 
+  it("restores focus to the avatar when the menu is dismissed with Escape", async () => {
+    const user = userEvent.setup();
+    currentQueryValue = currentUser;
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    render(<Navbar />);
+
+    const trigger = screen.getByRole("button", { name: /open user menu/i });
+    await user.click(trigger);
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(trigger).toHaveFocus();
+  });
+
   it("shows canonical dashboard and New Post links when authenticated", () => {
     currentQueryValue = currentUser;
     useConvexAuthState.mockReturnValue({

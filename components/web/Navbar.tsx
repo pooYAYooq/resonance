@@ -13,6 +13,7 @@
  */
 "use client";
 import Link from "next/link";
+import { useRef } from "react";
 import { buttonVariants } from "../ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -41,6 +42,7 @@ export function Navbar() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const currentUser = useQuery(api.users.getCurrentUser);
   const router = useRouter();
+  const pointerDismissRef = useRef(false);
 
   function handleSignOut() {
     authClient.signOut({
@@ -120,7 +122,15 @@ export function Navbar() {
                   <DropdownMenuContent
                     align="end"
                     className="min-w-56"
-                    onCloseAutoFocus={(event) => event.preventDefault()}
+                    onPointerDownOutside={() => {
+                      pointerDismissRef.current = true;
+                    }}
+                    onCloseAutoFocus={(event) => {
+                      if (pointerDismissRef.current) {
+                        pointerDismissRef.current = false;
+                        event.preventDefault();
+                      }
+                    }}
                   >
                     <DropdownMenuLabel className="flex flex-col gap-1 p-0 font-normal">
                       <div className="flex items-center gap-3 px-2 py-2">

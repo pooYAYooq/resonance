@@ -18,10 +18,14 @@ export function DraftsSection() {
   const [deletingId, setDeletingId] = useState<Id<"posts">>();
   const deleteDraft = useMutation(api.posts.deleteDraft);
   const queryArgs = isAuthenticated ? {} : "skip";
-  const { results, status, loadMore, isLoading: listLoading } =
-    usePaginatedQuery(api.posts.getDrafts, queryArgs, {
-      initialNumItems: 12,
-    });
+  const {
+    results,
+    status,
+    loadMore,
+    isLoading: listLoading,
+  } = usePaginatedQuery(api.posts.getDrafts, queryArgs, {
+    initialNumItems: 12,
+  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -32,7 +36,9 @@ export function DraftsSection() {
   if (isLoading || !isAuthenticated || (listLoading && results.length === 0)) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <div role="status" aria-label="Loading drafts">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }

@@ -19,13 +19,16 @@ this disposable development database.
 
 - `pnpm lint` — passed.
 - `pnpm test:ci` — passed: 14 files, 141 tests.
-- `pnpm test:component` — passed: 42 files, 220 tests after route cleanup and
-  navigation refinements.
+- `pnpm test:component` — passed: 42 files, 224 tests after route cleanup,
+  navigation refinements, and accessibility regressions.
 - `pnpm build` — passed, including TypeScript validation and canonical dashboard
   routes; removed `/drafts` and `/reading-list` routes are absent.
 - `git diff --check` — passed.
 - `pnpm format:check` — repository baseline remains non-clean across 79
   untouched files; all changed files pass targeted Prettier checks.
+- Review follow-ups — passed: keyboard menu dismissal restores trigger focus,
+  pointer dismissal preserves the scroll-jump fix, and Drafts/Saved loading
+  states expose accessible status labels.
 - Known limitation: authenticated owner-scoped post mutation tests remain
   limited by the Better Auth component fixture in `convex-test`.
 - The Convex test harness prints a scheduled-cleanup transaction warning in one

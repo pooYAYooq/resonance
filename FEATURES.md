@@ -30,13 +30,17 @@ Feature status is managed with five labels:
 | Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete |
 | Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete |
 | Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                       | ✅ Complete |
-| Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics                          | ✅ Complete |
+| Phase 2 — The Author                | Editor, drafts, and author dashboard foundation                        | ✅ Complete |
 | Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | 🟡 Later    |
 
 **Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
 documented as optional features and are not current delivery commitments.
 They should be promoted to **Next** only after there is enough content and
 engagement data, or a clear product need for them.
+
+Phase 2 currently covers the shipped editor, draft lifecycle, and private
+author dashboard foundation. Broader editing workflows and analytics remain
+future scope rather than completed roadmap items.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes

@@ -56,6 +56,16 @@ describe("DraftsSection", () => {
     expect(paginatedArgs).toHaveBeenCalledWith("skip");
   });
 
+  it("announces draft loading status", () => {
+    authState.mockReturnValue({ isAuthenticated: true, isLoading: true });
+
+    render(<DraftsSection />);
+
+    expect(
+      screen.getByRole("status", { name: "Loading drafts" }),
+    ).toBeInTheDocument();
+  });
+
   it("offers to create a post when there are no drafts", () => {
     render(<DraftsSection />);
 

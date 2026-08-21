@@ -34,7 +34,9 @@ export function SavedSection() {
   if (isLoading || !isAuthenticated) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <div role="status" aria-label="Loading saved posts">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
@@ -42,7 +44,9 @@ export function SavedSection() {
   if (listLoading && results.length === 0) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <div role="status" aria-label="Loading saved posts">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
