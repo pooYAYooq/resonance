@@ -14,7 +14,7 @@
 
 import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -127,6 +127,50 @@ describe("follows functions", () => {
       userId: "author-auth-id",
     });
     expect(result).toEqual({ followerCount: 7, followingCount: 3 });
+  });
+
+  it("getFollowCounts falls back for legacy users without counters", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "legacy-auth-id",
+        displayName: "Legacy User",
+        unreadNotificationCount: 0,
+        createdAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.follows.getFollowCounts, {
+      userId: "legacy-auth-id",
+    });
+    expect(result).toEqual({ followerCount: 0, followingCount: 0 });
+  });
+
+  it("backfills missing follow counters on legacy users", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "legacy-auth-id",
+        displayName: "Legacy User",
+        unreadNotificationCount: 0,
+        createdAt: Date.now(),
+      });
+    });
+
+    await expect(
+      t.mutation(internal.users.backfillFollowCounts, {}),
+    ).resolves.toEqual({ updated: 1 });
+
+    const result = await t.query(api.follows.getFollowCounts, {
+      userId: "legacy-auth-id",
+    });
+    expect(result).toEqual({ followerCount: 0, followingCount: 0 });
+
+    await expect(
+      t.mutation(internal.users.backfillFollowCounts, {}),
+    ).resolves.toEqual({ updated: 0 });
   });
 
   it("getFollowCounts returns zeros for a missing user", async () => {

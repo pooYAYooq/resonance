@@ -6,6 +6,12 @@ This is the resume point for returning to Resonance after time away.
 
 Phase 2.5 — Author Dashboard (complete)
 
+The follow-counter compatibility repair is deployed to the configured
+development deployment. Legacy user documents are supported with optional
+counters, `syncUser` repair-on-login, and the internal
+`users:backfillFollowCounts` operation; the exact reported user now has both
+counters set to `0`.
+
 ## Next focus
 
 The canonical development model is active: structured BlockNote bodies,

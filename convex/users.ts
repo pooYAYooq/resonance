@@ -11,7 +11,7 @@
  * rather than accepting user IDs as arguments — this prevents callers from
  * impersonating other users.
  */
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 
@@ -54,6 +54,8 @@ export const syncUser = mutation({
         displayName: authUser.name || existing.displayName,
         email: authUser.email != null ? authUser.email : existing.email,
         avatarUrl: authUser.image != null ? authUser.image : existing.avatarUrl,
+        followerCount: existing.followerCount ?? 0,
+        followingCount: existing.followingCount ?? 0,
       });
       return existing._id;
     }
@@ -74,6 +76,28 @@ export const syncUser = mutation({
     });
 
     return userId;
+  },
+});
+
+/** Backfills follow counters on user documents created before Phase 1.4. */
+export const backfillFollowCounts = internalMutation({
+  args: {},
+  returns: v.object({ updated: v.number() }),
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    let updated = 0;
+
+    for (const user of users) {
+      if (user.followerCount === undefined || user.followingCount === undefined) {
+        await ctx.db.patch(user._id, {
+          followerCount: user.followerCount ?? 0,
+          followingCount: user.followingCount ?? 0,
+        });
+        updated += 1;
+      }
+    }
+
+    return { updated };
   },
 });
 
