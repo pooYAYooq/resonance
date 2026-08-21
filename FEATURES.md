@@ -23,15 +23,15 @@ Feature status is managed with five labels:
 - **Deferred** — intentionally postponed; revisit when its trigger is met.
 - **Shipped** — available in the product.
 
-| Phase                               | Goal                                                                   | Status         |
-| ----------------------------------- | ---------------------------------------------------------------------- | -------------- |
-| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                    | ✅ Complete    |
-| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete    |
-| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete    |
-| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete    |
-| Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                       | ✅ Complete    |
-| Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics                          | 🔵 In progress |
-| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | 🟡 Later       |
+| Phase                               | Goal                                                                   | Status      |
+| ----------------------------------- | ---------------------------------------------------------------------- | ----------- |
+| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                    | ✅ Complete |
+| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete |
+| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete |
+| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete |
+| Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                       | ✅ Complete |
+| Phase 2 — The Author                | Editor, drafts, dashboard, editing, analytics                          | ✅ Complete |
+| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | 🟡 Later    |
 
 **Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
 documented as optional features and are not current delivery commitments.
@@ -77,8 +77,8 @@ prioritized.
 
 - Authenticated authors can save incomplete structured posts as private drafts
   and update them through the owner-scoped `saveDraft` mutation
-- `/drafts` lists the current author's drafts with excerpts, tags, last-updated
-  dates, resume links, and delete actions
+- `/dashboard/drafts` lists the current author's drafts with excerpts, tags,
+  last-updated dates, resume links, and delete actions
 - Resuming a draft opens `/create?draftId=<id>` with its content, tags, and
   images hydrated into the editor
 - Publishing validates the stored draft, transitions it to `published`, and
@@ -111,8 +111,8 @@ prioritized.
 - `toggleBookmark` — idempotent, one bookmark per user per post, records in a separate `bookmarks` table
 - `BookmarkButton` on post cards and the post detail page; private, so no denormalized count on `users` or `posts`
 - `isBookmarked` query drives the toggle state; bookmarks self-subscribe (FollowButton precedent) because server-side `fetchQuery` runs unauthenticated
-- `/reading-list` page — client-gated, paginated grid of saved posts; unbookmarking from the list removes the card immediately
-- Navbar avatar dropdown contains the "Reading List" entry
+- `/dashboard/saved` page — client-gated, paginated grid of saved posts;
+  unbookmarking from the list removes the card immediately
 
 ### Notifications
 
@@ -153,7 +153,7 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 ### Phase 1B — Curation & Connection
 
 - **1.4 Follows** ✅ — follow/unfollow authors; denormalized `followerCount`/`followingCount` on `users`. _Medium._ See `docs/superpowers/specs/2026-07-27-follows-design.md` (incl. its **Forward pointers** section) before starting 1.5 / 1.6 / 1.7 — those phases build on what 1.4 shipped and must not duplicate it.
-- **1.5 Bookmarks / Reading List** ✅ — private bookmarks; `/reading-list` page. _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`, **no** denormalized count on `users` (bookmarks are private). The shared `LikeToggle` primitive is the ready seam (Phase 1.3 key decision). See `docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
+- **1.5 Bookmarks / Saved Posts** ✅ — private bookmarks; `/dashboard/saved` page. _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`, **no** denormalized count on `users` (bookmarks are private). The shared `LikeToggle` primitive is the ready seam (Phase 1.3 key decision). See `docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
 - **1.6 Notifications** ✅ — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Fan-out after `publishPost` via `ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, ...)`; uses the `follows.by_followingId` index for ordered scanning. See `docs/superpowers/specs/2026-07-28-notifications-design.md` (incl. its **Forward pointers** section) before starting 1.7 — 1.7's feed strategy is its own first-class spec decision; 1.6 only shares the `by_followingId` index, not the feed data path.
 
 ### Deferred Phase 1C — Optional Discovery & Polish
@@ -169,8 +169,8 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 2. **2.2 Inline Image Support** — upload block-level images to Convex Storage, publish canonical storage IDs, and support required alt text plus optional captions. ✅ Shipped
 3. **2.3 Structured Content Publishing** — harden the structured-content contract end to end: posts use validated `blocknote@1` documents at both the form and the Convex write boundary, and card/metadata excerpts never expose serialized JSON. ✅ Shipped
 4. **2.4 Drafts & Publishing Workflow** — add `draft`/`published` status, save drafts, resume editing, and publish intentionally. ✅ Shipped
-5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, and author actions. 🔵 up next
-6. **2.6 Post Editing** — allow authors to edit drafts and published posts with ownership checks.
+5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, saved posts, and author actions. ✅ Shipped
+6. **2.6 Post Editing** — allow authors to edit drafts and published posts with ownership checks. 🔵 up next
 7. **2.7 Analytics Foundation** — track views and expose likes, views, and follower-growth summaries.
 8. **2.8 Analytics Dashboard UI** — add simple charts and summary cards to the dashboard.
 

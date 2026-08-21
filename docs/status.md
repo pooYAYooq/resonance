@@ -4,25 +4,24 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 2.4 — Drafts & Publishing Workflow (complete)
+Phase 2.5 — Author Dashboard (complete)
 
 ## Next focus
 
 The canonical development model is active: structured BlockNote bodies,
 required lifecycle status, published-only public readers, owner-scoped drafts,
-and the `saveDraft` -> `publishPost` transition are implemented. No deployment
-migration has been run or is required for this disposable development database.
-
-Phase 2.5 — Author Dashboard is next. The current `/drafts` route is the
-owner-scoped draft surface that the dashboard design can build on.
+and the `saveDraft` -> `publishPost` transition are implemented. The private
+author workspace now lives at `/dashboard` with canonical Drafts, Published,
+and Saved sections. No deployment migration has been run or is required for
+this disposable development database.
 
 ## Current verification
 
 - `pnpm lint` — passed.
 - `pnpm test:ci` — passed: 14 files, 141 tests.
-- `pnpm test:component` — passed: 31 files, 199 tests.
-- `pnpm build` — passed, including TypeScript validation and static `/create`
-  and `/drafts` routes.
+- `pnpm test:component` — passed: 42 files, 219 tests after route cleanup.
+- `pnpm build` — passed, including TypeScript validation and canonical dashboard
+  routes; removed `/drafts` and `/reading-list` routes are absent.
 - `git diff --check` — passed.
 - Known limitation: authenticated owner-scoped post mutation tests remain
   limited by the Better Auth component fixture in `convex-test`.
@@ -40,12 +39,13 @@ owner-scoped draft surface that the dashboard design can build on.
 - Phase 2.2 — Inline Image Support
 - Phase 2.3 — Structured Content Publishing
 - Phase 2.4 — Drafts & Publishing Workflow
+- Phase 2.5 — Author Dashboard
 
 ## Where to continue
 
 - Detailed roadmap: [`FEATURES.md`](../FEATURES.md)
 - Architecture reference: [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)
-- Next focus: Phase 2.5 — Author Dashboard
+- Next focus: Phase 2.6 — Post Editing
 
 ## Status maintenance
 

@@ -7,19 +7,19 @@
 
 ## Features
 
-| Feature            | Description                                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------------------- |
-| **Landing Page**   | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA         |
-| **Blog**           | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, browse paginated listings, read individual posts |
-| **Likes**          | Like/unlike posts with live counts on cards and post pages                                        |
-| **Comments**       | Paginated comments with author avatars, real-time updates                                         |
-| **Follows**        | Follow/unfollow authors; live follower/following counts on profile headers                        |
-| **Profiles**       | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings` |
-| **Drafts**         | Private owner-scoped draft list with resume and delete actions at `/drafts` |
-| **Authentication** | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                         |
-| **SEO**            | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                    |
-| **Dark Mode**      | System-aware dark/light theme toggle                                                              |
-| **Responsive**     | Mobile-first design, works across all breakpoints                                                 |
+| Feature              | Description                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                     |
+| **Blog**             | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, browse paginated listings, read individual posts |
+| **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                    |
+| **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                     |
+| **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                    |
+| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings`                                                             |
+| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, and saved-post previews                                                                       |
+| **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                     |
+| **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                |
+| **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                          |
+| **Responsive**       | Mobile-first design, works across all breakpoints                                                                                                             |
 
 ## Roadmap and Feature Status
 
@@ -35,9 +35,8 @@ Feature statuses are:
 - **Deferred** — intentionally postponed until its revisit conditions are met.
 - **Shipped** — available in the product.
 
-The short resume point is [`docs/status.md`](docs/status.md). Phase 1C is
-complete after Post Tags (1.8); Trending (1.9), User Activity (1.10), and
-additional Polish (1.11) remain deferred optional features.
+The short resume point is [`docs/status.md`](docs/status.md). The author
+dashboard is shipped; post editing and analytics remain separate roadmap items.
 
 ---
 
@@ -144,17 +143,18 @@ app/
       page.tsx                # Create form with tags, cover image, inline cleanup, and BlockNote editor
       _components/
         PostBodyEditor.tsx    # Browser-only BlockNote adapter with image upload/finalization (ssr:false)
-    drafts/
-      page.tsx                # Private, noindex owner-scoped draft list
-      _components/            # Draft summaries, resume links, and delete action
+    dashboard/
+      layout.tsx              # Private authenticated DashboardShell
+      page.tsx                # Overview with independent collection previews
+      drafts/page.tsx         # Full owner-scoped draft list
+      published/page.tsx      # Full current-author published list
+      saved/page.tsx          # Full bookmarked-post list
+      _components/            # Shell, navigation, sections, previews, and rows
     settings/
       page.tsx                # Edit display name + bio
     u/[userId]/
       page.tsx                # Public profile with paginated posts
       _components/            # ProfilePostList (Edit Profile + Follow live in components/web/)
-    reading-list/
-      page.tsx                # Private reading list (client-gated + paginated)
-      _components/            # ReadingListContent
     notifications/
       page.tsx                # Private notifications feed (client-gated + paginated)
       _components/            # NotificationsList (gate + pagination + mark-all-read) + NotificationRow
@@ -189,7 +189,7 @@ components/
   web/                        # App-level components
     AuthCTA.tsx               # Auth-aware CTA button ("Write a post" / "Get Started")
     FooterCTA.tsx             # Auth-aware CTA card for Footer
-    Navbar.tsx                # Top nav with avatar dropdown
+    Navbar.tsx                # Top nav with Dashboard, Write, and avatar actions
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
@@ -246,11 +246,11 @@ User and session records live in the same Convex DB as application data.
 
 ### Data Fetching Patterns
 
-| Section       | Query                                              | Pattern                            |
-| ------------- | -------------------------------------------------- | ---------------------------------- |
-| Landing stats | `fetchQuery(api.posts.countPosts)`                 | Live total post count              |
-| Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`  | Paginated, wrapped in `<Suspense>` |
-| Blog listing  | `fetchQuery(api.posts.getPosts, { numItems: 50 })` | Full paginated grid                |
+| Section       | Query                                              | Pattern                                         |
+| ------------- | -------------------------------------------------- | ----------------------------------------------- |
+| Landing stats | `fetchQuery(api.posts.countPosts)`                 | Live total post count                           |
+| Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`  | Paginated, wrapped in `<Suspense>`              |
+| Blog listing  | `fetchQuery(api.posts.getPosts, { numItems: 50 })` | Full paginated grid                             |
 | Post detail   | `fetchQuery(api.posts.getPostById)`                | Single post + cover/inline image URL resolution |
 
 ---
