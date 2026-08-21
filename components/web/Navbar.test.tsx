@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Navbar } from "./Navbar";
 
@@ -175,12 +175,38 @@ describe("Navbar", () => {
       "href",
       "/u/auth-user-1",
     );
-    expect(screen.queryByRole("menuitem", { name: /reading list/i })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: /reading list/i }),
+    ).toBeNull();
     expect(screen.getByRole("menuitem", { name: /settings/i })).toHaveAttribute(
       "href",
       "/settings",
     );
-    expect(screen.getByRole("menuitem", { name: /logout/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /logout/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not restore focus to the avatar when the menu is dismissed", async () => {
+    const user = userEvent.setup();
+    currentQueryValue = currentUser;
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    render(
+      <>
+        <Navbar />
+        <button type="button">Page content</button>
+      </>,
+    );
+
+    const trigger = screen.getByRole("button", { name: /open user menu/i });
+    await user.click(trigger);
+    fireEvent.pointerDown(document.body);
+
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(trigger).not.toHaveFocus();
   });
 
   it("shows canonical dashboard and New Post links when authenticated", () => {
@@ -195,7 +221,7 @@ describe("Navbar", () => {
       "href",
       "/dashboard",
     );
-    expect(screen.getByRole("link", { name: "New Post" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Write" })).toHaveAttribute(
       "href",
       "/create",
     );

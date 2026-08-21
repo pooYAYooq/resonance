@@ -2,11 +2,9 @@
 
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import Link from "next/link";
 import { useConvexAuth } from "convex/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { DashboardSectionNav } from "./DashboardSectionNav";
 
 const sectionTitles = {
@@ -45,7 +43,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="py-10">
-      <header className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-6">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
             Your workspace
@@ -54,12 +52,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             {getSectionTitle(pathname)}
           </h1>
         </div>
-        <Button asChild className="w-full sm:w-auto">
-          <Link href="/create">
-            <Plus />
-            New Post
-          </Link>
-        </Button>
       </header>
       <DashboardSectionNav />
       {children}

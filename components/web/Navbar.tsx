@@ -75,17 +75,23 @@ export function Navbar() {
             </Link>
             {isAuthenticated && (
               <>
-                <Link className={buttonVariants({ variant: "ghost" })} href="/feed">
+                <Link
+                  className={buttonVariants({ variant: "ghost" })}
+                  href="/feed"
+                >
                   Feed
                 </Link>
-                <Link className={buttonVariants({ variant: "ghost" })} href="/create">
-                  Create
-                </Link>
-                <Link className={buttonVariants({ variant: "ghost" })} href="/dashboard">
+                <Link
+                  className={buttonVariants({ variant: "ghost" })}
+                  href="/dashboard"
+                >
                   Dashboard
                 </Link>
-                <Link className={buttonVariants({ variant: "default" })} href="/create">
-                  New Post
+                <Link
+                  className={buttonVariants({ variant: "default" })}
+                  href="/create"
+                >
+                  Write
                 </Link>
               </>
             )}
@@ -111,7 +117,11 @@ export function Navbar() {
                       className="size-8"
                     />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-56">
+                  <DropdownMenuContent
+                    align="end"
+                    className="min-w-56"
+                    onCloseAutoFocus={(event) => event.preventDefault()}
+                  >
                     <DropdownMenuLabel className="flex flex-col gap-1 p-0 font-normal">
                       <div className="flex items-center gap-3 px-2 py-2">
                         <UserAvatar

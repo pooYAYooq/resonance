@@ -35,7 +35,9 @@ describe("DashboardShell", () => {
     );
 
     expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.queryByText("Private dashboard content")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Private dashboard content"),
+    ).not.toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });
 
@@ -49,7 +51,9 @@ describe("DashboardShell", () => {
     );
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/auth/login"));
-    expect(screen.queryByText("Private dashboard content")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Private dashboard content"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders workspace links and the active section for authenticated users", () => {
@@ -62,17 +66,13 @@ describe("DashboardShell", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Drafts" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "New Post" })).toHaveAttribute(
-      "href",
-      "/create",
-    );
     for (const name of ["Overview", "Drafts", "Published", "Saved"]) {
       expect(screen.getAllByRole("link", { name })).not.toHaveLength(0);
     }
     expect(
-      screen.getAllByRole("link", { name: "Drafts" }).some(
-        (link) => link.getAttribute("aria-current") === "page",
-      ),
+      screen
+        .getAllByRole("link", { name: "Drafts" })
+        .some((link) => link.getAttribute("aria-current") === "page"),
     ).toBe(true);
     expect(screen.getByText("Private dashboard content")).toBeInTheDocument();
   });
