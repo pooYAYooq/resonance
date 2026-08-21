@@ -11,8 +11,8 @@ type DraftRowProps = {
     tags: string[];
     updatedAt: number;
   };
-  onDelete: () => void;
-  deleting: boolean;
+  onDelete?: () => void;
+  deleting?: boolean;
 };
 
 export function DraftRow({ draft, onDelete, deleting }: DraftRowProps) {
@@ -41,15 +41,17 @@ export function DraftRow({ draft, onDelete, deleting }: DraftRowProps) {
             Resume
           </Link>
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onDelete}
-          disabled={deleting}
-          aria-label="Delete draft"
-        >
-          {deleting ? "Deleting..." : "Delete"}
-        </Button>
+        {onDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onDelete}
+            disabled={deleting}
+            aria-label="Delete draft"
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </Button>
+        ) : null}
       </div>
     </article>
   );
