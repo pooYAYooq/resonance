@@ -88,10 +88,10 @@ export const toggleFollow = mutation({
     if (existingFollow) {
       await ctx.db.delete(existingFollow._id);
       await ctx.db.patch(currentUser._id, {
-        followingCount: currentUser.followingCount - 1,
+        followingCount: (currentUser.followingCount ?? 0) - 1,
       });
       await ctx.db.patch(target._id, {
-        followerCount: target.followerCount - 1,
+        followerCount: (target.followerCount ?? 0) - 1,
       });
       await ctx.scheduler.runAfter(0, internal.feed.deleteForUnfollow, {
         userId: authUser._id,
@@ -108,10 +108,10 @@ export const toggleFollow = mutation({
       createdAt: Date.now(),
     });
     await ctx.db.patch(currentUser._id, {
-      followingCount: currentUser.followingCount + 1,
+      followingCount: (currentUser.followingCount ?? 0) + 1,
     });
     await ctx.db.patch(target._id, {
-      followerCount: target.followerCount + 1,
+      followerCount: (target.followerCount ?? 0) + 1,
     });
     await ctx.scheduler.runAfter(0, internal.feed.backfillForFollow, {
       userId: authUser._id,
