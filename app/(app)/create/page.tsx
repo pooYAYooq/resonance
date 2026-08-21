@@ -124,14 +124,14 @@ function CreateEditor() {
     if (!requestedDraftId || hydratedDraft === undefined) return;
     if (hydratedDraft === null) {
       toast.error("That draft is unavailable.");
-      router.replace("/drafts");
+      router.replace("/dashboard/drafts");
       return;
     }
 
     const parsed = parsePostBody(hydratedDraft.body);
     if (parsed.kind !== "structured") {
       toast.error("That draft is unavailable.");
-      router.replace("/drafts");
+      router.replace("/dashboard/drafts");
       return;
     }
 

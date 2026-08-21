@@ -217,13 +217,15 @@ describe("CreateRoute", () => {
     expect(screen.getByText(JSON.stringify(validEnvelope))).toBeInTheDocument();
   });
 
-  it("redirects an unavailable draft to the drafts route", async () => {
+  it("redirects an unavailable draft to the dashboard drafts route", async () => {
     draftIdParam.value = "missing-draft";
     getDraftByIdMock.mockReturnValue(null);
 
     render(<CreateRoute />);
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/drafts"));
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/dashboard/drafts"),
+    );
   });
 
   it("shows validation error for empty title", async () => {

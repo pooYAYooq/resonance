@@ -1,34 +1,16 @@
-/**
- * Client component for the authenticated, paginated reading list.
- *
- * Auth gate mirrors `/create` exactly: `useConvexAuth` → loading
- * spinner, `!isAuthenticated` → `useEffect` redirects to `/auth/login`,
- * and the paginated query is skipped (`"skip"` args) until authenticated
- * so anonymous visitors don't issue an empty round-trip. Then
- * `usePaginatedQuery(api.bookmarks.getBookmarkedPosts)` renders the
- * saved posts in the same responsive grid + "Load more" pattern as
- * `ProfilePostList`. Unbookmarking a card here deletes the bookmark row
- * so the paginated query re-emits and the card drops out (GitHub
- * "Saved"-style removal).
- */
-
 "use client";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, usePaginatedQuery } from "convex/react";
+import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { PostCard } from "@/components/web/PostCard";
 import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Loader2, Bookmark } from "lucide-react";
 
-/**
- * Displays the authenticated user's bookmarked posts with pagination.
- *
- * @returns The reading list content, loading state, or empty state.
- */
-export function ReadingListContent() {
+export function SavedSection() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
 
@@ -51,16 +33,20 @@ export function ReadingListContent() {
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="py-12 flex justify-center">
-        <Loader2 className="animate-spin size-8 text-muted-foreground" />
+      <div className="flex justify-center py-12">
+        <div role="status" aria-label="Loading saved posts">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
 
   if (listLoading && results.length === 0) {
     return (
-      <div className="py-12 flex justify-center">
-        <Loader2 className="animate-spin size-8 text-muted-foreground" />
+      <div className="flex justify-center py-12">
+        <div role="status" aria-label="Loading saved posts">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
@@ -71,13 +57,18 @@ export function ReadingListContent() {
         icon={Bookmark}
         title="No saved posts"
         description="Bookmark posts to read later and they'll appear here."
+        action={
+          <Button asChild variant="outline">
+            <Link href="/blog">Browse the Blog</Link>
+          </Button>
+        }
       />
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {results.map((post) => (
           <PostCard
             key={post._id}
@@ -106,7 +97,7 @@ export function ReadingListContent() {
           >
             {listLoading ? (
               <>
-                <Loader2 className="animate-spin size-4" />
+                <Loader2 className="size-4 animate-spin" />
                 <span className="ml-2">Loading more...</span>
               </>
             ) : (

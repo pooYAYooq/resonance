@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -11,16 +12,20 @@ import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
 import { DraftRow } from "./DraftRow";
 
-export function DraftsContent() {
+export function DraftsSection() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<Id<"posts">>();
   const deleteDraft = useMutation(api.posts.deleteDraft);
   const queryArgs = isAuthenticated ? {} : "skip";
-  const { results, status, loadMore, isLoading: listLoading } =
-    usePaginatedQuery(api.posts.getDrafts, queryArgs, {
-      initialNumItems: 12,
-    });
+  const {
+    results,
+    status,
+    loadMore,
+    isLoading: listLoading,
+  } = usePaginatedQuery(api.posts.getDrafts, queryArgs, {
+    initialNumItems: 12,
+  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -31,7 +36,9 @@ export function DraftsContent() {
   if (isLoading || !isAuthenticated || (listLoading && results.length === 0)) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <div role="status" aria-label="Loading drafts">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
@@ -42,6 +49,11 @@ export function DraftsContent() {
         icon={FileText}
         title="No drafts yet"
         description="Save an unfinished post and it will appear here."
+        action={
+          <Button asChild variant="outline">
+            <Link href="/create">Create a post</Link>
+          </Button>
+        }
       />
     );
   }

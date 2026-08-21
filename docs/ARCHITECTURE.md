@@ -73,9 +73,13 @@ resonance/
 │   │   │                              # lists, code block, and block-level images).
 │   │   │                              # Never
 │   │   │                              # imported by server bundles; loads BlockNote CSS.
-│   │   ├── drafts/
-│   │   │   ├── page.tsx        # Private, noindex owner draft list.
-│   │   │   └── _components/    # Draft summaries, resume, and delete interactions.
+│   │   ├── dashboard/
+│   │   │   ├── layout.tsx      # Private DashboardShell with auth gate and nav.
+│   │   │   ├── page.tsx        # Overview with independent collection previews.
+│   │   │   ├── drafts/page.tsx # Full owner-scoped draft list.
+│   │   │   ├── published/page.tsx # Full current-author published list.
+│   │   │   ├── saved/page.tsx  # Full bookmarked-post list.
+│   │   │   └── _components/    # Shell, navigation, sections, previews, and rows.
 │   │   ├── settings/
 │   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
 │   │   ├── u/[userId]/
@@ -85,15 +89,7 @@ resonance/
 │   │           └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
 │   │                                # (Edit Profile + Follow live in components/web/
 │   │                                # ProfileActionButton.tsx since 1.4.)
-│   │   ├── reading-list/
-│   │       ├── page.tsx        # Reading list. Server Component shell (static
-│   │       │                   # metadata, noindex). Auth gate + paginated list
-│   │       │                   # live in the client _components/ReadingListContent.
-│   │       └── _components/
-│   │           └── ReadingListContent.tsx  # Client. useConvexAuth gate (redirect
-│   │                                  # to /auth/login) + usePaginatedQuery
-│   │                                  # bookmarks.getBookmarkedPosts grid.
-│   │   └── notifications/
+│   │   ├── notifications/
 │   │       ├── page.tsx        # Notifications. Server Component shell
 │   │       │                   # (static metadata, noindex). Auth gate,
 │   │       │                   # pagination, and mark-all-read live in
@@ -168,7 +164,8 @@ resonance/
 │       ├── ConvexClientProvider.tsx  # Convex + Better Auth session bridge.
 │       │                           # Wraps children in <AuthSync>.
 │       ├── AuthSync.tsx         # Fires users.syncUser on every auth state change
-│       ├── Navbar.tsx           # Top nav. Avatar dropdown (profile/reading list/settings/logout).
+│       ├── Navbar.tsx           # Top nav. Dashboard actions and account dropdown.
+│       ├── MobileNavMenu.tsx    # Accessible responsive discovery/workspace menu.
 │       ├── NotificationBell.tsx  # Self-subscribing bell with unread badge
 │       │                          # in the Navbar, left of the avatar. Mirrors
 │       │                          # BookmarkButton's self-contained pattern;
@@ -274,9 +271,9 @@ components/
     ├── Navbar.tsx
     │     Reads auth state with useConvexAuth(). Reactive to the
     │     Convex session, not to the Better Auth client directly.
-    │     Authenticated users get an avatar dropdown (profile,
-    │     reading list, settings, logout); calls authClient.signOut() on logout.
-    │     "Create" is hidden from unauthenticated visitors.
+│     Authenticated users get Dashboard and Write actions plus an avatar
+│     dropdown (profile, settings, logout); calls authClient.signOut() on logout.
+│     The menu prevents close-time focus restoration from jumping the page.
     │
     ├── Footer.tsx / FooterCTA.tsx / AuthCTA.tsx
     │     Footer is the site-wide footer (quick links, socials,
@@ -462,10 +459,14 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   `inlineImages` collection. The detail page passes that collection to
   `PostBody`; unresolved URLs are omitted rather than rendered as storage IDs.
 
-  The private `/drafts` route lists owner-scoped summaries, resumes through
-  `/create?draftId=...`, and deletes only drafts. There is no public draft
-  preview. Paragraph-inline images and general storage garbage collection
-  remain future work.
+  The private dashboard lists owner-scoped draft summaries at
+  `/dashboard/drafts`, resumes through `/create?draftId=...`, and deletes only
+  drafts. `/dashboard/published` scopes published cards through the current
+  user's auth identity, while `/dashboard/saved` reads the private bookmark
+  list. The `/dashboard` Overview composes independent, small previews of all
+  three collections and keeps each collection's loading and empty state local.
+  There is no public draft preview. Paragraph-inline images and general
+  storage garbage collection remain future work.
 
 - **Card vs. detail boundary** — `PostCard` and Open Graph / Twitter
   metadata use `extractPlainText` for safe excerpts so serialized JSON never
@@ -808,7 +809,7 @@ would always be `false` on first paint for signed-in users. The
 client-side subscription is authenticated (via
 `ConvexBetterAuthProvider`) and correct on every surface.
 
-This is also why `/reading-list` is client-gated with `useConvexAuth`
+This is also why `/dashboard/saved` is client-gated with `useConvexAuth`
 (mirroring `/create`) rather than server-gated.
 
 This decision does not introduce a `bookmarksCount` counter on `users` or
