@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DraftsContent } from "./_components/DraftsContent";
+import { DraftsSection } from "../dashboard/_components/DraftsSection";
 
 export const metadata: Metadata = {
   title: "Drafts",
@@ -16,7 +16,7 @@ export default function DraftsRoute() {
           Keep unfinished ideas close until they are ready to publish.
         </p>
       </header>
-      <DraftsContent />
+      <DraftsSection />
     </div>
   );
 }

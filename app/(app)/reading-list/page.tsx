@@ -12,7 +12,7 @@
  */
 
 import type { Metadata } from "next";
-import { ReadingListContent } from "./_components/ReadingListContent";
+import { SavedSection } from "../dashboard/_components/SavedSection";
 
 export const metadata: Metadata = {
   title: "Reading List",
@@ -31,7 +31,7 @@ export default function ReadingListRoute() {
           Posts you&apos;ve saved to read later.
         </p>
       </header>
-      <ReadingListContent />
+      <SavedSection />
     </div>
   );
 }

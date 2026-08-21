@@ -42,9 +42,9 @@ vi.mock("@/convex/_generated/api", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: toastErrorMock } }));
 
-import { DraftsContent } from "./DraftsContent";
+import { DraftsSection } from "../../dashboard/_components/DraftsSection";
 
-describe("DraftsContent", () => {
+describe("DraftsSection", () => {
   beforeEach(() => {
     authState.mockReturnValue({ isAuthenticated: true, isLoading: false });
     paginatedState.mockReturnValue({
@@ -66,14 +66,14 @@ describe("DraftsContent", () => {
   it("redirects unauthenticated users and skips the draft query", async () => {
     authState.mockReturnValue({ isAuthenticated: false, isLoading: false });
 
-    render(<DraftsContent />);
+    render(<DraftsSection />);
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/auth/login"));
     expect(paginatedArgs).toHaveBeenCalledWith("skip");
   });
 
   it("renders an empty state for authenticated users without drafts", () => {
-    render(<DraftsContent />);
+    render(<DraftsSection />);
 
     expect(screen.getByText("No drafts yet")).toBeInTheDocument();
     expect(paginatedArgs).toHaveBeenCalledWith({});
@@ -97,7 +97,7 @@ describe("DraftsContent", () => {
     });
     deleteDraftMock.mockResolvedValue(null);
 
-    render(<DraftsContent />);
+    render(<DraftsSection />);
 
     expect(screen.getByText("A private draft")).toBeInTheDocument();
     expect(screen.getByText("A safe excerpt")).toBeInTheDocument();
@@ -123,7 +123,7 @@ describe("DraftsContent", () => {
       isLoading: false,
     });
 
-    render(<DraftsContent />);
+    render(<DraftsSection />);
     await user.click(screen.getByRole("button", { name: "Delete draft" }));
 
     expect(deleteDraftMock).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe("DraftsContent", () => {
       isLoading: true,
     });
 
-    const { container } = render(<DraftsContent />);
+    const { container } = render(<DraftsSection />);
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
@@ -153,7 +153,7 @@ describe("DraftsContent", () => {
     });
     deleteDraftMock.mockRejectedValue(new Error("failed"));
 
-    render(<DraftsContent />);
+    render(<DraftsSection />);
     await user.click(screen.getByRole("button", { name: "Delete draft" }));
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith("Failed to delete draft"));

@@ -48,9 +48,9 @@ vi.mock("@/convex/_generated/api", () => ({
   },
 }));
 
-import { ReadingListContent } from "./ReadingListContent";
+import { SavedSection } from "../../dashboard/_components/SavedSection";
 
-describe("ReadingListContent", () => {
+describe("SavedSection", () => {
   beforeEach(() => {
     pushMock.mockClear();
     usePaginatedQueryArgsMock.mockClear();
@@ -71,7 +71,7 @@ describe("ReadingListContent", () => {
       isAuthenticated: false,
       isLoading: false,
     });
-    render(<ReadingListContent />);
+    render(<SavedSection />);
 
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith("/auth/login"),
@@ -84,7 +84,7 @@ describe("ReadingListContent", () => {
       isAuthenticated: false,
       isLoading: true,
     });
-    const { container } = render(<ReadingListContent />);
+    const { container } = render(<SavedSection />);
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });
@@ -100,7 +100,7 @@ describe("ReadingListContent", () => {
       loadMore: vi.fn(),
       isLoading: true,
     });
-    const { container } = render(<ReadingListContent />);
+    const { container } = render(<SavedSection />);
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
@@ -115,7 +115,7 @@ describe("ReadingListContent", () => {
       loadMore: vi.fn(),
       isLoading: false,
     });
-    render(<ReadingListContent />);
+    render(<SavedSection />);
 
     expect(screen.getByText("No saved posts")).toBeInTheDocument();
     expect(
