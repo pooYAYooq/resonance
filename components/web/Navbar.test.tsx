@@ -158,7 +158,7 @@ describe("Navbar", () => {
     expect(trigger).toHaveTextContent("AD");
   });
 
-  it("opens the menu and shows profile, reading list, settings, and logout items", async () => {
+  it("opens the menu and shows profile, settings, and logout items", async () => {
     const user = userEvent.setup();
     currentQueryValue = currentUser;
     useConvexAuthState.mockReturnValue({
@@ -175,14 +175,30 @@ describe("Navbar", () => {
       "href",
       "/u/auth-user-1",
     );
-    expect(
-      screen.getByRole("menuitem", { name: /reading list/i }),
-    ).toHaveAttribute("href", "/reading-list");
+    expect(screen.queryByRole("menuitem", { name: /reading list/i })).toBeNull();
     expect(screen.getByRole("menuitem", { name: /settings/i })).toHaveAttribute(
       "href",
       "/settings",
     );
     expect(screen.getByRole("menuitem", { name: /logout/i })).toBeInTheDocument();
+  });
+
+  it("shows canonical dashboard and New Post links when authenticated", () => {
+    currentQueryValue = currentUser;
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    render(<Navbar />);
+
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "/dashboard",
+    );
+    expect(screen.getByRole("link", { name: "New Post" })).toHaveAttribute(
+      "href",
+      "/create",
+    );
   });
 
   it("calls authClient.signOut and shows a toast on logout click", async () => {

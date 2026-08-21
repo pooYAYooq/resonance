@@ -33,9 +33,9 @@ import {
   LogOut,
   User as UserIcon,
   Settings as SettingsIcon,
-  Bookmark,
 } from "lucide-react";
 import { NotificationBell } from "./NotificationBell";
+import { MobileNavMenu } from "./MobileNavMenu";
 
 export function Navbar() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -60,13 +60,13 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background">
       <div className="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8 flex items-center justify-between py-5">
         {/* Logo */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 md:gap-8">
           <Link href="/">
             <h1 className="text-3xl font-extrabold">RESONANCE</h1>
           </Link>
 
           {/* Navigation Links */}
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 md:flex">
             <Link className={buttonVariants({ variant: "ghost" })} href="/">
               Home
             </Link>
@@ -81,6 +81,12 @@ export function Navbar() {
                 <Link className={buttonVariants({ variant: "ghost" })} href="/create">
                   Create
                 </Link>
+                <Link className={buttonVariants({ variant: "ghost" })} href="/dashboard">
+                  Dashboard
+                </Link>
+                <Link className={buttonVariants({ variant: "default" })} href="/create">
+                  New Post
+                </Link>
               </>
             )}
           </div>
@@ -88,6 +94,7 @@ export function Navbar() {
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-2">
+          <MobileNavMenu isAuthenticated={isAuthenticated} />
           {isLoading ? null : isAuthenticated ? (
             currentUser ? (
               <>
@@ -130,12 +137,6 @@ export function Navbar() {
                       <Link href={`/u/${currentUser.userId}`}>
                         <UserIcon />
                         <span>Profile</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/reading-list">
-                        <Bookmark />
-                        <span>Reading List</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
