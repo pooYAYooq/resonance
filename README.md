@@ -7,19 +7,19 @@
 
 ## Features
 
-| Feature              | Description                                                                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                     |
+| Feature              | Description                                                                                                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                                                    |
 | **Blog**             | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, edit published posts in place, browse paginated listings, read individual posts |
-| **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                    |
-| **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                     |
-| **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                    |
-| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings`                                                             |
-| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, saved-post previews, and published-post edit actions                                          |
-| **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                     |
-| **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                |
-| **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                          |
-| **Responsive**       | Mobile-first design, works across all breakpoints                                                                                                             |
+| **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                                                   |
+| **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                                                    |
+| **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                                                   |
+| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings`                                                                                            |
+| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, saved-post previews, and published-post edit actions                                                                         |
+| **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                                                    |
+| **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                                               |
+| **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                                                         |
+| **Responsive**       | Mobile-first design, works across all breakpoints                                                                                                                                            |
 
 ## Roadmap and Feature Status
 
