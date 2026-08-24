@@ -40,7 +40,7 @@ export async function generateMetadata({
   const { postId } = await params;
   const post = await fetchQuery(api.posts.getPostById, { postId });
 
-  if (!post) {
+  if (!post || post.publishedAt === undefined) {
     return {
       title: "Post Not Found",
     };
@@ -82,7 +82,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
   const { postId } = await params;
   const post = await fetchQuery(api.posts.getPostById, { postId: postId });
 
-  if (!post) {
+  if (!post || post.publishedAt === undefined) {
     return (
       <div className="max-w-3xl mx-auto py-8 px-4">
         <h1 className="text-2xl font-bold mb-4">Post not found</h1>

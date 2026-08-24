@@ -146,4 +146,18 @@ describe("blog post timestamps", () => {
     expect(screen.getByText("Published on: January 15, 2024")).toBeInTheDocument();
     expect(screen.getByText("Updated on: February 20, 2024")).toBeInTheDocument();
   });
+
+  it("does not fall back to createdAt when publishedAt is missing", async () => {
+    fetchQueryMock.mockResolvedValue({
+      ...basePost,
+      createdAt: Date.UTC(2023, 0, 1),
+      publishedAt: undefined,
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    expect(screen.getByText("Post not found")).toBeInTheDocument();
+    expect(screen.queryByText(/Published on:/)).toBeNull();
+  });
 });
