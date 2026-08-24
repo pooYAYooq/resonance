@@ -7,19 +7,19 @@
 
 ## Features
 
-| Feature              | Description                                                                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                     |
-| **Blog**             | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, browse paginated listings, read individual posts |
-| **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                    |
-| **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                     |
-| **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                    |
-| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings`                                                             |
-| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, and saved-post previews                                                                       |
-| **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                     |
-| **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                |
-| **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                          |
-| **Responsive**       | Mobile-first design, works across all breakpoints                                                                                                             |
+| Feature              | Description                                                                                                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                                                    |
+| **Blog**             | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, edit published posts in place, browse paginated listings, read individual posts |
+| **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                                                   |
+| **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                                                    |
+| **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                                                   |
+| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings`                                                                                            |
+| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, saved-post previews, and published-post edit actions                                                                         |
+| **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                                                    |
+| **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                                               |
+| **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                                                         |
+| **Responsive**       | Mobile-first design, works across all breakpoints                                                                                                                                            |
 
 ## Roadmap and Feature Status
 
@@ -36,7 +36,8 @@ Feature statuses are:
 - **Shipped** — available in the product.
 
 The short resume point is [`docs/status.md`](docs/status.md). The author
-dashboard is shipped; post editing and analytics remain separate roadmap items.
+dashboard and published post editing are shipped; analytics remains the next
+roadmap focus.
 
 ---
 
@@ -138,9 +139,9 @@ app/
       page.tsx                # Blog listing with gradient hero + optional tag filter
       _components/            # BlogFilter and cursor-draining BlogPostList
       [postId]/
-        page.tsx              # Single post view with likes + comments
+        page.tsx              # Single post view with likes, comments, and publication timestamps
     create/
-      page.tsx                # Create form with tags, cover image, inline cleanup, and BlockNote editor
+      page.tsx                # New, draft, and published-edit form modes
       _components/
         PostBodyEditor.tsx    # Browser-only BlockNote adapter with image upload/finalization (ssr:false)
     dashboard/
@@ -169,7 +170,7 @@ app/
 
 convex/
   schema.ts                   # Database schema, including owner-bound pendingUploads sessions
-  posts.ts                    # Draft save/publish/delete, published-only reads, cover upload, inline claim consumption, and URL hydration
+  posts.ts                    # Draft save/publish, published editing, published-only reads, uploads, claims, and URL hydration
   pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations

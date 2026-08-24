@@ -30,7 +30,7 @@ Feature status is managed with five labels:
 | Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete |
 | Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete |
 | Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                       | ✅ Complete |
-| Phase 2 — The Author                | Editor, drafts, and author dashboard foundation                        | ✅ Complete |
+| Phase 2 — The Author                | Editor, drafts, author dashboard, and post editing                     | ✅ Complete |
 | Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | 🟡 Later    |
 
 **Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
@@ -38,9 +38,9 @@ documented as optional features and are not current delivery commitments.
 They should be promoted to **Next** only after there is enough content and
 engagement data, or a clear product need for them.
 
-Phase 2 currently covers the shipped editor, draft lifecycle, and private
-author dashboard foundation. Broader editing workflows and analytics remain
-future scope rather than completed roadmap items.
+Phase 2 currently covers the shipped editor, draft lifecycle, private author
+dashboard, and owner-scoped editing for published posts. Analytics remain
+future scope rather than a completed roadmap item.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
@@ -87,8 +87,12 @@ prioritized.
   images hydrated into the editor
 - Publishing validates the stored draft, transitions it to `published`, and
   triggers published-only feed and notification fan-out
+- Authors can edit published posts in place through `/create?editPostId=<id>`;
+  edits preserve the post ID, publication time, engagement records, bookmarks,
+  and feed position while advancing `updatedAt`
 - Public readers, likes, bookmarks, comments, notifications, and feed rows do
   not expose or act on drafts
+- Public post details show `publishedAt` and show `updatedAt` only after an edit
 
 ### Likes
 
@@ -174,8 +178,8 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 3. **2.3 Structured Content Publishing** — harden the structured-content contract end to end: posts use validated `blocknote@1` documents at both the form and the Convex write boundary, and card/metadata excerpts never expose serialized JSON. ✅ Shipped
 4. **2.4 Drafts & Publishing Workflow** — add `draft`/`published` status, save drafts, resume editing, and publish intentionally. ✅ Shipped
 5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, saved posts, and author actions. ✅ Shipped
-6. **2.6 Post Editing** — allow authors to edit drafts and published posts with ownership checks. 🔵 up next
-7. **2.7 Analytics Foundation** — track views and expose likes, views, and follower-growth summaries.
+6. **2.6 Post Editing** — allow authors to edit drafts and published posts with ownership checks. ✅ Shipped
+7. **2.7 Analytics Foundation** — track views and expose likes, views, and follower-growth summaries. 🔵 up next
 8. **2.8 Analytics Dashboard UI** — add simple charts and summary cards to the dashboard.
 
 #### Deferred Editor Polish

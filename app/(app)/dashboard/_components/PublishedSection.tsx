@@ -6,7 +6,7 @@ import { useConvexAuth, usePaginatedQuery, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { Loader2, Newspaper } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/web/EmptyState";
 import { PostCard } from "@/components/web/PostCard";
 
@@ -18,12 +18,16 @@ export function PublishedSection() {
     isAuthenticated ? {} : "skip",
   );
   const authorId = currentUser?.userId;
-  const { results, status, loadMore, isLoading: listLoading } =
-    usePaginatedQuery(
-      api.posts.getPostsByAuthorId,
-      authorId ? { authorId } : "skip",
-      { initialNumItems: 12 },
-    );
+  const {
+    results,
+    status,
+    loadMore,
+    isLoading: listLoading,
+  } = usePaginatedQuery(
+    api.posts.getPostsByAuthorId,
+    authorId ? { authorId } : "skip",
+    { initialNumItems: 12 },
+  );
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -86,6 +90,22 @@ export function PublishedSection() {
             authorName={post.authorName}
             authorAvatarUrl={post.authorAvatarUrl}
             tags={post.tags}
+            authorActions={
+              <div className="flex items-center gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/create?editPostId=${post._id}`}>Edit</Link>
+                </Button>
+                <Link
+                  href={`/blog/${post._id}`}
+                  className={buttonVariants({
+                    variant: "secondary",
+                    size: "sm",
+                  })}
+                >
+                  View Post
+                </Link>
+              </div>
+            }
           />
         ))}
       </div>

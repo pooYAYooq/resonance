@@ -40,7 +40,7 @@ export async function generateMetadata({
   const { postId } = await params;
   const post = await fetchQuery(api.posts.getPostById, { postId });
 
-  if (!post) {
+  if (!post || post.publishedAt === undefined) {
     return {
       title: "Post Not Found",
     };
@@ -82,7 +82,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
   const { postId } = await params;
   const post = await fetchQuery(api.posts.getPostById, { postId: postId });
 
-  if (!post) {
+  if (!post || post.publishedAt === undefined) {
     return (
       <div className="max-w-3xl mx-auto py-8 px-4">
         <h1 className="text-2xl font-bold mb-4">Post not found</h1>
@@ -92,6 +92,14 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
       </div>
     );
   }
+
+  const formatDate = (timestamp: number) =>
+    new Date(timestamp).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      timeZone: "UTC",
+      year: "numeric",
+    });
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 animate-in fade-in duration-500 relative">
@@ -122,13 +130,13 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           {post.title}
         </h1>
         <p className="text-muted-foreground mt-4 text-sm">
-          Published on:{" "}
-          {new Date(post.createdAt).toLocaleDateString("en-US", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
+          {`Published on: ${formatDate(post.publishedAt)}`}
         </p>
+        {post.updatedAt > post.publishedAt && (
+          <p className="text-muted-foreground mt-2 text-sm">
+            {`Updated on: ${formatDate(post.updatedAt)}`}
+          </p>
+        )}
         {(post.tags ?? []).length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {(post.tags ?? []).map((tag) => (

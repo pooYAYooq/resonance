@@ -28,7 +28,18 @@ vi.mock("@/convex/_generated/api", () => ({
 }));
 
 vi.mock("@/components/web/PostCard", () => ({
-  PostCard: ({ title }: { title: string }) => <article>{title}</article>,
+  PostCard: ({
+    title,
+    authorActions,
+  }: {
+    title: string;
+    authorActions?: React.ReactNode;
+  }) => (
+    <article>
+      {title}
+      {authorActions}
+    </article>
+  ),
 }));
 
 import { PublishedPreview } from "./PublishedPreview";
@@ -80,5 +91,25 @@ describe("PublishedPreview", () => {
 
     expect(paginatedArgs).toHaveBeenCalledWith({ authorId: "user-1" });
     expect(screen.getByText("A published post")).toBeInTheDocument();
+  });
+
+  it("renders Edit and View Post actions for the published preview", () => {
+    paginatedState.mockReturnValue({
+      results: [{ _id: "post-1", title: "A published post" }],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    render(<PublishedPreview />);
+
+    expect(screen.getByRole("link", { name: "Edit" })).toHaveAttribute(
+      "href",
+      "/create?editPostId=post-1",
+    );
+    expect(screen.getByRole("link", { name: "View Post" })).toHaveAttribute(
+      "href",
+      "/blog/post-1",
+    );
   });
 });

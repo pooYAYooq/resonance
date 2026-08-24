@@ -28,6 +28,7 @@ import {
 import {
   getPublishedPost,
   validateDraftUploadClaims,
+  validatePublishedEditUploadClaims,
 } from "./postLifecycle";
 import { incrementPostCountInTransaction } from "./stats";
 
@@ -145,9 +146,7 @@ export const saveDraft = mutation({
       args.draftId === undefined ? null : await ctx.db.get(args.draftId);
     if (
       args.draftId !== undefined &&
-      (!draft ||
-        draft.authorId !== user._id ||
-        draft.status !== "draft")
+      (!draft || draft.authorId !== user._id || draft.status !== "draft")
     ) {
       throw new ConvexError("Post not found.");
     }
@@ -214,11 +213,7 @@ export const publishPost = mutation({
     if (!user) throw new ConvexError("Unauthorized");
 
     const draft = await ctx.db.get(args.draftId);
-    if (
-      !draft ||
-      draft.authorId !== user._id ||
-      draft.status !== "draft"
-    ) {
+    if (!draft || draft.authorId !== user._id || draft.status !== "draft") {
       throw new ConvexError("Post not found.");
     }
     if (
@@ -246,7 +241,7 @@ export const publishPost = mutation({
 
     await ctx.db.patch(draft._id, {
       status: "published",
-      publishedAt: draft.publishedAt ?? now,
+      publishedAt: now,
       updatedAt: now,
     });
     for (const claimId of claimIds) {
@@ -319,11 +314,7 @@ export const getDraftById = query({
     if (!user) return null;
 
     const draft = await ctx.db.get(args.draftId);
-    if (
-      !draft ||
-      draft.authorId !== user._id ||
-      draft.status !== "draft"
-    ) {
+    if (!draft || draft.authorId !== user._id || draft.status !== "draft") {
       return null;
     }
 
@@ -355,6 +346,136 @@ export const getDraftById = query({
   },
 });
 
+export const getPublishedPostForEditing = query({
+  args: { postId: v.id("posts") },
+  returns: v.union(
+    v.object({
+      _id: v.id("posts"),
+      title: v.string(),
+      body: v.string(),
+      tags: v.array(v.string()),
+      imageStorageId: v.union(v.id("_storage"), v.null()),
+      imageUrl: v.union(v.string(), v.null()),
+      inlineImages: v.array(
+        v.object({
+          storageId: v.id("_storage"),
+          url: v.union(v.string(), v.null()),
+        }),
+      ),
+      publishedAt: v.number(),
+      updatedAt: v.number(),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return null;
+
+    const post = await ctx.db.get(args.postId);
+    if (!post || post.authorId !== user._id || post.status !== "published") {
+      return null;
+    }
+
+    const parsed = parsePostBody(post.body);
+    if (parsed.kind !== "structured" || post.publishedAt === undefined) {
+      return null;
+    }
+    const imageUrl = post.imageStorageId
+      ? await ctx.storage.getUrl(post.imageStorageId)
+      : null;
+    const inlineStorageIds = extractImageStorageIds(
+      parsed.document.blocks,
+    ) as Id<"_storage">[];
+    const inlineImages = await Promise.all(
+      inlineStorageIds.map(async (storageId) => ({
+        storageId,
+        url: await ctx.storage.getUrl(storageId),
+      })),
+    );
+
+    return {
+      _id: post._id,
+      title: post.title,
+      body: post.body,
+      tags: post.tags,
+      imageStorageId: post.imageStorageId ?? null,
+      imageUrl,
+      inlineImages,
+      publishedAt: post.publishedAt,
+      updatedAt: post.updatedAt,
+    };
+  },
+});
+
+export const updatePublishedPost = mutation({
+  args: {
+    postId: v.id("posts"),
+    title: v.string(),
+    body: v.string(),
+    tags: v.optional(v.array(v.string())),
+    imageStorageId: v.optional(v.id("_storage")),
+  },
+  returns: v.id("posts"),
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) throw new ConvexError("Unauthorized");
+
+    const post = await ctx.db.get(args.postId);
+    if (
+      !post ||
+      post.authorId !== user._id ||
+      post.status !== "published" ||
+      post.publishedAt === undefined
+    ) {
+      throw new ConvexError("Post not found.");
+    }
+
+    const tags = args.tags ?? [];
+    if (args.title.trim().length === 0 || args.title.length > 100) {
+      throw new ConvexError("Invalid title");
+    }
+    if (!isValidPublishPostBody(args.body)) {
+      throw new ConvexError("Invalid content");
+    }
+    if (!isValidPostTags(tags)) throw new ConvexError("Invalid tags");
+
+    const now = Date.now();
+    const oldStorageIds = getReferencedStorageIds(
+      post.body,
+      post.imageStorageId,
+    );
+    const submittedStorageIds = getReferencedStorageIds(
+      args.body,
+      args.imageStorageId,
+    );
+    const claimIds = await validatePublishedEditUploadClaims(
+      ctx,
+      oldStorageIds,
+      submittedStorageIds,
+      user._id,
+      now,
+      post._id,
+    );
+    const updatedAt = Math.max(now, post.publishedAt, post.updatedAt) + 1;
+
+    await ctx.db.patch(post._id, {
+      title: args.title,
+      body: args.body,
+      tags,
+      imageStorageId: args.imageStorageId,
+      updatedAt,
+    });
+    for (const claimId of claimIds) {
+      await ctx.db.patch(claimId, {
+        consumedAt: updatedAt,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+    }
+
+    return post._id;
+  },
+});
+
 export const deleteDraft = mutation({
   args: { draftId: v.id("posts") },
   returns: v.null(),
@@ -363,11 +484,7 @@ export const deleteDraft = mutation({
     if (!user) throw new ConvexError("Unauthorized");
 
     const draft = await ctx.db.get(args.draftId);
-    if (
-      !draft ||
-      draft.authorId !== user._id ||
-      draft.status !== "draft"
-    ) {
+    if (!draft || draft.authorId !== user._id || draft.status !== "draft") {
       throw new ConvexError("Post not found.");
     }
 
@@ -426,8 +543,7 @@ export const getPosts = query({
       .paginate(args.paginationOpts);
 
     const sourcePage = result.page.filter(
-      (post) =>
-        args.tag === undefined || post.tags.includes(args.tag),
+      (post) => args.tag === undefined || post.tags.includes(args.tag),
     );
 
     const authUser = await authComponent.safeGetAuthUser(ctx);

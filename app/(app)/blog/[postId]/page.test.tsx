@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 import type { Id } from "@/convex/_generated/dataModel";
 
 const { fetchQueryMock } = vi.hoisted(() => ({ fetchQueryMock: vi.fn() }));
@@ -11,8 +12,14 @@ vi.mock("@/components/web/LikeButton", () => ({ LikeButton: () => null }));
 vi.mock("@/components/web/BookmarkButton", () => ({
   BookmarkButton: () => null,
 }));
+vi.mock("@/components/web/PostBody", () => ({
+  PostBody: () => null,
+}));
+vi.mock("next/image", () => ({
+  default: () => null,
+}));
 
-import { generateMetadata } from "./page";
+import PostIdRoute, { generateMetadata } from "./page";
 
 const postId = "post-1" as Id<"posts">;
 const params = Promise.resolve({ postId });
@@ -27,6 +34,7 @@ const basePost = {
   likeCount: 0,
   createdAt: 1,
   updatedAt: 1,
+  publishedAt: 1,
   authorId: "user-1",
   tags: [],
 };
@@ -101,5 +109,55 @@ describe("blog post generateMetadata", () => {
     const metadata = await generateMetadata({ params });
 
     expect(metadata.title).toBe("Post Not Found");
+  });
+});
+
+describe("blog post timestamps", () => {
+  beforeEach(() => {
+    fetchQueryMock.mockReset();
+  });
+
+  it("shows the publication date and omits Updated when the post is unchanged", async () => {
+    fetchQueryMock.mockResolvedValue({
+      ...basePost,
+      createdAt: Date.UTC(2023, 0, 1),
+      publishedAt: Date.UTC(2024, 0, 15),
+      updatedAt: Date.UTC(2024, 0, 15),
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    expect(screen.getByText("Published on: January 15, 2024")).toBeInTheDocument();
+    expect(screen.queryByText(/Updated on:/)).toBeNull();
+  });
+
+  it("shows the last-edited date when updatedAt is after publishedAt", async () => {
+    fetchQueryMock.mockResolvedValue({
+      ...basePost,
+      createdAt: Date.UTC(2023, 0, 1),
+      publishedAt: Date.UTC(2024, 0, 15),
+      updatedAt: Date.UTC(2024, 1, 20),
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    expect(screen.getByText("Published on: January 15, 2024")).toBeInTheDocument();
+    expect(screen.getByText("Updated on: February 20, 2024")).toBeInTheDocument();
+  });
+
+  it("does not fall back to createdAt when publishedAt is missing", async () => {
+    fetchQueryMock.mockResolvedValue({
+      ...basePost,
+      createdAt: Date.UTC(2023, 0, 1),
+      publishedAt: undefined,
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    expect(screen.getByText("Post not found")).toBeInTheDocument();
+    expect(screen.queryByText(/Published on:/)).toBeNull();
   });
 });

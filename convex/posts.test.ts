@@ -24,7 +24,11 @@ import {
   isValidPublishPostBody,
   validateInlineUploadClaims,
 } from "./posts";
-import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
+import {
+  getPublishedPost,
+  requirePublishedPost,
+  validatePublishedEditUploadClaims,
+} from "./postLifecycle";
 import type { Id } from "./_generated/dataModel";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -369,9 +373,9 @@ describe("posts functions", () => {
     );
 
     expect(await t.query(api.posts.getDraftById, { draftId })).toBeNull();
-    await expect(t.mutation(api.posts.deleteDraft, { draftId })).rejects.toThrow(
-      "Unauthorized",
-    );
+    await expect(
+      t.mutation(api.posts.deleteDraft, { draftId }),
+    ).rejects.toThrow("Unauthorized");
   });
 
   it("rejects upload URL generation when unauthenticated", async () => {
@@ -380,6 +384,188 @@ describe("posts functions", () => {
     await expect(
       t.mutation(api.posts.generateImageUploadUrl, {}),
     ).rejects.toThrow("Unauthorized");
+  });
+
+  it("rejects published editing when unauthenticated", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Published post",
+        body: "Body content.",
+        authorId: "author-1",
+        tags: [],
+        status: "published",
+        publishedAt: 100,
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 100,
+        updatedAt: 100,
+      }),
+    );
+
+    expect(
+      await t.query(api.posts.getPublishedPostForEditing, { postId }),
+    ).toBeNull();
+    await expect(
+      t.mutation(api.posts.updatePublishedPost, {
+        postId,
+        title: "Updated title",
+        body: "Updated body content.",
+        tags: [],
+      }),
+    ).rejects.toThrow("Unauthorized");
+  });
+
+  describe("published edit upload claims", () => {
+    it("accepts retained consumed IDs and returns only new claim IDs", async () => {
+      const t = convexTest(schema, modules);
+      const { claimId, existingStorageId, newStorageId } = await t.run(
+        async (ctx) => {
+          const existingStorageId = await ctx.storage.store(new Blob(["old"]));
+          const newStorageId = await ctx.storage.store(new Blob(["new"]));
+          await ctx.db.insert("pendingUploads", {
+            userId: "author-1",
+            storageId: existingStorageId,
+            consumedAt: 75,
+            createdAt: 1,
+            expiresAt: 100,
+          });
+          const claimId = await ctx.db.insert("pendingUploads", {
+            userId: "author-1",
+            storageId: newStorageId,
+            createdAt: 50,
+            expiresAt: 100,
+          });
+          return { claimId, existingStorageId, newStorageId };
+        },
+      );
+
+      const result = await t.run(async (ctx) =>
+        validatePublishedEditUploadClaims(
+          ctx,
+          [existingStorageId],
+          [existingStorageId, newStorageId],
+          "author-1",
+          75,
+          "post-1" as Id<"posts">,
+        ),
+      );
+
+      expect(result).toEqual([claimId]);
+    });
+
+    it.each([
+      ["foreign", { userId: "author-2" }],
+      ["expired", { expiresAt: 75 }],
+      ["consumed", { consumedAt: 50 }],
+    ])("rejects a new %s claim", async (_reason, overrides) => {
+      const t = convexTest(schema, modules);
+      const newStorageId = await t.run(async (ctx) => {
+        const storageId = await ctx.storage.store(new Blob(["new"]));
+        await ctx.db.insert("pendingUploads", {
+          userId: "author-1",
+          storageId,
+          createdAt: 1,
+          expiresAt: 100,
+          ...overrides,
+        });
+        return storageId;
+      });
+
+      await expect(
+        t.run(async (ctx) =>
+          validatePublishedEditUploadClaims(
+            ctx,
+            [],
+            [newStorageId],
+            "author-1",
+            75,
+            "post-1" as Id<"posts">,
+          ),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("rejects a new claim attached to another post", async () => {
+      const t = convexTest(schema, modules);
+      const { newStorageId, targetPostId } = await t.run(async (ctx) => {
+        const storageId = await ctx.storage.store(new Blob(["new"]));
+        const otherPostId = await ctx.db.insert("posts", {
+          title: "Other",
+          body: "Body",
+          authorId: "author-1",
+          tags: [],
+          status: "published",
+          publishedAt: 1,
+          commentCount: 0,
+          likeCount: 0,
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        await ctx.db.insert("pendingUploads", {
+          userId: "author-1",
+          storageId,
+          postId: otherPostId,
+          createdAt: 1,
+          expiresAt: 100,
+        });
+        const targetPostId = await ctx.db.insert("posts", {
+          title: "Target",
+          body: "Body",
+          authorId: "author-1",
+          tags: [],
+          status: "published",
+          publishedAt: 2,
+          commentCount: 0,
+          likeCount: 0,
+          createdAt: 2,
+          updatedAt: 2,
+        });
+        return { newStorageId: storageId, targetPostId };
+      });
+
+      await expect(
+        t.run(async (ctx) =>
+          validatePublishedEditUploadClaims(
+            ctx,
+            [],
+            [newStorageId],
+            "author-1",
+            75,
+            targetPostId,
+          ),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("rejects ambiguous new claims", async () => {
+      const t = convexTest(schema, modules);
+      const newStorageId = await t.run(async (ctx) => {
+        const storageId = await ctx.storage.store(new Blob(["new"]));
+        for (const createdAt of [1, 2]) {
+          await ctx.db.insert("pendingUploads", {
+            userId: "author-1",
+            storageId,
+            createdAt,
+            expiresAt: 100,
+          });
+        }
+        return storageId;
+      });
+
+      await expect(
+        t.run(async (ctx) =>
+          validatePublishedEditUploadClaims(
+            ctx,
+            [],
+            [newStorageId],
+            "author-1",
+            75,
+            "post-1" as Id<"posts">,
+          ),
+        ),
+      ).rejects.toThrow("Invalid inline upload claim");
+    });
   });
 
   it("returns posts in descending creation order", async () => {

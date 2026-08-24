@@ -31,6 +31,7 @@ import { Suspense, useTransition, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
+import { getEditorCapabilities, resolveEditorMode } from "./editorMode";
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
   ssr: false,
@@ -84,10 +85,28 @@ function CreateEditor() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedDraftId = searchParams.get("draftId");
+  const requestedEditPostId = searchParams.get("editPostId");
+  const editorMode = resolveEditorMode({
+    draftId: requestedDraftId ?? undefined,
+    editPostId: requestedEditPostId ?? undefined,
+  });
+  const capabilities = getEditorCapabilities(editorMode.mode);
   const hydratedDraft = useQuery(
     api.posts.getDraftById,
-    !isLoading && isAuthenticated && requestedDraftId
+    !isLoading &&
+      isAuthenticated &&
+      editorMode.mode === "draft" &&
+      requestedDraftId
       ? { draftId: requestedDraftId as Id<"posts"> }
+      : "skip",
+  );
+  const hydratedPublishedPost = useQuery(
+    api.posts.getPublishedPostForEditing,
+    !isLoading &&
+      isAuthenticated &&
+      editorMode.mode === "published-edit" &&
+      requestedEditPostId
+      ? { postId: requestedEditPostId as Id<"posts"> }
       : "skip",
   );
   const createPendingUpload = useMutation(
@@ -99,6 +118,7 @@ function CreateEditor() {
   const cleanupPendingUploads = useMutation(api.pendingUploads.cleanupPending);
   const saveDraft = useMutation(api.posts.saveDraft);
   const publishPost = useMutation(api.posts.publishPost);
+  const updatePublishedPost = useMutation(api.posts.updatePublishedPost);
   const inlineSessions = useRef(
     new Map<Id<"pendingUploads">, Id<"_storage">>(),
   );
@@ -121,40 +141,83 @@ function CreateEditor() {
   }, [isLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (!requestedDraftId || hydratedDraft === undefined) return;
-    if (hydratedDraft === null) {
-      toast.error("That draft is unavailable.");
-      router.replace("/dashboard/drafts");
+    if (editorMode.mode === "invalid") {
+      toast.error("Invalid editor request.");
+      router.replace("/dashboard");
+    }
+  }, [editorMode.mode, router]);
+
+  useEffect(() => {
+    if (editorMode.mode === "new") {
+      queueMicrotask(() => {
+        form.reset({
+          title: "",
+          content: emptyDocument,
+          tags: [],
+          image: undefined,
+        });
+        setDraftId(undefined);
+        setCoverStorageId(undefined);
+        setInitialContent(emptyDocument);
+        setResolvedImageUrls({});
+      });
       return;
     }
 
-    const parsed = parsePostBody(hydratedDraft.body);
+    const target =
+      editorMode.mode === "draft" ? hydratedDraft : hydratedPublishedPost;
+    if (
+      (editorMode.mode !== "draft" && editorMode.mode !== "published-edit") ||
+      target === undefined
+    ) {
+      return;
+    }
+    if (target === null) {
+      toast.error(
+        editorMode.mode === "draft"
+          ? "That draft is unavailable."
+          : "That published post is unavailable.",
+      );
+      router.replace(
+        editorMode.mode === "draft"
+          ? "/dashboard/drafts"
+          : "/dashboard/published",
+      );
+      return;
+    }
+
+    const parsed = parsePostBody(target.body);
     if (parsed.kind !== "structured") {
-      toast.error("That draft is unavailable.");
-      router.replace("/dashboard/drafts");
+      toast.error(
+        editorMode.mode === "draft"
+          ? "That draft is unavailable."
+          : "That published post is unavailable.",
+      );
+      router.replace(
+        editorMode.mode === "draft"
+          ? "/dashboard/drafts"
+          : "/dashboard/published",
+      );
       return;
     }
 
     queueMicrotask(() => {
       form.reset({
-        title: hydratedDraft.title,
+        title: target.title,
         content: parsed.document,
-        tags: hydratedDraft.tags as PostFormInput["tags"],
+        tags: target.tags as PostFormInput["tags"],
         image: undefined,
       });
-      setDraftId(hydratedDraft._id);
-      setCoverStorageId(hydratedDraft.imageStorageId ?? undefined);
+      if (editorMode.mode === "draft") setDraftId(target._id);
+      setCoverStorageId(target.imageStorageId ?? undefined);
       setInitialContent(parsed.document);
       setResolvedImageUrls(
         Object.fromEntries(
-          hydratedDraft.inlineImages.map(({ storageId, url }) => [
-            storageId,
-            url,
-          ]),
+          target.inlineImages.map(({ storageId, url }) => [storageId, url]),
         ),
       );
     });
-  }, [form, hydratedDraft, requestedDraftId, router]);
+  }, [editorMode.mode, form, hydratedDraft, hydratedPublishedPost, router]);
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -164,7 +227,25 @@ function CreateEditor() {
     );
   }
 
+  if (editorMode.mode === "invalid") {
+    return null;
+  }
+
+  if (
+    (editorMode.mode === "draft" &&
+      (hydratedDraft === undefined || hydratedDraft === null)) ||
+    (editorMode.mode === "published-edit" &&
+      (hydratedPublishedPost === undefined || hydratedPublishedPost === null))
+  ) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   function onSubmit(values: PostFormOutput, mode: SubmitMode) {
+    if (editorMode.mode === "published-edit") mode = "publish";
     if (mode === "publish") {
       const publishValues = publishPostSchema.safeParse(values);
       if (!publishValues.success) {
@@ -184,6 +265,7 @@ function CreateEditor() {
         sessionId: Id<"pendingUploads">;
         storageId: Id<"_storage">;
       }[] = [];
+      let mutationSucceeded = false;
       try {
         let storageId: Id<"_storage"> | undefined;
 
@@ -228,20 +310,31 @@ function CreateEditor() {
             storageId: currentStorageId,
           }));
 
-        const saved = await saveDraft({
-          ...(draftId && { draftId }),
-          title: values.title,
-          body: JSON.stringify(values.content),
-          tags: values.tags,
-          ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
-        });
-        draftSaved = true;
-        setDraftId(saved.draftId);
-        setCoverStorageId(savedCoverStorageId);
+        if (editorMode.mode === "published-edit") {
+          await updatePublishedPost({
+            postId: editorMode.id as Id<"posts">,
+            title: values.title,
+            body: JSON.stringify(values.content),
+            tags: values.tags,
+            ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
+          });
+        } else {
+          const saved = await saveDraft({
+            ...(draftId && { draftId }),
+            title: values.title,
+            body: JSON.stringify(values.content),
+            tags: values.tags,
+            ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
+          });
+          draftSaved = true;
+          setDraftId(saved.draftId);
+          setCoverStorageId(savedCoverStorageId);
 
-        if (mode === "publish") {
-          await publishPost({ draftId: saved.draftId });
+          if (mode === "publish") {
+            await publishPost({ draftId: saved.draftId });
+          }
         }
+        mutationSucceeded = true;
 
         if (unconsumedUploads.length > 0) {
           try {
@@ -258,7 +351,10 @@ function CreateEditor() {
             inlineSessions.current.delete(sessionId);
           }
         }
-        if (mode === "publish") {
+        if (editorMode.mode === "published-edit") {
+          toast.success("Post updated successfully!");
+          router.push("/dashboard/published");
+        } else if (mode === "publish") {
           toast.success("Post published successfully!");
           router.push("/blog");
         } else {
@@ -266,7 +362,11 @@ function CreateEditor() {
         }
       } catch (error) {
         console.error("Save post failed", error);
-        if (!draftSaved && unconsumedUploads.length === 0) {
+        if (
+          !mutationSucceeded &&
+          (editorMode.mode === "published-edit" ||
+            (!draftSaved && unconsumedUploads.length === 0))
+        ) {
           unconsumedUploads = [...submitSessions.entries()].map(
             ([sessionId, storageId]) => ({ sessionId, storageId }),
           );
@@ -298,7 +398,9 @@ function CreateEditor() {
     <div className="py-12 flex flex-col items-center gap-6">
       <div className="text-center py-12 max-w-xl">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl leading-tight">
-          New Post
+          {editorMode.mode === "published-edit"
+            ? "Edit Published Post"
+            : "New Post"}
         </h1>
 
         <p className="text-xl leading-relaxed">
@@ -308,8 +410,16 @@ function CreateEditor() {
       </div>
       <Card className="w-full max-w-xl  mx-auto shadow-md">
         <CardHeader>
-          <CardTitle>Create Blog Article</CardTitle>
-          <CardDescription>Create a new blog article</CardDescription>
+          <CardTitle>
+            {editorMode.mode === "published-edit"
+              ? "Update Blog Article"
+              : "Create Blog Article"}
+          </CardTitle>
+          <CardDescription>
+            {editorMode.mode === "published-edit"
+              ? "Update your published blog article"
+              : "Create a new blog article"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -350,13 +460,14 @@ function CreateEditor() {
                       Blog Content
                     </FieldLabel>
                     <PostBodyEditor
+                      key={`${editorMode.mode}:${editorMode.id ?? "new"}`}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       invalid={fieldState.invalid}
-                       labelledBy="blog-content-label"
-                       initialContent={initialContent}
-                       resolvedImageUrls={resolvedImageUrls}
-                       onUploadSessionCreated={(sessionId, storageId) =>
+                      labelledBy="blog-content-label"
+                      initialContent={initialContent}
+                      resolvedImageUrls={resolvedImageUrls}
+                      onUploadSessionCreated={(sessionId, storageId) =>
                         inlineSessions.current.set(sessionId, storageId)
                       }
                     />
@@ -400,32 +511,41 @@ function CreateEditor() {
                 )}
               />
               <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={isPending}
-                  onClick={() => {
-                    submitMode.current = "draft";
-                  }}
-                >
-                  Save Draft
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isPending}
-                  onClick={() => {
-                    submitMode.current = "publish";
-                  }}
-                >
-                  {isPending ? (
-                    <>
-                      <Loader2 className="animate-spin size-4" />
-                      <span className="ml-2">Saving...</span>
-                    </>
-                  ) : (
-                    <span>Publish</span>
-                  )}
-                </Button>
+                {capabilities.canSaveDraft && (
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    disabled={isPending}
+                    onClick={() => {
+                      submitMode.current = "draft";
+                    }}
+                  >
+                    Save Draft
+                  </Button>
+                )}
+                {capabilities.canUpdate && (
+                  <Button type="submit" disabled={isPending}>
+                    {isPending ? "Updating..." : "Update Published Post"}
+                  </Button>
+                )}
+                {capabilities.canPublish && (
+                  <Button
+                    type="submit"
+                    disabled={isPending}
+                    onClick={() => {
+                      submitMode.current = "publish";
+                    }}
+                  >
+                    {isPending ? (
+                      <>
+                        <Loader2 className="animate-spin size-4" />
+                        <span className="ml-2">Saving...</span>
+                      </>
+                    ) : (
+                      <span>Publish</span>
+                    )}
+                  </Button>
+                )}
               </div>
             </FieldGroup>
           </form>

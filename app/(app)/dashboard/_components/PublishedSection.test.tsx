@@ -44,7 +44,18 @@ vi.mock("@/convex/_generated/api", () => ({
 }));
 
 vi.mock("@/components/web/PostCard", () => ({
-  PostCard: ({ title }: { title: string }) => <article>{title}</article>,
+  PostCard: ({
+    title,
+    authorActions,
+  }: {
+    title: string;
+    authorActions?: React.ReactNode;
+  }) => (
+    <article>
+      {title}
+      {authorActions}
+    </article>
+  ),
 }));
 
 import { PublishedSection } from "./PublishedSection";
@@ -115,6 +126,26 @@ describe("PublishedSection", () => {
     expect(screen.getByText("Published story")).toBeInTheDocument();
   });
 
+  it("renders Edit and View Post actions for published cards", () => {
+    paginatedState.mockReturnValue({
+      results: [publishedPost],
+      status: "Exhausted",
+      loadMore: loadMoreMock,
+      isLoading: false,
+    });
+
+    render(<PublishedSection />);
+
+    expect(screen.getByRole("link", { name: "Edit" })).toHaveAttribute(
+      "href",
+      "/create?editPostId=posts-1",
+    );
+    expect(screen.getByRole("link", { name: "View Post" })).toHaveAttribute(
+      "href",
+      "/blog/posts-1",
+    );
+  });
+
   it("offers New Post and Drafts actions when there are no published posts", () => {
     render(<PublishedSection />);
 
@@ -155,6 +186,8 @@ describe("PublishedSection", () => {
     render(<PublishedSection />);
 
     expect(screen.getByText("Published story")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Loading more..." })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Loading more..." }),
+    ).toBeDisabled();
   });
 });
