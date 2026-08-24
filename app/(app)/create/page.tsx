@@ -148,6 +148,22 @@ function CreateEditor() {
   }, [editorMode.mode, router]);
 
   useEffect(() => {
+    if (editorMode.mode === "new") {
+      queueMicrotask(() => {
+        form.reset({
+          title: "",
+          content: emptyDocument,
+          tags: [],
+          image: undefined,
+        });
+        setDraftId(undefined);
+        setCoverStorageId(undefined);
+        setInitialContent(emptyDocument);
+        setResolvedImageUrls({});
+      });
+      return;
+    }
+
     const target =
       editorMode.mode === "draft" ? hydratedDraft : hydratedPublishedPost;
     if (
@@ -444,6 +460,7 @@ function CreateEditor() {
                       Blog Content
                     </FieldLabel>
                     <PostBodyEditor
+                      key={`${editorMode.mode}:${editorMode.id ?? "new"}`}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       invalid={fieldState.invalid}

@@ -97,6 +97,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
     new Date(timestamp).toLocaleDateString("en-US", {
       day: "numeric",
       month: "long",
+      timeZone: "UTC",
       year: "numeric",
     });
 

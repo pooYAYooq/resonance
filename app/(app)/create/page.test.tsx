@@ -14,6 +14,11 @@ const validEnvelope: BlockNoteDocument = {
   ],
 };
 
+const emptyDocument: BlockNoteDocument = {
+  format: "blocknote@1",
+  blocks: [],
+};
+
 const inlineEnvelope: BlockNoteDocument = {
   format: "blocknote@1",
   blocks: [
@@ -45,6 +50,7 @@ type MockPostBodyEditorProps = {
   onChange: (value: BlockNoteDocument) => void;
   onUploadSessionCreated?: (sessionId: string, storageId: string) => void;
   initialContent?: BlockNoteDocument;
+  resolvedImageUrls?: Record<string, string | null>;
 };
 
 vi.mock("./_components/PostBodyEditor", () => ({
@@ -52,9 +58,13 @@ vi.mock("./_components/PostBodyEditor", () => ({
     onChange,
     onUploadSessionCreated,
     initialContent,
+    resolvedImageUrls,
   }: MockPostBodyEditorProps) => (
     <>
       {initialContent && <output>{JSON.stringify(initialContent)}</output>}
+      {resolvedImageUrls && (
+        <output>{JSON.stringify(resolvedImageUrls)}</output>
+      )}
       <button
         type="button"
         aria-label="Edit blog content"
@@ -285,6 +295,52 @@ describe("CreateRoute", () => {
     expect(publishPostMock).not.toHaveBeenCalled();
     expect(toastSuccessMock).toHaveBeenCalledWith("Post updated successfully!");
     expect(pushMock).toHaveBeenCalledWith("/dashboard/published");
+  });
+
+  it("clears published edit state when returning to a new post", async () => {
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: "cover-1",
+      imageUrl: "https://cover.example/image.png",
+      inlineImages: [
+        {
+          storageId: "storage-inline-1",
+          url: "https://inline.example/image.png",
+        },
+      ],
+      publishedAt: 100,
+      updatedAt: 100,
+    });
+
+    const view = render(<CreateRoute />);
+    expect(
+      await screen.findByDisplayValue("Published title"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(JSON.stringify(validEnvelope))).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        JSON.stringify({
+          "storage-inline-1": "https://inline.example/image.png",
+        }),
+      ),
+    ).toBeInTheDocument();
+
+    editPostIdParam.value = undefined;
+    view.rerender(<CreateRoute />);
+
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue("Published title")).toBeNull();
+      expect(screen.queryByText(JSON.stringify(validEnvelope))).toBeNull();
+      expect(
+        screen.getByText(JSON.stringify(emptyDocument)),
+      ).toBeInTheDocument();
+      expect(screen.getByText("{}")).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Technology")).not.toBeChecked();
   });
 
   it("redirects an unavailable published edit to published dashboard", async () => {
