@@ -108,7 +108,10 @@ const {
   saveDraftMock,
   publishPostMock,
   getDraftByIdMock,
+  getPublishedPostForEditingMock,
+  updatePublishedPostMock,
   draftIdParam,
+  editPostIdParam,
   routerMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
@@ -120,7 +123,10 @@ const {
   saveDraftMock: vi.fn(),
   publishPostMock: vi.fn(),
   getDraftByIdMock: vi.fn(),
+  getPublishedPostForEditingMock: vi.fn(),
+  updatePublishedPostMock: vi.fn(),
   draftIdParam: { value: undefined as string | undefined },
+  editPostIdParam: { value: undefined as string | undefined },
   routerMock: { push: vi.fn(), replace: vi.fn() },
 }));
 
@@ -128,7 +134,10 @@ let fetchMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => routerMock,
-  useSearchParams: () => ({ get: () => draftIdParam.value }),
+  useSearchParams: () => ({
+    get: (key: string) =>
+      key === "draftId" ? draftIdParam.value : editPostIdParam.value,
+  }),
 }));
 
 vi.mock("sonner", () => ({
@@ -145,10 +154,17 @@ vi.mock("convex/react", () => ({
     if (apiRef === "cleanupPending") return cleanupPendingUploadsMock;
     if (apiRef === "saveDraft") return saveDraftMock;
     if (apiRef === "publishPost") return publishPostMock;
+    if (apiRef === "updatePublishedPost") return updatePublishedPostMock;
     return vi.fn();
   },
-  useQuery: (apiRef: unknown) =>
-    apiRef === "getDraftById" ? getDraftByIdMock() : undefined,
+  useQuery: (apiRef: unknown, args: unknown) => {
+    if (args === "skip") return undefined;
+    if (apiRef === "getDraftById") return getDraftByIdMock();
+    if (apiRef === "getPublishedPostForEditing") {
+      return getPublishedPostForEditingMock();
+    }
+    return undefined;
+  },
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
 }));
 
@@ -163,6 +179,8 @@ vi.mock("@/convex/_generated/api", () => ({
       saveDraft: "saveDraft",
       publishPost: "publishPost",
       getDraftById: "getDraftById",
+      getPublishedPostForEditing: "getPublishedPostForEditing",
+      updatePublishedPost: "updatePublishedPost",
     },
   },
 }));
@@ -180,7 +198,10 @@ describe("CreateRoute", () => {
     saveDraftMock.mockReset();
     publishPostMock.mockReset();
     getDraftByIdMock.mockReset();
+    getPublishedPostForEditingMock.mockReset();
+    updatePublishedPostMock.mockReset();
     draftIdParam.value = undefined;
+    editPostIdParam.value = undefined;
     createPendingUploadMock.mockResolvedValue({
       sessionId: "session-cover",
       uploadUrl: "https://upload.url",
@@ -189,7 +210,9 @@ describe("CreateRoute", () => {
     finalizePendingUploadMock.mockResolvedValue(null);
     saveDraftMock.mockResolvedValue({ draftId: "draft-1", updatedAt: 1 });
     publishPostMock.mockResolvedValue("draft-1");
+    updatePublishedPostMock.mockResolvedValue("post-1");
     getDraftByIdMock.mockReturnValue(undefined);
+    getPublishedPostForEditingMock.mockReturnValue(undefined);
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -204,7 +227,7 @@ describe("CreateRoute", () => {
       _id: "draft-1",
       title: "Resumed title",
       body: JSON.stringify(validEnvelope),
-      tags: ["technology"],
+      tags: ["Technology"],
       imageStorageId: "cover-1",
       imageUrl: "https://cover.example/image.png",
       inlineImages: [],
@@ -213,8 +236,81 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    expect(await screen.findByDisplayValue("Resumed title")).toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue("Resumed title"),
+    ).toBeInTheDocument();
     expect(screen.getByText(JSON.stringify(validEnvelope))).toBeInTheDocument();
+  });
+
+  it("hydrates published editing and uses the update submit path", async () => {
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: "cover-1",
+      imageUrl: "https://cover.example/image.png",
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 100,
+    });
+
+    render(<CreateRoute />);
+
+    expect(
+      await screen.findByDisplayValue("Published title"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Update Published Post")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save Draft" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Edit blog content" }));
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Update Published Post" }));
+
+    await waitFor(() => {
+      expect(updatePublishedPostMock).toHaveBeenCalledWith({
+        postId: "post-1",
+        title: "Published title",
+        body: JSON.stringify(validEnvelope),
+        tags: ["Technology"],
+        imageStorageId: "cover-1",
+      });
+    });
+    expect(saveDraftMock).not.toHaveBeenCalled();
+    expect(publishPostMock).not.toHaveBeenCalled();
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post updated successfully!");
+    expect(pushMock).toHaveBeenCalledWith("/dashboard/published");
+  });
+
+  it("redirects an unavailable published edit to published dashboard", async () => {
+    editPostIdParam.value = "missing-post";
+    getPublishedPostForEditingMock.mockReturnValue(null);
+
+    render(<CreateRoute />);
+
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/dashboard/published"),
+    );
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "That published post is unavailable.",
+    );
+  });
+
+  it("redirects an invalid dual-target request to the dashboard", async () => {
+    draftIdParam.value = "draft-1";
+    editPostIdParam.value = "post-1";
+
+    render(<CreateRoute />);
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/dashboard"));
+    expect(toastErrorMock).toHaveBeenCalledWith("Invalid editor request.");
+    expect(getDraftByIdMock).not.toHaveBeenCalled();
+    expect(getPublishedPostForEditingMock).not.toHaveBeenCalled();
   });
 
   it("redirects an unavailable draft to the dashboard drafts route", async () => {
@@ -287,7 +383,9 @@ describe("CreateRoute", () => {
     await waitFor(() => {
       expect(screen.getByText(/Content must contain/)).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: "Edit blog content" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Edit blog content" }),
+    ).toBeInTheDocument();
     expect(saveDraftMock).not.toHaveBeenCalled();
     expect(publishPostMock).not.toHaveBeenCalled();
   });
