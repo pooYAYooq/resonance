@@ -93,6 +93,13 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
     );
   }
 
+  const formatDate = (timestamp: number) =>
+    new Date(timestamp).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 animate-in fade-in duration-500 relative">
       <Link
@@ -122,13 +129,13 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           {post.title}
         </h1>
         <p className="text-muted-foreground mt-4 text-sm">
-          Published on:{" "}
-          {new Date(post.createdAt).toLocaleDateString("en-US", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
+          {`Published on: ${formatDate(post.publishedAt)}`}
         </p>
+        {post.updatedAt > post.publishedAt && (
+          <p className="text-muted-foreground mt-2 text-sm">
+            {`Updated on: ${formatDate(post.updatedAt)}`}
+          </p>
+        )}
         {(post.tags ?? []).length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {(post.tags ?? []).map((tag) => (
