@@ -8,6 +8,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import Link from "next/link";
 import { PostCard } from "./PostCard";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -269,6 +270,36 @@ describe("PostCard", () => {
     render(<PostCard {...basePost} />);
     const readMore = screen.getByRole("link", { name: /read more/i });
     expect(readMore).toHaveAttribute("href", "/blog/post-123");
+  });
+
+  it("does not render author actions by default", () => {
+    render(<PostCard {...basePost} />);
+
+    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "View Post" })).toBeNull();
+  });
+
+  it("renders multiple supplied author actions", () => {
+    render(
+      <PostCard
+        {...basePost}
+        authorActions={
+          <div>
+            <Link href="/create?editPostId=post-123">Edit</Link>
+            <Link href="/blog/post-123">View Post</Link>
+          </div>
+        }
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Edit" })).toHaveAttribute(
+      "href",
+      "/create?editPostId=post-123",
+    );
+    expect(screen.getByRole("link", { name: "View Post" })).toHaveAttribute(
+      "href",
+      "/blog/post-123",
+    );
   });
 
   it("renders the like count", () => {

@@ -20,6 +20,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
+import type { ReactNode } from "react";
 import { UserAvatar } from "./UserAvatar";
 import { LikeButton } from "./LikeButton";
 import { BookmarkButton } from "./BookmarkButton";
@@ -63,6 +64,8 @@ interface PostCardProps {
   authorAvatarUrl?: string | null;
   /** Stored or normalized display tags. */
   tags?: string[];
+  /** Optional author-only controls rendered beside the post link. */
+  authorActions?: ReactNode;
 }
 
 /**
@@ -84,6 +87,7 @@ export function PostCard({
   authorName,
   authorAvatarUrl,
   tags,
+  authorActions,
 }: PostCardProps) {
   const displayName = authorName?.trim() || "Unknown";
   const postHref = `/blog/${postId}`;
@@ -159,15 +163,18 @@ export function PostCard({
           <LikeButton postId={postId} isLiked={isLiked} likeCount={likeCount} />
           <BookmarkButton postId={postId} />
         </span>
-        <Link
-          className={cn(
-            buttonVariants({ variant: "outline", size: "sm" }),
-            "hover:text-primary hover:no-underline",
-          )}
-          href={postHref}
-        >
-          Read More
-        </Link>
+        <div className="flex items-center gap-2">
+          {authorActions}
+          <Link
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "hover:text-primary hover:no-underline",
+            )}
+            href={postHref}
+          >
+            Read More
+          </Link>
+        </div>
       </CardFooter>
     </Card>
   );

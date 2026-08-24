@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useConvexAuth, usePaginatedQuery, useQuery } from "convex/react";
 import { Loader2, Newspaper } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/web/EmptyState";
 import { PostCard } from "@/components/web/PostCard";
 import { DASHBOARD_PREVIEW_LIMIT } from "./previewConstants";
@@ -76,6 +76,22 @@ export function PublishedPreview() {
               authorName={post.authorName}
               authorAvatarUrl={post.authorAvatarUrl}
               tags={post.tags}
+              authorActions={
+                <div className="flex items-center gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/create?editPostId=${post._id}`}>Edit</Link>
+                  </Button>
+                  <Link
+                    href={`/blog/${post._id}`}
+                    className={buttonVariants({
+                      variant: "secondary",
+                      size: "sm",
+                    })}
+                  >
+                    View Post
+                  </Link>
+                </div>
+              }
             />
           ))}
         </div>
