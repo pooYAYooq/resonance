@@ -4,7 +4,7 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 2.5 — Author Dashboard (complete)
+Phase 2.6 — Post Editing (complete)
 
 The follow-counter compatibility repair is deployed to the configured
 development deployment. Legacy user documents are supported with optional
@@ -14,19 +14,18 @@ counters set to `0`.
 
 ## Next focus
 
-The canonical development model is active: structured BlockNote bodies,
-required lifecycle status, published-only public readers, owner-scoped drafts,
-and the `saveDraft` -> `publishPost` transition are implemented. The private
-author workspace now lives at `/dashboard` with canonical Drafts, Published,
-and Saved sections. No deployment migration has been run or is required for
-this disposable development database.
+Phase 2.6 is complete: published editing is owner-scoped and in place, with
+monotonic timestamps, retained-upload handling, transactional validation for
+new upload claims, direct published-edit submission, author Edit and View Post
+actions, and public publication and last-edited timestamps. No deployment
+migration has been run or is required for this disposable development database.
+Phase 2.7, Analytics Foundation, is up next.
 
 ## Current verification
 
 - `pnpm lint` — passed.
-- `pnpm test:ci` — passed: 14 files, 141 tests.
-- `pnpm test:component` — passed: 42 files, 224 tests after route cleanup,
-  navigation refinements, and accessibility regressions.
+- `pnpm test:ci` — passed: 15 files, 157 tests.
+- `pnpm test:component` — passed: 42 files, 234 tests.
 - `pnpm build` — passed, including TypeScript validation and canonical dashboard
   routes; removed `/drafts` and `/reading-list` routes are absent.
 - `git diff --check` — passed.
@@ -52,12 +51,13 @@ this disposable development database.
 - Phase 2.3 — Structured Content Publishing
 - Phase 2.4 — Drafts & Publishing Workflow
 - Phase 2.5 — Author Dashboard
+- Phase 2.6 — Post Editing
 
 ## Where to continue
 
 - Detailed roadmap: [`FEATURES.md`](../FEATURES.md)
 - Architecture reference: [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)
-- Next focus: Phase 2.6 — Post Editing
+- Next focus: Phase 2.7 — Analytics Foundation
 
 ## Status maintenance
 

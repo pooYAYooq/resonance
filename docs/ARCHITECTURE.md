@@ -62,10 +62,10 @@ resonance/
 │   │   │   └── [postId]/
 │   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
 │   │   ├── create/
-│   │   │   ├── page.tsx        # Create post form + canonical five-tag selector.
+│   │   │   ├── page.tsx        # New, draft, and published-edit form modes.
 │   │   │   │                   # Loads the BlockNote editor via next/dynamic
 │   │   │   │                   # ({ ssr: false }) and serializes the envelope
-│   │   │   │                   # exactly once on submit.
+│   │   │   │                   # exactly once on submit; published edits update in place.
 │   │   │   └── _components/
 │   │   │       └── PostBodyEditor.tsx # Browser-only BlockNote editor adapter for
 │   │   │                              # React Hook Form. Curated schema (paragraph,
@@ -119,7 +119,8 @@ resonance/
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
-│   ├── posts.ts                # saveDraft/publishPost (owner-scoped drafts, tag validation,
+│   ├── posts.ts                # saveDraft/publishPost/updatePublishedPost (owner-scoped drafts,
+│   │                           # published edits, tag validation,
 │   │                           # and claim transitions),
 │   │                           # generateImageUploadUrl, and detail URL hydration;
 │   │                           # getPosts, getPostById, getPostsByAuthorId,
@@ -459,12 +460,29 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   `inlineImages` collection. The detail page passes that collection to
   `PostBody`; unresolved URLs are omitted rather than rendered as storage IDs.
 
+- **Published editing** — `getPublishedPostForEditing` is authenticated and
+  owner-scoped. It returns normalized editor data only for the author's
+  published post. `updatePublishedPost` validates the canonical body, tags,
+  and only newly introduced upload claims, then patches title, body, tags,
+  cover reference, and `updatedAt` in place. It never changes `publishedAt`,
+  the post ID, engagement records, bookmarks, or materialized feed rows, and
+  it does not trigger notification or feed fan-out. The create route resolves
+  exactly one of `new`, `draft`, or `published-edit`; a dual-target request is
+  rejected rather than falling back to a new post.
+
+- **Publication timestamps** — fresh publication assigns one timestamp to both
+  `publishedAt` and `updatedAt`. A published edit advances only `updatedAt`.
+  Public detail pages render the publication date from `publishedAt` and a
+  separate last-edited date only when `updatedAt > publishedAt`; they do not
+  fall back to `createdAt`.
+
   The private dashboard lists owner-scoped draft summaries at
   `/dashboard/drafts`, resumes through `/create?draftId=...`, and deletes only
   drafts. `/dashboard/published` scopes published cards through the current
-  user's auth identity, while `/dashboard/saved` reads the private bookmark
-  list. The `/dashboard` Overview composes independent, small previews of all
-  three collections and keeps each collection's loading and empty state local.
+  user's auth identity and links authors to `/create?editPostId=...` for
+  published editing, while `/dashboard/saved` reads the private bookmark list.
+  The `/dashboard` Overview composes independent, small previews of all three
+  collections and keeps each collection's loading and empty state local.
   There is no public draft preview. Paragraph-inline images and general
   storage garbage collection remain future work.
 
@@ -589,6 +607,7 @@ Two distinct rendering patterns are used depending on what the page needs.
 │      │                                    │                      │
 │      │── useMutation(api.posts.saveDraft) │                      │
 │      │── useMutation(api.posts.publishPost) ────────────────>│   │
+│      │── useMutation(api.posts.updatePublishedPost) ────────>│   │
 │      │                                    │── safeGetAuthUser()  │
 │      │                                    │   throws if unauthed │
 │      │                                    │── saves draft        │
