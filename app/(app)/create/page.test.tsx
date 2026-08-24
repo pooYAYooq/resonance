@@ -145,8 +145,11 @@ let fetchMock = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => routerMock,
   useSearchParams: () => ({
-    get: (key: string) =>
-      key === "draftId" ? draftIdParam.value : editPostIdParam.value,
+    get: (key: string) => {
+      if (key === "draftId") return draftIdParam.value ?? null;
+      if (key === "editPostId") return editPostIdParam.value ?? null;
+      return null;
+    },
   }),
 }));
 
