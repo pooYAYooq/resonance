@@ -37,7 +37,9 @@ export function AnalyticsSummary() {
       <dl className="grid gap-4 sm:grid-cols-3">
         <div>
           <dt className="sr-only">Unique Views</dt>
-          <dd className="text-lg font-semibold">{summary.views} Unique Views</dd>
+          <dd className="text-lg font-semibold">
+            {summary.views} Unique Views
+          </dd>
         </div>
         <div>
           <dt className="sr-only">Likes</dt>
