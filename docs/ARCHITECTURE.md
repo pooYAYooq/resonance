@@ -114,7 +114,7 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, notifications, feed, users, stats
+│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, notifications, feed, analytics, users, stats
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
@@ -138,6 +138,9 @@ resonance/
 │   │                           # "is X following Y?" check, by_followingId
 │   │                           # (1.6) for the fan-out's ordered scan — see
 │   │                           # notifications.ts.
+│   ├── analytics.ts            # Signed-in unique post-view recording and private
+│   │                           # author summary. Owns transactional author view/
+│   │                           # like counters and UTC daily follower-growth buckets.
 │   ├── bookmarks.ts            # toggleBookmark (idempotent) + isBookmarked +
 │   │                           # getBookmarkedPosts (paginated). Private reading
 │   │                           # list — no denormalized counters. Mirrors likes
@@ -165,6 +168,7 @@ resonance/
 │       ├── ConvexClientProvider.tsx  # Convex + Better Auth session bridge.
 │       │                           # Wraps children in <AuthSync>.
 │       ├── AuthSync.tsx         # Fires users.syncUser on every auth state change
+│       ├── PostViewTracker.tsx  # Non-visual signed-in post-detail view recorder
 │       ├── Navbar.tsx           # Top nav. Dashboard actions and account dropdown.
 │       ├── MobileNavMenu.tsx    # Accessible responsive discovery/workspace menu.
 │       ├── NotificationBell.tsx  # Self-subscribing bell with unread badge
@@ -482,9 +486,26 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   user's auth identity and links authors to `/create?editPostId=...` for
   published editing, while `/dashboard/saved` reads the private bookmark list.
   The `/dashboard` Overview composes independent, small previews of all three
-  collections and keeps each collection's loading and empty state local.
-  There is no public draft preview. Paragraph-inline images and general
-  storage garbage collection remain future work.
+  collections and keeps each collection's loading and empty state local. Its
+  private `AnalyticsSummary` precedes those previews. There is no public draft
+  preview. Paragraph-inline images and general storage garbage collection
+  remain future work.
+
+### Analytics Foundation
+
+`postViews` stores one durable `(postId, viewerKey)` row per signed-in reader.
+`recordView` accepts only a published post ID, derives the viewer from Better
+Auth, and creates the view row, increments `posts.uniqueViewCount`, and updates
+the post author's `authorAnalytics.uniqueViews` in one transaction. The
+non-visual `PostViewTracker` mounts only on a successfully rendered published
+post detail page and never exposes a public view count.
+
+`authorAnalytics` stores bounded per-author `uniqueViews` and `likesReceived`
+totals. `toggleLike` changes the post author total in its existing transaction.
+`followerGrowthDays` stores one UTC-day bucket per author; `toggleFollow`
+increments it only when creating a new follow. The private `analytics.getSummary`
+query derives the caller's author identity, reads its totals and at most 30
+daily buckets, and returns current follower count with trailing-30-day growth.
 
 - **Card vs. detail boundary** — `PostCard` and Open Graph / Twitter
   metadata use `extractPlainText` for safe excerpts so serialized JSON never
