@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import {
   getUtcDayStart,
+  incrementAuthorAnalytics,
+  incrementFollowerGrowthInTransaction,
   recordUniqueViewInTransaction,
   requireCurrentUser,
 } from "./analytics";
@@ -74,6 +76,48 @@ describe("analytics storage contracts", () => {
           .unique(),
       ).resolves.toMatchObject({
         uniqueViews: 1,
+      });
+    });
+  });
+
+  it("tracks post likes while preserving unique views", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await incrementAuthorAnalytics(ctx, "author-1", "uniqueViews", 3);
+      await incrementAuthorAnalytics(ctx, "author-1", "likesReceived", 1);
+      await incrementAuthorAnalytics(ctx, "author-1", "likesReceived", -1);
+
+      await expect(
+        ctx.db
+          .query("authorAnalytics")
+          .withIndex("by_authorId", (q) => q.eq("authorId", "author-1"))
+          .unique(),
+      ).resolves.toMatchObject({ uniqueViews: 3, likesReceived: 0 });
+    });
+  });
+
+  it("combines follows for an author on the same UTC day", async () => {
+    const t = convexTest(schema, modules);
+    const timestamp = Date.UTC(2026, 7, 26, 19, 30);
+
+    await t.run(async (ctx) => {
+      await incrementFollowerGrowthInTransaction(ctx, "author-1", timestamp);
+      await incrementFollowerGrowthInTransaction(ctx, "author-1", timestamp);
+
+      await expect(
+        ctx.db
+          .query("followerGrowthDays")
+          .withIndex("by_authorId_and_dayStart", (q) =>
+            q
+              .eq("authorId", "author-1")
+              .eq("dayStart", getUtcDayStart(timestamp)),
+          )
+          .unique(),
+      ).resolves.toMatchObject({
+        authorId: "author-1",
+        dayStart: getUtcDayStart(timestamp),
+        gainedCount: 2,
       });
     });
   });

@@ -15,6 +15,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import { incrementFollowerGrowthInTransaction } from "./analytics";
 import { internal } from "./_generated/api";
 import { FEED_BATCH_SIZE, FEED_WINDOW_MS } from "./feed";
 
@@ -102,11 +103,13 @@ export const toggleFollow = mutation({
       return { following: false };
     }
 
+    const createdAt = Date.now();
     const followId = await ctx.db.insert("follows", {
       followerId: authUser._id,
       followingId: args.followingId,
-      createdAt: Date.now(),
+      createdAt,
     });
+    await incrementFollowerGrowthInTransaction(ctx, args.followingId, createdAt);
     await ctx.db.patch(currentUser._id, {
       followingCount: (currentUser.followingCount ?? 0) + 1,
     });
@@ -117,7 +120,7 @@ export const toggleFollow = mutation({
       userId: authUser._id,
       authorId: args.followingId,
       followId,
-      cutoffAt: Date.now() - FEED_WINDOW_MS,
+      cutoffAt: createdAt - FEED_WINDOW_MS,
       paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
     });
     return { following: true };

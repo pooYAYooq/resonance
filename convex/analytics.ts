@@ -53,6 +53,33 @@ export async function incrementAuthorAnalytics(
   });
 }
 
+export async function incrementFollowerGrowthInTransaction(
+  ctx: MutationCtx,
+  authorId: string,
+  timestamp: number,
+) {
+  const dayStart = getUtcDayStart(timestamp);
+  const growthDay = await ctx.db
+    .query("followerGrowthDays")
+    .withIndex("by_authorId_and_dayStart", (q) =>
+      q.eq("authorId", authorId).eq("dayStart", dayStart),
+    )
+    .unique();
+
+  if (!growthDay) {
+    await ctx.db.insert("followerGrowthDays", {
+      authorId,
+      dayStart,
+      gainedCount: 1,
+    });
+    return;
+  }
+
+  await ctx.db.patch(growthDay._id, {
+    gainedCount: growthDay.gainedCount + 1,
+  });
+}
+
 export async function recordUniqueViewInTransaction(
   ctx: MutationCtx,
   post: Doc<"posts">,

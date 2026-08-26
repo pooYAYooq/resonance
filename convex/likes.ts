@@ -10,6 +10,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { authComponent } from "./auth";
+import { incrementAuthorAnalytics } from "./analytics";
 import { requirePublishedPost } from "./postLifecycle";
 
 /**
@@ -51,6 +52,7 @@ export const toggleLike = mutation({
       await ctx.db.patch(args.postId, {
         likeCount: nextCount,
       });
+      await incrementAuthorAnalytics(ctx, post.authorId, "likesReceived", -1);
       return { liked: false, likeCount: nextCount };
     }
 
@@ -63,6 +65,7 @@ export const toggleLike = mutation({
     await ctx.db.patch(args.postId, {
       likeCount: nextCount,
     });
+    await incrementAuthorAnalytics(ctx, post.authorId, "likesReceived", 1);
     return { liked: true, likeCount: nextCount };
   },
 });
