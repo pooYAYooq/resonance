@@ -43,7 +43,7 @@ export async function incrementAuthorAnalytics(
     await ctx.db.insert("authorAnalytics", {
       authorId,
       uniqueViews: counter === "uniqueViews" ? delta : 0,
-      likesReceived: counter === "likesReceived" ? delta : 0,
+      likesReceived: counter === "likesReceived" ? Math.max(0, delta) : 0,
     });
     return;
   }
@@ -99,7 +99,7 @@ export async function recordUniqueViewInTransaction(
     createdAt: Date.now(),
   });
   await ctx.db.patch(post._id, {
-    uniqueViewCount: post.uniqueViewCount + 1,
+    uniqueViewCount: (post.uniqueViewCount ?? 0) + 1,
   });
   await incrementAuthorAnalytics(ctx, post.authorId, "uniqueViews", 1);
   return true;
@@ -153,8 +153,8 @@ export const getSummary = query({
 
     return {
       views: analytics?.uniqueViews ?? 0,
-      likes: analytics?.likesReceived ?? 0,
-      followerCount: user.followerCount,
+      likes: Math.max(0, analytics?.likesReceived ?? 0),
+      followerCount: user.followerCount ?? 0,
       followerGrowth: growthDays.reduce(
         (total, day) => total + day.gainedCount,
         0,

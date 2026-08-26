@@ -34,7 +34,11 @@ export default defineSchema({
      * UI consumers can read this denormalized count directly.
      */
     likeCount: v.number(),
-    uniqueViewCount: v.number(),
+    /**
+     * Unique view count, incremented when a new viewer sees the post.
+     * Optional for backward compatibility with posts created before analytics were added.
+     */
+    uniqueViewCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -245,9 +249,12 @@ export default defineSchema({
     email: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     bio: v.optional(v.string()),
-    /** Denormalized follow counts maintained by `toggleFollow`. */
-    followerCount: v.number(),
-    followingCount: v.number(),
+    /**
+     * Denormalized follow counts maintained by `toggleFollow`.
+     * Optional for backward compatibility with users created before follow feature was added.
+     */
+    followerCount: v.optional(v.number()),
+    followingCount: v.optional(v.number()),
     /** Denormalized unread count maintained by notification mutations. */
     unreadNotificationCount: v.number(),
     createdAt: v.number(),

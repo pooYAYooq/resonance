@@ -90,8 +90,8 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
         stats={
           <ProfileStats
             profileUserId={profile.userId}
-            initialFollowerCount={profile.followerCount}
-            initialFollowingCount={profile.followingCount}
+            initialFollowerCount={profile.followerCount ?? 0}
+            initialFollowingCount={profile.followingCount ?? 0}
           />
         }
       />

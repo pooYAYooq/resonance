@@ -1,13 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 
 export function AnalyticsSummary() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const [asOf] = useState(() => Date.now());
+  const [asOf, setAsOf] = useState(() => Date.now());
+
+  useEffect(() => {
+    // Calculate milliseconds until next UTC midnight
+    const now = Date.now();
+    const nextMidnight = new Date(now);
+    nextMidnight.setUTCHours(24, 0, 0, 0);
+    const msUntilMidnight = nextMidnight.getTime() - now;
+
+    const timer = setTimeout(() => {
+      setAsOf(Date.now());
+    }, msUntilMidnight);
+
+    return () => clearTimeout(timer);
+  }, [asOf]);
+
   const summary = useQuery(
     api.analytics.getSummary,
     isAuthenticated ? { asOf } : "skip",
