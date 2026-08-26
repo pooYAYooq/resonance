@@ -3,6 +3,10 @@ import { internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { FEED_BATCH_SIZE, FEED_WINDOW_MS } from "./feed";
 
+/**
+ * Internal mutation that triggers cleanup of expired feed items.
+ * Called by the daily feed cleanup cron job.
+ */
 export const runFeedCleanup = internalMutation({
   args: {},
   handler: async (ctx) => {

@@ -56,14 +56,33 @@ const SUPPORTED_STYLES = new Set<PostTextStyle>([
   "code",
 ]);
 
+/**
+ * Type guard to check if a value is a record object.
+ *
+ * @param value - The value to check
+ * @returns True if the value is a non-null object that is not an array
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Checks if a record contains only the specified keys.
+ *
+ * @param value - The record to check
+ * @param keys - The allowed keys
+ * @returns True if all keys in the record are in the allowed list
+ */
 function hasOnlyKeys(value: Record<string, unknown>, keys: string[]): boolean {
   return Object.keys(value).every((key) => keys.includes(key));
 }
 
+/**
+ * Validates that a value contains only supported text styles with boolean values.
+ *
+ * @param value - The value to validate
+ * @returns True if the value is a record with only supported style keys and boolean values
+ */
 function isValidStyles(value: unknown): boolean {
   if (!isRecord(value)) return false;
 
@@ -74,6 +93,13 @@ function isValidStyles(value: unknown): boolean {
   );
 }
 
+/**
+ * Validates inline content within a block, ensuring it meets structure and size constraints.
+ *
+ * @param value - The inline content to validate
+ * @param state - Mutable state tracking the number of inline nodes
+ * @returns True if the inline content is valid
+ */
 function validateInlineContent(
   value: unknown,
   state: { inlineNodes: number },
@@ -110,6 +136,13 @@ function validateInlineContent(
   return true;
 }
 
+/**
+ * Validates the props for a specific block type.
+ *
+ * @param type - The block type
+ * @param value - The props value to validate
+ * @returns True if the props are valid for the block type
+ */
 function validateBlockProps(type: string, value: unknown): boolean {
   if (value === undefined) return type !== "image";
   if (!isRecord(value)) return false;
@@ -142,6 +175,14 @@ function validateBlockProps(type: string, value: unknown): boolean {
   return Object.keys(value).length === 0;
 }
 
+/**
+ * Validates a collection of blocks recursively, enforcing depth and count limits.
+ *
+ * @param value - The blocks to validate
+ * @param depth - Current recursion depth
+ * @param state - Mutable state tracking blocks, inline nodes, and text length
+ * @returns True if the blocks are valid
+ */
 function validateBlocks(
   value: unknown,
   depth: number,
@@ -196,6 +237,12 @@ function validateBlocks(
   return true;
 }
 
+/**
+ * Extracts all plain text content from a collection of blocks.
+ *
+ * @param blocks - The blocks to extract text from
+ * @returns Concatenated plain text with normalized whitespace
+ */
 export function extractPlainText(blocks: PostBlock[]): string {
   const parts: string[] = [];
   let depth = 0;
@@ -247,11 +294,23 @@ export function extractPlainText(blocks: PostBlock[]): string {
     .trim();
 }
 
+/**
+ * Validates that a value is a valid BlockNote document structure.
+ *
+ * @param blocks - The value to validate
+ * @returns True if the value is a valid array of blocks
+ */
 export function isValidBlockNoteDoc(blocks: unknown): blocks is PostBlock[] {
   const state = { blocks: 0, inlineNodes: 0, textLength: 0 };
   return validateBlocks(blocks, 0, state);
 }
 
+/**
+ * Extracts all unique image storage IDs from a collection of blocks.
+ *
+ * @param blocks - The blocks to extract image IDs from
+ * @returns Array of unique storage IDs for images
+ */
 export function extractImageStorageIds(blocks: PostBlock[]): string[] {
   const ids: string[] = [];
   const seen = new Set<string>();
@@ -291,6 +350,12 @@ export function extractImageStorageIds(blocks: PostBlock[]): string[] {
   return ids;
 }
 
+/**
+ * Parses and validates a post body JSON string.
+ *
+ * @param body - The JSON string to parse
+ * @returns Parsed document if valid, or invalid result
+ */
 export function parsePostBody(body: string): ParsedPostBody {
   let value: unknown;
 

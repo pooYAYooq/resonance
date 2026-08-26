@@ -11,6 +11,12 @@ export type EditorCapabilities = {
   canUpdate: boolean;
 };
 
+/**
+ * Determines the editor mode based on URL parameters.
+ *
+ * @param params - Object containing optional draftId and editPostId
+ * @returns Editor mode result indicating new, draft, published-edit, or invalid
+ */
 export function resolveEditorMode(params: {
   draftId?: string;
   editPostId?: string;
@@ -23,6 +29,12 @@ export function resolveEditorMode(params: {
   return { mode: "new", id: undefined };
 }
 
+/**
+ * Returns the available capabilities for a given editor mode.
+ *
+ * @param mode - The current editor mode
+ * @returns Object indicating which actions are permitted in this mode
+ */
 export function getEditorCapabilities(mode: EditorMode): EditorCapabilities {
   return mode === "published-edit"
     ? { canSaveDraft: false, canPublish: false, canUpdate: true }

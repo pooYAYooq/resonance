@@ -6,6 +6,12 @@ export const ALLOWED_INLINE_IMAGE_TYPES = [
   "image/webp",
 ] as const;
 
+/**
+ * Type guard to check if a content type is an allowed inline image type.
+ *
+ * @param contentType - The content type to check
+ * @returns True if the content type is JPEG, PNG, or WebP
+ */
 export function isAllowedInlineImageType(
   contentType: string | undefined,
 ): contentType is (typeof ALLOWED_INLINE_IMAGE_TYPES)[number] {

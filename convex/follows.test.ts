@@ -129,20 +129,22 @@ describe("follows functions", () => {
     expect(result).toEqual({ followerCount: 7, followingCount: 3 });
   });
 
-  it("requires follower counters on every user", async () => {
+  it("returns zeros for a legacy user without follower counters", async () => {
     const t = convexTest(schema, modules);
 
-    await expect(
-      t.run(async (ctx) => {
-        // @ts-expect-error User follow counters are required by the schema.
-        await ctx.db.insert("users", {
-          userId: "missing-counter-user",
-          displayName: "Missing Counter",
-          unreadNotificationCount: 0,
-          createdAt: Date.now(),
-        });
-      }),
-    ).rejects.toThrow();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "legacy-user",
+        displayName: "Legacy User",
+        unreadNotificationCount: 0,
+        createdAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.follows.getFollowCounts, {
+      userId: "legacy-user",
+    });
+    expect(result).toEqual({ followerCount: 0, followingCount: 0 });
   });
 
   it("getFollowCounts returns zeros for a missing user", async () => {

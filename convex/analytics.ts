@@ -11,11 +11,25 @@ import { requirePublishedPost } from "./postLifecycle";
 
 const UTC_DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Returns the UTC day start timestamp for a given timestamp.
+ *
+ * @param timestamp - The timestamp to convert
+ * @returns Timestamp at 00:00:00 UTC for that day
+ */
 export function getUtcDayStart(timestamp: number): number {
   const date = new Date(timestamp);
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
+/**
+ * Retrieves a user by userId or throws an error if not found.
+ *
+ * @param ctx - Query or mutation context
+ * @param userId - The Better Auth user ID
+ * @returns The user document
+ * @throws ConvexError if user not found
+ */
 export async function requireCurrentUser(
   ctx: Pick<MutationCtx | QueryCtx, "db">,
   userId: string,
@@ -28,6 +42,15 @@ export async function requireCurrentUser(
   return user;
 }
 
+/**
+ * Increments an analytics counter for an author.
+ * Creates a new analytics record if one doesn't exist.
+ *
+ * @param ctx - Mutation context
+ * @param authorId - The Better Auth user ID of the author
+ * @param counter - Which counter to increment (uniqueViews or likesReceived)
+ * @param delta - Amount to increment by
+ */
 export async function incrementAuthorAnalytics(
   ctx: MutationCtx,
   authorId: string,
@@ -53,6 +76,14 @@ export async function incrementAuthorAnalytics(
   });
 }
 
+/**
+ * Increments the follower growth count for an author on a specific day.
+ * Creates a new day record if one doesn't exist.
+ *
+ * @param ctx - Mutation context
+ * @param authorId - The Better Auth user ID of the author
+ * @param timestamp - The timestamp when the follow occurred
+ */
 export async function incrementFollowerGrowthInTransaction(
   ctx: MutationCtx,
   authorId: string,
@@ -80,6 +111,15 @@ export async function incrementFollowerGrowthInTransaction(
   });
 }
 
+/**
+ * Records a unique view for a post and updates analytics.
+ * Only records the view if this viewer hasn't viewed the post before.
+ *
+ * @param ctx - Mutation context
+ * @param post - The post document being viewed
+ * @param viewerKey - Unique identifier for the viewer
+ * @returns True if a new view was recorded, false if already viewed
+ */
 export async function recordUniqueViewInTransaction(
   ctx: MutationCtx,
   post: Doc<"posts">,

@@ -17,6 +17,13 @@ const CLEANUP_BATCH_SIZE = 100;
 const MAX_CLEANUP_REQUEST_SIZE = 100;
 const CLEANUP_LEASE_MS = 30 * 60 * 1000;
 
+/**
+ * Requires an authenticated user or throws an error.
+ *
+ * @param ctx - Mutation context
+ * @returns The authenticated user
+ * @throws ConvexError if not authenticated
+ */
 const requireAuthUser = async (ctx: MutationCtx) => {
   const user = await authComponent.safeGetAuthUser(ctx);
   if (!user) {
@@ -25,6 +32,15 @@ const requireAuthUser = async (ctx: MutationCtx) => {
   return user;
 };
 
+/**
+ * Validates that an uploaded file is a valid image within size and time constraints.
+ *
+ * @param ctx - Mutation context
+ * @param storageId - The storage ID to validate
+ * @param createdAt - Expected minimum creation time
+ * @param now - Current timestamp
+ * @returns True if the file is a valid image upload
+ */
 const isValidUploadedImage = async (
   ctx: MutationCtx,
   storageId: Id<"_storage">,

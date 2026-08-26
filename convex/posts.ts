@@ -32,11 +32,24 @@ import {
 } from "./postLifecycle";
 import { incrementPostCountInTransaction } from "./stats";
 
+/**
+ * Parses a post body string and returns the structured document if valid.
+ *
+ * @param body - The JSON post body string to parse
+ * @returns The parsed BlockNote document, or null if invalid
+ */
 function getStructuredPostBody(body: string) {
   const parsed = parsePostBody(body);
   return parsed.kind === "structured" ? parsed.document : null;
 }
 
+/**
+ * Validates that a post body is suitable for saving as a draft.
+ * Checks structure and maximum text length.
+ *
+ * @param body - The post body JSON string to validate
+ * @returns True if the body is valid for a draft
+ */
 export function isValidDraftPostBody(body: string): boolean {
   const document = getStructuredPostBody(body);
   if (!document) return false;
@@ -46,6 +59,13 @@ export function isValidDraftPostBody(body: string): boolean {
   );
 }
 
+/**
+ * Validates that a post body meets the requirements for publishing.
+ * Checks both minimum and maximum text length constraints.
+ *
+ * @param body - The post body JSON string to validate
+ * @returns True if the body meets publishing requirements
+ */
 export function isValidPublishPostBody(body: string): boolean {
   if (!isValidDraftPostBody(body)) return false;
   const document = getStructuredPostBody(body);
@@ -59,6 +79,17 @@ type InlineUploadClaim = Pick<
   "_id" | "userId" | "storageId" | "expiresAt" | "consumedAt"
 >;
 
+/**
+ * Validates inline upload claims against provided storage IDs.
+ * Ensures each claim is owned by the user, not consumed, and not expired.
+ *
+ * @param storageIds - Array of storage IDs to validate
+ * @param claims - Corresponding upload claims (may contain nulls)
+ * @param userId - The user who should own the uploads
+ * @param now - Current timestamp
+ * @returns Array of validated pending upload claim IDs
+ * @throws ConvexError if any claim is invalid or expired
+ */
 export function validateInlineUploadClaims(
   storageIds: Id<"_storage">[],
   claims: (InlineUploadClaim | null)[],
@@ -83,6 +114,14 @@ export function validateInlineUploadClaims(
   });
 }
 
+/**
+ * Deletes pending upload claims that are no longer referenced in a draft.
+ * Also deletes the associated storage files.
+ *
+ * @param ctx - Mutation context
+ * @param draftId - The draft ID to clean up
+ * @param retainedStorageIds - Set of storage IDs still in use
+ */
 async function deleteRemovedDraftClaims(
   ctx: MutationCtx,
   draftId: Id<"posts">,
