@@ -64,10 +64,7 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
         <p className="text-muted-foreground mb-8">
           The profile you are looking for does not exist.
         </p>
-        <Link
-          href="/blog"
-          className={buttonVariants({ variant: "outline" })}
-        >
+        <Link href="/blog" className={buttonVariants({ variant: "outline" })}>
           Back to blog
         </Link>
       </div>
@@ -93,8 +90,8 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
         stats={
           <ProfileStats
             profileUserId={profile.userId}
-            initialFollowerCount={profile.followerCount ?? 0}
-            initialFollowingCount={profile.followingCount ?? 0}
+            initialFollowerCount={profile.followerCount}
+            initialFollowingCount={profile.followingCount}
           />
         }
       />

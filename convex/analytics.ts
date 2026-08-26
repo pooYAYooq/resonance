@@ -154,7 +154,7 @@ export const getSummary = query({
     return {
       views: analytics?.uniqueViews ?? 0,
       likes: analytics?.likesReceived ?? 0,
-      followerCount: user.followerCount ?? 0,
+      followerCount: user.followerCount,
       followerGrowth: growthDays.reduce(
         (total, day) => total + day.gainedCount,
         0,

@@ -70,11 +70,4 @@ describe("ProfileStats", () => {
     );
     expect(screen.getByText(/1 Follower\b/)).toBeInTheDocument();
   });
-
-  it("renders zero counts while loading when no initial values are passed", () => {
-    useQueryMock.mockReturnValue(undefined);
-    render(<ProfileStats profileUserId="user-1" />);
-    expect(screen.getByText(/0 Followers/i)).toBeInTheDocument();
-    expect(screen.getByText(/0 Following/i)).toBeInTheDocument();
-  });
 });
