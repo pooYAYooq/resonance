@@ -4,6 +4,12 @@
  */
 import { query, type MutationCtx } from "./_generated/server";
 
+/**
+ * Increments the total post count in the stats table within a transaction.
+ * Creates a new stats row if none exists yet.
+ *
+ * @param ctx - The mutation context
+ */
 export async function incrementPostCountInTransaction(ctx: MutationCtx) {
   const stats = await ctx.db.query("stats").first();
   if (!stats) {

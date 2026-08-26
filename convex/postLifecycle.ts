@@ -7,6 +7,13 @@ type UploadClaimContext = Pick<MutationCtx, "db">;
 export const POST_STATUSES = ["draft", "published"] as const;
 export type PostStatus = (typeof POST_STATUSES)[number];
 
+/**
+ * Retrieves a post only if it has published status.
+ *
+ * @param ctx - Query or mutation context
+ * @param postId - The post ID to retrieve
+ * @returns The post if published, null otherwise
+ */
 export async function getPublishedPost(
   ctx: Pick<QueryCtx | MutationCtx, "db">,
   postId: Id<"posts">,
@@ -15,6 +22,14 @@ export async function getPublishedPost(
   return post && post.status === "published" ? post : null;
 }
 
+/**
+ * Retrieves a published post or throws an error if not found or not published.
+ *
+ * @param ctx - Query or mutation context
+ * @param postId - The post ID to retrieve
+ * @returns The published post
+ * @throws ConvexError if the post is not found or not published
+ */
 export async function requirePublishedPost(
   ctx: Pick<QueryCtx | MutationCtx, "db">,
   postId: Id<"posts">,
@@ -24,6 +39,18 @@ export async function requirePublishedPost(
   return post;
 }
 
+/**
+ * Validates that storage IDs have valid pending upload claims for a draft.
+ * Ensures each image was uploaded by the user and hasn't been consumed or expired.
+ *
+ * @param ctx - Mutation context with database access
+ * @param storageIds - Array of storage IDs to validate
+ * @param userId - The user who should own the uploads
+ * @param now - Current timestamp
+ * @param draftId - Optional draft ID the uploads should be associated with
+ * @returns Array of validated pending upload claim IDs
+ * @throws ConvexError if any claim is invalid or expired
+ */
 export async function validateDraftUploadClaims(
   ctx: UploadClaimContext,
   storageIds: Id<"_storage">[],
@@ -62,6 +89,19 @@ export async function validateDraftUploadClaims(
   return claimIds;
 }
 
+/**
+ * Validates pending upload claims for editing a published post.
+ * Only validates new images that weren't in the original post.
+ *
+ * @param ctx - Mutation context with database access
+ * @param existingStorageIds - Storage IDs already in the published post
+ * @param submittedStorageIds - Storage IDs in the edited version
+ * @param userId - The user who should own the uploads
+ * @param now - Current timestamp
+ * @param postId - The post being edited
+ * @returns Array of validated pending upload claim IDs for new images
+ * @throws ConvexError if any claim is invalid or expired
+ */
 export async function validatePublishedEditUploadClaims(
   ctx: UploadClaimContext,
   existingStorageIds: Id<"_storage">[],
