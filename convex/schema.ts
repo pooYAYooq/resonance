@@ -34,6 +34,11 @@ export default defineSchema({
      * UI consumers can read this denormalized count directly.
      */
     likeCount: v.number(),
+    /**
+     * Unique view count, incremented when a new viewer sees the post.
+     * Optional for backward compatibility with posts created before analytics were added.
+     */
+    uniqueViewCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -52,6 +57,27 @@ export default defineSchema({
     .index("by_authorId_and_status_and_updatedAt", {
       fields: ["authorId", "status", "updatedAt"],
     }),
+
+  /** One durable view record per viewer and post. */
+  postViews: defineTable({
+    postId: v.id("posts"),
+    viewerKey: v.string(),
+    createdAt: v.number(),
+  }).index("by_postId_and_viewerKey", ["postId", "viewerKey"]),
+
+  /** Per-author counters maintained transactionally with source events. */
+  authorAnalytics: defineTable({
+    authorId: v.string(),
+    uniqueViews: v.number(),
+    likesReceived: v.number(),
+  }).index("by_authorId", ["authorId"]),
+
+  /** One follower-growth total per author and UTC day. */
+  followerGrowthDays: defineTable({
+    authorId: v.string(),
+    dayStart: v.number(),
+    gainedCount: v.number(),
+  }).index("by_authorId_and_dayStart", ["authorId", "dayStart"]),
 
   /** Comments attached to a single post. */
   comments: defineTable({
@@ -223,7 +249,10 @@ export default defineSchema({
     email: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     bio: v.optional(v.string()),
-    /** Denormalized follow counts maintained by `toggleFollow`; optional for legacy users. */
+    /**
+     * Denormalized follow counts maintained by `toggleFollow`.
+     * Optional for backward compatibility with users created before follow feature was added.
+     */
     followerCount: v.optional(v.number()),
     followingCount: v.optional(v.number()),
     /** Denormalized unread count maintained by notification mutations. */

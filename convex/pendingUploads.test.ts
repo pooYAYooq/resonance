@@ -59,6 +59,7 @@ describe("pending upload functions", () => {
         status: "draft",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 1,
         updatedAt: 1,
       });

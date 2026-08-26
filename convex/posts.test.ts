@@ -46,6 +46,7 @@ describe("posts functions", () => {
         tags: [],
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 2,
         updatedAt: 2,
       });
@@ -57,6 +58,7 @@ describe("posts functions", () => {
         tags: [],
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 3,
         updatedAt: 3,
       });
@@ -88,6 +90,7 @@ describe("posts functions", () => {
         tags: [],
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 2,
         updatedAt: 2,
       }),
@@ -99,6 +102,7 @@ describe("posts functions", () => {
         tags: [],
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 3,
         updatedAt: 3,
       }),
@@ -332,6 +336,7 @@ describe("posts functions", () => {
         tags: [],
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 1,
         updatedAt: 1,
       }),
@@ -367,6 +372,7 @@ describe("posts functions", () => {
         tags: [],
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 1,
         updatedAt: 1,
       }),
@@ -398,6 +404,7 @@ describe("posts functions", () => {
         publishedAt: 100,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 100,
         updatedAt: 100,
       }),
@@ -499,6 +506,7 @@ describe("posts functions", () => {
           publishedAt: 1,
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: 1,
           updatedAt: 1,
         });
@@ -518,6 +526,7 @@ describe("posts functions", () => {
           publishedAt: 2,
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: 2,
           updatedAt: 2,
         });
@@ -585,6 +594,7 @@ describe("posts functions", () => {
         imageStorageId: firstImage,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -602,6 +612,7 @@ describe("posts functions", () => {
         imageStorageId: secondImage,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -645,6 +656,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 300,
         updatedAt: 300,
       });
@@ -656,6 +668,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 200,
         updatedAt: 200,
       });
@@ -667,6 +680,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 100,
         updatedAt: 100,
       });
@@ -700,6 +714,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 100,
         updatedAt: 100,
       });
@@ -731,6 +746,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -762,6 +778,7 @@ describe("posts functions", () => {
         imageStorageId,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -789,6 +806,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -845,6 +863,7 @@ describe("posts functions", () => {
           status: "published",
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         }),
@@ -884,6 +903,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -916,6 +936,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 100,
         updatedAt: 100,
       }),
@@ -941,6 +962,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 100,
         updatedAt: 100,
       }),
@@ -963,6 +985,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 2,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -999,6 +1022,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1024,6 +1048,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1048,6 +1073,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1059,6 +1085,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1070,6 +1097,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1099,6 +1127,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1110,6 +1139,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1121,6 +1151,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1149,6 +1180,7 @@ describe("posts functions", () => {
           status: "published",
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: 1000 + i,
           updatedAt: 1000 + i,
         });
@@ -1186,6 +1218,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1215,6 +1248,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -1253,6 +1287,7 @@ describe("posts functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });

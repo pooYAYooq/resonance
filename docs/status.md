@@ -4,36 +4,23 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 2.6 — Post Editing (complete)
-
-The follow-counter compatibility repair is deployed to the configured
-development deployment. Legacy user documents are supported with optional
-counters, `syncUser` repair-on-login, and the internal
-`users:backfillFollowCounts` operation; the exact reported user now has both
-counters set to `0`.
+Phase 2.8 — Analytics Dashboard UI (up next)
 
 ## Next focus
 
-Phase 2.6 is complete: published editing is owner-scoped and in place, with
-monotonic timestamps, retained-upload handling, transactional validation for
-new upload claims, direct published-edit submission, author Edit and View Post
-actions, and public publication and last-edited timestamps. No deployment
-migration has been run or is required for this disposable development database.
-Phase 2.7, Analytics Foundation, is up next.
+Phase 2.7 — Analytics Foundation is shipped. Phase 2.8 is the next focus.
 
 ## Current verification
 
 - `pnpm lint` — passed.
-- `pnpm test:ci` — passed: 15 files, 157 tests.
-- `pnpm test:component` — passed: 42 files, 234 tests.
-- `pnpm build` — passed, including TypeScript validation and canonical dashboard
-  routes; removed `/drafts` and `/reading-list` routes are absent.
+- `pnpm test:ci` — passed: 16 files, 162 tests.
+- `pnpm test:component` — passed: 44 files, 244 tests.
+- `pnpm build` — passed, including TypeScript validation.
 - `git diff --check` — passed.
-- `pnpm format:check` — repository baseline remains non-clean across 79
-  untouched files; all changed files pass targeted Prettier checks.
-- Review follow-ups — passed: keyboard menu dismissal restores trigger focus,
-  pointer dismissal preserves the scroll-jump fix, and Drafts/Saved loading
-  states expose accessible status labels.
+- Task 6 targeted Convex and component tests — passed.
+- Task 6 targeted Prettier checks — passed.
+- Follow-counter contract cleanup — `npx tsc --noEmit` passed; required
+  counters replace the removed compatibility paths.
 - Known limitation: authenticated owner-scoped post mutation tests remain
   limited by the Better Auth component fixture in `convex-test`.
 - The Convex test harness prints a scheduled-cleanup transaction warning in one
@@ -52,12 +39,13 @@ Phase 2.7, Analytics Foundation, is up next.
 - Phase 2.4 — Drafts & Publishing Workflow
 - Phase 2.5 — Author Dashboard
 - Phase 2.6 — Post Editing
+- Phase 2.7 — Analytics Foundation
 
 ## Where to continue
 
 - Detailed roadmap: [`FEATURES.md`](../FEATURES.md)
 - Architecture reference: [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)
-- Next focus: Phase 2.7 — Analytics Foundation
+- Next focus: Phase 2.8 — Analytics Dashboard UI
 
 ## Status maintenance
 

@@ -64,10 +64,7 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
         <p className="text-muted-foreground mb-8">
           The profile you are looking for does not exist.
         </p>
-        <Link
-          href="/blog"
-          className={buttonVariants({ variant: "outline" })}
-        >
+        <Link href="/blog" className={buttonVariants({ variant: "outline" })}>
           Back to blog
         </Link>
       </div>

@@ -25,14 +25,7 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import { FANOUT_BATCH_SIZE } from "./notifications";
@@ -65,7 +58,6 @@ describe("notifications functions", () => {
       const result = await t.query(api.notifications.getUnreadCount, {});
       expect(result).toBe(0);
     });
-
   });
 
   describe("getNotifications", () => {
@@ -93,6 +85,7 @@ describe("notifications functions", () => {
           status: "published",
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -131,11 +124,7 @@ describe("notifications functions", () => {
         ),
       ).toBe(true);
       const recipientIds = notifications.map((n) => n.recipientId).sort();
-      expect(recipientIds).toEqual([
-        "follower-1",
-        "follower-2",
-        "follower-3",
-      ]);
+      expect(recipientIds).toEqual(["follower-1", "follower-2", "follower-3"]);
 
       const counters = await t.run(async (ctx) => {
         const out: Record<string, number> = {};
@@ -168,6 +157,7 @@ describe("notifications functions", () => {
           publishedAt: Date.now(),
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -201,7 +191,10 @@ describe("notifications functions", () => {
           .query("users")
           .withIndex("by_userId", (q) => q.eq("userId", "follower-1"))
           .unique();
-        return { notifications, unreadNotificationCount: user?.unreadNotificationCount };
+        return {
+          notifications,
+          unreadNotificationCount: user?.unreadNotificationCount,
+        };
       });
 
       expect(state.notifications).toHaveLength(1);
@@ -220,6 +213,7 @@ describe("notifications functions", () => {
           status: "draft",
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -255,6 +249,7 @@ describe("notifications functions", () => {
           status: "published",
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -292,6 +287,7 @@ describe("notifications functions", () => {
           status: "published",
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -336,6 +332,7 @@ describe("notifications functions", () => {
           status: "published",
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });

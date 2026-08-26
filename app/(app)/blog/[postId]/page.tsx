@@ -21,6 +21,7 @@ import { BookmarkButton } from "@/components/web/BookmarkButton";
 import { truncateForDescription } from "@/lib/constants/seo";
 import { TagPill } from "@/components/web/TagPill";
 import { PostBody } from "@/components/web/PostBody";
+import { PostViewTracker } from "@/components/web/PostViewTracker";
 import { extractPlainText, parsePostBody } from "@/lib/post-content";
 
 /** Props received by the dynamic blog post route. */
@@ -103,6 +104,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 animate-in fade-in duration-500 relative">
+      <PostViewTracker postId={postId} />
       <Link
         className={buttonVariants({
           variant: "outline",

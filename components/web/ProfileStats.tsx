@@ -19,22 +19,22 @@ import { api } from "@/convex/_generated/api";
 interface ProfileStatsProps {
   /** Better Auth user ID of the profile owner. */
   profileUserId: string;
-  /** Server-rendered fallback counts (from cached `getUserProfile`). */
-  initialFollowerCount?: number;
-  initialFollowingCount?: number;
+  /** Server-rendered counts from cached `getUserProfile`. */
+  initialFollowerCount: number;
+  initialFollowingCount: number;
 }
 
 export function ProfileStats({
   profileUserId,
-  initialFollowerCount = 0,
-  initialFollowingCount = 0,
+  initialFollowerCount,
+  initialFollowingCount,
 }: ProfileStatsProps) {
   const counts = useQuery(api.follows.getFollowCounts, {
     userId: profileUserId,
   });
 
-  const followerCount = counts?.followerCount ?? initialFollowerCount;
-  const followingCount = counts?.followingCount ?? initialFollowingCount;
+  const followerCount = counts ? counts.followerCount : initialFollowerCount;
+  const followingCount = counts ? counts.followingCount : initialFollowingCount;
 
   return (
     <div aria-label="Profile stats" className="flex gap-4">

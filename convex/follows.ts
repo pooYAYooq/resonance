@@ -15,6 +15,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import { incrementFollowerGrowthInTransaction } from "./analytics";
 import { internal } from "./_generated/api";
 import { FEED_BATCH_SIZE, FEED_WINDOW_MS } from "./feed";
 
@@ -88,10 +89,10 @@ export const toggleFollow = mutation({
     if (existingFollow) {
       await ctx.db.delete(existingFollow._id);
       await ctx.db.patch(currentUser._id, {
-        followingCount: (currentUser.followingCount ?? 0) - 1,
+        followingCount: Math.max(0, (currentUser.followingCount ?? 0) - 1),
       });
       await ctx.db.patch(target._id, {
-        followerCount: (target.followerCount ?? 0) - 1,
+        followerCount: Math.max(0, (target.followerCount ?? 0) - 1),
       });
       await ctx.scheduler.runAfter(0, internal.feed.deleteForUnfollow, {
         userId: authUser._id,
@@ -102,11 +103,17 @@ export const toggleFollow = mutation({
       return { following: false };
     }
 
+    const createdAt = Date.now();
     const followId = await ctx.db.insert("follows", {
       followerId: authUser._id,
       followingId: args.followingId,
-      createdAt: Date.now(),
+      createdAt,
     });
+    await incrementFollowerGrowthInTransaction(
+      ctx,
+      args.followingId,
+      createdAt,
+    );
     await ctx.db.patch(currentUser._id, {
       followingCount: (currentUser.followingCount ?? 0) + 1,
     });
@@ -117,7 +124,7 @@ export const toggleFollow = mutation({
       userId: authUser._id,
       authorId: args.followingId,
       followId,
-      cutoffAt: Date.now() - FEED_WINDOW_MS,
+      cutoffAt: createdAt - FEED_WINDOW_MS,
       paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
     });
     return { following: true };
@@ -169,14 +176,16 @@ export const isFollowing = query({
  *
  * @param args.userId - Better Auth user ID (string) of the profile owner.
  * @returns `{ followerCount: number, followingCount: number }` —
- *   always returns numbers, falling back to `0` for missing rows or
- *   user docs without the counters (pre-Phase-1.4 docs).
+ *   returns zero counts when no matching user exists.
  */
 export const getFollowCounts = query({
   args: {
     userId: v.string(),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     followerCount: number;
     followingCount: number;
   }> => {
@@ -186,8 +195,8 @@ export const getFollowCounts = query({
       .unique();
 
     return {
-      followerCount: user?.followerCount ?? 0,
-      followingCount: user?.followingCount ?? 0,
+      followerCount: user ? (user.followerCount ?? 0) : 0,
+      followingCount: user ? (user.followingCount ?? 0) : 0,
     };
   },
 });

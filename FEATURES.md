@@ -23,24 +23,24 @@ Feature status is managed with five labels:
 - **Deferred** — intentionally postponed; revisit when its trigger is met.
 - **Shipped** — available in the product.
 
-| Phase                               | Goal                                                                   | Status      |
-| ----------------------------------- | ---------------------------------------------------------------------- | ----------- |
-| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                    | ✅ Complete |
-| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                          | ✅ Complete |
-| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                  | ✅ Complete |
-| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅ | ✅ Complete |
-| Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                       | ✅ Complete |
-| Phase 2 — The Author                | Editor, drafts, author dashboard, and post editing                     | ✅ Complete |
-| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                          | 🟡 Later    |
+| Phase                               | Goal                                                                    | Status      |
+| ----------------------------------- | ----------------------------------------------------------------------- | ----------- |
+| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                     | ✅ Complete |
+| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                           | ✅ Complete |
+| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                   | ✅ Complete |
+| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅  | ✅ Complete |
+| Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                        | ✅ Complete |
+| Phase 2 — The Author                | Editor, drafts, editing, private analytics, and dashboard visualization | 🔵 Next     |
+| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                           | 🟡 Later    |
 
 **Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
 documented as optional features and are not current delivery commitments.
 They should be promoted to **Next** only after there is enough content and
 engagement data, or a clear product need for them.
 
-Phase 2 currently covers the shipped editor, draft lifecycle, private author
-dashboard, and owner-scoped editing for published posts. Analytics remain
-future scope rather than a completed roadmap item.
+Phase 2 includes the shipped editor, draft lifecycle, private author dashboard,
+owner-scoped published editing, and private analytics totals. Phase 2.8 is the
+only current Phase 2 delivery focus.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
@@ -179,8 +179,8 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 4. **2.4 Drafts & Publishing Workflow** — add `draft`/`published` status, save drafts, resume editing, and publish intentionally. ✅ Shipped
 5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, saved posts, and author actions. ✅ Shipped
 6. **2.6 Post Editing** — allow authors to edit drafts and published posts with ownership checks. ✅ Shipped
-7. **2.7 Analytics Foundation** — track views and expose likes, views, and follower-growth summaries. 🔵 up next
-8. **2.8 Analytics Dashboard UI** — add simple charts and summary cards to the dashboard.
+7. **2.7 Analytics Foundation** — records one signed-in unique view per published post and privately summarizes author unique views, likes received, current followers, and 30-day follower growth. ✅ Shipped
+8. **2.8 Analytics Dashboard UI** — add simple charts and summary cards to the dashboard. 🔵 up next
 
 #### Deferred Editor Polish
 
