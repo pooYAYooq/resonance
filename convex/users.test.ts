@@ -96,6 +96,7 @@ describe("users functions", () => {
           status: "published",
           commentCount: 0,
           likeCount: 0,
+          uniqueViewCount: 0,
           createdAt: 1000 + i,
           updatedAt: 1000 + i,
         });
@@ -108,6 +109,7 @@ describe("users functions", () => {
         status: "draft",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 1002,
         updatedAt: 1002,
       });

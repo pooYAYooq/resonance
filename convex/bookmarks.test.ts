@@ -33,6 +33,7 @@ describe("bookmarks functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -55,6 +56,7 @@ describe("bookmarks functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -76,6 +78,7 @@ describe("bookmarks functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });

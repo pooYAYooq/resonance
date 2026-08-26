@@ -3,14 +3,7 @@
 import { convexTest } from "convex-test";
 import { api, internal } from "./_generated/api";
 import { FEED_BATCH_SIZE, FEED_WINDOW_MS } from "./feed";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -30,6 +23,7 @@ describe("feed schema", () => {
         publishedAt: NOW,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: 100,
         updatedAt: 100,
       });
@@ -144,6 +138,7 @@ describe("feed maintenance", () => {
         publishedAt: now,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -188,6 +183,7 @@ describe("feed maintenance", () => {
         publishedAt: now,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -225,6 +221,7 @@ describe("feed maintenance", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -262,6 +259,7 @@ describe("feed maintenance", () => {
         status: "draft",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -305,6 +303,7 @@ describe("feed maintenance", () => {
         publishedAt: now - FEED_WINDOW_MS + 1,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now - FEED_WINDOW_MS + 1,
         updatedAt: now - FEED_WINDOW_MS + 1,
       });
@@ -317,6 +316,7 @@ describe("feed maintenance", () => {
         publishedAt: now - FEED_WINDOW_MS - 1,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now - FEED_WINDOW_MS - 1,
         updatedAt: now - FEED_WINDOW_MS - 1,
       });
@@ -358,6 +358,7 @@ describe("feed maintenance", () => {
         publishedAt: now - 1,
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now - FEED_WINDOW_MS - 1,
         updatedAt: now,
       });
@@ -407,6 +408,7 @@ describe("feed maintenance", () => {
             status: "published",
             commentCount: 0,
             likeCount: 0,
+            uniqueViewCount: 0,
             createdAt: now,
             updatedAt: now,
           }),
@@ -454,7 +456,9 @@ describe("feed maintenance", () => {
       paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
     });
 
-    const remaining = await t.run(async (ctx) => ctx.db.query("feed").collect());
+    const remaining = await t.run(async (ctx) =>
+      ctx.db.query("feed").collect(),
+    );
     expect(remaining).toHaveLength(3);
     expect(
       remaining.some(
@@ -482,6 +486,7 @@ describe("feed maintenance", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -493,6 +498,7 @@ describe("feed maintenance", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now - FEED_WINDOW_MS - 1,
         updatedAt: now - FEED_WINDOW_MS - 1,
       });
@@ -504,6 +510,7 @@ describe("feed maintenance", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -544,7 +551,9 @@ describe("feed maintenance", () => {
       paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
     });
 
-    const remaining = await t.run(async (ctx) => ctx.db.query("feed").collect());
+    const remaining = await t.run(async (ctx) =>
+      ctx.db.query("feed").collect(),
+    );
     expect(remaining).toHaveLength(1);
     expect(remaining[0].createdAt).toBe(now);
   });

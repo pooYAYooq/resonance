@@ -183,6 +183,7 @@ export const saveDraft = mutation({
         status: "draft",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: now,
         updatedAt: now,
       });

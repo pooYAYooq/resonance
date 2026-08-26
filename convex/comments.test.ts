@@ -26,6 +26,7 @@ describe("comments functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -51,6 +52,7 @@ describe("comments functions", () => {
         status: "draft",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -86,6 +88,7 @@ describe("comments functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -131,6 +134,7 @@ describe("comments functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -169,6 +173,7 @@ describe("comments functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -194,6 +199,7 @@ describe("comments functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -201,11 +207,11 @@ describe("comments functions", () => {
         userId: "user-2",
         displayName: "Alice",
         email: "alice@example.com",
-          avatarUrl: "https://example.com/alice.png",
-          bio: "",
-          followerCount: 0,
-          followingCount: 0,
-          unreadNotificationCount: 0,
+        avatarUrl: "https://example.com/alice.png",
+        bio: "",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
       await ctx.db.insert("comments", {
@@ -225,7 +231,9 @@ describe("comments functions", () => {
     });
 
     expect(result.page).toHaveLength(1);
-    expect(result.page[0].authorAvatarUrl).toBe("https://example.com/alice.png");
+    expect(result.page[0].authorAvatarUrl).toBe(
+      "https://example.com/alice.png",
+    );
   });
 
   it("returns null authorAvatarUrl when user has no users record", async () => {
@@ -240,6 +248,7 @@ describe("comments functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -275,6 +284,7 @@ describe("comments functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -311,6 +321,7 @@ describe("comments functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });

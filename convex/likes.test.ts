@@ -25,14 +25,15 @@ describe("likes functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
     });
 
-    await expect(
-      t.mutation(api.likes.toggleLike, { postId }),
-    ).rejects.toThrow("Unauthorized");
+    await expect(t.mutation(api.likes.toggleLike, { postId })).rejects.toThrow(
+      "Unauthorized",
+    );
   });
 
   it("rejects toggleCommentLike when unauthenticated", async () => {
@@ -47,6 +48,7 @@ describe("likes functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 0,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -78,6 +80,7 @@ describe("likes functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 1,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -106,6 +109,7 @@ describe("likes functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 1,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -137,6 +141,7 @@ describe("likes functions", () => {
         status: "published",
         commentCount: 0,
         likeCount: 1,
+        uniqueViewCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
