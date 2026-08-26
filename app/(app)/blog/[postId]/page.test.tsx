@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { Id } from "@/convex/_generated/dataModel";
 
-const { fetchQueryMock } = vi.hoisted(() => ({ fetchQueryMock: vi.fn() }));
+const { fetchQueryMock, postViewTrackerMock } = vi.hoisted(() => ({
+  fetchQueryMock: vi.fn(),
+  postViewTrackerMock: vi.fn(() => null),
+}));
 
 vi.mock("convex/nextjs", () => ({ fetchQuery: fetchQueryMock }));
 vi.mock("@/components/web/CommentSection", () => ({
@@ -14,6 +17,9 @@ vi.mock("@/components/web/BookmarkButton", () => ({
 }));
 vi.mock("@/components/web/PostBody", () => ({
   PostBody: () => null,
+}));
+vi.mock("@/components/web/PostViewTracker", () => ({
+  PostViewTracker: postViewTrackerMock,
 }));
 vi.mock("next/image", () => ({
   default: () => null,
@@ -115,6 +121,7 @@ describe("blog post generateMetadata", () => {
 describe("blog post timestamps", () => {
   beforeEach(() => {
     fetchQueryMock.mockReset();
+    postViewTrackerMock.mockClear();
   });
 
   it("shows the publication date and omits Updated when the post is unchanged", async () => {
@@ -159,5 +166,14 @@ describe("blog post timestamps", () => {
 
     expect(screen.getByText("Post not found")).toBeInTheDocument();
     expect(screen.queryByText(/Published on:/)).toBeNull();
+    expect(postViewTrackerMock).not.toHaveBeenCalled();
+  });
+
+  it("tracks the resolved ID for a successfully rendered published post", async () => {
+    fetchQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    expect(postViewTrackerMock).toHaveBeenCalledWith({ postId }, undefined);
   });
 });
