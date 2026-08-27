@@ -450,9 +450,9 @@ export default function PostBodyEditor({
   });
 
   useEffect(() => {
+    if (!initialContent) return;
     const blocks = getInitialEditorContent(initialContent);
-    if (!blocks) return;
-    void editor.replaceBlocks(editor.document, blocks as never);
+    void editor.replaceBlocks(editor.document, (blocks ?? []) as never);
   }, [editor, initialContent]);
 
   return (

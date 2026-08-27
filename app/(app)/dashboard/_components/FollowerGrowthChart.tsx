@@ -138,7 +138,7 @@ export function FollowerGrowthChart({
           {points.map((point) => (
             <li key={point.dayStart}>
               {formatAccessibleDay(point.dayStart)}: {point.gainedCount}{" "}
-              followers gained
+              follower{point.gainedCount === 1 ? "" : "s"} gained
             </li>
           ))}
         </ul>
