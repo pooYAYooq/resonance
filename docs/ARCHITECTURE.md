@@ -140,7 +140,8 @@ resonance/
 │   │                           # notifications.ts.
 │   ├── analytics.ts            # Signed-in unique post-view recording and private
 │   │                           # author summary. Owns transactional author view/
-│   │                           # like counters and UTC daily follower-growth buckets.
+│   │                           # like counters and UTC daily follower-growth buckets;
+│   │                           # getSummary returns a dense trailing 30-day series.
 │   ├── bookmarks.ts            # toggleBookmark (idempotent) + isBookmarked +
 │   │                           # getBookmarkedPosts (paginated). Private reading
 │   │                           # list — no denormalized counters. Mirrors likes
@@ -505,7 +506,10 @@ totals. `toggleLike` changes the post author total in its existing transaction.
 `followerGrowthDays` stores one UTC-day bucket per author; `toggleFollow`
 increments it only when creating a new follow. The private `analytics.getSummary`
 query derives the caller's author identity, reads its totals and at most 30
-daily buckets, and returns current follower count with trailing-30-day growth.
+daily buckets, and returns current follower count with a dense chronological
+30-day series, zero-filling missing UTC days. The dashboard presents those
+values as four private summary cards and a presentation-only bar chart; the
+new-follower card derives its value from the same series passed to the chart.
 
 - **Card vs. detail boundary** — `PostCard` and Open Graph / Twitter
   metadata use `extractPlainText` for safe excerpts so serialized JSON never

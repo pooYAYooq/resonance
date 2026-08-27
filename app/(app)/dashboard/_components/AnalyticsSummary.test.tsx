@@ -10,6 +10,11 @@ const { useConvexAuthState, useQueryState, useQueryArgsMock } = vi.hoisted(
   }),
 );
 
+const followerGrowthDays = Array.from({ length: 30 }, (_, index) => ({
+  dayStart: Date.UTC(2026, 7, 26) - (29 - index) * 24 * 60 * 60 * 1000,
+  gainedCount: index === 29 || index === 27 ? 1 : 0,
+}));
+
 vi.mock("convex/react", () => ({
   useConvexAuth: () => useConvexAuthState(),
   useQuery: (_query: unknown, args: unknown) => {
@@ -64,19 +69,25 @@ describe("AnalyticsSummary", () => {
       views: 12,
       likes: 5,
       followerCount: 3,
-      followerGrowth: 2,
+      followerGrowth: 999,
       followerGrowthStart: 0,
+      followerGrowthDays,
     });
     render(<AnalyticsSummary />);
 
     expect(
       screen.getByRole("heading", { name: "Analytics" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("12 Unique Views")).toBeInTheDocument();
-    expect(screen.getByText("5 Likes")).toBeInTheDocument();
-    expect(screen.getByText("3 Followers")).toBeInTheDocument();
+    expect(screen.getByText("Unique Views")).toBeInTheDocument();
+    expect(screen.getByText("Likes Received")).toBeInTheDocument();
+    expect(screen.getByText("Current Followers")).toBeInTheDocument();
+    expect(screen.getByText("New Followers (30 days)")).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
     expect(
-      screen.getByText("2 followers gained in the last 30 days"),
+      screen.getByRole("heading", { name: "Follower growth" }),
     ).toBeInTheDocument();
   });
 
@@ -87,11 +98,14 @@ describe("AnalyticsSummary", () => {
       followerCount: 0,
       followerGrowth: 1,
       followerGrowthStart: 0,
+      followerGrowthDays: followerGrowthDays.map((point, index) => ({
+        ...point,
+        gainedCount: index === 29 ? 1 : 0,
+      })),
     });
     render(<AnalyticsSummary />);
 
-    expect(
-      screen.getByText("1 follower gained in the last 30 days"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("New Followers (30 days)")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
   });
 });

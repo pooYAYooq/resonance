@@ -3,10 +3,17 @@ import {
   editorSchema,
   getCuratedBlockTypeSelectItems,
   getCuratedSlashMenuItems,
+  getInitialEditorContent,
   normalizeBlock,
 } from "./PostBodyEditor";
 
 describe("PostBodyEditor configuration", () => {
+  it("omits empty initial content so BlockNote can create its default paragraph", () => {
+    expect(
+      getInitialEditorContent({ format: "blocknote@1", blocks: [] }),
+    ).toBeUndefined();
+  });
+
   it("keeps only the approved slash menu items", () => {
     const items = [
       { key: "heading", title: "Heading 1" },

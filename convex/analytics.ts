@@ -11,6 +11,11 @@ import { requirePublishedPost } from "./postLifecycle";
 
 const UTC_DAY_MS = 24 * 60 * 60 * 1000;
 
+type FollowerGrowthPoint = {
+  dayStart: number;
+  gainedCount: number;
+};
+
 /**
  * Returns the UTC day start timestamp for a given timestamp.
  *
@@ -20,6 +25,21 @@ const UTC_DAY_MS = 24 * 60 * 60 * 1000;
 export function getUtcDayStart(timestamp: number): number {
   const date = new Date(timestamp);
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+export function buildFollowerGrowthSeries(
+  asOfDayStart: number,
+  growthDays: FollowerGrowthPoint[],
+): FollowerGrowthPoint[] {
+  const followerGrowthStart = asOfDayStart - 29 * UTC_DAY_MS;
+  const gainsByDay = new Map(
+    growthDays.map(({ dayStart, gainedCount }) => [dayStart, gainedCount]),
+  );
+
+  return Array.from({ length: 30 }, (_, index) => {
+    const dayStart = followerGrowthStart + index * UTC_DAY_MS;
+    return { dayStart, gainedCount: gainsByDay.get(dayStart) ?? 0 };
+  });
 }
 
 /**
@@ -166,6 +186,9 @@ export const getSummary = query({
       followerCount: v.number(),
       followerGrowth: v.number(),
       followerGrowthStart: v.number(),
+      followerGrowthDays: v.array(
+        v.object({ dayStart: v.number(), gainedCount: v.number() }),
+      ),
     }),
     v.null(),
   ),
@@ -190,16 +213,21 @@ export const getSummary = query({
           .lte("dayStart", asOfDayStart),
       )
       .take(30);
+    const followerGrowthDays = buildFollowerGrowthSeries(
+      asOfDayStart,
+      growthDays,
+    );
 
     return {
       views: analytics?.uniqueViews ?? 0,
       likes: Math.max(0, analytics?.likesReceived ?? 0),
       followerCount: user.followerCount ?? 0,
-      followerGrowth: growthDays.reduce(
+      followerGrowth: followerGrowthDays.reduce(
         (total, day) => total + day.gainedCount,
         0,
       ),
       followerGrowthStart,
+      followerGrowthDays,
     };
   },
 });

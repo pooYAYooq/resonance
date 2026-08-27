@@ -10,6 +10,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import {
+  buildFollowerGrowthSeries,
   getUtcDayStart,
   incrementAuthorAnalytics,
   incrementFollowerGrowthInTransaction,
@@ -19,6 +20,7 @@ import {
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+const UTC_DAY_MS = 24 * 60 * 60 * 1000;
 
 const publishedPost = {
   title: "Published",
@@ -39,6 +41,36 @@ describe("analytics storage contracts", () => {
     expect(getUtcDayStart(Date.UTC(2026, 7, 26, 19, 30))).toBe(
       Date.UTC(2026, 7, 26),
     );
+  });
+
+  it("densifies the trailing 30 UTC days and fills missing days with zero", () => {
+    const asOfDayStart = Date.UTC(2026, 7, 26);
+
+    const series = buildFollowerGrowthSeries(asOfDayStart, [
+      { dayStart: asOfDayStart - 2 * UTC_DAY_MS, gainedCount: 2 },
+      { dayStart: asOfDayStart, gainedCount: 3 },
+    ]);
+
+    expect(series).toHaveLength(30);
+    expect(series[0]).toEqual({
+      dayStart: asOfDayStart - 29 * UTC_DAY_MS,
+      gainedCount: 0,
+    });
+    expect(series[27]).toEqual({
+      dayStart: asOfDayStart - 2 * UTC_DAY_MS,
+      gainedCount: 2,
+    });
+    expect(series[28]).toEqual({
+      dayStart: asOfDayStart - UTC_DAY_MS,
+      gainedCount: 0,
+    });
+    expect(series[29]).toEqual({ dayStart: asOfDayStart, gainedCount: 3 });
+    expect(series.map(({ dayStart }) => dayStart)).toEqual(
+      [...series]
+        .sort((left, right) => left.dayStart - right.dayStart)
+        .map(({ dayStart }) => dayStart),
+    );
+    expect(series.reduce((total, day) => total + day.gainedCount, 0)).toBe(5);
   });
 
   it("records a viewer only once and increments post and author totals", async () => {
