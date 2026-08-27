@@ -4,19 +4,32 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 2.8 — Analytics Dashboard UI (up next)
+Phase 3 — The Platform (up next)
 
 ## Next focus
 
-Phase 2.7 — Analytics Foundation is shipped. Phase 2.8 is the next focus.
+Phase 2.8 — Analytics Dashboard UI is shipped. Phase 3 is the next focus.
 
 ## Current verification
 
 - `pnpm lint` — passed.
-- `pnpm test:ci` — passed: 16 files, 162 tests.
-- `pnpm test:component` — passed: 44 files, 244 tests.
+- `pnpm test:ci` — passed: 16 files, 163 tests.
+- `pnpm test:component` — passed: 45 files, 251 tests.
 - `pnpm build` — passed, including TypeScript validation.
 - `git diff --check` — passed.
+- Phase 2.8 targeted Convex and component tests — passed.
+- Phase 2.8 chart and summary Prettier checks — passed.
+- Phase 2.8 tooltip polish chart tests — passed: 6 tests.
+- Tooltip primitive and chart Prettier checks — passed.
+- Tooltip polish full verification — passed: lint, 16 files/163 backend tests,
+  45 files/249 component tests, production build, and `git diff --check`.
+- Chart scale and hover emphasis correction — targeted chart tests passed: 6
+  tests; full verification passed: lint, 16 files/163 backend tests, 45
+  files/251 component tests, production build, Prettier, and `git diff --check`.
+- Manual authenticated dashboard verification — partially completed: four cards
+  appear before previews, sparse dates and mobile layout are usable, and the
+  zero-state caption is correct. Nonzero bar proportionality and the
+  card/series sum remain unverified because no follower-growth data is available.
 - Task 6 targeted Convex and component tests — passed.
 - Task 6 targeted Prettier checks — passed.
 - Follow-counter contract cleanup — `npx tsc --noEmit` passed; required
@@ -40,12 +53,13 @@ Phase 2.7 — Analytics Foundation is shipped. Phase 2.8 is the next focus.
 - Phase 2.5 — Author Dashboard
 - Phase 2.6 — Post Editing
 - Phase 2.7 — Analytics Foundation
+- Phase 2.8 — Analytics Dashboard UI
 
 ## Where to continue
 
 - Detailed roadmap: [`FEATURES.md`](../FEATURES.md)
 - Architecture reference: [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)
-- Next focus: Phase 2.8 — Analytics Dashboard UI
+- Next focus: Phase 3 — The Platform
 
 ## Status maintenance
 

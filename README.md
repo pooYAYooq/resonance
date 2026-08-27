@@ -15,7 +15,7 @@
 | **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                                                    |
 | **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                                                   |
 | **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings`                                                                                            |
-| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, saved-post previews, and published-post edit actions                                                                         |
+| **Author Dashboard** | Private workspace at `/dashboard` with analytics cards and follower-growth chart, drafts, published posts, saved-post previews, and published-post edit actions                              |
 | **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                                                    |
 | **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                                               |
 | **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                                                         |
@@ -36,8 +36,8 @@ Feature statuses are:
 - **Shipped** — available in the product.
 
 The short resume point is [`docs/status.md`](docs/status.md). The author
-dashboard and published post editing are shipped; analytics remains the next
-roadmap focus.
+dashboard, published post editing, and analytics dashboard are shipped; Phase 3
+is the next roadmap focus.
 
 ---
 
@@ -150,7 +150,7 @@ app/
       drafts/page.tsx         # Full owner-scoped draft list
       published/page.tsx      # Full current-author published list
       saved/page.tsx          # Full bookmarked-post list
-      _components/            # Shell, navigation, sections, previews, and rows
+      _components/            # Shell, navigation, analytics, sections, previews, and rows
     settings/
       page.tsx                # Edit display name + bio
     u/[userId]/

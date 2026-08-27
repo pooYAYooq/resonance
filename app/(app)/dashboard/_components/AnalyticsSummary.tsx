@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
+import { FollowerGrowthChart } from "./FollowerGrowthChart";
 
 export function AnalyticsSummary() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -42,32 +44,51 @@ export function AnalyticsSummary() {
 
   if (!isAuthenticated || !summary) return null;
 
-  const followerGrowthLabel = `${summary.followerGrowth} follower${summary.followerGrowth === 1 ? "" : "s"} gained in the last 30 days`;
+  const followerGrowth = summary.followerGrowthDays.reduce(
+    (total, day) => total + day.gainedCount,
+    0,
+  );
 
   return (
-    <section aria-labelledby="analytics-title" className="space-y-4">
+    <section aria-labelledby="analytics-title" className="flex flex-col gap-4">
       <h2 id="analytics-title" className="text-xl font-semibold">
         Analytics
       </h2>
-      <dl className="grid gap-4 sm:grid-cols-3">
-        <div>
-          <dt className="sr-only">Unique Views</dt>
-          <dd className="text-lg font-semibold">
-            {summary.views} Unique Views
-          </dd>
-        </div>
-        <div>
-          <dt className="sr-only">Likes</dt>
-          <dd className="text-lg font-semibold">{summary.likes} Likes</dd>
-        </div>
-        <div>
-          <dt className="sr-only">Followers</dt>
-          <dd className="text-lg font-semibold">
-            {summary.followerCount} Followers
-          </dd>
-        </div>
-      </dl>
-      <p className="text-sm text-muted-foreground">{followerGrowthLabel}</p>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Unique Views</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {summary.views}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Likes Received</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {summary.likes}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Followers</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {summary.followerCount}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>New Followers (30 days)</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {followerGrowth}
+          </CardContent>
+        </Card>
+      </div>
+      <FollowerGrowthChart points={summary.followerGrowthDays} />
     </section>
   );
 }
