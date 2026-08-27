@@ -307,6 +307,10 @@ export type PostBodyEditorProps = {
   ) => void;
 };
 
+export function getInitialEditorContent(initialContent?: BlockNoteDocument) {
+  return initialContent?.blocks.length ? initialContent.blocks : undefined;
+}
+
 async function retryFinalize(
   finalizePendingUpload: (args: {
     sessionId: Id<"pendingUploads">;
@@ -388,7 +392,7 @@ export default function PostBodyEditor({
 
   const editor = useCreateBlockNote({
     schema: editorSchema,
-    initialContent: initialContent?.blocks as never,
+    initialContent: getInitialEditorContent(initialContent) as never,
     uploadFile: async (file) => {
       if (
         !isAllowedInlineImageType(file.type) ||
@@ -446,8 +450,9 @@ export default function PostBodyEditor({
   });
 
   useEffect(() => {
-    if (!initialContent) return;
-    void editor.replaceBlocks(editor.document, initialContent.blocks as never);
+    const blocks = getInitialEditorContent(initialContent);
+    if (!blocks) return;
+    void editor.replaceBlocks(editor.document, blocks as never);
   }, [editor, initialContent]);
 
   return (
