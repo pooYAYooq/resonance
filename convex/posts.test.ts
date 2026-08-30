@@ -126,6 +126,48 @@ describe("posts functions", () => {
     ).toBe("Published");
   });
 
+  it("returns isBookmarked false for anonymous callers across published post reads", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Saved by someone else",
+        body: "Body.",
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 2,
+        tags: [],
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 2,
+        updatedAt: 2,
+      });
+      await ctx.db.insert("bookmarks", {
+        userId: "other-user",
+        postId,
+        createdAt: 3,
+      });
+      return postId;
+    });
+
+    // convex-test cannot register Better Auth's component fixture, so this
+    // asserts the strongest available boundary: another user's bookmark is
+    // never exposed to an anonymous caller. Authenticated ownership remains
+    // server-derived through safeGetAuthUser in production.
+    const global = await t.query(api.posts.getPosts, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    const author = await t.query(api.posts.getPostsByAuthorId, {
+      authorId: "author-1",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    const detail = await t.query(api.posts.getPostById, { postId });
+
+    expect(global.page[0].isBookmarked).toBe(false);
+    expect(author.page[0].isBookmarked).toBe(false);
+    expect(detail?.isBookmarked).toBe(false);
+  });
+
   const storageId = "storage-image-1" as Id<"_storage">;
   const secondStorageId = "storage-image-2" as Id<"_storage">;
   const sessionId = "session-1" as Id<"pendingUploads">;

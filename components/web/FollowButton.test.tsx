@@ -28,7 +28,7 @@ const {
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => useConvexAuthState(),
-  useQuery: () => useQueryMock(),
+  useQuery: (_query: unknown, args: unknown) => useQueryMock(args),
   useMutation: () => useMutationMock,
 }));
 
@@ -51,7 +51,11 @@ vi.mock("@/convex/_generated/api", () => ({
 
 import { FollowButton } from "./FollowButton";
 
-const baseProps = { profileUserId: "author-1", authorName: "Ada" };
+const baseProps = {
+  profileUserId: "author-1",
+  authorName: "Ada",
+  isFollowing: false,
+};
 
 describe("FollowButton", () => {
   beforeEach(() => {
@@ -72,14 +76,12 @@ describe("FollowButton", () => {
 
   it("renders 'Follow' when isFollowing is false", () => {
     render(<FollowButton {...baseProps} />);
-    expect(
-      screen.getByRole("button", { name: /follow/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /follow/i })).toBeInTheDocument();
   });
 
   it("renders 'Following' when isFollowing is true", () => {
-    useQueryMock.mockReturnValue(true);
-    render(<FollowButton {...baseProps} />);
+    useQueryMock.mockReturnValue(undefined);
+    render(<FollowButton {...baseProps} isFollowing={true} />);
     // The visible label is the `<span>Following</span>`; the accessible
     // name is the aria-label ("Unfollow Ada"), so query by visible text.
     expect(screen.getByText("Following")).toBeInTheDocument();
@@ -90,8 +92,8 @@ describe("FollowButton", () => {
   });
 
   it("sets aria-pressed to true when following", () => {
-    useQueryMock.mockReturnValue(true);
-    render(<FollowButton {...baseProps} />);
+    useQueryMock.mockReturnValue(undefined);
+    render(<FollowButton {...baseProps} isFollowing={true} />);
     expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -130,18 +132,43 @@ describe("FollowButton", () => {
       isAuthenticated: false,
       isLoading: false,
     });
+    window.history.replaceState({}, "", "/u/author-1?view=posts#follow");
     render(<FollowButton {...baseProps} />);
 
     await user.click(screen.getByRole("button", { name: /follow/i }));
-    expect(pushMock).toHaveBeenCalledWith("/auth/login");
+    expect(pushMock).toHaveBeenCalledWith(
+      "/auth/login?returnTo=%2Fu%2Fauthor-1%3Fview%3Dposts%23follow",
+    );
     expect(useMutationMock).not.toHaveBeenCalled();
   });
 
   it("renders 'Follow' while the isFollowing query is loading", () => {
     useQueryMock.mockReturnValue(undefined);
     render(<FollowButton {...baseProps} />);
-    expect(
-      screen.getByRole("button", { name: /follow/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /follow/i })).toBeInTheDocument();
+  });
+
+  it("skips the private follow query until resolved authentication is authenticated", () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: true,
+    });
+    render(<FollowButton {...baseProps} />);
+    expect(useQueryMock).toHaveBeenLastCalledWith("skip");
+
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    render(<FollowButton {...baseProps} />);
+    expect(useQueryMock).toHaveBeenLastCalledWith("skip");
+  });
+
+  it("queries follows after resolved authenticated authentication", () => {
+    render(<FollowButton {...baseProps} />);
+
+    expect(useQueryMock).toHaveBeenLastCalledWith({
+      followingId: "author-1",
+    });
   });
 });

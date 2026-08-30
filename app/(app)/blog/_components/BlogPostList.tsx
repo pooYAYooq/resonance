@@ -1,4 +1,4 @@
-import { fetchQuery } from "convex/nextjs";
+import { fetchAuthQuery } from "@/lib/auth-server";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "@/convex/_generated/api";
 import { PostCard } from "@/components/web/PostCard";
@@ -15,6 +15,7 @@ type BlogPost = {
   commentCount: number;
   likeCount?: number;
   isLiked?: boolean;
+  isBookmarked: boolean;
   createdAt: number;
   authorId: string;
   authorName: string | null;
@@ -39,7 +40,7 @@ export async function BlogPostList({ tag }: BlogPostListProps) {
   let isDone = false;
 
   while (!isDone && posts.length < 50) {
-    const result: GetPostsResult = await fetchQuery(api.posts.getPosts, {
+    const result: GetPostsResult = await fetchAuthQuery(api.posts.getPosts, {
       tag,
       paginationOpts: { numItems: 50, cursor },
     });
@@ -79,6 +80,7 @@ export async function BlogPostList({ tag }: BlogPostListProps) {
           commentCount={post.commentCount}
           likeCount={post.likeCount ?? 0}
           isLiked={post.isLiked ?? false}
+          isBookmarked={post.isBookmarked}
           createdAt={post.createdAt}
           authorId={post.authorId}
           authorName={post.authorName}

@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-const { fetchQueryMock } = vi.hoisted(() => ({ fetchQueryMock: vi.fn() }));
+const { fetchAuthQueryMock } = vi.hoisted(() => ({
+  fetchAuthQueryMock: vi.fn(),
+}));
 
-vi.mock("convex/nextjs", () => ({ fetchQuery: fetchQueryMock }));
+vi.mock("@/lib/auth-server", () => ({ fetchAuthQuery: fetchAuthQueryMock }));
 vi.mock("@/convex/_generated/api", () => ({
   api: { posts: { getPosts: "getPosts" } },
 }));
@@ -14,10 +16,10 @@ vi.mock("@/components/web/PostCard", () => ({
 import { BlogPostList } from "./BlogPostList";
 
 describe("BlogPostList", () => {
-  beforeEach(() => fetchQueryMock.mockReset());
+  beforeEach(() => fetchAuthQueryMock.mockReset());
 
   it("drains source cursors for a tag-filtered page", async () => {
-    fetchQueryMock
+    fetchAuthQueryMock
       .mockResolvedValueOnce({
         page: [],
         isDone: false,
@@ -47,19 +49,19 @@ describe("BlogPostList", () => {
     render(await BlogPostList({ tag: "Technology" }));
 
     expect(screen.getByText("Tagged post")).toBeInTheDocument();
-    expect(fetchQueryMock).toHaveBeenNthCalledWith(1, "getPosts", {
+    expect(fetchAuthQueryMock).toHaveBeenNthCalledWith(1, "getPosts", {
       tag: "Technology",
       paginationOpts: { numItems: 50, cursor: null },
     });
-    expect(fetchQueryMock).toHaveBeenCalledTimes(2);
-    expect(fetchQueryMock).toHaveBeenNthCalledWith(2, "getPosts", {
+    expect(fetchAuthQueryMock).toHaveBeenCalledTimes(2);
+    expect(fetchAuthQueryMock).toHaveBeenNthCalledWith(2, "getPosts", {
       tag: "Technology",
       paginationOpts: { numItems: 50, cursor: "next" },
     });
   });
 
   it("renders a filtered empty state", async () => {
-    fetchQueryMock.mockResolvedValue({
+    fetchAuthQueryMock.mockResolvedValue({
       page: [],
       isDone: true,
       continueCursor: "",
@@ -67,7 +69,7 @@ describe("BlogPostList", () => {
 
     render(await BlogPostList({ tag: "Technology" }));
     expect(screen.getByText("No posts found")).toBeInTheDocument();
-    expect(fetchQueryMock).toHaveBeenCalledWith("getPosts", {
+    expect(fetchAuthQueryMock).toHaveBeenCalledWith("getPosts", {
       tag: "Technology",
       paginationOpts: { numItems: 50, cursor: null },
     });

@@ -12,6 +12,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { fetchQuery } from "convex/nextjs";
+import { fetchAuthQuery } from "@/lib/auth-server";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Separator } from "@/components/ui/separator";
@@ -81,7 +82,7 @@ export async function generateMetadata({
  */
 export default async function PostIdRoute({ params }: PostIdRouteProps) {
   const { postId } = await params;
-  const post = await fetchQuery(api.posts.getPostById, { postId: postId });
+  const post = await fetchAuthQuery(api.posts.getPostById, { postId });
 
   if (!post || post.publishedAt === undefined) {
     return (
@@ -158,7 +159,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           isLiked={post.isLiked ?? false}
           likeCount={post.likeCount ?? 0}
         />
-        <BookmarkButton postId={postId} />
+        <BookmarkButton postId={postId} isBookmarked={post.isBookmarked} />
       </div>
       <Suspense fallback={null}>
         <CommentSection initialTotalCount={post.commentCount ?? 0} />

@@ -2,12 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { Id } from "@/convex/_generated/dataModel";
 
-const { fetchQueryMock, postViewTrackerMock } = vi.hoisted(() => ({
-  fetchQueryMock: vi.fn(),
-  postViewTrackerMock: vi.fn(() => null),
-}));
+const { fetchQueryMock, fetchAuthQueryMock, postViewTrackerMock } = vi.hoisted(
+  () => ({
+    fetchQueryMock: vi.fn(),
+    fetchAuthQueryMock: vi.fn(),
+    postViewTrackerMock: vi.fn(() => null),
+  }),
+);
 
 vi.mock("convex/nextjs", () => ({ fetchQuery: fetchQueryMock }));
+vi.mock("@/lib/auth-server", () => ({ fetchAuthQuery: fetchAuthQueryMock }));
 vi.mock("@/components/web/CommentSection", () => ({
   CommentSection: () => null,
 }));
@@ -36,6 +40,7 @@ const basePost = {
   imageUrl: null,
   inlineImages: [],
   isLiked: false,
+  isBookmarked: false,
   commentCount: 0,
   likeCount: 0,
   createdAt: 1,
@@ -48,6 +53,7 @@ const basePost = {
 describe("blog post generateMetadata", () => {
   beforeEach(() => {
     fetchQueryMock.mockReset();
+    fetchAuthQueryMock.mockReset();
   });
 
   it("builds the description from readable structured text", async () => {
@@ -87,7 +93,7 @@ describe("blog post generateMetadata", () => {
   it("uses an empty description for a non-canonical body", async () => {
     fetchQueryMock.mockResolvedValue({
       ...basePost,
-       body: "A non-canonical body for metadata.",
+      body: "A non-canonical body for metadata.",
     });
 
     const metadata = await generateMetadata({ params });
@@ -121,11 +127,12 @@ describe("blog post generateMetadata", () => {
 describe("blog post timestamps", () => {
   beforeEach(() => {
     fetchQueryMock.mockReset();
+    fetchAuthQueryMock.mockReset();
     postViewTrackerMock.mockClear();
   });
 
   it("shows the publication date and omits Updated when the post is unchanged", async () => {
-    fetchQueryMock.mockResolvedValue({
+    fetchAuthQueryMock.mockResolvedValue({
       ...basePost,
       createdAt: Date.UTC(2023, 0, 1),
       publishedAt: Date.UTC(2024, 0, 15),
@@ -135,12 +142,14 @@ describe("blog post timestamps", () => {
 
     render(await PostIdRoute({ params }));
 
-    expect(screen.getByText("Published on: January 15, 2024")).toBeInTheDocument();
+    expect(
+      screen.getByText("Published on: January 15, 2024"),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Updated on:/)).toBeNull();
   });
 
   it("shows the last-edited date when updatedAt is after publishedAt", async () => {
-    fetchQueryMock.mockResolvedValue({
+    fetchAuthQueryMock.mockResolvedValue({
       ...basePost,
       createdAt: Date.UTC(2023, 0, 1),
       publishedAt: Date.UTC(2024, 0, 15),
@@ -150,12 +159,16 @@ describe("blog post timestamps", () => {
 
     render(await PostIdRoute({ params }));
 
-    expect(screen.getByText("Published on: January 15, 2024")).toBeInTheDocument();
-    expect(screen.getByText("Updated on: February 20, 2024")).toBeInTheDocument();
+    expect(
+      screen.getByText("Published on: January 15, 2024"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Updated on: February 20, 2024"),
+    ).toBeInTheDocument();
   });
 
   it("does not fall back to createdAt when publishedAt is missing", async () => {
-    fetchQueryMock.mockResolvedValue({
+    fetchAuthQueryMock.mockResolvedValue({
       ...basePost,
       createdAt: Date.UTC(2023, 0, 1),
       publishedAt: undefined,
@@ -170,7 +183,7 @@ describe("blog post timestamps", () => {
   });
 
   it("tracks the resolved ID for a successfully rendered published post", async () => {
-    fetchQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
 
     render(await PostIdRoute({ params }));
 
