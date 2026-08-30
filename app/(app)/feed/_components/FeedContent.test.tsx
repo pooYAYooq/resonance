@@ -76,15 +76,20 @@ describe("FeedContent", () => {
       isAuthenticated: false,
       isLoading: false,
     });
+    window.history.replaceState({}, "", "/feed?filter=following#latest");
     render(<FeedContent />);
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/auth/login"));
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith(
+        "/auth/login?returnTo=%2Ffeed%3Ffilter%3Dfollowing%23latest",
+      ),
+    );
     expect(queryArgsMock).toHaveBeenCalledWith("getFeed", "skip");
   });
 
   it("does not redirect or start the feed query while auth is loading", () => {
     useConvexAuthState.mockReturnValue({
-      isAuthenticated: false,
+      isAuthenticated: true,
       isLoading: true,
     });
     render(<FeedContent />);
@@ -124,7 +129,9 @@ describe("FeedContent", () => {
     render(<FeedContent />);
 
     expect(await screen.findByText("First post")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /load more/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /load more/i }),
+    ).toBeInTheDocument();
   });
 
   it("deduplicates post IDs across loaded pages", async () => {
@@ -148,9 +155,7 @@ describe("FeedContent", () => {
     const user = userEvent.setup();
     render(<FeedContent />);
 
-    await user.click(
-      await screen.findByRole("button", { name: /load more/i }),
-    );
+    await user.click(await screen.findByRole("button", { name: /load more/i }));
     await waitFor(() =>
       expect(screen.getAllByTestId("post-card")).toHaveLength(2),
     );

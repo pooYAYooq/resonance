@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Heart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 interface LikeToggleProps {
   isLiked: boolean;
@@ -57,7 +58,7 @@ export function LikeToggle({
 
   const handleClick = () => {
     if (!isAuthenticated) {
-      router.push("/auth/login");
+      router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
       return;
     }
 

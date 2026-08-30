@@ -36,13 +36,17 @@ import { UserAvatar } from "@/components/web/UserAvatar";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 const MAX_BIO_LENGTH = 160;
 
 export default function SettingsRoute() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
-  const currentUser = useQuery(api.users.getCurrentUser);
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    !isLoading && isAuthenticated ? {} : "skip",
+  );
   const updateProfile = useMutation(api.users.updateProfile);
   const [isPending, startTransition] = useTransition();
 
@@ -55,7 +59,7 @@ export default function SettingsRoute() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
+      router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -121,9 +125,7 @@ export default function SettingsRoute() {
                     <UserAvatar
                       userId={currentUser.userId}
                       name={
-                        displayNameTrimmed ||
-                        currentUser.displayName ||
-                        "User"
+                        displayNameTrimmed || currentUser.displayName || "User"
                       }
                       avatarUrl={currentUser.avatarUrl}
                       className="size-12"

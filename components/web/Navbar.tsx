@@ -40,7 +40,10 @@ import { MobileNavMenu } from "./MobileNavMenu";
 
 export function Navbar() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const currentUser = useQuery(api.users.getCurrentUser);
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    !isLoading && isAuthenticated ? {} : "skip",
+  );
   const router = useRouter();
   const pointerDismissRef = useRef(false);
 

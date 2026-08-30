@@ -39,7 +39,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => useConvexAuthState(),
-  useQuery: () => useQueryState(),
+  useQuery: (_query: unknown, args: unknown) => useQueryState(args),
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
@@ -113,6 +113,13 @@ describe("Navbar", () => {
 
     expect(screen.queryByRole("link", { name: /sign up/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /login/i })).toBeNull();
+    expect(useQueryState).toHaveBeenLastCalledWith("skip");
+  });
+
+  it("skips the private current-user query when authentication is anonymous", () => {
+    render(<Navbar />);
+
+    expect(useQueryState).toHaveBeenLastCalledWith("skip");
   });
 
   it("shows the avatar dropdown trigger when authenticated with a current user", () => {
@@ -122,6 +129,8 @@ describe("Navbar", () => {
       isLoading: false,
     });
     render(<Navbar />);
+
+    expect(useQueryState).toHaveBeenLastCalledWith({});
 
     expect(
       screen.getByRole("button", { name: /open user menu/i }),

@@ -2,8 +2,7 @@
  * NotificationBell — self-subscribing bell with unread badge for the
  * Navbar. Mirrors the self-contained pattern of `BookmarkButton` and
  * `FollowButton`: each owns its `useQuery` call so the bell renders
- * correctly in every auth context, even where server-side `fetchQuery`
- * would run unauthenticated.
+ * correctly after authentication resolves in every auth context.
  *
  * Auth gate: hidden when unauthenticated OR while auth is loading
  * (matches the existing `Create` link and `Reading List` entry's
@@ -30,14 +29,13 @@ export function NotificationBell() {
   const router = useRouter();
   const unread = useQuery(
     api.notifications.getUnreadCount,
-    isAuthenticated ? {} : "skip",
+    !isLoading && isAuthenticated ? {} : "skip",
   );
 
   if (!isAuthenticated || isLoading) return null;
 
   const count = unread ?? 0;
-  const label =
-    count > 0 ? `Notifications, ${count} unread` : "Notifications";
+  const label = count > 0 ? `Notifications, ${count} unread` : "Notifications";
 
   return (
     <Button

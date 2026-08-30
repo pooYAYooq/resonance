@@ -9,6 +9,7 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/web/EmptyState";
 import { PostCard } from "@/components/web/PostCard";
+import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 type FeedPost = Doc<"posts"> & {
   imageUrl: string | null;
@@ -29,13 +30,13 @@ export function FeedContent() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
+      router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
     }
   }, [isLoading, isAuthenticated, router]);
 
   const page = useQuery(
     api.feed.getFeed,
-    isAuthenticated
+    !isLoading && isAuthenticated
       ? {
           asOf,
           paginationOpts: {
@@ -82,6 +83,7 @@ export function FeedContent() {
             commentCount={post.commentCount}
             likeCount={post.likeCount ?? 0}
             isLiked={post.isLiked}
+            isBookmarked={false}
             createdAt={post.createdAt}
             authorId={post.authorId}
             authorName={post.authorName}
