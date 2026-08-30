@@ -27,8 +27,20 @@ vi.mock("@/convex/_generated/api", () => ({
 }));
 
 vi.mock("@/components/web/PostCard", () => ({
-  PostCard: ({ title, postId }: { title: string; postId: string }) => (
-    <article data-testid="post-card" data-post-id={postId}>
+  PostCard: ({
+    title,
+    postId,
+    isBookmarked,
+  }: {
+    title: string;
+    postId: string;
+    isBookmarked: boolean;
+  }) => (
+    <article
+      data-testid="post-card"
+      data-post-id={postId}
+      data-is-bookmarked={isBookmarked}
+    >
       {title}
     </article>
   ),
@@ -46,6 +58,7 @@ const post = (postId: string, title: string) => ({
   commentCount: 0,
   likeCount: 0,
   isLiked: false,
+  isBookmarked: false,
   createdAt: 1_700_000_000_000,
   updatedAt: 1_700_000_000_000,
   authorName: "Author",
@@ -132,6 +145,20 @@ describe("FeedContent", () => {
     expect(
       screen.getByRole("button", { name: /load more/i }),
     ).toBeInTheDocument();
+  });
+
+  it("passes the hydrated bookmark state to each feed card", async () => {
+    useQueryState.mockReturnValue({
+      page: [{ ...post("post-1", "Saved post"), isBookmarked: true }],
+      isDone: true,
+      continueCursor: "",
+    });
+    render(<FeedContent />);
+
+    expect(await screen.findByTestId("post-card")).toHaveAttribute(
+      "data-is-bookmarked",
+      "true",
+    );
   });
 
   it("deduplicates post IDs across loaded pages", async () => {

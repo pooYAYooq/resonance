@@ -16,6 +16,7 @@ type FeedPost = Doc<"posts"> & {
   authorName: string | null;
   authorAvatarUrl: string | null;
   isLiked: boolean;
+  isBookmarked: boolean;
 };
 
 /**
@@ -83,7 +84,7 @@ export function FeedContent() {
             commentCount={post.commentCount}
             likeCount={post.likeCount ?? 0}
             isLiked={post.isLiked}
-            isBookmarked={false}
+            isBookmarked={post.isBookmarked}
             createdAt={post.createdAt}
             authorId={post.authorId}
             authorName={post.authorName}
