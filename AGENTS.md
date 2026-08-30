@@ -48,9 +48,9 @@ Convex agent skills for common tasks can be installed by running
 - Better Auth runs **inside Convex**. User/session records live in the same
   Convex DB as app data. Auth flows: browser → Next.js route handler
   (`app/api/auth/[...all]/route.ts`) → Convex HTTP (`convex/http.ts`).
-- `ConvexClientProvider` sets `expectAuth: true` — Convex queries/mutations
-  won't fire until the user is authenticated. This can confuse agents
-  debugging "no data" issues in unauthenticated contexts.
+- `ConvexClientProvider` allows public queries without authentication. Client
+  components must locally skip viewer-aware public queries while auth is
+  resolving and skip private queries unless authentication is resolved.
 - Keep `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` in sync with
   the Convex dashboard deployment. `SITE_URL` goes in Convex dashboard env
   vars only.

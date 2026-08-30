@@ -4,36 +4,27 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 3 — The Platform (up next)
+Phase 3A.1 — Product Structure (up next)
 
 ## Next focus
 
-Phase 2.8 — Analytics Dashboard UI is shipped. Phase 3 is the next focus.
+Phase 3A.0 — UX Correctness is shipped. Phase 3A.1 is the sole next focus.
 
 ## Current verification
 
-- `pnpm lint` — passed.
-- `pnpm test:ci` — passed: 16 files, 163 tests.
-- `pnpm test:component` — passed: 45 files, 251 tests.
-- `pnpm build` — passed, including TypeScript validation.
-- `git diff --check` — passed.
-- Phase 2.8 targeted Convex and component tests — passed.
-- Phase 2.8 chart and summary Prettier checks — passed.
-- Phase 2.8 tooltip polish chart tests — passed: 6 tests.
-- Tooltip primitive and chart Prettier checks — passed.
-- Tooltip polish full verification — passed: lint, 16 files/163 backend tests,
-  45 files/249 component tests, production build, and `git diff --check`.
-- Chart scale and hover emphasis correction — targeted chart tests passed: 6
-  tests; full verification passed: lint, 16 files/163 backend tests, 45
-  files/251 component tests, production build, Prettier, and `git diff --check`.
-- Manual authenticated dashboard verification — partially completed: four cards
-  appear before previews, sparse dates and mobile layout are usable, and the
-  zero-state caption is correct. Nonzero bar proportionality and the
-  card/series sum remain unverified because no follower-growth data is available.
-- Task 6 targeted Convex and component tests — passed.
-- Task 6 targeted Prettier checks — passed.
-- Follow-counter contract cleanup — `npx tsc --noEmit` passed; required
-  counters replace the removed compatibility paths.
+- Phase 3A.0 — `pnpm lint` passed; `pnpm test:ci` passed: 17 files, 179 tests;
+  `pnpm test:component` passed: 53 files, 284 tests; `pnpm build` passed; and
+  `git diff --check` passed.
+- Phase 3A.0 formatting passed for every stageable file changed by this slice.
+  The local `docs/superpowers/**` planning artifacts remain intentionally
+  unstaged and excluded from the staging slice.
+- Repository-wide `pnpm format:check` remains blocked by 46 pre-existing or
+  unrelated files outside the Phase 3A.0 diff, including 28 tracked skill
+  assets and 18 application/configuration files. No formatter exclusions or
+  unrelated formatting changes were added.
+- Better Auth 1.5.3 defaults are intentionally used: finite seven-day sessions
+  with one-day sliding refresh; no custom session configuration or client
+  inactivity logout timer exists.
 - Known limitation: authenticated owner-scoped post mutation tests remain
   limited by the Better Auth component fixture in `convex-test`.
 - The Convex test harness prints a scheduled-cleanup transaction warning in one
@@ -54,12 +45,13 @@ Phase 2.8 — Analytics Dashboard UI is shipped. Phase 3 is the next focus.
 - Phase 2.6 — Post Editing
 - Phase 2.7 — Analytics Foundation
 - Phase 2.8 — Analytics Dashboard UI
+- Phase 3A.0 — UX Correctness
 
 ## Where to continue
 
 - Detailed roadmap: [`FEATURES.md`](../FEATURES.md)
 - Architecture reference: [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)
-- Next focus: Phase 3 — The Platform
+- Next focus: Phase 3A.1 — Product Structure
 
 ## Status maintenance
 
