@@ -50,7 +50,8 @@ Convex agent skills for common tasks can be installed by running
   (`app/api/auth/[...all]/route.ts`) → Convex HTTP (`convex/http.ts`).
 - `ConvexClientProvider` allows public queries without authentication. Client
   components must locally skip viewer-aware public queries while auth is
-  resolving and skip private queries unless authentication is resolved.
+  resolving and run private queries only after authentication has resolved and
+  `isAuthenticated` is true.
 - Keep `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` in sync with
   the Convex dashboard deployment. `SITE_URL` goes in Convex dashboard env
   vars only.
