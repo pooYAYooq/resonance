@@ -63,6 +63,12 @@ export const getFeed = query({
           q.eq("postId", post._id).eq("userId", authUser._id),
         )
         .unique();
+      const bookmark = await ctx.db
+        .query("bookmarks")
+        .withIndex("by_userId_and_postId", (q) =>
+          q.eq("userId", authUser._id).eq("postId", post._id),
+        )
+        .unique();
 
       hydrated.push({
         ...post,
@@ -71,6 +77,7 @@ export const getFeed = query({
         authorName: user?.displayName ?? null,
         authorAvatarUrl: user?.avatarUrl ?? null,
         isLiked: !!like,
+        isBookmarked: !!bookmark,
       });
     }
 

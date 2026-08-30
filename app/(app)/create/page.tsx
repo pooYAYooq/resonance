@@ -32,6 +32,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 import { getEditorCapabilities, resolveEditorMode } from "./editorMode";
+import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
   ssr: false,
@@ -122,7 +123,6 @@ function CreateEditor() {
   const inlineSessions = useRef(
     new Map<Id<"pendingUploads">, Id<"_storage">>(),
   );
-  const submitMode = useRef<SubmitMode>("publish");
 
   const form = useForm<PostFormInput, undefined, PostFormOutput>({
     resolver: zodResolver(draftPostSchema),
@@ -136,7 +136,7 @@ function CreateEditor() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
+      router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -425,9 +425,6 @@ function CreateEditor() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void form.handleSubmit((values) =>
-                onSubmit(values, submitMode.current),
-              )(event);
             }}
           >
             <FieldGroup className="gap-y-4">
@@ -513,27 +510,39 @@ function CreateEditor() {
               <div className="flex gap-2">
                 {capabilities.canSaveDraft && (
                   <Button
-                    type="submit"
+                    type="button"
                     variant="outline"
                     disabled={isPending}
                     onClick={() => {
-                      submitMode.current = "draft";
+                      void form.handleSubmit((values) =>
+                        onSubmit(values, "draft"),
+                      )();
                     }}
                   >
                     Save Draft
                   </Button>
                 )}
                 {capabilities.canUpdate && (
-                  <Button type="submit" disabled={isPending}>
+                  <Button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => {
+                      void form.handleSubmit((values) =>
+                        onSubmit(values, "publish"),
+                      )();
+                    }}
+                  >
                     {isPending ? "Updating..." : "Update Published Post"}
                   </Button>
                 )}
                 {capabilities.canPublish && (
                   <Button
-                    type="submit"
+                    type="button"
                     disabled={isPending}
                     onClick={() => {
-                      submitMode.current = "publish";
+                      void form.handleSubmit((values) =>
+                        onSubmit(values, "publish"),
+                      )();
                     }}
                   >
                     {isPending ? (

@@ -79,6 +79,7 @@ export function SavedSection() {
             commentCount={post.commentCount}
             likeCount={post.likeCount ?? 0}
             isLiked={post.isLiked ?? false}
+            isBookmarked={true}
             createdAt={post.createdAt}
             authorId={post.authorId}
             authorName={post.authorName}

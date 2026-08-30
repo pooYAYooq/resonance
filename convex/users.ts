@@ -99,54 +99,6 @@ export const getCurrentUser = query({
 });
 
 /**
- * Get a user by their app-level Convex document ID.
- *
- * Used when you already have the `users._id` (e.g. from a foreign key or
- * query result) and need the full profile.
- */
-export const getUserById = query({
-  args: { id: v.id("users") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
-  },
-});
-
-/**
- * Get a user by their Better Auth user ID (string).
- *
- * Used for cross-referencing auth identity with app-level records,
- * primarily in `syncUser` and admin lookups.
- */
-export const getUserByAuthId = query({
-  args: { userId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("users")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .unique();
-  },
-});
-
-/**
- * Get a user by their email address.
- *
- * Supports admin lookups, password resets, and "find user" flows.
- * Relies on the `by_email` index on the `users` table.
- *
- * @param args.email - `string`: Exact email address to search for.
- * @returns The user record or `null` if no matching email exists.
- */
-export const getUserByEmail = query({
-  args: { email: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
-      .unique();
-  },
-});
-
-/**
  * Gets a user's public profile including their post count.
  *
  * Looks up the user by their Better Auth user ID and returns the profile
@@ -167,6 +119,16 @@ export const getUserProfile = query({
 
     if (!user) return null;
 
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    const isFollowing = authUser
+      ? !!(await ctx.db
+          .query("follows")
+          .withIndex("by_followerId_and_followingId", (q) =>
+            q.eq("followerId", authUser._id).eq("followingId", args.userId),
+          )
+          .unique())
+      : false;
+
     let postCount = 0;
     const posts = ctx.db
       .query("posts")
@@ -177,7 +139,17 @@ export const getUserProfile = query({
       postCount += post.status === "published" ? 1 : 0;
     }
 
-    return { ...user, postCount };
+    return {
+      userId: user.userId,
+      displayName: user.displayName,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl,
+      followerCount: user.followerCount,
+      followingCount: user.followingCount,
+      postCount,
+      viewerId: authUser?._id ?? null,
+      isFollowing,
+    };
   },
 });
 

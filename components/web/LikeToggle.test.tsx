@@ -88,10 +88,13 @@ describe("LikeToggle", () => {
       isAuthenticated: false,
       isLoading: false,
     });
+    window.history.replaceState({}, "", "/blog/post-1?tag=design#comments");
     render(<LikeToggle {...baseProps} />);
 
     await user.click(screen.getByRole("button"));
-    expect(pushMock).toHaveBeenCalledWith("/auth/login");
+    expect(pushMock).toHaveBeenCalledWith(
+      "/auth/login?returnTo=%2Fblog%2Fpost-1%3Ftag%3Ddesign%23comments",
+    );
     expect(onToggleMock).not.toHaveBeenCalled();
   });
 

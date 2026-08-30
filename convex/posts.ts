@@ -600,6 +600,7 @@ export const getPosts = query({
           .unique();
 
         let isLiked = false;
+        let isBookmarked = false;
         if (authUser) {
           const like = await ctx.db
             .query("likes")
@@ -608,6 +609,13 @@ export const getPosts = query({
             )
             .unique();
           isLiked = !!like;
+          const bookmark = await ctx.db
+            .query("bookmarks")
+            .withIndex("by_userId_and_postId", (q) =>
+              q.eq("userId", authUser._id).eq("postId", post._id),
+            )
+            .unique();
+          isBookmarked = !!bookmark;
         }
 
         return {
@@ -617,6 +625,7 @@ export const getPosts = query({
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,
           isLiked,
+          isBookmarked,
         };
       }),
     );
@@ -701,6 +710,7 @@ export const getPostById = query({
     );
 
     let isLiked = false;
+    let isBookmarked = false;
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (authUser) {
       const like = await ctx.db
@@ -710,6 +720,13 @@ export const getPostById = query({
         )
         .unique();
       isLiked = !!like;
+      const bookmark = await ctx.db
+        .query("bookmarks")
+        .withIndex("by_userId_and_postId", (q) =>
+          q.eq("userId", authUser._id).eq("postId", post._id),
+        )
+        .unique();
+      isBookmarked = !!bookmark;
     }
 
     return {
@@ -718,6 +735,7 @@ export const getPostById = query({
       imageUrl: resolvedImageUrl,
       inlineImages,
       isLiked,
+      isBookmarked,
     };
   },
 });
@@ -763,6 +781,7 @@ export const getPostsByAuthorId = query({
           : null;
 
         let isLiked = false;
+        let isBookmarked = false;
         if (authUser) {
           const like = await ctx.db
             .query("likes")
@@ -771,6 +790,13 @@ export const getPostsByAuthorId = query({
             )
             .unique();
           isLiked = !!like;
+          const bookmark = await ctx.db
+            .query("bookmarks")
+            .withIndex("by_userId_and_postId", (q) =>
+              q.eq("userId", authUser._id).eq("postId", post._id),
+            )
+            .unique();
+          isBookmarked = !!bookmark;
         }
 
         return {
@@ -780,6 +806,7 @@ export const getPostsByAuthorId = query({
           authorName: user?.displayName ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,
           isLiked,
+          isBookmarked,
         };
       }),
     );

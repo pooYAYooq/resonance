@@ -8,7 +8,7 @@
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { fetchQuery } from "convex/nextjs";
+import { fetchAuthQuery } from "@/lib/auth-server";
 import { api } from "@/convex/_generated/api";
 import { PostCard } from "@/components/web/PostCard";
 import { SectionHeading } from "@/components/web/SectionHeading";
@@ -20,7 +20,7 @@ import Link from "next/link";
  * @returns The rendered recent posts section.
  */
 export async function RecentPostsSection() {
-  const postsResult = await fetchQuery(api.posts.getPosts, {
+  const postsResult = await fetchAuthQuery(api.posts.getPosts, {
     paginationOpts: { numItems: 4, cursor: null },
   });
 
@@ -55,6 +55,7 @@ export async function RecentPostsSection() {
               commentCount={post.commentCount}
               likeCount={post.likeCount ?? 0}
               isLiked={post.isLiked ?? false}
+              isBookmarked={post.isBookmarked}
               createdAt={post.createdAt}
               authorId={post.authorId}
               authorName={post.authorName}

@@ -13,14 +13,20 @@ import { commentBodySchema } from "@/schemas/comment";
 import { Field, FieldError, FieldLabel } from "../ui/field";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
-import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
+import {
+  useConvexAuth,
+  useMutation,
+  usePaginatedQuery,
+  useQuery,
+} from "convex/react";
 import { api } from "@/convex/_generated/api";
 import z from "zod";
 import { toast } from "sonner";
 import { useTransition } from "react";
 import { CommentCard } from "./CommentCard";
+import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 interface CommentSectionProps {
   initialTotalCount: number;
@@ -39,8 +45,10 @@ export function CommentSection({ initialTotalCount }: CommentSectionProps) {
   const [isPending, startTransition] = useTransition();
 
   const params = useParams<{ postId: Id<"posts"> }>();
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+  const router = useRouter();
   const postId = params?.postId;
-  const queryArgs = postId ? { postId } : "skip";
+  const queryArgs = isAuthLoading || !postId ? "skip" : { postId };
 
   // Convex paginated query for comments. Ordered newest-first.
   const {
@@ -146,35 +154,61 @@ export function CommentSection({ initialTotalCount }: CommentSectionProps) {
           </div>
         )}
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <Controller
-            name="body"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field className="gap-y-3">
-                <FieldLabel>Reply</FieldLabel>
-                <Textarea
-                  aria-invalid={fieldState.invalid}
-                  placeholder="Add a comment..."
-                  {...field}
-                />
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
-          <Button disabled={isPending}>
-            {isPending ? (
-              <>
-                <Loader2 className="animate-spin size-4" />
-                <span className="ml-2">Loading...</span>
-              </>
-            ) : (
-              <span>Comment</span>
-            )}
-          </Button>
-        </form>
+        {isAuthenticated ? (
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Controller
+              name="body"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field className="gap-y-3">
+                  <FieldLabel>Reply</FieldLabel>
+                  <Textarea
+                    aria-invalid={fieldState.invalid}
+                    placeholder="Add a comment..."
+                    {...field}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+            <Button disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="animate-spin size-4" />
+                  <span className="ml-2">Loading...</span>
+                </>
+              ) : (
+                <span>Comment</span>
+              )}
+            </Button>
+          </form>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Sign in to join the conversation.</span>
+            <Button
+              variant="link"
+              className="h-auto p-0"
+              onClick={() =>
+                router.push(buildAuthHref("/auth/login", getCurrentReturnTo()))
+              }
+            >
+              Sign in
+            </Button>
+            <Button
+              variant="link"
+              className="h-auto p-0"
+              onClick={() =>
+                router.push(
+                  buildAuthHref("/auth/sign-up", getCurrentReturnTo()),
+                )
+              }
+            >
+              Sign up
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

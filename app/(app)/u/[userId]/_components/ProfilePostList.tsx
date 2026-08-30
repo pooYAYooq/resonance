@@ -10,7 +10,7 @@
 
 "use client";
 
-import { usePaginatedQuery } from "convex/react";
+import { useConvexAuth, usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PostCard } from "@/components/web/PostCard";
 import { EmptyState } from "@/components/web/EmptyState";
@@ -28,9 +28,10 @@ interface ProfilePostListProps {
  * @param userId - The ID of the user whose posts should be displayed
  */
 export function ProfilePostList({ userId }: ProfilePostListProps) {
+  const { isLoading: isAuthLoading } = useConvexAuth();
   const { results, status, loadMore, isLoading } = usePaginatedQuery(
     api.posts.getPostsByAuthorId,
-    { authorId: userId },
+    isAuthLoading ? "skip" : { authorId: userId },
     { initialNumItems: 12 },
   );
 
@@ -61,6 +62,7 @@ export function ProfilePostList({ userId }: ProfilePostListProps) {
             commentCount={post.commentCount}
             likeCount={post.likeCount ?? 0}
             isLiked={post.isLiked ?? false}
+            isBookmarked={post.isBookmarked}
             createdAt={post.createdAt}
             authorId={post.authorId}
             authorName={post.authorName}

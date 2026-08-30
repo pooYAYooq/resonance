@@ -13,6 +13,7 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { fetchQuery } from "convex/nextjs";
+import { fetchAuthQuery } from "@/lib/auth-server";
 import { api } from "@/convex/_generated/api";
 import { ProfileHeader } from "@/components/web/ProfileHeader";
 import { SectionHeading } from "@/components/web/SectionHeading";
@@ -28,14 +29,14 @@ interface ProfileRouteProps {
 }
 
 const getProfile = cache(async (userId: string) => {
-  return await fetchQuery(api.users.getUserProfile, { userId });
+  return await fetchAuthQuery(api.users.getUserProfile, { userId });
 });
 
 export async function generateMetadata({
   params,
 }: ProfileRouteProps): Promise<Metadata> {
   const { userId } = await params;
-  const profile = await getProfile(userId);
+  const profile = await fetchQuery(api.users.getUserProfile, { userId });
 
   if (!profile) {
     return { title: "User not found" };
@@ -85,6 +86,8 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
           <ProfileActionButton
             profileUserId={profile.userId}
             authorName={displayName}
+            viewerId={profile.viewerId}
+            isFollowing={profile.isFollowing}
           />
         }
         stats={

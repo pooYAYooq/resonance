@@ -29,7 +29,7 @@ const {
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => useConvexAuthState(),
-  useQuery: () => useQueryMock(),
+  useQuery: (_query: unknown, args: unknown) => useQueryMock(args),
   useMutation: () => useMutationMock,
 }));
 
@@ -52,7 +52,7 @@ vi.mock("@/convex/_generated/api", () => ({
 
 import { BookmarkButton } from "./BookmarkButton";
 
-const baseProps = { postId: "post-1" as Id<"posts"> };
+const baseProps = { postId: "post-1" as Id<"posts">, isBookmarked: false };
 
 describe("BookmarkButton", () => {
   beforeEach(() => {
@@ -80,8 +80,8 @@ describe("BookmarkButton", () => {
   });
 
   it("renders the saved affordance when isBookmarked is true", () => {
-    useQueryMock.mockReturnValue(true);
-    render(<BookmarkButton {...baseProps} />);
+    useQueryMock.mockReturnValue(undefined);
+    render(<BookmarkButton {...baseProps} isBookmarked={true} />);
     expect(
       screen.getByRole("button", { name: /remove from reading list/i }),
     ).toBeInTheDocument();
@@ -132,12 +132,15 @@ describe("BookmarkButton", () => {
       isAuthenticated: false,
       isLoading: false,
     });
+    window.history.replaceState({}, "", "/blog/post-1?tag=design#save");
     render(<BookmarkButton {...baseProps} />);
 
     await user.click(
       screen.getByRole("button", { name: /save to reading list/i }),
     );
-    expect(pushMock).toHaveBeenCalledWith("/auth/login");
+    expect(pushMock).toHaveBeenCalledWith(
+      "/auth/login?returnTo=%2Fblog%2Fpost-1%3Ftag%3Ddesign%23save",
+    );
     expect(useMutationMock).not.toHaveBeenCalled();
   });
 
@@ -148,5 +151,27 @@ describe("BookmarkButton", () => {
       screen.getByRole("button", { name: /save to reading list/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("skips the private bookmark query until resolved authentication is authenticated", () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: true,
+    });
+    render(<BookmarkButton {...baseProps} />);
+    expect(useQueryMock).toHaveBeenLastCalledWith("skip");
+
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    render(<BookmarkButton {...baseProps} />);
+    expect(useQueryMock).toHaveBeenLastCalledWith("skip");
+  });
+
+  it("queries bookmarks after resolved authenticated authentication", () => {
+    render(<BookmarkButton {...baseProps} />);
+
+    expect(useQueryMock).toHaveBeenLastCalledWith({ postId: "post-1" });
   });
 });

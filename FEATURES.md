@@ -31,7 +31,9 @@ Feature status is managed with five labels:
 | Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅  | ✅ Complete |
 | Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                        | ✅ Complete |
 | Phase 2 — The Author                | Editor, drafts, editing, private analytics, and dashboard visualization | ✅ Complete |
-| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                           | 🔵 Next     |
+| Phase 3A.0 — UX Correctness         | Public reading, auth returns, viewer state, publishing, honest claims   | ✅ Complete |
+| Phase 3A.1 — Product Structure      | Authenticated routing, workspace shell, navigation, profile/settings    | 🔵 Next     |
+| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                           | 🟡 Later    |
 
 **Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
 documented as optional features and are not current delivery commitments.
@@ -40,20 +42,16 @@ engagement data, or a clear product need for them.
 
 Phase 2 includes the shipped editor, draft lifecycle, private author dashboard,
 owner-scoped published editing, private analytics totals, and the four-card
-analytics dashboard with its dense 30-day follower-growth chart. Phase 3 is the
-current delivery focus.
+analytics dashboard with its dense 30-day follower-growth chart. Phase 3A.0 is
+shipped; Phase 3A.1 is the sole current delivery focus.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
 (`AuthSync` fires `syncUser` as fire-and-forget).
 
-**Known issue:** `lib/auth-server.ts` exports `fetchAuthQuery` / `fetchAuthMutation` for authenticated
-server-side fetches, but **no page in the repo uses them**. Every existing `fetchQuery` call runs
-unauthenticated, so server-rendered pages (`/blog`, landing `RecentPostsSection`, `/blog/[postId]`)
-hydrate `isLiked` as `false` for signed-in users. This is a pre-existing quirk that is out of scope
-for Phase 1.5; a real fix migrates the affected server queries to `fetchAuthQuery`. Earliest
-reasonable home: a later data-flow or polish slice when the issue is
-prioritized.
+- Better Auth uses its installed 1.5.3 defaults: a finite seven-day session
+  expiry with a one-day sliding refresh. Resonance has no custom `session`
+  configuration or client inactivity logout timer.
 
 ---
 
@@ -119,7 +117,9 @@ prioritized.
 
 - `toggleBookmark` — idempotent, one bookmark per user per post, records in a separate `bookmarks` table
 - `BookmarkButton` on post cards and the post detail page; private, so no denormalized count on `users` or `posts`
-- `isBookmarked` query drives the toggle state; bookmarks self-subscribe (FollowButton precedent) because server-side `fetchQuery` runs unauthenticated
+- Server-rendered post reads hydrate initial bookmark state with
+  `fetchAuthQuery`; bookmark controls continue to reconcile with their private
+  live query after auth resolution
 - `/dashboard/saved` page — client-gated, paginated grid of saved posts;
   unbookmarking from the list removes the card immediately
 
@@ -146,7 +146,7 @@ prioritized.
 
 ### UI/UX
 
-- Landing page sections in `app/(app)/_components/`: Hero, Features, Recent Posts (Suspense + content-shaped skeleton), Stats, Explore
+- Landing page sections in `app/(app)/_components/`: Hero, Features, Recent Posts (Suspense + content-shaped skeleton), Stats
 - Shared `PostCard` across blog listing, landing, and profile pages
 - `EmptyState` and `SectionHeading` primitives; site-wide `Footer` with auth-aware `FooterCTA`
 - Dark/light/system theme toggle; toast notifications (Sonner)

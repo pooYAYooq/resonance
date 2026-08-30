@@ -17,35 +17,38 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { buttonVariants, Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { FollowButton } from "./FollowButton";
+import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 interface ProfileActionButtonProps {
   /** Better Auth user ID of the profile owner. */
   profileUserId: string;
   /** Display name of the profile owner, used by `FollowButton` toasts. */
   authorName: string;
+  /** Authenticated viewer ID, or null for an anonymous visitor. */
+  viewerId: string | null;
+  /** Server-derived follow state for this viewer and profile. */
+  isFollowing: boolean;
 }
 
 export function ProfileActionButton({
   profileUserId,
   authorName,
+  viewerId,
+  isFollowing,
 }: ProfileActionButtonProps) {
-  const currentUser = useQuery(api.users.getCurrentUser);
   const router = useRouter();
 
-  // While the current-user query is loading, render nothing.
-  if (currentUser === undefined) return null;
-
   // Anonymous viewer — render a styled "Follow" button that redirects.
-  if (currentUser === null) {
+  if (viewerId === null) {
     return (
       <Button
         variant="outline"
-        onClick={() => router.push("/auth/login")}
+        onClick={() =>
+          router.push(buildAuthHref("/auth/login", getCurrentReturnTo()))
+        }
         aria-label={`Follow ${authorName}`}
       >
         Follow
@@ -54,7 +57,7 @@ export function ProfileActionButton({
   }
 
   // Own profile — Edit Profile (unchanged UX from `EditProfileButton`).
-  if (currentUser.userId === profileUserId) {
+  if (viewerId === profileUserId) {
     return (
       <Link
         href="/settings"
@@ -70,5 +73,11 @@ export function ProfileActionButton({
   }
 
   // Someone else's profile — FollowButton.
-  return <FollowButton profileUserId={profileUserId} authorName={authorName} />;
+  return (
+    <FollowButton
+      profileUserId={profileUserId}
+      authorName={authorName}
+      isFollowing={isFollowing}
+    />
+  );
 }

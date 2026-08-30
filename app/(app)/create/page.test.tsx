@@ -122,6 +122,7 @@ const {
   updatePublishedPostMock,
   draftIdParam,
   editPostIdParam,
+  useConvexAuthState,
   routerMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
@@ -137,6 +138,7 @@ const {
   updatePublishedPostMock: vi.fn(),
   draftIdParam: { value: undefined as string | undefined },
   editPostIdParam: { value: undefined as string | undefined },
+  useConvexAuthState: vi.fn(),
   routerMock: { push: vi.fn(), replace: vi.fn() },
 }));
 
@@ -178,7 +180,7 @@ vi.mock("convex/react", () => ({
     }
     return undefined;
   },
-  useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+  useConvexAuth: () => useConvexAuthState(),
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
@@ -215,6 +217,10 @@ describe("CreateRoute", () => {
     updatePublishedPostMock.mockReset();
     draftIdParam.value = undefined;
     editPostIdParam.value = undefined;
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
     createPendingUploadMock.mockResolvedValue({
       sessionId: "session-cover",
       uploadUrl: "https://upload.url",
@@ -228,6 +234,22 @@ describe("CreateRoute", () => {
     getPublishedPostForEditingMock.mockReturnValue(undefined);
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
+  });
+
+  it("preserves the current location when redirecting an anonymous visitor", async () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    window.history.replaceState({}, "", "/create?draftId=draft-1#editor");
+
+    render(<CreateRoute />);
+
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith(
+        "/auth/login?returnTo=%2Fcreate%3FdraftId%3Ddraft-1%23editor",
+      ),
+    );
   });
 
   afterEach(() => {
@@ -426,6 +448,20 @@ describe("CreateRoute", () => {
     });
     expect(publishPostMock).not.toHaveBeenCalled();
     expect(toastSuccessMock).toHaveBeenCalledWith("Draft saved successfully!");
+  });
+
+  it("does not submit when Enter is pressed in the title", async () => {
+    const user = userEvent.setup();
+
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Draft{Enter}",
+    );
+
+    expect(saveDraftMock).not.toHaveBeenCalled();
+    expect(publishPostMock).not.toHaveBeenCalled();
   });
 
   it("keeps the editor mounted when publish validation fails", async () => {

@@ -100,10 +100,13 @@ describe("NotificationsList", () => {
       isAuthenticated: false,
       isLoading: false,
     });
+    window.history.replaceState({}, "", "/notifications?unread=true#new");
     render(<NotificationsList />);
 
     await waitFor(() =>
-      expect(pushMock).toHaveBeenCalledWith("/auth/login"),
+      expect(pushMock).toHaveBeenCalledWith(
+        "/auth/login?returnTo=%2Fnotifications%3Funread%3Dtrue%23new",
+      ),
     );
     expect(usePaginatedQueryArgsMock).toHaveBeenCalledWith("skip");
   });
@@ -116,6 +119,17 @@ describe("NotificationsList", () => {
     const { container } = render(<NotificationsList />);
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("skips private notifications operations while authenticated auth is resolving", () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: true,
+    });
+    render(<NotificationsList />);
+
+    expect(usePaginatedQueryArgsMock).toHaveBeenCalledWith("skip");
+    expect(useMutationMock).not.toHaveBeenCalled();
   });
 
   it("shows a loading spinner while the first page is loading", () => {
@@ -148,9 +162,7 @@ describe("NotificationsList", () => {
 
     expect(screen.getByText("No notifications yet")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /when an author you follow publishes a new post/i,
-      ),
+      screen.getByText(/when an author you follow publishes a new post/i),
     ).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
     expect(usePaginatedQueryArgsMock).toHaveBeenCalledWith({});
@@ -261,9 +273,7 @@ describe("NotificationsList", () => {
     });
     render(<NotificationsList />);
 
-    await waitFor(() =>
-      expect(useMutationMock).toHaveBeenCalledTimes(1),
-    );
+    await waitFor(() => expect(useMutationMock).toHaveBeenCalledTimes(1));
     expect(useMutationMock).toHaveBeenCalledWith({});
   });
 

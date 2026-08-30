@@ -18,17 +18,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NotificationBell } from "./NotificationBell";
 
-const {
-  useConvexAuthState,
-  useQueryState,
-  useQueryArgsMock,
-  pushMock,
-} = vi.hoisted(() => ({
-  useConvexAuthState: vi.fn(),
-  useQueryState: vi.fn(),
-  useQueryArgsMock: vi.fn(),
-  pushMock: vi.fn(),
-}));
+const { useConvexAuthState, useQueryState, useQueryArgsMock, pushMock } =
+  vi.hoisted(() => ({
+    useConvexAuthState: vi.fn(),
+    useQueryState: vi.fn(),
+    useQueryArgsMock: vi.fn(),
+    pushMock: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
@@ -77,7 +73,7 @@ describe("NotificationBell", () => {
 
   it("renders null while auth is loading", () => {
     useConvexAuthState.mockReturnValue({
-      isAuthenticated: false,
+      isAuthenticated: true,
       isLoading: true,
     });
     const { container } = render(<NotificationBell />);

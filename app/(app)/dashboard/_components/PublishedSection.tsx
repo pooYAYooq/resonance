@@ -85,6 +85,7 @@ export function PublishedSection() {
             commentCount={post.commentCount}
             likeCount={post.likeCount ?? 0}
             isLiked={post.isLiked ?? false}
+            isBookmarked={post.isBookmarked}
             createdAt={post.createdAt}
             authorId={post.authorId}
             authorName={post.authorName}

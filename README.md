@@ -134,7 +134,6 @@ app/
       RecentPostsSection.tsx
       RecentPostsSkeleton.tsx
       StatsSection.tsx
-      ExploreSection.tsx      # Category placeholder grid
     blog/
       page.tsx                # Blog listing with gradient hero + optional tag filter
       _components/            # BlogFilter and cursor-draining BlogPostList

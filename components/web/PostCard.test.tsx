@@ -59,10 +59,19 @@ vi.mock("./LikeButton", () => ({
 }));
 
 vi.mock("./BookmarkButton", () => ({
-  BookmarkButton: ({ postId }: { postId: string; size?: "sm" | "default" }) => (
+  BookmarkButton: ({
+    postId,
+    isBookmarked,
+  }: {
+    postId: string;
+    isBookmarked: boolean;
+    size?: "sm" | "default";
+  }) => (
     <button
-      aria-label="Save to reading list"
-      aria-pressed={false}
+      aria-label={
+        isBookmarked ? "Remove from reading list" : "Save to reading list"
+      }
+      aria-pressed={isBookmarked}
       data-post-id={postId}
     />
   ),
@@ -89,6 +98,7 @@ const basePost = {
   commentCount: 3,
   likeCount: 5,
   isLiked: false,
+  isBookmarked: false,
   createdAt: new Date("2026-06-01T12:00:00Z").getTime(),
   authorId: "user-abc",
   authorName: "Ada Lovelace",
@@ -319,6 +329,13 @@ describe("PostCard", () => {
     expect(
       screen.getByRole("button", { name: "Unlike this post" }),
     ).toBeInTheDocument();
+  });
+
+  it("passes the server bookmark state to BookmarkButton", () => {
+    render(<PostCard {...basePost} isBookmarked={true} />);
+    expect(
+      screen.getByRole("button", { name: "Remove from reading list" }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("renders linked tag pills and omits them when tags are missing", () => {

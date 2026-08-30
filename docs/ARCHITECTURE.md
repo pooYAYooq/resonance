@@ -55,7 +55,6 @@ resonance/
 │   │   │   ├── RecentPostsSection.tsx    # fetchQuery, wrapped in <Suspense>
 │   │   │   ├── RecentPostsSkeleton.tsx   # Content-shaped fallback
 │   │   │   ├── StatsSection.tsx          # Live total via posts.countPosts
-│   │   │   └── ExploreSection.tsx
 │   │   ├── blog/
 │   │   │   ├── page.tsx        # Blog listing. Server Component. Awaits searchParams.
 │   │   │   ├── _components/    # Active filter + cursor-draining filtered post list
@@ -83,8 +82,8 @@ resonance/
 │   │   ├── settings/
 │   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
 │   │   ├── u/[userId]/
-│   │       ├── page.tsx        # Public profile. Server Component. Uses fetchQuery +
-│   │       │                   # react.cache() to dedupe generateMetadata / page fetch.
+│   │       ├── page.tsx        # Public profile. Server Component. Uses fetchQuery for
+│   │       │                   # metadata and fetchAuthQuery for viewer-aware rendering.
 │   │       └── _components/
 │   │           └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
 │   │                                # (Edit Profile + Follow live in components/web/
@@ -159,8 +158,7 @@ resonance/
 │   ├── crons.ts                # Daily feed expiration and 15-minute inline upload cleanup.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
-│   ├── users.ts                # syncUser, getCurrentUser, getUserById,
-│   │                           # getUserByAuthId, getUserByEmail, getUserProfile,
+│   ├── users.ts                # syncUser, getCurrentUser, getUserProfile,
 │   │                           # updateProfile mutations/queries
 │
 ├── components/

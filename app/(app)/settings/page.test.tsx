@@ -41,7 +41,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => useConvexAuthState(),
-  useQuery: () => useQueryState(),
+  useQuery: (_query: unknown, args: unknown) => useQueryState(args),
   useMutation: () => updateProfileMock,
 }));
 
@@ -88,10 +88,13 @@ describe("SettingsRoute", () => {
       isAuthenticated: false,
       isLoading: false,
     });
+    window.history.replaceState({}, "", "/settings?section=profile#bio");
     render(<SettingsRoute />);
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/auth/login");
+      expect(pushMock).toHaveBeenCalledWith(
+        "/auth/login?returnTo=%2Fsettings%3Fsection%3Dprofile%23bio",
+      );
     });
   });
 
@@ -103,13 +106,27 @@ describe("SettingsRoute", () => {
     render(<SettingsRoute />);
 
     expect(pushMock).not.toHaveBeenCalled();
+    expect(useQueryState).toHaveBeenLastCalledWith("skip");
+  });
+
+  it("skips the private current-user query when authentication is anonymous", () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    render(<SettingsRoute />);
+
+    expect(useQueryState).toHaveBeenLastCalledWith("skip");
   });
 
   it("pre-fills the form with the current user's display name and bio", () => {
     render(<SettingsRoute />);
 
-    const displayNameInput =
-      screen.getByLabelText(/display name/i) as HTMLInputElement;
+    expect(useQueryState).toHaveBeenLastCalledWith({});
+
+    const displayNameInput = screen.getByLabelText(
+      /display name/i,
+    ) as HTMLInputElement;
     const bioTextarea = screen.getByLabelText(/bio/i) as HTMLTextAreaElement;
     const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
 
@@ -127,7 +144,9 @@ describe("SettingsRoute", () => {
     await user.type(bioTextarea, "short");
 
     expect(
-      screen.getByText((text) => text.replace(/\s+/g, " ") === "5 / 160 characters"),
+      screen.getByText(
+        (text) => text.replace(/\s+/g, " ") === "5 / 160 characters",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -137,8 +156,9 @@ describe("SettingsRoute", () => {
 
     render(<SettingsRoute />);
 
-    const displayNameInput =
-      screen.getByLabelText(/display name/i) as HTMLInputElement;
+    const displayNameInput = screen.getByLabelText(
+      /display name/i,
+    ) as HTMLInputElement;
     const bioTextarea = screen.getByLabelText(/bio/i) as HTMLTextAreaElement;
 
     await user.clear(displayNameInput);

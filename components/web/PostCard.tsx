@@ -8,10 +8,9 @@
  * This component is a Server Component. It does not subscribe to Convex
  * queries directly. It renders two client components: `LikeButton`
  * (mutation-only; like state comes from server-rendered props) and
- * `BookmarkButton` (self-subscribes to `bookmarks.isBookmarked` because
- * server-side `fetchQuery` runs unauthenticated in this repo). Parents
- * are responsible for fetching the post data via `fetchQuery` (or
- * `useQuery` for live updates) and passing the hydrated fields as props.
+ * `BookmarkButton` (uses server-hydrated initial state and reconciles its
+ * private live bookmark query after authentication resolves). Parents are
+ * responsible for fetching post data and passing hydrated fields as props.
  */
 
 import {
@@ -51,6 +50,8 @@ interface PostCardProps {
   likeCount: number;
   /** Whether the current user has liked this post. */
   isLiked: boolean;
+  /** Whether the current user has bookmarked this post. */
+  isBookmarked: boolean;
   /** Unix timestamp (ms) of when the post was created. */
   createdAt: number;
   /** Better Auth user ID of the post's author. */
@@ -82,6 +83,7 @@ export function PostCard({
   commentCount,
   likeCount,
   isLiked,
+  isBookmarked,
   createdAt,
   authorId,
   authorName,
@@ -161,7 +163,7 @@ export function PostCard({
             {commentCount}
           </span>
           <LikeButton postId={postId} isLiked={isLiked} likeCount={likeCount} />
-          <BookmarkButton postId={postId} />
+          <BookmarkButton postId={postId} isBookmarked={isBookmarked} />
         </span>
         <div className="flex items-center gap-2">
           {authorActions}
