@@ -43,6 +43,7 @@ describe("DashboardShell", () => {
 
   it("redirects unauthenticated users without rendering child data", async () => {
     authState.mockReturnValue({ isAuthenticated: false, isLoading: false });
+    window.history.replaceState({}, "", "/dashboard/drafts?sort=recent#list");
 
     render(
       <DashboardShell>
@@ -50,7 +51,11 @@ describe("DashboardShell", () => {
       </DashboardShell>,
     );
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/auth/login"));
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith(
+        "/auth/login?returnTo=%2Fdashboard%2Fdrafts%3Fsort%3Drecent%23list",
+      ),
+    );
     expect(
       screen.queryByText("Private dashboard content"),
     ).not.toBeInTheDocument();

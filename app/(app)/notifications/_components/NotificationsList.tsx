@@ -32,6 +32,7 @@ import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Bell, Loader2 } from "lucide-react";
 import { NotificationRow, type NotificationRowData } from "./NotificationRow";
+import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 export function NotificationsList() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -40,12 +41,12 @@ export function NotificationsList() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
+      router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
     }
   }, [isLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isLoading && isAuthenticated) {
       void markAllRead({}).catch(() => {
         // Fire-and-forget: a failure here is non-fatal — the user can
         // re-visit the page to retry, and the row data still renders.
@@ -54,16 +55,18 @@ export function NotificationsList() {
     // markAllRead is a stable Convex mutation reference; we want the
     // effect to run exactly once on auth, so we omit it from deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isLoading, isAuthenticated]);
 
-  const queryArgs = isAuthenticated ? {} : "skip";
+  const queryArgs = !isLoading && isAuthenticated ? {} : "skip";
 
-  const { results, status, loadMore, isLoading: listLoading } =
-    usePaginatedQuery(
-      api.notifications.getNotifications,
-      queryArgs,
-      { initialNumItems: 12 },
-    );
+  const {
+    results,
+    status,
+    loadMore,
+    isLoading: listLoading,
+  } = usePaginatedQuery(api.notifications.getNotifications, queryArgs, {
+    initialNumItems: 12,
+  });
 
   if (isLoading || !isAuthenticated) {
     return (

@@ -6,6 +6,7 @@ import { useConvexAuth } from "convex/react";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { DashboardSectionNav } from "./DashboardSectionNav";
+import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 const sectionTitles = {
   "/dashboard": "Overview",
@@ -25,7 +26,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
+      router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
     }
   }, [isLoading, isAuthenticated, router]);
 
