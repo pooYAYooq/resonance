@@ -7,27 +7,15 @@
  * and page grid.
  *
  * Sections:
- * - Brand column: site name (primary color), tagline, social icons
+ * - Brand column: site name (primary color), tagline
  * - Quick links: vertical navigation list
  * - CTA card: auth-aware gradient card via `<FooterCTA />` (Client Component)
  *   showing "Write a post" when authenticated, "Get Started" otherwise
  * - Bottom bar: full-width border + centered copyright
  */
 import Link from "next/link";
-import { Github, Twitter, Linkedin } from "lucide-react";
-import {
-  SITE_NAME,
-  QUICK_LINKS,
-  SOCIAL_LINKS,
-  COPYRIGHT_TEXT,
-} from "@/lib/constants/footer";
+import { SITE_NAME, QUICK_LINKS, COPYRIGHT_TEXT } from "@/lib/constants/footer";
 import { FooterCTA } from "./FooterCTA";
-
-const iconMap = {
-  github: Github,
-  twitter: Twitter,
-  linkedin: Linkedin,
-} as const;
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -49,24 +37,6 @@ export function Footer() {
               A space for thoughtful writing, sharing ideas, and engaging with a
               community of curious minds.
             </p>
-            {/* Social Icons */}
-            <div className="flex items-center gap-5 pt-1">
-              {SOCIAL_LINKS.map((social) => {
-                const Icon = iconMap[social.icon];
-                return (
-                  <a
-                    key={social.name}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={social.name}
-                    className="text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    <Icon className="h-4 w-4" />
-                  </a>
-                );
-              })}
-            </div>
           </div>
 
           {/* Links */}

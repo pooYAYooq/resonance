@@ -3,7 +3,7 @@
  *
  * Composes a full-page marketing experience from dedicated section
  * components: Hero, Features, Recent Posts (with Suspense skeleton),
- * Community Stats, and an Explore placeholder for future categories.
+ * and Community Stats.
  *
  * Auth-aware CTAs are handled by `<AuthCTA />` (hero, blog hero) and
  * `<FooterCTA />` (footer), ensuring consistent labels:
@@ -21,7 +21,6 @@ import { FeaturesSection } from "@/app/(app)/_components/FeaturesSection";
 import { RecentPostsSection } from "@/app/(app)/_components/RecentPostsSection";
 import { RecentPostsSkeleton } from "@/app/(app)/_components/RecentPostsSkeleton";
 import { StatsSection } from "@/app/(app)/_components/StatsSection";
-import { ExploreSection } from "@/app/(app)/_components/ExploreSection";
 
 export const metadata: Metadata = {
   title: "RESONANCE | Write, Share, Connect",
@@ -38,7 +37,6 @@ export default function Home() {
         <RecentPostsSection />
       </Suspense>
       <StatsSection />
-      <ExploreSection />
     </div>
   );
 }

@@ -13,12 +13,6 @@ import { api } from "@/convex/_generated/api";
 export async function StatsSection() {
   const totalPosts = await fetchQuery(api.posts.countPosts, {});
 
-  const stats = [
-    { label: "Published Posts", value: totalPosts },
-    { label: "Active Writers", value: "Growing" },
-    { label: "Conversations", value: "Daily" },
-  ];
-
   return (
     <section className="py-16 md:py-24">
       <div className="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8">
@@ -32,20 +26,15 @@ export async function StatsSection() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 md:gap-12">
-            {stats.map((stat, index) => (
-              <div
-                key={stat.label}
-                className={`animate-in fade-in-0 slide-in-from-bottom-4 duration-700 ${index === 0 ? "delay-0" : index === 1 ? "delay-150" : "delay-300"} fill-mode-both text-center`}
-              >
-                <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-primary mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-sm text-muted-foreground uppercase tracking-widest font-medium">
-                  {stat.label}
-                </div>
+          <div className="grid grid-cols-1 place-items-center">
+            <div className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 fill-mode-both text-center">
+              <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-primary mb-2">
+                {totalPosts}
               </div>
-            ))}
+              <div className="text-sm text-muted-foreground uppercase tracking-widest font-medium">
+                Published Posts
+              </div>
+            </div>
           </div>
         </div>
       </div>
