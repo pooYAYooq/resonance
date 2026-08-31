@@ -5,7 +5,8 @@
 > **Update rule:** when a feature ships, update its status here (see the
 > "Documentation" section in `AGENTS.md`). Detailed phase designs and
 > implementation plans live in `docs/superpowers/specs|plans/` (local,
-> gitignored).
+> untracked, and intentionally not gitignored). Human staging review prevents
+> these development artifacts from being committed.
 
 **Stack:** Next.js 16 (App Router) + TypeScript + Convex + Better Auth + Tailwind CSS v4 + shadcn/ui
 
@@ -32,8 +33,12 @@ Feature status is managed with five labels:
 | Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                        | ✅ Complete |
 | Phase 2 — The Author                | Editor, drafts, editing, private analytics, and dashboard visualization | ✅ Complete |
 | Phase 3A.0 — UX Correctness         | Public reading, auth returns, viewer state, publishing, honest claims   | ✅ Complete |
-| Phase 3A.1 — Product Structure      | Authenticated routing, workspace shell, navigation, profile/settings    | 🔵 Next     |
-| Phase 3 — The Platform              | Moderation, search, AI, subscriptions, digest                           | 🟡 Later    |
+| Phase 3A.1 — Product Structure      | Shells, navigation, reader utilities, Profile/Settings, analytics       | 🔵 Next     |
+| Phase 3A.2 — Discover Foundations   | Search, Topics, Latest, Feed recovery; Hot after ranking is defined     | 🟡 Later    |
+| Phase 3A.3 — Writing & Management   | Writing environment, review/publish, management, deletion               | 🟡 Later    |
+| Phase 3A.4 — Identity & Engagement  | Profiles, Notifications, collections, contextual post presentation      | 🟡 Later    |
+| Phase 3A.5 — Visual System & Polish | Typography, color, density, states, responsive interaction              | 🟡 Later    |
+| Phase 3 — The Platform              | Moderation, AI, subscriptions, digest                                   | 🟡 Later    |
 
 **Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
 documented as optional features and are not current delivery commitments.
@@ -43,7 +48,10 @@ engagement data, or a clear product need for them.
 Phase 2 includes the shipped editor, draft lifecycle, private author dashboard,
 owner-scoped published editing, private analytics totals, and the four-card
 analytics dashboard with its dense 30-day follower-growth chart. Phase 3A.0 is
-shipped; Phase 3A.1 is the sole current delivery focus.
+shipped; Phase 3A.1 is the sole current delivery focus. The approved Phase 3A
+target direction, scope map, delivery slices, sequencing rules, and deferrals
+are maintained in [`docs/PHASE_3A.md`](docs/PHASE_3A.md). Section 18 scope
+areas are not a rigid implementation order.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
@@ -120,8 +128,9 @@ instead of the provider picture until the user record sync completes
 - Server-rendered post reads hydrate initial bookmark state with
   `fetchAuthQuery`; bookmark controls continue to reconcile with their private
   live query after auth resolution
-- `/dashboard/saved` page — client-gated, paginated grid of saved posts;
-  unbookmarking from the list removes the card immediately
+- **Current route, replaced by Slice 1:** `/dashboard/saved` is a client-gated,
+  paginated grid of saved posts; unbookmarking from the list removes the card
+  immediately
 
 ### Notifications
 
@@ -141,7 +150,9 @@ instead of the provider picture until the user record sync completes
 ### Profiles & Settings
 
 - Public profiles at `/u/[userId]`: avatar, display name, bio, paginated post list
-- `/settings`: edit display name and bio
+- **Current route, replaced by Slice 1:** `/settings` edits display name and
+  bio; Slice 1 moves identity editing to `/profile/edit` and makes Settings a
+  configuration surface
 - OAuth avatars mapped from provider profiles (Google `picture` / GitHub `avatar_url`), DiceBear fallback
 
 ### UI/UX
@@ -161,9 +172,15 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 
 ### Phase 1B — Curation & Connection
 
-- **1.4 Follows** ✅ — follow/unfollow authors; denormalized `followerCount`/`followingCount` on `users`. _Medium._ See `docs/superpowers/specs/2026-07-27-follows-design.md` (incl. its **Forward pointers** section) before starting 1.5 / 1.6 / 1.7 — those phases build on what 1.4 shipped and must not duplicate it.
-- **1.5 Bookmarks / Saved Posts** ✅ — private bookmarks; `/dashboard/saved` page. _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`, **no** denormalized count on `users` (bookmarks are private). The shared `LikeToggle` primitive is the ready seam (Phase 1.3 key decision). See `docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
-- **1.6 Notifications** ✅ — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Fan-out after `publishPost` via `ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, ...)`; uses the `follows.by_followingId` index for ordered scanning. See `docs/superpowers/specs/2026-07-28-notifications-design.md` (incl. its **Forward pointers** section) before starting 1.7 — 1.7's feed strategy is its own first-class spec decision; 1.6 only shares the `by_followingId` index, not the feed data path.
+- **1.4 Follows** ✅ — follow/unfollow authors; denormalized `followerCount`/`followingCount` on `users`. _Medium._ Ships a `by_followingId` index that 1.6 notifications and the 1.7 feed reuse; later phases build on what 1.4 shipped and must not duplicate the follow relationship.
+- **1.5 Bookmarks / Saved Posts** ✅ — private bookmarks; **current pre-Slice-1
+  route** `/dashboard/saved`. _Medium._ Unrelated to `follows`; new
+  `bookmarks` table mirroring `likes`, **no** denormalized count on `users`
+  (bookmarks are private). The shared `LikeToggle` primitive is the ready seam
+  (Phase 1.3 key decision). `BookmarkButton` self-subscribes client-side
+  because bookmarks are private per-user state and no page currently server
+  hydrates it.
+- **1.6 Notifications** ✅ — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Fan-out after `publishPost` via `ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, ...)`; uses the `follows.by_followingId` index for ordered scanning. 1.7's feed strategy is its own first-class design decision; 1.6 only shares the `by_followingId` index, not the feed data path.
 
 ### Deferred Phase 1C — Optional Discovery & Polish
 
@@ -196,7 +213,6 @@ author-workflow scope items.
 ### Phase 3 — The Platform
 
 - **Admin Role & Moderation** — hide posts, ban users, content reports. _High._
-- **Full-Text Search** — search by title/body/author (Convex search or Algolia/Meilisearch). _Medium._
 - **AI Features** — content suggestions, summarization, auto-tags. _High._
 - **Subscriptions / Tipping** — Stripe integration, premium gating. _High._
 - **Email Digest** — weekly top posts from followed authors. _Medium._
@@ -227,6 +243,17 @@ Use `pnpm shadcn add <component>` to add new primitives. Do not edit `components
 
 - Convex functions: `pnpm test:ci` (edge-runtime)
 - UI components: `pnpm test:component` (jsdom)
+
+### Phase 3A Documentation and Review Gates
+
+- Read `docs/PHASE_3A.md` and `docs/PHASE_3A_DECISIONS.md` before planning or
+  changing a Phase 3A slice. The current local implementation plan supplements
+  these documents but never replaces them.
+- Before every staging action, present the intended diff and documentation
+  impact for human review. Before every commit, present the staged diff and
+  fresh verification evidence. Before every PR, present all commits, the full
+  base diff, verification evidence, and documentation consistency for human
+  review. Explicit approval is required at each gate.
 
 ### CI Before PR
 
