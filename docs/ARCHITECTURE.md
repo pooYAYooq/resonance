@@ -824,10 +824,9 @@ future agent needs to know:
   on the profile header extends `getFollowCounts`, never subscribes
   `ProfileStats` to `getUserProfile`.**
 
-Full rationale and forward pointers for 1.5 / 1.6 / 1.7 live in
-`docs/superpowers/specs/2026-07-27-follows-design.md`;
-the 1.6 notification fan-out that uses this index is documented in
-`docs/superpowers/specs/2026-07-28-notifications-design.md`.
+The durable rationale for 1.5 / 1.6 / 1.7 is captured above; the original
+working-design artifacts were local, untracked specs that are no longer
+retained.
 
 ### 14. Why bookmarks self-subscribe instead of being server-hydrated
 
@@ -858,8 +857,8 @@ This decision does not introduce a `bookmarksCount` counter on `users` or
 `posts` (bookmarks are private), and it does not add a `by_postId` index
 (the only prefix scan is "this user's bookmarks").
 
-Full rationale and forward pointers live in
-`docs/superpowers/specs/2026-07-27-bookmarks-design.md`.
+The durable rationale is captured above; the original working-design
+artifact was a local, untracked spec that is no longer retained.
 
 ### 15. Why the reader feed is a 30-day materialized view
 

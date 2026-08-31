@@ -9,6 +9,9 @@ Phase 3A.1 — Product Structure (up next)
 ## Next focus
 
 Phase 3A.0 — UX Correctness is shipped. Phase 3A.1 is the sole next focus.
+The Phase 3A target direction and delivery map are canonicalized; Slice 1 has
+an approved boundary and local implementation plan, but no Slice 1 application
+code has started.
 
 ## Current verification
 
@@ -51,10 +54,18 @@ Phase 3A.0 — UX Correctness is shipped. Phase 3A.1 is the sole next focus.
 
 - Detailed roadmap: [`FEATURES.md`](../FEATURES.md)
 - Architecture reference: [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)
+- Phase 3A target direction and delivery map:
+  [`docs/PHASE_3A.md`](PHASE_3A.md)
+- Phase 3A cross-cutting decisions:
+  [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
+- Active local Slice 1 plan:
+  `docs/superpowers/plans/2026-08-31-slice-1-product-structure.md` (untracked
+  and intentionally not gitignored)
 - Next focus: Phase 3A.1 — Product Structure
 
 ## Status maintenance
 
 Keep this file concise. Update the current phase, next task, and completed
 phase list when work ships. Do not duplicate task-level implementation details
-from `FEATURES.md` or individual plans here.
+from `FEATURES.md` or individual plans here. Before staging, committing, or
+opening a PR, follow the mandatory human review gates in `docs/PHASE_3A.md`.

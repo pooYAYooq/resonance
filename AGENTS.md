@@ -75,39 +75,63 @@ no docs.
   the Status Board / backlog.
 - `docs/ARCHITECTURE.md` + README's Project Structure — changing directory
   structure, schema, or auth → update both.
-- Designs and implementation plans → `docs/superpowers/specs|plans/`
-  (local, gitignored).
+- Active designs and implementation plans → `docs/superpowers/specs|plans/`
+  (local, untracked, and intentionally not gitignored). The mandatory human
+  staging gate prevents these development artifacts from being committed.
 
-### Status and PR workflow
+## Status and PR workflow
 
 - Use `docs/status.md` as the first place to resume work after an absence.
-- When a task or plan step is genuinely complete, update its checkbox in the
-  relevant plan and update `docs/status.md` in the same change.
-- When a phase is complete, mark it complete in `FEATURES.md` and
-  `docs/status.md`, then mark exactly one next phase or task as `🔵 up next`.
-- Never mark work complete without fresh verification evidence. Record known
-  limitations rather than checking an incomplete step.
-- Before opening a PR, follow the local procedure in `docs/PR_CHECKLIST.md`.
-  This is an agent workflow document, not a GitHub PR template.
+- When a task or plan step is genuinely complete, update its checkbox in the relevant plan and update `docs/status.md` in the same change when the resume point changes.
+- When a tracked delivery item ships, update `FEATURES.md` and `docs/status.md`, then mark exactly one next delivery focus as `🔵 up next`.
+- Do not assume implementation must follow roadmap phase numbering. Use the currently approved product/system slice or task as the delivery unit.
+- Never mark work complete without fresh verification evidence. Record known limitations rather than marking incomplete work as complete.
+- Before preparing a PR, follow the local procedure in `docs/PR_CHECKLIST.md`. This is an agent workflow document, not a GitHub PR template.
+- PR titles must describe the actual product, system, documentation, or engineering outcome.
+- Do not include roadmap or planning identifiers such as phase, step, task, or slice numbers in PR titles.
+- Completion of the PR checklist does not authorize staging, committing, pushing, or opening a PR. Follow the repository's human approval gates for each Git action.
 
 ## Commits
 
-Conventional Commits (type + optional scope). Imperative, active voice.
-Subject ≤72 chars, no trailing period. Blank line, then body at 72 chars
-explaining _why_ (not _what_). Breaking changes: `!` or `BREAKING CHANGE:`
-footer. Ref issues in body (`Closes #123`). No WIP or vague subjects.
+Use Conventional Commits with a valid prefix type and optional scope.
+
+Write commit subjects in imperative, active voice. Keep the subject at 72 characters or fewer, with no trailing period. After a blank line, include a meaningful body wrapped at 72 characters that explains **why** the change was made, not merely what changed.
+
+Every commit must have:
+
+- a proper Conventional Commit prefix/type;
+- a clear, specific title;
+- a meaningful body explaining the rationale.
+
+For breaking changes, use `!` in the prefix or a `BREAKING CHANGE:` footer. Reference issues in the body when applicable, for example `Closes #123`.
+
+Do not use WIP or vague subjects.
+
+Do not include roadmap or planning identifiers such as phase, step, task, or slice numbers in commit subjects or bodies. Describe the actual product, system, documentation, or engineering outcome instead.
 
 ## Git Workflow
 
-**ALWAYS use Pull Requests. NEVER merge directly to main.**
+**ALWAYS use Pull Requests. NEVER push directly to `main`. NEVER merge directly to `main`.**
 
-When a branch is complete and the user says "finish it," "merge it,"
-"ship it," or similar, present exactly this choice:
+Branch names must describe the actual product, system, documentation, or engineering outcome. Do not include roadmap or planning identifiers such as phase, step, task, or slice numbers in branch names.
+
+All remote pushes must originate from a non-`main` working branch, such as a feature, fix, docs, refactor, or other task branch. This applies whether the branch is used in the primary working tree or in a Git worktree.
+
+Before any push:
+
+- verify the current branch is not `main`;
+- verify the intended commits belong to the current task;
+- push only that non-`main` branch.
+
+Staging, committing, pushing, and opening or updating a PR each require explicit human approval. Approval for one Git action does not authorize the next.
+
+Do not run `git push origin main`, `git push <remote> main`, or any equivalent command that updates the remote `main` branch.
+
+When a branch is complete and the user says "finish it," "merge it," "ship it," or similar, present exactly this choice:
 
 > Ready to create a PR for this branch?
 
-- If YES → push branch, create PR, STOP. Do not merge.
+- If YES → push the non-`main` branch, create the PR, then STOP. Do not merge.
 - If NO → ask what they'd like to change before PRing.
 
-Never run `git merge` or push to main without explicit user instruction
-to bypass PR workflow.
+Never run `git merge` into `main`, push `main`, or otherwise update remote `main` unless the user explicitly instructs you to bypass the PR workflow for that specific action.
