@@ -8,10 +8,63 @@
  * `ConvexError("Unauthorized")`.
  */
 import { ConvexError, v } from "convex/values";
-import { mutation } from "./_generated/server";
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+  type PaginationOptions,
+} from "convex/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { authComponent } from "./auth";
 import { incrementAuthorAnalytics } from "./analytics";
 import { requirePublishedPost } from "./postLifecycle";
+import {
+  hydratePostSummary,
+  postSummaryValidator,
+  type PostSummary,
+} from "./postSummary";
+
+export async function getLikedPostsForUser(
+  ctx: QueryCtx,
+  args: { paginationOpts: PaginationOptions; viewerId: string },
+) {
+  const result = await ctx.db
+    .query("likes")
+    .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", args.viewerId))
+    .order("desc")
+    .paginate(args.paginationOpts);
+
+  const hydrated = await Promise.all(
+    result.page.map(async (like): Promise<PostSummary | null> => {
+      const post = await ctx.db.get(like.postId);
+      if (!post || post.status !== "published") {
+        return null;
+      }
+      return await hydratePostSummary(ctx, post, args.viewerId);
+    }),
+  );
+
+  return {
+    ...result,
+    page: hydrated.filter((post): post is PostSummary => post !== null),
+  };
+}
+
+export const getLikedPosts = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: paginationResultValidator(postSummaryValidator),
+  handler: async (ctx, args) => {
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    if (!authUser) {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
+    return await getLikedPostsForUser(ctx, {
+      paginationOpts: args.paginationOpts,
+      viewerId: authUser._id,
+    });
+  },
+});
 
 /**
  * Toggles a like on a post for the currently authenticated user.

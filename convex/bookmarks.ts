@@ -14,9 +14,16 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
-import { paginationOptsValidator } from "convex/server";
-import { Doc } from "./_generated/dataModel";
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server";
 import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
+import {
+  hydratePostSummary,
+  postSummaryValidator,
+  type PostSummary,
+} from "./postSummary";
 
 /**
  * Toggles a bookmark on a post for the currently authenticated user.
@@ -97,13 +104,6 @@ export const isBookmarked = query({
   },
 });
 
-type HydratedPost = Doc<"posts"> & {
-  imageUrl: string | null;
-  authorName: string | null;
-  authorAvatarUrl: string | null;
-  isLiked: boolean;
-};
-
 /**
  * Returns the current user's bookmarked posts, most-recently-saved first.
  *
@@ -122,6 +122,7 @@ export const getBookmarkedPosts = query({
   args: {
     paginationOpts: paginationOptsValidator,
   },
+  returns: paginationResultValidator(postSummaryValidator),
   handler: async (ctx, args) => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -136,43 +137,19 @@ export const getBookmarkedPosts = query({
       .paginate(args.paginationOpts);
 
     const hydrated = await Promise.all(
-      result.page.map(async (bookmark): Promise<HydratedPost | null> => {
+      result.page.map(async (bookmark): Promise<PostSummary | null> => {
         const post = await ctx.db.get(bookmark.postId);
         if (!post || post.status !== "published") {
           // Dangling bookmark — post deleted. Skip it.
           return null;
         }
-
-        const imageUrl = post.imageStorageId
-          ? await ctx.storage.getUrl(post.imageStorageId)
-          : null;
-
-        const author = await ctx.db
-          .query("users")
-          .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
-          .unique();
-
-        const like = await ctx.db
-          .query("likes")
-          .withIndex("by_postId_and_userId", (q) =>
-            q.eq("postId", post._id).eq("userId", authUser._id),
-          )
-          .unique();
-
-        return {
-          ...post,
-          tags: post.tags,
-          imageUrl,
-          authorName: author?.displayName ?? null,
-          authorAvatarUrl: author?.avatarUrl ?? null,
-          isLiked: !!like,
-        };
+        return await hydratePostSummary(ctx, post, authUser._id);
       }),
     );
 
     return {
       ...result,
-      page: hydrated.filter((p): p is HydratedPost => p !== null),
+      page: hydrated.filter((post): post is PostSummary => post !== null),
     };
   },
 });

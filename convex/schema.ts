@@ -104,7 +104,9 @@ export default defineSchema({
     postId: v.id("posts"),
     userId: v.string(),
     createdAt: v.number(),
-  }).index("by_postId_and_userId", ["postId", "userId"]),
+  })
+    .index("by_postId_and_userId", ["postId", "userId"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"]),
 
   /**
    * Individual comment-like records, one per user per comment. Mirrors the

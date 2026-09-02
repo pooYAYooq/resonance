@@ -6,8 +6,9 @@
 the remaining Phase 3A redesign work.
 
 **Current delivery position:** Phase 3A.0 is shipped. Phase 3A.1, Product
-Structure, is the sole next delivery focus. No Slice 1 application code has
-started.
+Structure, is the sole next delivery focus. Slice 1 Task 1, the private
+liked-posts backend contract, is verified and awaiting the mandatory human
+staging review; no later Slice 1 task has started.
 
 **Required fresh-session reading order:**
 
