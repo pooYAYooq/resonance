@@ -512,10 +512,9 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   collection for bookmarks, and `/liked` is the equivalent collection for the
   current user's liked posts. The deferred `/dashboard` root composes
   independent, small previews of drafts and published posts and keeps each collection's
-  loading and empty state local. Its
-  private `AnalyticsSummary` precedes those previews. There is no public draft
-  preview. Paragraph-inline images and general storage garbage collection
-  remain future work.
+  loading and empty state local. Analytics lives separately at `/dashboard/analytics`.
+  There is no public draft preview. Paragraph-inline images and general storage garbage
+  collection remain future work.
 
 ### Analytics Foundation
 

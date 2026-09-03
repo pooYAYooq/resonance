@@ -180,8 +180,8 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
   _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`,
   **no** denormalized count on `users` (bookmarks are private). The shared
   `LikeToggle` primitive is the ready seam (Phase 1.3 key decision).
-  `BookmarkButton` self-subscribes client-side because bookmarks are private
-  per-user state and no page currently server hydrates it.
+  `BookmarkButton` receives its initial state from server-rendered reads via
+  `fetchAuthQuery` and keeps it reconciled with a client-side subscription.
 - **1.6 Notifications** ✅ — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Fan-out after `publishPost` via `ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, ...)`; uses the `follows.by_followingId` index for ordered scanning. 1.7's feed strategy is its own first-class design decision; 1.6 only shares the `by_followingId` index, not the feed data path.
 
 ### Deferred Phase 1C — Optional Discovery & Polish
