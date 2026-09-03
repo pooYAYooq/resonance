@@ -59,7 +59,7 @@ describe("ProfileActionButton", () => {
     render(<ProfileActionButton {...baseProps} viewerId="author-1" />);
     const editLink = screen.getByRole("link", { name: /edit profile/i });
     expect(editLink).toBeInTheDocument();
-    expect(editLink).toHaveAttribute("href", "/settings");
+    expect(editLink).toHaveAttribute("href", "/profile/edit");
   });
 
   it("renders FollowButton when viewing someone else's profile", () => {

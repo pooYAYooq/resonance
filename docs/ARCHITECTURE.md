@@ -46,10 +46,6 @@ resonance/
 ├── app/
 │   ├── layout.tsx              # Root layout. ThemeProvider, ConvexClientProvider, Toaster
 │   ├── globals.css
-│   ├── (app)/                  # Retained legacy Settings route (moves in Task 4)
-│   │   ├── layout.tsx          # Renders <Navbar /> and legacy <Footer /> for Settings
-│   │   └── settings/
-│   │       └── page.tsx        # Edit display name + bio. Client Component. useMutation.
 │   ├── (workspace)/            # Authenticated author workspace, no global Navbar or Footer
 │   │   ├── layout.tsx          # WorkspaceShell auth boundary and workspace-only chrome
 │   │   ├── create/
@@ -115,6 +111,8 @@ resonance/
 │   │       ├── page.tsx        # Private reader collection of liked posts.
 │   │       └── _components/
 │   │           └── LikedSection.tsx      # Client auth gate + pagination.
+│   │   ├── profile/edit/page.tsx # Authenticated display-name and bio editor.
+│   │   └── settings/page.tsx    # Appearance and Account configuration only.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
 │   │   ├── login/
@@ -282,11 +280,18 @@ components/
     │     briefly render initials instead of the provider avatar.
     │
     ├── Navbar.tsx
-    │     Reads auth state with useConvexAuth(). Reactive to the
-    │     Convex session, not to the Better Auth client directly.
-│     Authenticated users get Dashboard and Write actions plus an avatar
-│     dropdown (profile, settings, logout); calls authClient.signOut() on logout.
-│     The menu prevents close-time focus restoration from jumping the page.
+     │     Reads auth state with useConvexAuth(). Reactive to the
+     │     Convex session, not to the Better Auth client directly.
+│     Authenticated users get Dashboard and Write actions plus the shared
+│     AccountMenu (profile, saved, liked, settings, logout). AccountMenu keeps
+│     menu focus behavior and delegates sign-out to account-actions.ts.
+│
+│     AccountMenu owns authenticated account-menu presentation and links;
+│     account-actions.ts shares Better Auth sign-out behavior with menus and
+│     the Settings page without coupling Settings to dropdown UI.
+│
+│     ThemePreferenceControl uses next-themes' stored theme preference
+│     (light, dark, or system), not the resolved runtime theme.
     │
     ├── Footer.tsx / FooterCTA.tsx / AuthCTA.tsx
     │     Footer is the site-wide footer (quick links, socials,
@@ -381,10 +386,6 @@ app/
 │   └── layout.tsx      Uses SiteShell with Navbar and the compact footer.
 │                       Owns public and authenticated reader routes: Blog,
 │                       Feed, Notifications, Profile, Saved, and Liked.
-│
-├── (app)/
-│   └── layout.tsx      Retained legacy Navbar/Footer shell for Settings until
-│                       Task 4 moves it into the site shell.
 │
 ├── (workspace)/
 │   └── layout.tsx      WorkspaceShell owns the auth boundary and renders
@@ -729,7 +730,8 @@ Marketing Home and reader routes share a persistent Navbar through `SiteShell`,
 but use marketing and compact footer variants respectively. `(workspace)` owns
 Create and Dashboard under `WorkspaceShell`, which supplies the authenticated
 workspace sidebar, mobile drawer, and utilities without global site chrome.
-The retained `(app)` group holds Settings until Task 4 moves it to `(site)`.
+Profile editing and Settings live in the authenticated `(site)` shell, with
+Profile owning public identity and Settings owning Appearance and Account.
 Auth pages remain distraction-free, full-screen forms. Route groups express
 these shells structurally with no conditional rendering logic.
 

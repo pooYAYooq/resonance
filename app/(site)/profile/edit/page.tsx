@@ -1,5 +1,5 @@
 /**
- * Settings page at `/settings`.
+ * Edit Profile page at `/profile/edit`.
  *
  * Client Component ("use client"), auth-gated via `useConvexAuth`. When
  * the user is unauthenticated, redirects to `/auth/login`. The form
@@ -40,7 +40,7 @@ import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 const MAX_BIO_LENGTH = 160;
 
-export default function SettingsRoute() {
+export default function EditProfileRoute() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const currentUser = useQuery(
@@ -104,10 +104,10 @@ export default function SettingsRoute() {
     <div className="py-12 flex flex-col items-center gap-8">
       <div className="text-center max-w-xl">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl leading-tight">
-          Settings
+          Edit Profile
         </h1>
         <p className="text-lg leading-relaxed text-muted-foreground">
-          Update your profile so others can recognize you.
+          Update the public identity readers see on your profile.
         </p>
       </div>
 

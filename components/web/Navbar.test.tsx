@@ -116,13 +116,13 @@ describe("Navbar", () => {
     expect(
       screen.queryByRole("button", { name: /open navigation menu/i }),
     ).toBeNull();
-    expect(useQueryState).toHaveBeenLastCalledWith("skip");
+    expect(useQueryState).not.toHaveBeenCalled();
   });
 
   it("skips the private current-user query when authentication is anonymous", () => {
     render(<Navbar />);
 
-    expect(useQueryState).toHaveBeenLastCalledWith("skip");
+    expect(useQueryState).not.toHaveBeenCalled();
   });
 
   it("shows the avatar dropdown trigger when authenticated with a current user", () => {

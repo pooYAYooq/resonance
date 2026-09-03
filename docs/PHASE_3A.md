@@ -10,7 +10,9 @@ Structure, is the sole next delivery focus. Slice 1 Task 1, the private
 liked-posts backend contract, is committed. Task 2, separate marketing and
 authenticated site shells plus the dependency-required Saved/Liked reader
 routes, is verified and committed as `784db9d`. Task 3 established the
-workspace shell and navigation boundary in this worktree; Task 4 is next.
+workspace shell and navigation boundary and is committed as `825ee20`. Task 4
+established the Profile/Settings responsibility split and shared account menu
+in this worktree; Task 5 is next.
 
 **Required fresh-session reading order:**
 
@@ -84,8 +86,8 @@ The remaining redesign is constrained by these repository facts:
 
 - `(workspace)` now owns `/dashboard/*` and `/create` beneath `WorkspaceShell`,
   which replaces global site chrome with the workspace sidebar, mobile drawer,
-  and utility cluster. The retained `(app)` group currently contains only
-  Settings until its Task 4 move to `(site)`.
+  and utility cluster. `(site)` owns `/profile/edit` and `/settings`; the
+  former `(app)` route group has been removed.
 - The deferred dashboard root retains legacy author previews and analytics.
   Saved now lives in the site shell; `/dashboard/analytics` remains a declared
   workspace destination until Task 5 relocates its route. `/dashboard` must

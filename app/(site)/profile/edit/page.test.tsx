@@ -1,5 +1,5 @@
 /**
- * Component tests for the settings page.
+ * Component tests for the Edit Profile page.
  *
  * Verifies auth-gated redirect, form pre-fill from current user data,
  * and submission of the `updateProfile` mutation.
@@ -88,12 +88,12 @@ describe("SettingsRoute", () => {
       isAuthenticated: false,
       isLoading: false,
     });
-    window.history.replaceState({}, "", "/settings?section=profile#bio");
+    window.history.replaceState({}, "", "/profile/edit?section=profile#bio");
     render(<SettingsRoute />);
 
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith(
-        "/auth/login?returnTo=%2Fsettings%3Fsection%3Dprofile%23bio",
+        "/auth/login?returnTo=%2Fprofile%2Fedit%3Fsection%3Dprofile%23bio",
       );
     });
   });
