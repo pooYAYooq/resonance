@@ -33,8 +33,8 @@ Feature status is managed with five labels:
 | Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                        | ✅ Complete |
 | Phase 2 — The Author                | Editor, drafts, editing, private analytics, and dashboard visualization | ✅ Complete |
 | Phase 3A.0 — UX Correctness         | Public reading, auth returns, viewer state, publishing, honest claims   | ✅ Complete |
-| Phase 3A.1 — Product Structure      | Shells, navigation, reader utilities, Profile/Settings, analytics       | 🔵 Next     |
-| Phase 3A.2 — Discover Foundations   | Search, Topics, Latest, Feed recovery; Hot after ranking is defined     | 🟡 Later    |
+| Phase 3A.1 — Product Structure      | Shells, navigation, reader utilities, Profile/Settings, analytics       | ✅ Shipped  |
+| Phase 3A.2 — Discover Foundations   | Search, Topics, Latest, Feed recovery; Hot after ranking is defined     | 🔵 Next     |
 | Phase 3A.3 — Writing & Management   | Writing environment, review/publish, management, deletion               | 🟡 Later    |
 | Phase 3A.4 — Identity & Engagement  | Profiles, Notifications, collections, contextual post presentation      | 🟡 Later    |
 | Phase 3A.5 — Visual System & Polish | Typography, color, density, states, responsive interaction              | 🟡 Later    |
@@ -47,11 +47,12 @@ engagement data, or a clear product need for them.
 
 Phase 2 includes the shipped editor, draft lifecycle, private author dashboard,
 owner-scoped published editing, private analytics totals, and the four-card
-analytics dashboard with its dense 30-day follower-growth chart. Phase 3A.0 is
-shipped; Phase 3A.1 is the sole current delivery focus. The approved Phase 3A
-target direction, scope map, delivery slices, sequencing rules, and deferrals
-are maintained in [`docs/PHASE_3A.md`](docs/PHASE_3A.md). Section 18 scope
-areas are not a rigid implementation order.
+analytics dashboard with its dense 30-day follower-growth chart. Phase 3A.0 and
+Phase 3A.1 are shipped; Phase 3A.2 — Discover Foundations is the sole current
+delivery focus. The approved Phase 3A target direction, scope map, delivery
+slices, sequencing rules, and deferrals are maintained in
+[`docs/PHASE_3A.md`](docs/PHASE_3A.md). Section 18 scope areas are not a rigid
+implementation order.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
