@@ -151,9 +151,9 @@ instead of the provider picture until the user record sync completes
 ### Profiles & Settings
 
 - Public profiles at `/u/[userId]`: avatar, display name, bio, paginated post list
-- **Current route, replaced by Slice 1:** `/settings` edits display name and
-  bio; Slice 1 moves identity editing to `/profile/edit` and makes Settings a
-  configuration surface
+- `/profile/edit` owns display name and bio for the public identity; `/settings`
+  owns Appearance and Account configuration. Provider avatar and email remain
+  contextual/read-only where shown.
 - OAuth avatars mapped from provider profiles (Google `picture` / GitHub `avatar_url`), DiceBear fallback
 
 ### UI/UX
@@ -161,7 +161,8 @@ instead of the provider picture until the user record sync completes
 - Landing page sections in `app/(marketing)/_components/`: Hero, Features,
   Recent Posts (Suspense + content-shaped skeleton), Stats
 - Shared `PostCard` across blog listing, landing, and profile pages
-- `EmptyState` and `SectionHeading` primitives; `FooterCTA` is limited to the legacy workspace footer
+- `EmptyState` and `SectionHeading` primitives; `FooterCTA` remains limited to
+  the legacy footer variant and is not rendered by the workspace shell
 - Dark/light/system theme toggle; toast notifications (Sonner)
 - SEO phase 1: per-page metadata, OG/Twitter tags, dynamic post metadata, `noindex` auth pages
 
