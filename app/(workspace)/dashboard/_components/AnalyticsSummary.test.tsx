@@ -53,17 +53,6 @@ describe("AnalyticsSummary", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not render or subscribe when unauthenticated", () => {
-    useConvexAuthState.mockReturnValue({
-      isAuthenticated: false,
-      isLoading: false,
-    });
-    const { container } = render(<AnalyticsSummary />);
-
-    expect(container).toBeEmptyDOMElement();
-    expect(useQueryArgsMock).toHaveBeenLastCalledWith("skip");
-  });
-
   it("renders the private analytics metrics", () => {
     useQueryState.mockReturnValue({
       views: 12,

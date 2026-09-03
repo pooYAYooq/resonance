@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
-import { useConvexAuth, usePaginatedQuery, useQuery } from "convex/react";
-import { useRouter } from "next/navigation";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { Loader2, Newspaper } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -11,12 +9,7 @@ import { EmptyState } from "@/components/web/EmptyState";
 import { PostCard } from "@/components/web/PostCard";
 
 export function PublishedSection() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
-  const router = useRouter();
-  const currentUser = useQuery(
-    api.users.getCurrentUser,
-    isAuthenticated ? {} : "skip",
-  );
+  const currentUser = useQuery(api.users.getCurrentUser, {});
   const authorId = currentUser?.userId;
   const {
     results,
@@ -29,18 +22,7 @@ export function PublishedSection() {
     { initialNumItems: 12 },
   );
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
-    }
-  }, [isLoading, isAuthenticated, router]);
-
-  if (
-    isLoading ||
-    !isAuthenticated ||
-    !currentUser ||
-    (listLoading && results.length === 0)
-  ) {
+  if (!currentUser || (listLoading && results.length === 0)) {
     return (
       <div
         className="flex justify-center py-12"

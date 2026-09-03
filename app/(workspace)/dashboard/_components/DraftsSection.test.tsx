@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 const { authState, paginatedState, paginatedArgs, pushMock } = vi.hoisted(
   () => ({
@@ -47,17 +47,13 @@ describe("DraftsSection", () => {
     pushMock.mockReset();
   });
 
-  it("redirects unauthenticated users and skips the draft query", async () => {
-    authState.mockReturnValue({ isAuthenticated: false, isLoading: false });
-
-    render(<DraftsSection />);
-
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/auth/login"));
-    expect(paginatedArgs).toHaveBeenCalledWith("skip");
-  });
-
   it("announces draft loading status", () => {
-    authState.mockReturnValue({ isAuthenticated: true, isLoading: true });
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "LoadingFirstPage",
+      loadMore: vi.fn(),
+      isLoading: true,
+    });
 
     render(<DraftsSection />);
 

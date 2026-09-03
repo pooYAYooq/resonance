@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useMutation, usePaginatedQuery } from "convex/react";
 import Link from "next/link";
 import { Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -13,27 +12,18 @@ import { Button } from "@/components/ui/button";
 import { DraftRow } from "./DraftRow";
 
 export function DraftsSection() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
-  const router = useRouter();
   const [deletingId, setDeletingId] = useState<Id<"posts">>();
   const deleteDraft = useMutation(api.posts.deleteDraft);
-  const queryArgs = isAuthenticated ? {} : "skip";
   const {
     results,
     status,
     loadMore,
     isLoading: listLoading,
-  } = usePaginatedQuery(api.posts.getDrafts, queryArgs, {
+  } = usePaginatedQuery(api.posts.getDrafts, {}, {
     initialNumItems: 12,
   });
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
-    }
-  }, [isLoading, isAuthenticated, router]);
-
-  if (isLoading || !isAuthenticated || (listLoading && results.length === 0)) {
+  if (listLoading && results.length === 0) {
     return (
       <div className="flex justify-center py-12">
         <div role="status" aria-label="Loading drafts">

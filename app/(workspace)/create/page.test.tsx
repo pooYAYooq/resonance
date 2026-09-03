@@ -236,7 +236,7 @@ describe("CreateRoute", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
-  it("preserves the current location when redirecting an anonymous visitor", async () => {
+  it("leaves authentication redirects to the workspace shell", async () => {
     useConvexAuthState.mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
@@ -245,11 +245,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await waitFor(() =>
-      expect(pushMock).toHaveBeenCalledWith(
-        "/auth/login?returnTo=%2Fcreate%3FdraftId%3Ddraft-1%23editor",
-      ),
-    );
+    await waitFor(() => expect(pushMock).not.toHaveBeenCalled());
   });
 
   afterEach(() => {

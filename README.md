@@ -125,20 +125,23 @@ pnpm lint && pnpm test:ci && pnpm test:component && pnpm build
 
 ```text
 app/
-  (app)/                      # Private author workspace routes (has Navbar + legacy Footer)
+  (app)/                      # Retained legacy Settings route (Task 4 moves it to the site shell)
     layout.tsx                # App layout with Navbar + legacy Footer
+    settings/
+      page.tsx                # Edit display name + bio
+  (workspace)/                # Authenticated workspace routes (no global Navbar or Footer)
+    layout.tsx                # WorkspaceShell auth boundary and workspace-only chrome
     create/
       page.tsx                # New, draft, and published-edit form modes
       _components/
         PostBodyEditor.tsx    # Browser-only BlockNote adapter with image upload/finalization (ssr:false)
     dashboard/
-      layout.tsx              # Private authenticated DashboardShell
+      layout.tsx              # Metadata-only child layout
       page.tsx                # Overview with drafts and published-post previews
       drafts/page.tsx         # Full owner-scoped draft list
       published/page.tsx      # Full current-author published list
-      _components/            # Shell, navigation, analytics, sections, previews, and rows
-    settings/
-      page.tsx                # Edit display name + bio
+      _components/            # Deferred root content, sections, previews, and rows
+    _components/              # Workspace shell, sidebar, mobile drawer, utilities, and navigation
   (marketing)/                # Public marketing routes (Navbar + marketing Footer)
     layout.tsx                # SiteShell with the marketing footer
     page.tsx                  # Landing page (public, auth-aware redirect)

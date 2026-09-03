@@ -23,7 +23,7 @@ import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument } from "@/lib/post-content";
 import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useConvexAuth, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -32,7 +32,6 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 import { getEditorCapabilities, resolveEditorMode } from "./editorMode";
-import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
   ssr: false,
@@ -75,7 +74,6 @@ export default function CreateRoute() {
 }
 
 function CreateEditor() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
   const [isPending, startTransition] = useTransition();
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
@@ -94,18 +92,14 @@ function CreateEditor() {
   const capabilities = getEditorCapabilities(editorMode.mode);
   const hydratedDraft = useQuery(
     api.posts.getDraftById,
-    !isLoading &&
-      isAuthenticated &&
-      editorMode.mode === "draft" &&
+    editorMode.mode === "draft" &&
       requestedDraftId
       ? { draftId: requestedDraftId as Id<"posts"> }
       : "skip",
   );
   const hydratedPublishedPost = useQuery(
     api.posts.getPublishedPostForEditing,
-    !isLoading &&
-      isAuthenticated &&
-      editorMode.mode === "published-edit" &&
+    editorMode.mode === "published-edit" &&
       requestedEditPostId
       ? { postId: requestedEditPostId as Id<"posts"> }
       : "skip",
@@ -133,12 +127,6 @@ function CreateEditor() {
       image: undefined,
     },
   });
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
-    }
-  }, [isLoading, isAuthenticated, router]);
 
   useEffect(() => {
     if (editorMode.mode === "invalid") {
@@ -218,14 +206,6 @@ function CreateEditor() {
       );
     });
   }, [editorMode.mode, form, hydratedDraft, hydratedPublishedPost, router]);
-
-  if (isLoading || !isAuthenticated) {
-    return (
-      <div className="py-12 flex justify-center">
-        <Loader2 className="animate-spin size-8 text-muted-foreground" />
-      </div>
-    );
-  }
 
   if (editorMode.mode === "invalid") {
     return null;

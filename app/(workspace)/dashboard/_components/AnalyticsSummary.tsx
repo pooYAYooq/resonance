@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 import { FollowerGrowthChart } from "./FollowerGrowthChart";
 
 export function AnalyticsSummary() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
   const [asOf, setAsOf] = useState(() => Date.now());
 
   useEffect(() => {
@@ -27,10 +26,10 @@ export function AnalyticsSummary() {
 
   const summary = useQuery(
     api.analytics.getSummary,
-    isAuthenticated ? { asOf } : "skip",
+    { asOf },
   );
 
-  if (isLoading || (isAuthenticated && summary === undefined)) {
+  if (summary === undefined) {
     return (
       <div
         className="flex justify-center py-8"
@@ -42,7 +41,7 @@ export function AnalyticsSummary() {
     );
   }
 
-  if (!isAuthenticated || !summary) return null;
+  if (!summary) return null;
 
   const followerGrowth = summary.followerGrowthDays.reduce(
     (total, day) => total + day.gainedCount,

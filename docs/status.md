@@ -12,8 +12,9 @@ Phase 3A.0 — UX Correctness is shipped. Phase 3A.1 is the sole next focus.
 The Phase 3A target direction and delivery map are canonicalized. Slice 1 Task
 1, the private liked-posts backend contract, is committed. Task 2, separate
 marketing and authenticated site shells plus the dependency-required
-Saved/Liked reader routes, is verified and awaiting the mandatory human staging
-review. Task 3 must not start before Task 2 reaches its human review checkpoint.
+Saved/Liked reader routes, is verified and committed as `784db9d`. Task 3,
+the workspace shell and navigation boundary, is implemented and verified in
+this worktree; it awaits the required human staging review. Task 4 is next.
 
 ## Current verification
 
@@ -40,9 +41,13 @@ convex/bookmarks.test.ts convex/posts.test.ts` passed: 17 files, 184 tests;
   specification and quality reviews approved the result; committed as
   `80256d8`.
 - Slice 1 Task 2 — `pnpm test:ci` passed: 17 files, 184 tests; `pnpm
-test:component` passed: 55 files, 294 tests; `pnpm lint`, `pnpm build`, and
+  test:component` passed: 55 files, 294 tests; `pnpm lint`, `pnpm build`, and
   `git diff --check` passed. Specification and quality reviews approved the
   site-shell split and dependency-required Saved/Liked route adjustment.
+- Slice 1 Task 3 — `pnpm test:component` passed: 57 files, 293 tests;
+  `pnpm lint`, `pnpm build`, and `git diff --check` passed. The workspace shell
+  owns the `/dashboard/*` and `/create` auth boundary and navigation; analytics
+  route relocation remains Task 5.
 
 ## Completed phases
 

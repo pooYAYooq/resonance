@@ -46,8 +46,12 @@ resonance/
 ├── app/
 │   ├── layout.tsx              # Root layout. ThemeProvider, ConvexClientProvider, Toaster
 │   ├── globals.css
-│   ├── (app)/                  # Private author workspace (has Navbar + legacy Footer)
-│   │   ├── layout.tsx          # Renders <Navbar /> above and the legacy <Footer /> below workspace pages
+│   ├── (app)/                  # Retained legacy Settings route (moves in Task 4)
+│   │   ├── layout.tsx          # Renders <Navbar /> and legacy <Footer /> for Settings
+│   │   └── settings/
+│   │       └── page.tsx        # Edit display name + bio. Client Component. useMutation.
+│   ├── (workspace)/            # Authenticated author workspace, no global Navbar or Footer
+│   │   ├── layout.tsx          # WorkspaceShell auth boundary and workspace-only chrome
 │   │   ├── create/
 │   │   │   ├── page.tsx        # New, draft, and published-edit form modes.
 │   │   │   │                   # Loads the BlockNote editor via next/dynamic
@@ -61,13 +65,12 @@ resonance/
 │   │   │                              # Never
 │   │   │                              # imported by server bundles; loads BlockNote CSS.
 │   │   ├── dashboard/
-│   │   │   ├── layout.tsx      # Private DashboardShell with auth gate and nav.
+│   │   │   ├── layout.tsx      # Metadata-only child layout under WorkspaceShell.
 │   │   │   ├── page.tsx        # Overview with independent drafts and published-post previews.
 │   │   │   ├── drafts/page.tsx # Full owner-scoped draft list.
 │   │   │   ├── published/page.tsx # Full current-author published list.
-│   │   │   └── _components/    # Shell, navigation, sections, previews, and rows.
-│   │   ├── settings/
-│   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
+│   │   │   └── _components/    # Deferred root content, sections, previews, and rows.
+│   │   └── _components/        # Shell, sidebar, mobile drawer, utilities, and navigation.
 │   ├── (marketing)/            # Public marketing routes (Navbar + marketing Footer)
 │   │   ├── layout.tsx          # SiteShell with the marketing footer.
 │   │   ├── page.tsx            # Landing page. Authenticated visitors redirect to /dashboard.
@@ -380,9 +383,13 @@ app/
 │                       Feed, Notifications, Profile, Saved, and Liked.
 │
 ├── (app)/
-│   └── layout.tsx      Retained legacy app shell with Navbar and Footer.
-│                       Holds the pre-Task-3 Create, Dashboard, and Settings
-│                       routes.
+│   └── layout.tsx      Retained legacy Navbar/Footer shell for Settings until
+│                       Task 4 moves it into the site shell.
+│
+├── (workspace)/
+│   └── layout.tsx      WorkspaceShell owns the auth boundary and renders
+│                       workspace-only sidebar, mobile drawer, and utilities
+│                       around /dashboard/* and /create.
 │
 └── auth/
     └── layout.tsx      Full-screen centered layout.
@@ -434,9 +441,9 @@ cards, metadata, and the Server Component renderer all share one contract.
   write path uses the exact `format: "blocknote@1"` discriminator to reject
   invalid structured content for new posts instead of silently accepting it.
 
-- **`app/(app)/create/_components/PostBodyEditor.tsx`** — the browser-only
+- **`app/(workspace)/create/_components/PostBodyEditor.tsx`** — the browser-only
   BlockNote editor adapter, a `"use client"` component loaded through
-  `next/dynamic({ ssr: false })` from `app/(app)/create/page.tsx`. Builds the
+  `next/dynamic({ ssr: false })` from `app/(workspace)/create/page.tsx`. Builds the
   curated editor schema (excluded blocks are absent from the slash menu and
   toolbar, not merely ignored), exposes friendly Section heading/Subheading
   labels for semantic H2/H3 blocks, emits the canonical envelope object to
@@ -638,7 +645,7 @@ Two distinct rendering patterns are used depending on what the page needs.
 └──────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────────┐
-│  PATTERN B: Client Component  (app/(app)/create/page.tsx)        │
+│  PATTERN B: Client Component  (app/(workspace)/create/page.tsx)  │
 │                                                                  │
 │  Browser (React)                       Convex                    │
 │      │                                    │                      │
@@ -719,11 +726,12 @@ everything (posts, users, sessions) lives in one place. Fewer moving parts.
 ### 4. Why separate route layouts?
 
 Marketing Home and reader routes share a persistent Navbar through `SiteShell`,
-but use marketing and compact footer variants respectively. The retained legacy
-`(app)` group continues to hold Create, Dashboard, and Settings under its
-existing Navbar and Footer. Auth pages remain distraction-free, full-screen
-forms. Route groups express these shells structurally with no conditional
-rendering logic.
+but use marketing and compact footer variants respectively. `(workspace)` owns
+Create and Dashboard under `WorkspaceShell`, which supplies the authenticated
+workspace sidebar, mobile drawer, and utilities without global site chrome.
+The retained `(app)` group holds Settings until Task 4 moves it to `(site)`.
+Auth pages remain distraction-free, full-screen forms. Route groups express
+these shells structurally with no conditional rendering logic.
 
 ### 5. Why the mixed Server / Client Component rendering strategy?
 

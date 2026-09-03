@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useConvexAuth, usePaginatedQuery, useQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { Loader2, Newspaper } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -10,11 +10,7 @@ import { PostCard } from "@/components/web/PostCard";
 import { DASHBOARD_PREVIEW_LIMIT } from "./previewConstants";
 
 export function PublishedPreview() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
-  const currentUser = useQuery(
-    api.users.getCurrentUser,
-    isAuthenticated ? {} : "skip",
-  );
+  const currentUser = useQuery(api.users.getCurrentUser, {});
   const { results, isLoading: listLoading } = usePaginatedQuery(
     api.posts.getPostsByAuthorId,
     currentUser?.userId ? { authorId: currentUser.userId } : "skip",
@@ -22,8 +18,6 @@ export function PublishedPreview() {
   );
 
   if (
-    isLoading ||
-    !isAuthenticated ||
     !currentUser ||
     (listLoading && results.length === 0)
   ) {

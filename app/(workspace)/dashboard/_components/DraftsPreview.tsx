@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useConvexAuth, usePaginatedQuery } from "convex/react";
+import { usePaginatedQuery } from "convex/react";
 import { FileText, Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,13 @@ import { DraftRow } from "./DraftRow";
 import { DASHBOARD_PREVIEW_LIMIT } from "./previewConstants";
 
 export function DraftsPreview() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
   const { results, isLoading: listLoading } = usePaginatedQuery(
     api.posts.getDrafts,
-    isAuthenticated ? {} : "skip",
+    {},
     { initialNumItems: DASHBOARD_PREVIEW_LIMIT },
   );
 
-  if (isLoading || !isAuthenticated || (listLoading && results.length === 0)) {
+  if (listLoading && results.length === 0) {
     return (
       <div
         className="flex justify-center py-8"

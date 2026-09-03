@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const {
@@ -90,16 +90,6 @@ describe("PublishedSection", () => {
     queryArgs.mockReset();
     paginatedArgs.mockReset();
     pushMock.mockReset();
-  });
-
-  it("redirects unauthenticated users and skips both queries", async () => {
-    authState.mockReturnValue({ isAuthenticated: false, isLoading: false });
-
-    render(<PublishedSection />);
-
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/auth/login"));
-    expect(queryArgs).toHaveBeenCalledWith("skip");
-    expect(paginatedArgs).toHaveBeenCalledWith("skip");
   });
 
   it("waits for the current user before querying published posts", () => {
