@@ -17,10 +17,7 @@ export function PublishedPreview() {
     { initialNumItems: DASHBOARD_PREVIEW_LIMIT },
   );
 
-  if (
-    !currentUser ||
-    (listLoading && results.length === 0)
-  ) {
+  if (!currentUser || (listLoading && results.length === 0)) {
     return (
       <div
         className="flex justify-center py-8"
@@ -36,10 +33,10 @@ export function PublishedPreview() {
     <section aria-labelledby="published-preview-title" className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <h2 id="published-preview-title" className="text-xl font-semibold">
-          Published Posts
+          My Posts
         </h2>
         <Button asChild variant="ghost" size="sm">
-          <Link href="/dashboard/published">View published posts</Link>
+          <Link href="/dashboard/published">View My Posts</Link>
         </Button>
       </div>
       {results.length === 0 ? (

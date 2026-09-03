@@ -74,9 +74,10 @@ describe("PublishedPreview", () => {
     render(<PublishedPreview />);
 
     expect(screen.getByText("No published posts yet")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "View published posts" }),
-    ).toHaveAttribute("href", "/dashboard/published");
+    expect(screen.getByRole("link", { name: "View My Posts" })).toHaveAttribute(
+      "href",
+      "/dashboard/published",
+    );
   });
 
   it("scopes recent posts to the current user", () => {

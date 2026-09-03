@@ -8,9 +8,11 @@ vi.mock("../_components/PublishedSection", () => ({
 import DashboardPublishedRoute from "./page";
 
 describe("Dashboard published route", () => {
-  it("renders the Published section boundary", () => {
+  it("renders the My Posts section boundary", () => {
     render(<DashboardPublishedRoute />);
 
-    expect(screen.getByRole("heading", { name: "Published" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "My Posts" }),
+    ).toBeInTheDocument();
   });
 });

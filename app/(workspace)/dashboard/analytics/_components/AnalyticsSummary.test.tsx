@@ -2,13 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { AnalyticsSummary } from "./AnalyticsSummary";
 
-const { useConvexAuthState, useQueryState, useQueryArgsMock } = vi.hoisted(
-  () => ({
-    useConvexAuthState: vi.fn(),
-    useQueryState: vi.fn(),
-    useQueryArgsMock: vi.fn(),
-  }),
-);
+const { useQueryState, useQueryArgsMock } = vi.hoisted(() => ({
+  useQueryState: vi.fn(),
+  useQueryArgsMock: vi.fn(),
+}));
 
 const followerGrowthDays = Array.from({ length: 30 }, (_, index) => ({
   dayStart: Date.UTC(2026, 7, 26) - (29 - index) * 24 * 60 * 60 * 1000,
@@ -16,7 +13,6 @@ const followerGrowthDays = Array.from({ length: 30 }, (_, index) => ({
 }));
 
 vi.mock("convex/react", () => ({
-  useConvexAuth: () => useConvexAuthState(),
   useQuery: (_query: unknown, args: unknown) => {
     useQueryArgsMock(args);
     return useQueryState();
@@ -24,19 +20,11 @@ vi.mock("convex/react", () => ({
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
-  api: {
-    analytics: {
-      getSummary: "getSummary",
-    },
-  },
+  api: { analytics: { getSummary: "getSummary" } },
 }));
 
 describe("AnalyticsSummary", () => {
   beforeEach(() => {
-    useConvexAuthState.mockReturnValue({
-      isAuthenticated: true,
-      isLoading: false,
-    });
     useQueryState.mockReturnValue(undefined);
     useQueryArgsMock.mockClear();
   });
@@ -53,21 +41,20 @@ describe("AnalyticsSummary", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the private analytics metrics", () => {
+  it("renders private analytics metrics with a unique-reader label", () => {
     useQueryState.mockReturnValue({
       views: 12,
       likes: 5,
       followerCount: 3,
-      followerGrowth: 999,
-      followerGrowthStart: 0,
       followerGrowthDays,
     });
+
     render(<AnalyticsSummary />);
 
     expect(
       screen.getByRole("heading", { name: "Analytics" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Unique Views")).toBeInTheDocument();
+    expect(screen.getByText("Unique Readers")).toBeInTheDocument();
     expect(screen.getByText("Likes Received")).toBeInTheDocument();
     expect(screen.getByText("Current Followers")).toBeInTheDocument();
     expect(screen.getByText("New Followers (30 days)")).toBeInTheDocument();
@@ -85,13 +72,12 @@ describe("AnalyticsSummary", () => {
       views: 0,
       likes: 0,
       followerCount: 0,
-      followerGrowth: 1,
-      followerGrowthStart: 0,
       followerGrowthDays: followerGrowthDays.map((point, index) => ({
         ...point,
         gainedCount: index === 29 ? 1 : 0,
       })),
     });
+
     render(<AnalyticsSummary />);
 
     expect(screen.getByText("New Followers (30 days)")).toBeInTheDocument();

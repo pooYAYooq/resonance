@@ -24,10 +24,7 @@ export function AnalyticsSummary() {
     return () => clearTimeout(timer);
   }, [asOf]);
 
-  const summary = useQuery(
-    api.analytics.getSummary,
-    { asOf },
-  );
+  const summary = useQuery(api.analytics.getSummary, { asOf });
 
   if (summary === undefined) {
     return (
@@ -56,7 +53,7 @@ export function AnalyticsSummary() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle>Unique Views</CardTitle>
+            <CardTitle>Unique Readers</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
             {summary.views}

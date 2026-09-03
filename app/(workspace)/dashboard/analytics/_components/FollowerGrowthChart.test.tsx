@@ -37,9 +37,7 @@ describe("FollowerGrowthChart", () => {
     expect(dailyValues).toHaveTextContent(
       "August 27, 2026: 6 followers gained",
     );
-    expect(dailyValues).toHaveTextContent(
-      "August 25, 2026: 1 follower gained",
-    );
+    expect(dailyValues).toHaveTextContent("August 25, 2026: 1 follower gained");
 
     const visualChart = document.querySelector('[aria-hidden="true"]');
     expect(visualChart).toBeInTheDocument();
