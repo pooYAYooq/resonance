@@ -7,8 +7,10 @@ the remaining Phase 3A redesign work.
 
 **Current delivery position:** Phase 3A.0 is shipped. Phase 3A.1, Product
 Structure, is the sole next delivery focus. Slice 1 Task 1, the private
-liked-posts backend contract, is verified and awaiting the mandatory human
-staging review; no later Slice 1 task has started.
+liked-posts backend contract, is committed. Task 2, separate marketing and
+authenticated site shells plus the dependency-required Saved/Liked reader
+routes, is verified and awaiting the mandatory human staging review. Task 3
+must not start before this work reaches its human review checkpoint.
 
 **Required fresh-session reading order:**
 

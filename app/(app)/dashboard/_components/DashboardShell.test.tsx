@@ -71,9 +71,12 @@ describe("DashboardShell", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Drafts" })).toBeInTheDocument();
-    for (const name of ["Overview", "Drafts", "Published", "Saved"]) {
+    for (const name of ["Overview", "Drafts", "Published"]) {
       expect(screen.getAllByRole("link", { name })).not.toHaveLength(0);
     }
+    expect(
+      screen.queryByRole("link", { name: "Saved" }),
+    ).not.toBeInTheDocument();
     expect(
       screen
         .getAllByRole("link", { name: "Drafts" })

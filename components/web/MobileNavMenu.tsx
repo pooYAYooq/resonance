@@ -9,7 +9,11 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 
-export function MobileNavMenu({ isAuthenticated }: { isAuthenticated: boolean }) {
+export function MobileNavMenu({
+  isAuthenticated,
+}: {
+  isAuthenticated: boolean;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -19,16 +23,10 @@ export function MobileNavMenu({ isAuthenticated }: { isAuthenticated: boolean })
         <Menu className="size-5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-48">
-        <DropdownMenuItem asChild>
-          <Link href="/">Home</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/blog">Blog</Link>
-        </DropdownMenuItem>
         {isAuthenticated ? (
           <>
             <DropdownMenuItem asChild>
-              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/blog">Discover</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/create">New Post</Link>
@@ -37,7 +35,22 @@ export function MobileNavMenu({ isAuthenticated }: { isAuthenticated: boolean })
               <Link href="/feed">Feed</Link>
             </DropdownMenuItem>
           </>
-        ) : null}
+        ) : (
+          <>
+            <DropdownMenuItem asChild>
+              <Link href="/">Home</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/blog">Discover</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/auth/login">Log In</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/auth/sign-up">Sign Up</Link>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

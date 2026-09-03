@@ -8,11 +8,13 @@ const sections = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/drafts", label: "Drafts" },
   { href: "/dashboard/published", label: "Published" },
-  { href: "/dashboard/saved", label: "Saved" },
 ] as const;
 
 function isActivePath(pathname: string, href: string) {
-  return pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+  return (
+    pathname === href ||
+    (href !== "/dashboard" && pathname.startsWith(`${href}/`))
+  );
 }
 
 function SectionLink({ href, label }: (typeof sections)[number]) {

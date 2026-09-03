@@ -5,22 +5,19 @@
  * components: Hero, Features, Recent Posts (with Suspense skeleton),
  * and Community Stats.
  *
- * Auth-aware CTAs are handled by `<AuthCTA />` (hero, blog hero) and
- * `<FooterCTA />` (footer), ensuring consistent labels:
- *   authenticated → "Write a post"
- *   unauthenticated → "Get Started"
- *
  * All section components are React Server Components where possible.
  * Dynamic data (recent posts, stats) is fetched server-side via Convex.
  */
 
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { HeroSection } from "@/app/(app)/_components/HeroSection";
-import { FeaturesSection } from "@/app/(app)/_components/FeaturesSection";
-import { RecentPostsSection } from "@/app/(app)/_components/RecentPostsSection";
-import { RecentPostsSkeleton } from "@/app/(app)/_components/RecentPostsSkeleton";
-import { StatsSection } from "@/app/(app)/_components/StatsSection";
+import { redirect } from "next/navigation";
+import { isAuthenticated } from "@/lib/auth-server";
+import { HeroSection } from "@/app/(marketing)/_components/HeroSection";
+import { FeaturesSection } from "@/app/(marketing)/_components/FeaturesSection";
+import { RecentPostsSection } from "@/app/(marketing)/_components/RecentPostsSection";
+import { RecentPostsSkeleton } from "@/app/(marketing)/_components/RecentPostsSkeleton";
+import { StatsSection } from "@/app/(marketing)/_components/StatsSection";
 
 export const metadata: Metadata = {
   title: "RESONANCE | Write, Share, Connect",
@@ -28,7 +25,11 @@ export const metadata: Metadata = {
     "A blog platform for sharing thoughts, ideas, and stories that echo. Join a community of curious minds.",
 };
 
-export default function Home() {
+export default async function Home() {
+  if (await isAuthenticated()) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="flex flex-col">
       <HeroSection />

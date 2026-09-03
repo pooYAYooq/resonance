@@ -10,14 +10,10 @@ vi.mock("./DraftsPreview", () => ({
 vi.mock("./PublishedPreview", () => ({
   PublishedPreview: () => <div>Published Posts</div>,
 }));
-vi.mock("./SavedPreview", () => ({
-  SavedPreview: () => <div>Saved Posts</div>,
-}));
-
 import { DashboardOverview } from "./DashboardOverview";
 
 describe("DashboardOverview", () => {
-  it("renders all independent previews and their workspace links", () => {
+  it("renders the remaining deferred previews without Saved", () => {
     render(<DashboardOverview />);
 
     expect(
@@ -26,6 +22,6 @@ describe("DashboardOverview", () => {
     expect(screen.getByText("Analytics")).toBeInTheDocument();
     expect(screen.getByText("Continue Writing")).toBeInTheDocument();
     expect(screen.getByText("Published Posts")).toBeInTheDocument();
-    expect(screen.getByText("Saved Posts")).toBeInTheDocument();
+    expect(screen.queryByText("Saved Posts")).toBeNull();
   });
 });

@@ -11,7 +11,7 @@
  *
  * Renders one `NotificationRow` per hydrated notification. The
  * page-level `<h1>Notifications</h1>` lives in
- * `app/(app)/notifications/page.tsx` (this component is the list
+ * `app/(site)/notifications/page.tsx` (this component is the list
  * body only, mirroring `ReadingListContent`). Calls
  * `useMutation(api.notifications.markAllRead)` exactly once on mount
  * via `useEffect`. The mutation is fire-and-forget; the bell badge

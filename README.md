@@ -15,7 +15,7 @@
 | **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                                                    |
 | **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                                                   |
 | **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings`                                                                                            |
-| **Author Dashboard** | Private workspace at `/dashboard` with analytics cards and follower-growth chart, drafts, published posts, saved-post previews, and published-post edit actions                              |
+| **Author Dashboard** | Private workspace at `/dashboard` with analytics cards and follower-growth chart, drafts, published posts, and published-post edit actions                                                   |
 | **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                                                    |
 | **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                                               |
 | **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                                                         |
@@ -125,42 +125,51 @@ pnpm lint && pnpm test:ci && pnpm test:component && pnpm build
 
 ```text
 app/
-  (app)/                      # Main app routes (has Navbar + Footer)
-    page.tsx                  # Landing page (public, auth-aware CTAs)
-    layout.tsx                # App layout with Navbar + Footer
-    _components/              # Landing page sections
-      HeroSection.tsx
-      FeaturesSection.tsx
-      RecentPostsSection.tsx
-      RecentPostsSkeleton.tsx
-      StatsSection.tsx
-    blog/
-      page.tsx                # Blog listing with gradient hero + optional tag filter
-      _components/            # BlogFilter and cursor-draining BlogPostList
-      [postId]/
-        page.tsx              # Single post view with likes, comments, and publication timestamps
+  (app)/                      # Private author workspace routes (has Navbar + legacy Footer)
+    layout.tsx                # App layout with Navbar + legacy Footer
     create/
       page.tsx                # New, draft, and published-edit form modes
       _components/
         PostBodyEditor.tsx    # Browser-only BlockNote adapter with image upload/finalization (ssr:false)
     dashboard/
       layout.tsx              # Private authenticated DashboardShell
-      page.tsx                # Overview with independent collection previews
+      page.tsx                # Overview with drafts and published-post previews
       drafts/page.tsx         # Full owner-scoped draft list
       published/page.tsx      # Full current-author published list
-      saved/page.tsx          # Full bookmarked-post list
       _components/            # Shell, navigation, analytics, sections, previews, and rows
     settings/
       page.tsx                # Edit display name + bio
-    u/[userId]/
-      page.tsx                # Public profile with paginated posts
-      _components/            # ProfilePostList (Edit Profile + Follow live in components/web/)
-    notifications/
-      page.tsx                # Private notifications feed (client-gated + paginated)
-      _components/            # NotificationsList (gate + pagination + mark-all-read) + NotificationRow
+  (marketing)/                # Public marketing routes (Navbar + marketing Footer)
+    layout.tsx                # SiteShell with the marketing footer
+    page.tsx                  # Landing page (public, auth-aware redirect)
+    _components/              # Landing page sections
+      HeroSection.tsx
+      FeaturesSection.tsx
+      RecentPostsSection.tsx
+      RecentPostsSkeleton.tsx
+      StatsSection.tsx
+  (site)/                     # Reader routes (Navbar + compact Footer)
+    layout.tsx                # SiteShell with the compact footer
+    blog/
+      page.tsx                # Blog listing with gradient hero + optional tag filter
+      _components/            # BlogFilter and cursor-draining BlogPostList
+      [postId]/
+        page.tsx              # Single post view with likes, comments, and publication timestamps
     feed/
       page.tsx                # Private reader feed (client-gated + globally paginated)
       _components/            # FeedContent (fixed cutoff + bounded cursor pagination)
+    liked/
+      page.tsx                # Private reader collection of liked posts
+      _components/            # LikedSection (client gate + pagination)
+    notifications/
+      page.tsx                # Private notifications feed (client-gated + paginated)
+      _components/            # NotificationsList (gate + pagination + mark-all-read) + NotificationRow
+    saved/
+      page.tsx                # Private reader collection of bookmarked posts
+      _components/            # SavedSection (client gate + pagination)
+    u/[userId]/
+      page.tsx                # Public profile with paginated posts
+      _components/            # ProfilePostList (Edit Profile + Follow live in components/web/)
   auth/                       # Auth routes (login, sign-up)
     login/page.tsx
     sign-up/page.tsx
@@ -189,7 +198,7 @@ components/
   web/                        # App-level components
     AuthCTA.tsx               # Auth-aware CTA button ("Write a post" / "Get Started")
     FooterCTA.tsx             # Auth-aware CTA card for Footer
-    Navbar.tsx                # Top nav with Dashboard, Write, and avatar actions
+    Navbar.tsx                # Top nav with reader/workspace links, notifications, and account hub actions
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)

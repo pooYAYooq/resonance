@@ -8,8 +8,18 @@ vi.mock("./FooterCTA", () => ({
 import { Footer } from "./Footer";
 
 describe("Footer", () => {
-  it("omits placeholder social links while keeping real navigation", () => {
+  it("keeps the legacy workspace footer and its CTA for callers without a variant", () => {
     render(<Footer />);
+
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+    expect(screen.getByText("Footer CTA")).toBeInTheDocument();
+  });
+
+  it("renders the fuller marketing footer without an auth CTA card", () => {
+    render(<Footer variant="marketing" />);
 
     for (const socialLink of ["GitHub", "Twitter", "LinkedIn"]) {
       expect(screen.queryByRole("link", { name: socialLink })).toBeNull();
@@ -27,5 +37,16 @@ describe("Footer", () => {
       "href",
       "/create",
     );
+    expect(screen.queryByText("Footer CTA")).toBeNull();
+    expect(screen.queryByText("Join the Community")).toBeNull();
+  });
+
+  it("renders a compact footer without marketing navigation", () => {
+    render(<Footer variant="compact" />);
+
+    expect(screen.queryByRole("link", { name: "Home" })).toBeNull();
+    expect(screen.queryByText("Explore")).toBeNull();
+    expect(screen.queryByText("Footer CTA")).toBeNull();
+    expect(screen.getByText(/all rights reserved/i)).toBeInTheDocument();
   });
 });

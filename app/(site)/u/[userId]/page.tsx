@@ -7,7 +7,7 @@
  * The post list is rendered by a Client Component so it can use
  * `usePaginatedQuery` for live pagination.
  *
- * The "(app)" route group ensures the Navbar wraps the page.
+ * The "(site)" route group ensures the Navbar wraps the page.
  */
 
 import type { Metadata } from "next";

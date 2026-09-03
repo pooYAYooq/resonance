@@ -10,8 +10,10 @@ Phase 3A.1 — Product Structure (up next)
 
 Phase 3A.0 — UX Correctness is shipped. Phase 3A.1 is the sole next focus.
 The Phase 3A target direction and delivery map are canonicalized. Slice 1 Task
-1, the private liked-posts backend contract, is verified and awaiting the
-mandatory human staging review; no later Slice 1 task has started.
+1, the private liked-posts backend contract, is committed. Task 2, separate
+marketing and authenticated site shells plus the dependency-required
+Saved/Liked reader routes, is verified and awaiting the mandatory human staging
+review. Task 3 must not start before Task 2 reaches its human review checkpoint.
 
 ## Current verification
 
@@ -33,9 +35,14 @@ mandatory human staging review; no later Slice 1 task has started.
 - The Convex test harness prints a scheduled-cleanup transaction warning in one
   passing test; it is a fixture limitation, not a failing assertion.
 - Slice 1 Task 1 — `pnpm test:ci -- convex/likes.test.ts
-  convex/bookmarks.test.ts convex/posts.test.ts` passed: 17 files, 184 tests;
+convex/bookmarks.test.ts convex/posts.test.ts` passed: 17 files, 184 tests;
   `npx tsc --noEmit` and `git diff --check` passed. The task's independent
-  specification and quality reviews approved the result.
+  specification and quality reviews approved the result; committed as
+  `80256d8`.
+- Slice 1 Task 2 — `pnpm test:ci` passed: 17 files, 184 tests; `pnpm
+test:component` passed: 55 files, 294 tests; `pnpm lint`, `pnpm build`, and
+  `git diff --check` passed. Specification and quality reviews approved the
+  site-shell split and dependency-required Saved/Liked route adjustment.
 
 ## Completed phases
 

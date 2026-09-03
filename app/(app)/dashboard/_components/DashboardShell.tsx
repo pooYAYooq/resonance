@@ -12,7 +12,6 @@ const sectionTitles = {
   "/dashboard": "Overview",
   "/dashboard/drafts": "Drafts",
   "/dashboard/published": "Published",
-  "/dashboard/saved": "Saved",
 } as const;
 
 function getSectionTitle(pathname: string) {

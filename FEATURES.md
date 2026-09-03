@@ -105,6 +105,7 @@ instead of the provider picture until the user record sync completes
 
 - `toggleLike` — idempotent, one like per user per post, records in a separate `likes` table
 - `LikeButton` on post cards and the post detail page; `likeCount` denormalized on posts
+- `/liked` is a private, client-gated reader collection of the current user's liked posts
 - `toggleCommentLike` — idempotent, one like per user per comment, records in a separate `commentLikes` table
 - `CommentLikeButton` on each `CommentCard`; `likeCount` denormalized on comments; shared `LikeToggle` primitive powers both post and comment like buttons
 
@@ -128,9 +129,8 @@ instead of the provider picture until the user record sync completes
 - Server-rendered post reads hydrate initial bookmark state with
   `fetchAuthQuery`; bookmark controls continue to reconcile with their private
   live query after auth resolution
-- **Current route, replaced by Slice 1:** `/dashboard/saved` is a client-gated,
-  paginated grid of saved posts; unbookmarking from the list removes the card
-  immediately
+- `/saved` is a private, client-gated reader collection with a paginated grid
+  of saved posts; unbookmarking from the list removes the card immediately
 
 ### Notifications
 
@@ -157,9 +157,10 @@ instead of the provider picture until the user record sync completes
 
 ### UI/UX
 
-- Landing page sections in `app/(app)/_components/`: Hero, Features, Recent Posts (Suspense + content-shaped skeleton), Stats
+- Landing page sections in `app/(marketing)/_components/`: Hero, Features,
+  Recent Posts (Suspense + content-shaped skeleton), Stats
 - Shared `PostCard` across blog listing, landing, and profile pages
-- `EmptyState` and `SectionHeading` primitives; site-wide `Footer` with auth-aware `FooterCTA`
+- `EmptyState` and `SectionHeading` primitives; `FooterCTA` is limited to the legacy workspace footer
 - Dark/light/system theme toggle; toast notifications (Sonner)
 - SEO phase 1: per-page metadata, OG/Twitter tags, dynamic post metadata, `noindex` auth pages
 
@@ -173,13 +174,12 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 ### Phase 1B — Curation & Connection
 
 - **1.4 Follows** ✅ — follow/unfollow authors; denormalized `followerCount`/`followingCount` on `users`. _Medium._ Ships a `by_followingId` index that 1.6 notifications and the 1.7 feed reuse; later phases build on what 1.4 shipped and must not duplicate the follow relationship.
-- **1.5 Bookmarks / Saved Posts** ✅ — private bookmarks; **current pre-Slice-1
-  route** `/dashboard/saved`. _Medium._ Unrelated to `follows`; new
-  `bookmarks` table mirroring `likes`, **no** denormalized count on `users`
-  (bookmarks are private). The shared `LikeToggle` primitive is the ready seam
-  (Phase 1.3 key decision). `BookmarkButton` self-subscribes client-side
-  because bookmarks are private per-user state and no page currently server
-  hydrates it.
+- **1.5 Bookmarks / Saved Posts** ✅ — private bookmarks at `/saved`.
+  _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`,
+  **no** denormalized count on `users` (bookmarks are private). The shared
+  `LikeToggle` primitive is the ready seam (Phase 1.3 key decision).
+  `BookmarkButton` self-subscribes client-side because bookmarks are private
+  per-user state and no page currently server hydrates it.
 - **1.6 Notifications** ✅ — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Fan-out after `publishPost` via `ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, ...)`; uses the `follows.by_followingId` index for ordered scanning. 1.7's feed strategy is its own first-class design decision; 1.6 only shares the `by_followingId` index, not the feed data path.
 
 ### Deferred Phase 1C — Optional Discovery & Polish
@@ -195,7 +195,7 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 2. **2.2 Inline Image Support** — upload block-level images to Convex Storage, publish canonical storage IDs, and support required alt text plus optional captions. ✅ Shipped
 3. **2.3 Structured Content Publishing** — harden the structured-content contract end to end: posts use validated `blocknote@1` documents at both the form and the Convex write boundary, and card/metadata excerpts never expose serialized JSON. ✅ Shipped
 4. **2.4 Drafts & Publishing Workflow** — add `draft`/`published` status, save drafts, resume editing, and publish intentionally. ✅ Shipped
-5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, saved posts, and author actions. ✅ Shipped
+5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, and author actions. ✅ Shipped
 6. **2.6 Post Editing** — allow authors to edit drafts and published posts with ownership checks. ✅ Shipped
 7. **2.7 Analytics Foundation** — records one signed-in unique view per published post and privately summarizes author unique views, likes received, current followers, and 30-day follower growth. ✅ Shipped
 8. **2.8 Analytics Dashboard UI** — add four summary cards and an accessible, presentation-only 30-day follower-growth chart to the dashboard. ✅ Shipped

@@ -3,7 +3,6 @@
 import { AnalyticsSummary } from "./AnalyticsSummary";
 import { DraftsPreview } from "./DraftsPreview";
 import { PublishedPreview } from "./PublishedPreview";
-import { SavedPreview } from "./SavedPreview";
 
 export function DashboardOverview() {
   return (
@@ -12,7 +11,6 @@ export function DashboardOverview() {
       <AnalyticsSummary />
       <DraftsPreview />
       <PublishedPreview />
-      <SavedPreview />
     </div>
   );
 }

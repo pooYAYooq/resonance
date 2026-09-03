@@ -46,20 +46,8 @@ resonance/
 ├── app/
 │   ├── layout.tsx              # Root layout. ThemeProvider, ConvexClientProvider, Toaster
 │   ├── globals.css
-│   ├── (app)/                  # Route group: main app shell (has Navbar + Footer)
-│   │   ├── layout.tsx          # Renders <Navbar /> above and <Footer /> below all (app) pages
-│   │   ├── page.tsx            # Landing page. Composes sections from _components/.
-│   │   ├── _components/        # Page-specific landing sections (not routed)
-│   │   │   ├── HeroSection.tsx
-│   │   │   ├── FeaturesSection.tsx
-│   │   │   ├── RecentPostsSection.tsx    # fetchQuery, wrapped in <Suspense>
-│   │   │   ├── RecentPostsSkeleton.tsx   # Content-shaped fallback
-│   │   │   ├── StatsSection.tsx          # Live total via posts.countPosts
-│   │   ├── blog/
-│   │   │   ├── page.tsx        # Blog listing. Server Component. Awaits searchParams.
-│   │   │   ├── _components/    # Active filter + cursor-draining filtered post list
-│   │   │   └── [postId]/
-│   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
+│   ├── (app)/                  # Private author workspace (has Navbar + legacy Footer)
+│   │   ├── layout.tsx          # Renders <Navbar /> above and the legacy <Footer /> below workspace pages
 │   │   ├── create/
 │   │   │   ├── page.tsx        # New, draft, and published-edit form modes.
 │   │   │   │                   # Loads the BlockNote editor via next/dynamic
@@ -74,38 +62,56 @@ resonance/
 │   │   │                              # imported by server bundles; loads BlockNote CSS.
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx      # Private DashboardShell with auth gate and nav.
-│   │   │   ├── page.tsx        # Overview with independent collection previews.
+│   │   │   ├── page.tsx        # Overview with independent drafts and published-post previews.
 │   │   │   ├── drafts/page.tsx # Full owner-scoped draft list.
 │   │   │   ├── published/page.tsx # Full current-author published list.
-│   │   │   ├── saved/page.tsx  # Full bookmarked-post list.
 │   │   │   └── _components/    # Shell, navigation, sections, previews, and rows.
 │   │   ├── settings/
 │   │   │   └── page.tsx        # Edit display name + bio. Client Component. useMutation.
+│   ├── (marketing)/            # Public marketing routes (Navbar + marketing Footer)
+│   │   ├── layout.tsx          # SiteShell with the marketing footer.
+│   │   ├── page.tsx            # Landing page. Authenticated visitors redirect to /dashboard.
+│   │   └── _components/        # Hero, Features, Recent Posts, and Stats sections.
+│   ├── (site)/                 # Reader routes (Navbar + compact Footer)
+│   │   ├── layout.tsx          # SiteShell with the compact footer.
+│   │   ├── blog/
+│   │   │   ├── page.tsx        # Blog listing. Server Component. Awaits searchParams.
+│   │   │   ├── _components/    # Active filter + cursor-draining filtered post list
+│   │   │   └── [postId]/
+│   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
 │   │   ├── u/[userId]/
-│   │       ├── page.tsx        # Public profile. Server Component. Uses fetchQuery for
-│   │       │                   # metadata and fetchAuthQuery for viewer-aware rendering.
-│   │       └── _components/
-│   │           └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
-│   │                                # (Edit Profile + Follow live in components/web/
-│   │                                # ProfileActionButton.tsx since 1.4.)
+│   │   │   ├── page.tsx        # Public profile. Server Component. Uses fetchQuery for
+│   │   │   │                   # metadata and fetchAuthQuery for viewer-aware rendering.
+│   │   │   └── _components/
+│   │   │       └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
+│   │   │                              # (Edit Profile + Follow live in components/web/
+│   │   │                              # ProfileActionButton.tsx since 1.4.)
 │   │   ├── notifications/
-│   │       ├── page.tsx        # Notifications. Server Component shell
-│   │       │                   # (static metadata, noindex). Auth gate,
-│   │       │                   # pagination, and mark-all-read live in
-│   │       │                   # the client _components/NotificationsList.
+│   │   │   ├── page.tsx        # Notifications. Server Component shell
+│   │   │   │                   # (static metadata, noindex). Auth gate,
+│   │   │   │                   # pagination, and mark-all-read live in
+│   │   │   │                   # the client _components/NotificationsList.
+│   │   │   └── _components/
+│   │   │       ├── NotificationsList.tsx  # Client. useConvexAuth gate
+│   │   │       │                          # (redirect to /auth/login) +
+│   │   │       │                          # usePaginatedQuery
+│   │   │       │                          # notifications.getNotifications,
+│   │   │       │                          # fires markAllRead once on mount.
+│   │   │       └── NotificationRow.tsx  # Pure-presentational row,
+│   │   │                                  # no Convex hooks.
+│   │   ├── feed/
+│   │   │   ├── page.tsx        # Private reader feed shell (static metadata, noindex).
+│   │   │   └── _components/
+│   │   │       └── FeedContent.tsx       # Client auth gate, fixed cutoff,
+│   │   │                                  # bounded cursor pagination + PostCard grid.
+│   │   ├── saved/
+│   │   │   ├── page.tsx        # Private reader collection of bookmarked posts.
+│   │   │   └── _components/
+│   │   │       └── SavedSection.tsx      # Client auth gate + pagination.
+│   │   └── liked/
+│   │       ├── page.tsx        # Private reader collection of liked posts.
 │   │       └── _components/
-│   │           ├── NotificationsList.tsx  # Client. useConvexAuth gate
-│   │                                  # (redirect to /auth/login) +
-│   │                                  # usePaginatedQuery
-│   │                                  # notifications.getNotifications,
-│   │                                  # fires markAllRead once on mount.
-│   │           └── NotificationRow.tsx  # Pure-presentational row,
-│   │                                  # no Convex hooks.
-│   │   └── feed/
-│   │       ├── page.tsx        # Private reader feed shell (static metadata, noindex).
-│   │       └── _components/
-│   │           └── FeedContent.tsx       # Client auth gate, fixed cutoff,
-│   │                                  # bounded cursor pagination + PostCard grid.
+│   │           └── LikedSection.tsx      # Client auth gate + pagination.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
 │   │   ├── login/
@@ -364,10 +370,19 @@ app/
 ├── layout.tsx          Root layout. Providers that must wrap everything:
 │                         ThemeProvider, ConvexClientProvider, Toaster
 │
+├── (marketing)/
+│   └── layout.tsx      Uses SiteShell with Navbar and the marketing footer.
+│                       Owns Home and its marketing-only components.
+│
+├── (site)/
+│   └── layout.tsx      Uses SiteShell with Navbar and the compact footer.
+│                       Owns public and authenticated reader routes: Blog,
+│                       Feed, Notifications, Profile, Saved, and Liked.
+│
 ├── (app)/
-│   └── layout.tsx      Adds <Navbar /> above and <Footer /> below page
-│                       content, in a flex column so the footer pins to
-│                       the bottom on short pages. All app pages live here.
+│   └── layout.tsx      Retained legacy app shell with Navbar and Footer.
+│                       Holds the pre-Task-3 Create, Dashboard, and Settings
+│                       routes.
 │
 └── auth/
     └── layout.tsx      Full-screen centered layout.
@@ -377,13 +392,13 @@ app/
 ```
 
 Page-specific components that only one route uses live next to that route in
-a `_components/` folder (e.g. `app/(app)/_components/` for the landing
-sections, `app/(app)/u/[userId]/_components/` for the profile page). Shared
+a `_components/` folder (e.g. `app/(marketing)/_components/` for the landing
+sections, `app/(site)/u/[userId]/_components/` for the profile page). Shared
 components live in `components/web/`.
 
-Route groups (the `(app)` folder name) are a Next.js App Router convention. The
-parentheses mean the folder name is not part of the URL. `/blog` resolves to
-`app/(app)/blog/page.tsx`.
+Route groups are a Next.js App Router convention: the parentheses mean a group
+name is not part of the URL. For example, `/blog` resolves to
+`app/(site)/blog/page.tsx`.
 
 ### Post Tags and Blog Filtering
 
@@ -483,9 +498,11 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   `/dashboard/drafts`, resumes through `/create?draftId=...`, and deletes only
   drafts. `/dashboard/published` scopes published cards through the current
   user's auth identity and links authors to `/create?editPostId=...` for
-  published editing, while `/dashboard/saved` reads the private bookmark list.
-  The `/dashboard` Overview composes independent, small previews of all three
-  collections and keeps each collection's loading and empty state local. Its
+  published editing. `/saved` is the client-gated, paginated private reader
+  collection for bookmarks, and `/liked` is the equivalent collection for the
+  current user's liked posts. The `/dashboard` Overview composes independent,
+  small previews of drafts and published posts and keeps each collection's
+  loading and empty state local. Its
   private `AnalyticsSummary` precedes those previews. There is no public draft
   preview. Paragraph-inline images and general storage garbage collection
   remain future work.
@@ -607,7 +624,7 @@ Two distinct rendering patterns are used depending on what the page needs.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  PATTERN A: Server Component  (app/(app)/blog/page.tsx)          │
+│  PATTERN A: Server Component  (app/(site)/blog/page.tsx)         │
 │                                                                  │
 │  Next.js Server                        Convex                    │
 │      │                                     │                     │
@@ -699,11 +716,14 @@ If it ran in Next.js, sessions and user records would need their own database. B
 running Better Auth inside Convex functions (via `convex/auth.ts` and `convex/http.ts`),
 everything (posts, users, sessions) lives in one place. Fewer moving parts.
 
-### 4. Why two separate layouts ((app) vs auth)?
+### 4. Why separate route layouts?
 
-The main app needs a persistent Navbar. Auth pages need to be distraction-free,
-full-screen forms. Route groups let you express this with zero conditional rendering logic.
-The layout file handles it structurally.
+Marketing Home and reader routes share a persistent Navbar through `SiteShell`,
+but use marketing and compact footer variants respectively. The retained legacy
+`(app)` group continues to hold Create, Dashboard, and Settings under its
+existing Navbar and Footer. Auth pages remain distraction-free, full-screen
+forms. Route groups express these shells structurally with no conditional
+rendering logic.
 
 ### 5. Why the mixed Server / Client Component rendering strategy?
 
@@ -840,18 +860,15 @@ page-level queries (`getPosts`, `getPostById`, `getCommentsByPostId`).
 `BookmarkButton` instead subscribes client-side to
 `bookmarks.isBookmarked({ postId })`, mirroring `FollowButton`.
 
-The reason is that `lib/auth-server.ts` exports `fetchAuthQuery` and
-`fetchAuthMutation` for authenticated server-side fetches, but **no page
-in the repo uses them** — every `fetchQuery` from `convex/nextjs` runs
-unauthenticated. Because the user's saved-state is the entire affordance of
-a bookmark toggle, and because bookmarks are private data that must be
-correct for the current user only, a server-hydrated `isBookmarked`
-would always be `false` on first paint for signed-in users. The
-client-side subscription is authenticated (via
-`ConvexBetterAuthProvider`) and correct on every surface.
+The moved marketing and reader pages use `fetchAuthQuery` for viewer-aware
+server reads, which supplies `BookmarkButton` with the correct initial
+`isBookmarked` state. The client-side subscription remains necessary to
+reconcile private bookmark changes after browser authentication resolves.
 
-This is also why `/dashboard/saved` is client-gated with `useConvexAuth`
-(mirroring `/create`) rather than server-gated.
+`/saved` is separately client-gated with `useConvexAuth` because its paginated
+bookmark query is private and reactive. The gate skips that browser query while
+authentication resolves or is anonymous, then redirects anonymous visitors; it
+does not replace the server-side `fetchAuthQuery` used for initial page data.
 
 This decision does not introduce a `bookmarksCount` counter on `users` or
 `posts` (bookmarks are private), and it does not add a `by_postId` index

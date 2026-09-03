@@ -6,7 +6,13 @@
  * hover transitions and staggered entrance animations.
  */
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { PenLine, Users, MessageSquare } from "lucide-react";
 
 const features = [
@@ -39,7 +45,8 @@ export function FeaturesSection() {
             Everything you need to share your voice
           </h2>
           <p className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-150 fill-mode-both text-lg text-muted-foreground max-w-[60ch] mx-auto">
-            A complete platform for writers who want to publish, grow, and connect.
+            A complete platform for writers who want to publish, grow, and
+            connect.
           </p>
         </div>
 
@@ -47,11 +54,7 @@ export function FeaturesSection() {
           {features.map((feature, index) => {
             const Icon = feature.icon;
             const delayClass =
-              index === 0
-                ? "delay-0"
-                : index === 1
-                  ? "delay-150"
-                  : "delay-300";
+              index === 0 ? "delay-0" : index === 1 ? "delay-150" : "delay-300";
 
             return (
               <Card

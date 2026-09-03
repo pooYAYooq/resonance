@@ -60,7 +60,7 @@ vi.mock("@/lib/auth-client", () => ({
 }));
 
 vi.mock("./NotificationBell", () => ({
-  NotificationBell: () => null,
+  NotificationBell: () => <button type="button">Notifications</button>,
 }));
 
 const currentUser = {
@@ -98,7 +98,7 @@ describe("Navbar", () => {
       "href",
       "/auth/sign-up",
     );
-    expect(screen.getByRole("link", { name: /login/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Log In" })).toHaveAttribute(
       "href",
       "/auth/login",
     );
@@ -113,6 +113,9 @@ describe("Navbar", () => {
 
     expect(screen.queryByRole("link", { name: /sign up/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /login/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /open navigation menu/i }),
+    ).toBeNull();
     expect(useQueryState).toHaveBeenLastCalledWith("skip");
   });
 
@@ -151,6 +154,20 @@ describe("Navbar", () => {
     );
   });
 
+  it("links the authenticated logo to /dashboard", () => {
+    currentQueryValue = currentUser;
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    render(<Navbar />);
+
+    expect(screen.getByRole("link", { name: "RESONANCE" })).toHaveAttribute(
+      "href",
+      "/dashboard",
+    );
+  });
+
   it("renders the avatar with the current user's initials in the trigger", () => {
     currentQueryValue = currentUser;
     useConvexAuthState.mockReturnValue({
@@ -167,7 +184,7 @@ describe("Navbar", () => {
     expect(trigger).toHaveTextContent("AD");
   });
 
-  it("opens the menu and shows profile, settings, and logout items", async () => {
+  it("opens the menu and shows profile, Saved, Liked, settings, and sign out items", async () => {
     const user = userEvent.setup();
     currentQueryValue = currentUser;
     useConvexAuthState.mockReturnValue({
@@ -184,15 +201,20 @@ describe("Navbar", () => {
       "href",
       "/u/auth-user-1",
     );
-    expect(
-      screen.queryByRole("menuitem", { name: /reading list/i }),
-    ).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Saved" })).toHaveAttribute(
+      "href",
+      "/saved",
+    );
+    expect(screen.getByRole("menuitem", { name: "Liked" })).toHaveAttribute(
+      "href",
+      "/liked",
+    );
     expect(screen.getByRole("menuitem", { name: /settings/i })).toHaveAttribute(
       "href",
       "/settings",
     );
     expect(
-      screen.getByRole("menuitem", { name: /logout/i }),
+      screen.getByRole("menuitem", { name: /sign out/i }),
     ).toBeInTheDocument();
   });
 
@@ -235,7 +257,7 @@ describe("Navbar", () => {
     expect(trigger).toHaveFocus();
   });
 
-  it("shows canonical dashboard and New Post links when authenticated", () => {
+  it("shows Discover, Feed, New Post, and notifications when authenticated", () => {
     currentQueryValue = currentUser;
     useConvexAuthState.mockReturnValue({
       isAuthenticated: true,
@@ -243,14 +265,17 @@ describe("Navbar", () => {
     });
     render(<Navbar />);
 
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute(
       "href",
-      "/dashboard",
+      "/blog",
     );
-    expect(screen.getByRole("link", { name: "Write" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "New Post" })).toHaveAttribute(
       "href",
       "/create",
     );
+    expect(
+      screen.getByRole("button", { name: "Notifications" }),
+    ).toBeInTheDocument();
   });
 
   it("calls authClient.signOut and shows a toast on logout click", async () => {
@@ -266,7 +291,7 @@ describe("Navbar", () => {
     render(<Navbar />);
 
     await user.click(screen.getByRole("button", { name: /open user menu/i }));
-    await user.click(screen.getByRole("menuitem", { name: /logout/i }));
+    await user.click(screen.getByRole("menuitem", { name: /sign out/i }));
 
     expect(signOutMock).toHaveBeenCalled();
     expect(toastSuccessMock).toHaveBeenCalledWith("Logged out successfully!");

@@ -31,6 +31,8 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import {
+  Bookmark,
+  Heart,
   LogOut,
   User as UserIcon,
   Settings as SettingsIcon,
@@ -66,46 +68,56 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8 flex items-center justify-between py-5">
         {/* Logo */}
         <div className="flex items-center gap-4 md:gap-8">
-          <Link href="/">
+          <Link href={isAuthenticated ? "/dashboard" : "/"}>
             <h1 className="text-3xl font-extrabold">RESONANCE</h1>
           </Link>
 
           {/* Navigation Links */}
           <div className="hidden items-center gap-2 md:flex">
-            <Link className={buttonVariants({ variant: "ghost" })} href="/">
-              Home
-            </Link>
-            <Link className={buttonVariants({ variant: "ghost" })} href="/blog">
-              Blog
-            </Link>
-            {isAuthenticated && (
-              <>
-                <Link
-                  className={buttonVariants({ variant: "ghost" })}
-                  href="/feed"
-                >
-                  Feed
-                </Link>
-                <Link
-                  className={buttonVariants({ variant: "ghost" })}
-                  href="/dashboard"
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  className={buttonVariants({ variant: "default" })}
-                  href="/create"
-                >
-                  Write
-                </Link>
-              </>
-            )}
+            {!isLoading &&
+              (isAuthenticated ? (
+                <>
+                  <Link
+                    className={buttonVariants({ variant: "ghost" })}
+                    href="/blog"
+                  >
+                    Discover
+                  </Link>
+                  <Link
+                    className={buttonVariants({ variant: "ghost" })}
+                    href="/feed"
+                  >
+                    Feed
+                  </Link>
+                  <Link
+                    className={buttonVariants({ variant: "default" })}
+                    href="/create"
+                  >
+                    New Post
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    className={buttonVariants({ variant: "ghost" })}
+                    href="/"
+                  >
+                    Home
+                  </Link>
+                  <Link
+                    className={buttonVariants({ variant: "ghost" })}
+                    href="/blog"
+                  >
+                    Discover
+                  </Link>
+                </>
+              ))}
           </div>
         </div>
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-2">
-          <MobileNavMenu isAuthenticated={isAuthenticated} />
+          {!isLoading && <MobileNavMenu isAuthenticated={isAuthenticated} />}
           {isLoading ? null : isAuthenticated ? (
             currentUser ? (
               <>
@@ -163,6 +175,18 @@ export function Navbar() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
+                      <Link href="/saved">
+                        <Bookmark />
+                        <span>Saved</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/liked">
+                        <Heart />
+                        <span>Liked</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link href="/settings">
                         <SettingsIcon />
                         <span>Settings</span>
@@ -174,7 +198,7 @@ export function Navbar() {
                       onSelect={handleSignOut}
                     >
                       <LogOut />
-                      <span>Logout</span>
+                      <span>Sign Out</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -186,13 +210,13 @@ export function Navbar() {
                 className={buttonVariants({ variant: "default" })}
                 href="/auth/sign-up"
               >
-                Sign up
+                Sign Up
               </Link>
               <Link
                 className={buttonVariants({ variant: "outline" })}
                 href="/auth/login"
               >
-                Login
+                Log In
               </Link>
             </>
           )}

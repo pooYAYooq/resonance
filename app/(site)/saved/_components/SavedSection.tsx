@@ -9,6 +9,7 @@ import { PostCard } from "@/components/web/PostCard";
 import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Loader2, Bookmark } from "lucide-react";
+import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 export function SavedSection() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -16,7 +17,7 @@ export function SavedSection() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
+      router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
     }
   }, [isLoading, isAuthenticated, router]);
 
