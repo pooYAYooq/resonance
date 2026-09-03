@@ -4,14 +4,19 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 3A.1 — Product Structure (up next)
+Phase 3A.2 — Discover Foundations (next)
 
 ## Next focus
 
-Phase 3A.0 — UX Correctness is shipped. Phase 3A.1 is the sole next focus.
-The Phase 3A target direction and delivery map are canonicalized; Slice 1 has
-an approved boundary and local implementation plan, but no Slice 1 application
-code has started.
+Phase 3A.0 — UX Correctness and Phase 3A.1 — Product Structure are shipped.
+Phase 3A.2 — Discover Foundations is the sole next focus. The Phase 3A target
+direction and delivery map are canonicalized. Slice 1 Task 1, the private
+liked-posts backend contract, is committed. Task 2, separate marketing and
+authenticated site shells plus the dependency-required Saved/Liked reader
+routes, is verified and committed as `784db9d`. Task 3, the workspace shell and
+navigation boundary, is committed as `825ee20`. Task 4, the Profile/Settings
+responsibility split and shared account menu, is committed as `744e90a`. Task 5,
+the analytics relocation and dashboard cleanup, is committed as `36e32d6`.
 
 ## Current verification
 
@@ -32,6 +37,34 @@ code has started.
   limited by the Better Auth component fixture in `convex-test`.
 - The Convex test harness prints a scheduled-cleanup transaction warning in one
   passing test; it is a fixture limitation, not a failing assertion.
+- Slice 1 Task 1 — `pnpm test:ci -- convex/likes.test.ts
+convex/bookmarks.test.ts convex/posts.test.ts` passed: 17 files, 184 tests;
+  `npx tsc --noEmit` and `git diff --check` passed. The task's independent
+  specification and quality reviews approved the result; committed as
+  `80256d8`.
+- Slice 1 Task 2 — `pnpm test:ci` passed: 17 files, 184 tests; `pnpm
+test:component` passed: 55 files, 294 tests; `pnpm lint`, `pnpm build`, and
+  `git diff --check` passed. Specification and quality reviews approved the
+  site-shell split and dependency-required Saved/Liked route adjustment.
+- Slice 1 Task 3 — `pnpm test:component` passed: 57 files, 293 tests;
+  `pnpm lint`, `pnpm build`, and `git diff --check` passed. The workspace shell
+  owns the `/dashboard/*` and `/create` auth boundary and navigation.
+- Slice 1 Task 4 — `pnpm test:ci` passed: 17 files, 184 tests; `pnpm
+  test:component` passed: 60 files, 303 tests; `pnpm lint`, `pnpm build`, and
+  `git diff --check` passed. `/profile/edit` owns identity editing,
+  `/settings` owns Appearance and Account, and shared account actions serve the
+  site and workspace shells. Committed as `744e90a`.
+- Slice 1 Task 5 — `pnpm test:component` passed: 61 files, 304 tests;
+  `pnpm lint`, `pnpm build`, and `git diff --check` passed. Analytics owns
+  `/dashboard/analytics`, Saved is no longer a dashboard child route, and the
+  workspace overview excludes Analytics and Saved previews. Committed as
+  `36e32d6`.
+- Slice 1 Task 6 — focused `pnpm test:ci -- convex/likes.test.ts
+  convex/bookmarks.test.ts` passed: 17 files, 184 tests; full `pnpm test:ci`
+  passed: 17 files, 184 tests; and full `pnpm test:component` passed: 61 files,
+  304 tests. `pnpm lint`, `pnpm build`, `git diff --check`, and the approved
+  legacy-path check passed. `pnpm format:check` still reports the known
+  repository-wide 46-file formatting baseline; no unrelated files were changed.
 
 ## Completed phases
 
@@ -61,7 +94,7 @@ code has started.
 - Active local Slice 1 plan:
   `docs/superpowers/plans/2026-08-31-slice-1-product-structure.md` (untracked
   and intentionally not gitignored)
-- Next focus: Phase 3A.1 — Product Structure
+- Next focus: Phase 3A.2 — Discover Foundations
 
 ## Status maintenance
 

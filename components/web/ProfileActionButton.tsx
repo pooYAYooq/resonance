@@ -3,7 +3,7 @@
  * profile page. Renders one of three affordances based on the
  * viewer's identity:
  *
- *  - own profile     → "Edit Profile" link to `/settings`
+ *  - own profile     → "Edit Profile" link to `/profile/edit`
  *  - someone else    → `FollowButton` (authenticated)
  *  - anonymous       → styled "Follow" button that redirects to login
  *
@@ -60,7 +60,7 @@ export function ProfileActionButton({
   if (viewerId === profileUserId) {
     return (
       <Link
-        href="/settings"
+        href="/profile/edit"
         className={buttonVariants({
           variant: "outline",
           className: "space-x-2",

@@ -37,8 +37,11 @@ Convex agent skills for common tasks can be installed by running
 
 ## Routing
 
-- `app/(app)/` — logged-in experience (has Navbar). Parens = not part of URL,
-  so `/blog` maps to `app/(app)/blog/page.tsx`.
+- `app/(marketing)/` owns Home, `app/(site)/` owns public and authenticated
+  reader routes including `/blog`, `/profile/edit`, and `/settings`, and
+  `app/(workspace)/` owns authenticated author routes for `/create` and
+  `/dashboard` (with workspace-only navigation). Parens are not part of the
+  URL.
 - `app/auth/` — isolated layout, no Navbar, full-screen centered forms.
 - Server Components for read-only pages (`fetchQuery`). Client Components
   (`"use client"`) for hooks, mutations, providers, interactivity.
