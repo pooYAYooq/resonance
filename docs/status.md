@@ -50,7 +50,7 @@ test:component` passed: 55 files, 294 tests; `pnpm lint`, `pnpm build`, and
   `pnpm lint`, `pnpm build`, and `git diff --check` passed. The workspace shell
   owns the `/dashboard/*` and `/create` auth boundary and navigation.
 - Slice 1 Task 4 — `pnpm test:ci` passed: 17 files, 184 tests; `pnpm
-  test:component` passed: 60 files, 303 tests; `pnpm lint`, `pnpm build`, and
+test:component` passed: 60 files, 303 tests; `pnpm lint`, `pnpm build`, and
   `git diff --check` passed. `/profile/edit` owns identity editing,
   `/settings` owns Appearance and Account, and shared account actions serve the
   site and workspace shells. Committed as `744e90a`.
@@ -60,7 +60,7 @@ test:component` passed: 55 files, 294 tests; `pnpm lint`, `pnpm build`, and
   workspace overview excludes Analytics and Saved previews. Committed as
   `36e32d6`.
 - Slice 1 Task 6 — focused `pnpm test:ci -- convex/likes.test.ts
-  convex/bookmarks.test.ts` passed: 17 files, 184 tests; full `pnpm test:ci`
+convex/bookmarks.test.ts` passed: 17 files, 184 tests; full `pnpm test:ci`
   passed: 17 files, 184 tests; and full `pnpm test:component` passed: 61 files,
   304 tests. `pnpm lint`, `pnpm build`, `git diff --check`, and the approved
   legacy-path check passed. `pnpm format:check` still reports the known
@@ -82,6 +82,7 @@ test:component` passed: 55 files, 294 tests; `pnpm lint`, `pnpm build`, and
 - Phase 2.7 — Analytics Foundation
 - Phase 2.8 — Analytics Dashboard UI
 - Phase 3A.0 — UX Correctness
+- Phase 3A.1 — Product Structure
 
 ## Where to continue
 
@@ -91,9 +92,6 @@ test:component` passed: 55 files, 294 tests; `pnpm lint`, `pnpm build`, and
   [`docs/PHASE_3A.md`](PHASE_3A.md)
 - Phase 3A cross-cutting decisions:
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
-- Active local Slice 1 plan:
-  `docs/superpowers/plans/2026-08-31-slice-1-product-structure.md` (untracked
-  and intentionally not gitignored)
 - Next focus: Phase 3A.2 — Discover Foundations
 
 ## Status maintenance

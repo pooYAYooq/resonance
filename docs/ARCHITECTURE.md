@@ -62,7 +62,7 @@ resonance/
 │   │   │                              # imported by server bundles; loads BlockNote CSS.
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx      # Metadata-only child layout under WorkspaceShell.
-│   │   │   ├── page.tsx        # Overview with independent drafts and published-post previews.
+│   │   │   ├── page.tsx        # Dashboard root with independent drafts and published-post previews.
 │   │   │   ├── drafts/page.tsx # Full owner-scoped draft list.
 │   │   │   ├── published/page.tsx # Full current-author published list.
 │   │   │   └── _components/    # Deferred root content, sections, previews, and rows.
@@ -510,12 +510,11 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   user's auth identity and links authors to `/create?editPostId=...` for
   published editing. `/saved` is the client-gated, paginated private reader
   collection for bookmarks, and `/liked` is the equivalent collection for the
-  current user's liked posts. The `/dashboard` Overview composes independent,
-  small previews of drafts and published posts and keeps each collection's
-  loading and empty state local. Its
-  private `AnalyticsSummary` precedes those previews. There is no public draft
-  preview. Paragraph-inline images and general storage garbage collection
-  remain future work.
+  current user's liked posts. The deferred `/dashboard` root composes
+  independent, small previews of drafts and published posts and keeps each collection's
+  loading and empty state local. Analytics lives separately at `/dashboard/analytics`.
+  There is no public draft preview. Paragraph-inline images and general storage garbage
+  collection remain future work.
 
 ### Analytics Foundation
 
@@ -861,7 +860,7 @@ The durable rationale for 1.5 / 1.6 / 1.7 is captured above; the original
 working-design artifacts were local, untracked specs that are no longer
 retained.
 
-### 14. Why bookmarks self-subscribe instead of being server-hydrated
+### 14. Why bookmarks use server hydration plus a client subscription
 
 Phase 1.5 Bookmarks mirrors `likes` (separate `bookmarks` table,
 idempotent `toggleBookmark` mutation, one row per user per post) but

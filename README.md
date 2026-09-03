@@ -14,8 +14,8 @@
 | **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                                                   |
 | **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                                                    |
 | **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                                                   |
-| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/settings`                                                                                            |
-| **Author Dashboard** | Private workspace at `/dashboard` with analytics cards and follower-growth chart, drafts, published posts, and published-post edit actions                                                   |
+| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/profile/edit`                                                                                        |
+| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, and published-post edit actions; analytics at `/dashboard/analytics`                                                         |
 | **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                                                    |
 | **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                                               |
 | **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                                                         |
@@ -133,7 +133,7 @@ app/
         PostBodyEditor.tsx    # Browser-only BlockNote adapter with image upload/finalization (ssr:false)
     dashboard/
       layout.tsx              # Metadata-only child layout
-      page.tsx                # Overview with drafts and published-post previews
+      page.tsx                # Dashboard root with drafts and published-post previews
       drafts/page.tsx         # Full owner-scoped draft list
       published/page.tsx      # Full current-author published list
       _components/            # Deferred root content, sections, previews, and rows

@@ -151,9 +151,9 @@ instead of the provider picture until the user record sync completes
 ### Profiles & Settings
 
 - Public profiles at `/u/[userId]`: avatar, display name, bio, paginated post list
-- **Current route, replaced by Slice 1:** `/settings` edits display name and
-  bio; Slice 1 moves identity editing to `/profile/edit` and makes Settings a
-  configuration surface
+- `/profile/edit` owns display name and bio for the public identity; `/settings`
+  owns Appearance and Account configuration. Provider avatar and email remain
+  contextual/read-only where shown.
 - OAuth avatars mapped from provider profiles (Google `picture` / GitHub `avatar_url`), DiceBear fallback
 
 ### UI/UX
@@ -161,7 +161,8 @@ instead of the provider picture until the user record sync completes
 - Landing page sections in `app/(marketing)/_components/`: Hero, Features,
   Recent Posts (Suspense + content-shaped skeleton), Stats
 - Shared `PostCard` across blog listing, landing, and profile pages
-- `EmptyState` and `SectionHeading` primitives; `FooterCTA` is limited to the legacy workspace footer
+- `EmptyState` and `SectionHeading` primitives; `FooterCTA` remains limited to
+  the legacy footer variant and is not rendered by the workspace shell
 - Dark/light/system theme toggle; toast notifications (Sonner)
 - SEO phase 1: per-page metadata, OG/Twitter tags, dynamic post metadata, `noindex` auth pages
 
@@ -179,8 +180,8 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
   _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`,
   **no** denormalized count on `users` (bookmarks are private). The shared
   `LikeToggle` primitive is the ready seam (Phase 1.3 key decision).
-  `BookmarkButton` self-subscribes client-side because bookmarks are private
-  per-user state and no page currently server hydrates it.
+  `BookmarkButton` receives its initial state from server-rendered reads via
+  `fetchAuthQuery` and keeps it reconciled with a client-side subscription.
 - **1.6 Notifications** ✅ — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Fan-out after `publishPost` via `ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, ...)`; uses the `follows.by_followingId` index for ordered scanning. 1.7's feed strategy is its own first-class design decision; 1.6 only shares the `by_followingId` index, not the feed data path.
 
 ### Deferred Phase 1C — Optional Discovery & Polish

@@ -6,13 +6,9 @@
 the remaining Phase 3A redesign work.
 
 **Current delivery position:** Phase 3A.0 is shipped. Phase 3A.1, Product
-Structure, is the sole next delivery focus. Slice 1 Task 1, the private
-liked-posts backend contract, is committed. Task 2, separate marketing and
-authenticated site shells plus the dependency-required Saved/Liked reader
-routes, is verified and committed as `784db9d`. Task 3 established the
-workspace shell and navigation boundary and is committed as `825ee20`. Task 4
-established the Profile/Settings responsibility split and shared account menu
-in this worktree; Task 5 is next.
+Structure, is shipped as Slice 1. Tasks 1–5 are committed, and Task 6
+verification and cleanup are complete. Phase 3A.2, Discover Foundations, is
+the sole next delivery focus.
 
 **Required fresh-session reading order:**
 
@@ -88,15 +84,15 @@ The remaining redesign is constrained by these repository facts:
   which replaces global site chrome with the workspace sidebar, mobile drawer,
   and utility cluster. `(site)` owns `/profile/edit` and `/settings`; the
   former `(app)` route group has been removed.
-- The deferred dashboard root retains legacy author previews and analytics.
-  Saved now lives in the site shell; `/dashboard/analytics` remains a declared
-  workspace destination until Task 5 relocates its route. `/dashboard` must
-  remain routed without becoming a premature Overview.
+- The deferred dashboard root retains legacy author previews. Saved now lives in
+  the site shell, and Analytics is available at `/dashboard/analytics` as a
+  secondary workspace destination. `/dashboard` must remain routed without
+  becoming a premature Overview.
 - `PostCard` currently combines a reusable hydrated post shape with one visual
   presentation. The data shape is a reusable seam; the universal visual card is
   not the target.
-- Liked lacks a user-first listing access path. Saved already has one through
-  bookmarks.
+- Liked and Saved both have authenticated, paginated reader collection access
+  paths. Collection presentation refinement remains part of Slice 4.
 - Post bodies are BlockNote JSON and tags are arrays. Search and topic browsing
   need deliberate query/index contracts, but their exact projection/index/table
   strategy is a Slice 2 planning decision.
@@ -157,7 +153,7 @@ Anonymous public reading, authenticated viewer state, auth returns, session
 configuration verification, explicit Save Draft/Publish behavior, and removal
 of misleading public placeholders are complete.
 
-### 3A.1: Product Structure - Next
+### 3A.1: Product Structure - Shipped
 
 - Authenticated Home routing.
 - Marketing, site, and workspace shell separation.
@@ -337,9 +333,8 @@ Slice 1 is complete only when all of these are observable:
   display name and bio, with provider avatar as context only.
 - `/saved` is the sole Saved route. `/liked` is an authenticated paginated
   reader collection.
-- Workspace navigation exposes Analytics at `/dashboard/analytics`; Task 5
-  makes that destination routable and preserves its honest
-  signed-in-unique-reader language.
+- Workspace navigation exposes Analytics at `/dashboard/analytics`, preserving
+  its honest signed-in-unique-reader language.
 - Shared account actions and bell behavior are reusable across site/workspace
   shells. A common hydrated post-summary shape is available where appropriate.
 
