@@ -42,7 +42,7 @@ export function LikedSection() {
     );
   }
 
-  if (results.length === 0) {
+  if (results.length === 0 && status === "Exhausted") {
     return (
       <EmptyState
         icon={Heart}

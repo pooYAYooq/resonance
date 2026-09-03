@@ -99,6 +99,23 @@ describe("LikedSection", () => {
     expect(paginatedArgs).toHaveBeenCalledWith({});
   });
 
+  it("keeps loading available when the current page only contains unavailable posts", async () => {
+    const loadMore = vi.fn();
+    const user = userEvent.setup();
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "CanLoadMore",
+      loadMore,
+      isLoading: false,
+    });
+
+    render(<LikedSection />);
+
+    expect(screen.queryByText("No liked posts")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    expect(loadMore).toHaveBeenCalledWith(12);
+  });
+
   it("renders liked summaries and loads more", async () => {
     const loadMore = vi.fn();
     const user = userEvent.setup();

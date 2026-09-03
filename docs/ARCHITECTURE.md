@@ -135,8 +135,10 @@ resonance/
 │   │                           # failed-submit cleanup, and bounded expiry cleanup
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
 │   │                           # (paginated, enriches authorAvatarUrl, isLiked, likeCount)
-│   ├── likes.ts                # toggleLike + toggleCommentLike mutations (idempotent); keeps
-│   │                           # denormalized posts.likeCount and comments.likeCount in sync
+│   ├── likes.ts                # toggleLike + toggleCommentLike mutations (idempotent), plus
+│   │                           # private paginated liked-post summaries; uses
+│   │                           # by_postId_and_userId for toggles and
+│   │                           # by_userId_and_createdAt for viewer pagination
 │   ├── follows.ts              # toggleFollow (idempotent) + isFollowing + getFollowCounts;
 │   │                           # keeps denormalized users.followerCount and
 │   │                           # users.followingCount in sync. Two indexes:
@@ -799,11 +801,12 @@ are where we pay; reads stay cheap.
 
 An unbounded `likedBy` array would grow the post document toward Convex's
 1 MB document limit and bloat every read that doesn't need like data. A
-separate `likes` table (one row per user per post, indexed
-`by_postId_and_userId`) supports both "did this user like this post?" and
-"all likes for this post" as index queries. The hot-path count is
-denormalized onto `posts.likeCount`, kept in sync by `toggleLike`, so cards
-and detail pages render counts without touching the `likes` table.
+separate `likes` table stores one row per user per post. Its
+`by_postId_and_userId` index supports "did this user like this post?" checks,
+while `by_userId_and_createdAt` supports descending, user-scoped pagination for
+the private liked-post collection. The hot-path count is denormalized onto
+`posts.likeCount`, kept in sync by `toggleLike`, so cards and detail pages
+render counts without touching the `likes` table.
 
 ### 12. Why a shared `LikeToggle` primitive?
 

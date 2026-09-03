@@ -125,10 +125,6 @@ pnpm lint && pnpm test:ci && pnpm test:component && pnpm build
 
 ```text
 app/
-  (app)/                      # Retained legacy Settings route (Task 4 moves it to the site shell)
-    layout.tsx                # App layout with Navbar + legacy Footer
-    settings/
-      page.tsx                # Edit display name + bio
   (workspace)/                # Authenticated workspace routes (no global Navbar or Footer)
     layout.tsx                # WorkspaceShell auth boundary and workspace-only chrome
     create/
@@ -184,7 +180,8 @@ convex/
   posts.ts                    # Draft save/publish, published editing, published-only reads, uploads, claims, and URL hydration
   pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
-  likes.ts                    # toggleLike + toggleCommentLike mutations
+  likes.ts                    # toggleLike + toggleCommentLike mutations and private paginated liked-post query
+                              # uses by_postId_and_userId for toggles and by_userId_and_createdAt for liked-post pagination
   follows.ts                  # toggleFollow + isFollowing + getFollowCounts (1.4). by_followerId_and_followingId
                               # index only — by_followingId deferred to 1.6 (notification fan-out)
   bookmarks.ts                # toggleBookmark + isBookmarked + getBookmarkedPosts (1.5).
