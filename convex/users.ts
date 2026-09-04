@@ -14,6 +14,8 @@
 import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
+import { internal } from "./_generated/api";
+import { DISCOVER_BATCH_SIZE } from "./discoverBackfill";
 
 /**
  * Idempotent upsert: creates or updates the app-level user record
@@ -34,6 +36,7 @@ import { authComponent } from "./auth";
  */
 export const syncUser = mutation({
   args: {},
+  returns: v.id("users"),
   handler: async (ctx) => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -50,20 +53,40 @@ export const syncUser = mutation({
       // Better Auth returns `string | null | undefined` for optional fields;
       // we only overwrite when a new non-null value is present, otherwise
       // we preserve the existing record to avoid accidentally clearing data.
+      const displayName = authUser.name || existing.displayName;
       await ctx.db.patch(existing._id, {
-        displayName: authUser.name || existing.displayName,
+        displayName,
         email: authUser.email != null ? authUser.email : existing.email,
         avatarUrl: authUser.image != null ? authUser.image : existing.avatarUrl,
       });
+      if (displayName !== existing.displayName) {
+        const projectedPosts = await ctx.db
+          .query("discoverPosts")
+          .withIndex("by_authorId", (q) => q.eq("authorId", authUser._id))
+          .take(1);
+        if (projectedPosts.length > 0) {
+          // Keep Discover's denormalized author fields aligned without blocking auth sync.
+          await ctx.scheduler.runAfter(
+            0,
+            internal.discoverBackfill.repairAuthorName,
+            {
+              authorId: authUser._id,
+              newAuthorName: displayName,
+              paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
+            },
+          );
+        }
+      }
       return existing._id;
     }
 
     // Create new user record
     // `?? undefined` coerces `null` → `undefined` so the value aligns with
     // `v.optional(v.string())`, which accepts `string | undefined` but not `null`.
+    const displayName = authUser.name || "Anonymous";
     const userId = await ctx.db.insert("users", {
       userId: authUser._id,
-      displayName: authUser.name || "Anonymous",
+      displayName,
       email: authUser.email ?? undefined,
       avatarUrl: authUser.image ?? undefined,
       bio: "",
@@ -72,6 +95,23 @@ export const syncUser = mutation({
       unreadNotificationCount: 0,
       createdAt: Date.now(),
     });
+
+    const projectedPosts = await ctx.db
+      .query("discoverPosts")
+      .withIndex("by_authorId", (q) => q.eq("authorId", authUser._id))
+      .take(1);
+    if (projectedPosts.length > 0) {
+      // Keep Discover's denormalized author fields aligned without blocking auth sync.
+      await ctx.scheduler.runAfter(
+        0,
+        internal.discoverBackfill.repairAuthorName,
+        {
+          authorId: authUser._id,
+          newAuthorName: displayName,
+          paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
+        },
+      );
+    }
 
     return userId;
   },
@@ -174,6 +214,7 @@ export const updateProfile = mutation({
     displayName: v.string(),
     bio: v.string(),
   },
+  returns: v.id("users"),
   handler: async (ctx, args) => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -202,6 +243,18 @@ export const updateProfile = mutation({
       displayName,
       bio: args.bio,
     });
+    if (displayName !== existing.displayName) {
+      // The profile is the source event; repair denormalized Discover authors asynchronously.
+      await ctx.scheduler.runAfter(
+        0,
+        internal.discoverBackfill.repairAuthorName,
+        {
+          authorId: authUser._id,
+          newAuthorName: displayName,
+          paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
+        },
+      );
+    }
 
     return existing._id;
   },

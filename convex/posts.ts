@@ -31,6 +31,7 @@ import {
   validatePublishedEditUploadClaims,
 } from "./postLifecycle";
 import { incrementPostCountInTransaction } from "./stats";
+import { syncPublishedPostProjection } from "./discoverProjection";
 
 /**
  * Parses a post body string and returns the structured document if valid.
@@ -291,6 +292,7 @@ export const publishPost = mutation({
       });
     }
     await incrementPostCountInTransaction(ctx);
+    await syncPublishedPostProjection(ctx, draft._id);
     await ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, {
       postId: draft._id,
       authorId: draft.authorId,
@@ -497,6 +499,7 @@ export const updatePublishedPost = mutation({
       post._id,
     );
     const updatedAt = Math.max(now, post.publishedAt, post.updatedAt) + 1;
+    const previousTags = post.tags;
 
     await ctx.db.patch(post._id, {
       title: args.title,
@@ -511,6 +514,7 @@ export const updatePublishedPost = mutation({
         expiresAt: Number.MAX_SAFE_INTEGER,
       });
     }
+    await syncPublishedPostProjection(ctx, post._id, previousTags);
 
     return post._id;
   },
