@@ -3,7 +3,7 @@
 import { convexTest } from "convex-test";
 import { ConvexError } from "convex/values";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { POST_TAGS } from "../lib/constants/post-tags";
 import { BLOCKNOTE_FORMAT } from "../lib/post-content";
 import {
@@ -900,5 +900,265 @@ describe("Discover projection persistence helpers", () => {
     }));
 
     expect(result).toEqual({ discover: null, topic: null, stat: null });
+  });
+});
+
+describe("Public Discover queries", () => {
+  it("does not include a draft source post in anonymous Latest results", async () => {
+    const t = convexTest(schema, modules);
+    const publishedPostId = await insertPost(t);
+    const draftPostId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Draft source",
+        body: structuredBody("Draft body"),
+        tags: [],
+        authorId: "author-1",
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 200,
+        updatedAt: 200,
+      }),
+    );
+
+    await t.run(async (ctx) => {
+      await syncPublishedPostProjection(ctx, publishedPostId);
+      await syncPublishedPostProjection(ctx, draftPostId);
+    });
+
+    const result = await t.query(api.discover.getDiscoverPosts, {
+      mode: "latest",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page.map((post) => post._id)).toEqual([publishedPostId]);
+    expect(result.page.map((post) => post.title)).not.toContain("Draft source");
+  });
+
+  it("returns anonymous Latest results from projections in publishedAt order", async () => {
+    const t = convexTest(schema, modules);
+    const ids = await t.run(async (ctx) => {
+      const oldestSource = await ctx.db.insert("posts", {
+        title: "Oldest source",
+        body: "Old body",
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 10,
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 10,
+        updatedAt: 10,
+      });
+      const newestSource = await ctx.db.insert("posts", {
+        title: "Newest source",
+        body: "New body",
+        tags: [],
+        authorId: "author-2",
+        status: "published",
+        publishedAt: 20,
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 20,
+        updatedAt: 20,
+      });
+      await ctx.db.insert("discoverPosts", {
+        postId: oldestSource,
+        title: "Oldest",
+        bodyText: "Old body",
+        searchableText: "Oldest\nOld body\nAda",
+        authorId: "author-1",
+        authorName: "Ada Lovelace",
+        tags: ["Technology"],
+        publishedAt: 10,
+        commentCount: 1,
+        likeCount: 2,
+      });
+      await ctx.db.insert("discoverPosts", {
+        postId: newestSource,
+        title: "Newest",
+        bodyText: "New body",
+        searchableText: "Newest\nNew body\nGrace",
+        authorId: "author-2",
+        authorName: "Grace Hopper",
+        tags: ["Science"],
+        publishedAt: 20,
+        commentCount: 3,
+        likeCount: 4,
+      });
+      return { oldest: oldestSource, newest: newestSource };
+    });
+
+    const result = await t.query(api.discover.getDiscoverPosts, {
+      mode: "latest",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page.map((post) => post._id)).toEqual([
+      ids.newest,
+      ids.oldest,
+    ]);
+    expect(result.page[0]).toEqual({
+      _id: ids.newest,
+      title: "Newest",
+      bodyText: "New body",
+      authorId: "author-2",
+      authorName: "Grace Hopper",
+      tags: ["Science"],
+      imageUrl: null,
+      publishedAt: 20,
+      commentCount: 3,
+      likeCount: 4,
+    });
+  });
+
+  it("searches projected title, body text, and author name with native ordering", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (const [title, bodyText, authorName] of [
+        ["Design systems", "A practical guide", "Ada Lovelace"],
+        ["A quiet essay", "Design systems in practice", "Grace Hopper"],
+        ["Another essay", "A short note", "Design Systems"],
+      ]) {
+        const postId = await ctx.db.insert("posts", {
+          title,
+          body: bodyText,
+          tags: [],
+          authorId: authorName,
+          status: "published",
+          publishedAt: 1,
+          commentCount: 0,
+          likeCount: 0,
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        await ctx.db.insert("discoverPosts", {
+          postId,
+          title,
+          bodyText,
+          searchableText: `${title}\n${bodyText}\n${authorName}`,
+          authorId: authorName,
+          authorName,
+          tags: [],
+          publishedAt: 1,
+          commentCount: 0,
+          likeCount: 0,
+        });
+      }
+    });
+
+    const result = await t.query(api.discover.getDiscoverPosts, {
+      mode: "search",
+      query: "design systems",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page.map((post) => post.title)).toEqual([
+      "Design systems",
+      "A quiet essay",
+      "Another essay",
+    ]);
+  });
+
+  it("returns active topics in canonical order and omits zero-count tags", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("topicStats", {
+        tag: "Science",
+        publishedCount: 2,
+      });
+      await ctx.db.insert("topicStats", {
+        tag: "Technology",
+        publishedCount: 1,
+      });
+      await ctx.db.insert("topicStats", {
+        tag: "Design",
+        publishedCount: 0,
+      });
+      await ctx.db.insert("topicStats", {
+        tag: "Not canonical",
+        publishedCount: 99,
+      });
+    });
+
+    await expect(t.query(api.discover.getTopics, {})).resolves.toEqual([
+      { tag: "Technology", publishedCount: 1 },
+      { tag: "Science", publishedCount: 2 },
+    ]);
+  });
+
+  it("hydrates a bounded Topic page, preserves pagination metadata, and skips missing rows", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const sourcePostId = await ctx.db.insert("posts", {
+        title: "Existing source",
+        body: "Body",
+        tags: ["Technology"],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 20,
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 20,
+        updatedAt: 20,
+      });
+      const missingProjectionPostId = await ctx.db.insert("posts", {
+        title: "Missing projection source",
+        body: "Body",
+        tags: ["Technology"],
+        authorId: "author-2",
+        status: "published",
+        publishedAt: 30,
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 30,
+        updatedAt: 30,
+      });
+      await ctx.db.insert("discoverPosts", {
+        postId: sourcePostId,
+        title: "Existing topic post",
+        bodyText: "Body",
+        searchableText: "Existing topic post\nBody\nAuthor",
+        authorId: "author-1",
+        authorName: "Author",
+        tags: ["Technology"],
+        publishedAt: 20,
+        commentCount: 0,
+        likeCount: 0,
+      });
+      await ctx.db.insert("discoverPostTopics", {
+        tag: "Technology",
+        postId: missingProjectionPostId,
+        publishedAt: 30,
+      });
+      await ctx.db.insert("discoverPostTopics", {
+        tag: "Technology",
+        postId: sourcePostId,
+        publishedAt: 20,
+      });
+    });
+
+    const result = await t.query(api.discover.getTopicPosts, {
+      tag: "Technology",
+      paginationOpts: { numItems: 2, cursor: null },
+    });
+
+    expect(result.page.map((post) => post.title)).toEqual([
+      "Existing topic post",
+    ]);
+    expect(result.isDone).toBe(true);
+    expect(result.continueCursor).toBeTruthy();
+  });
+
+  it("returns a completed empty page for an invalid Topic tag", async () => {
+    const t = convexTest(schema, modules);
+
+    await expect(
+      t.query(api.discover.getTopicPosts, {
+        tag: "Unsupported",
+        paginationOpts: { numItems: 10, cursor: null },
+      }),
+    ).resolves.toEqual({ page: [], isDone: true, continueCursor: "" });
   });
 });

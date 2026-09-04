@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as bookmarks from "../bookmarks.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
+import type * as discover from "../discover.js";
 import type * as discoverBackfill from "../discoverBackfill.js";
 import type * as discoverProjection from "../discoverProjection.js";
 import type * as feed from "../feed.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   bookmarks: typeof bookmarks;
   comments: typeof comments;
   crons: typeof crons;
+  discover: typeof discover;
   discoverBackfill: typeof discoverBackfill;
   discoverProjection: typeof discoverProjection;
   feed: typeof feed;
