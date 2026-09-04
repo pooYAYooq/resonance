@@ -4,7 +4,7 @@ import { BlogFilter } from "./BlogFilter";
 
 describe("BlogFilter", () => {
   it("shows the active tag and clear link", () => {
-    render(<BlogFilter tag="Technology" />);
+    render(<BlogFilter mode={{ mode: "topic", tag: "Technology" }} />);
     expect(screen.getByText("Technology")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /clear filter/i })).toHaveAttribute(
       "href",

@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/web/EmptyState";
 import { SearchX } from "lucide-react";
 import Link from "next/link";
 import type { Id } from "@/convex/_generated/dataModel";
+import type { DiscoverMode } from "@/lib/discover";
 
 type BlogPost = {
   _id: Id<"posts">;
@@ -25,16 +26,17 @@ type BlogPost = {
 type GetPostsResult = FunctionReturnType<typeof api.posts.getPosts>;
 
 interface BlogPostListProps {
-  tag?: string;
+  mode: DiscoverMode;
 }
 
 /**
- * Displays blog posts, optionally filtered by tag.
+ * Displays blog posts for a normalized Discover mode.
  *
- * @param tag - The optional tag used to filter posts.
+ * @param mode - The normalized Discover mode, including an optional topic tag.
  * @returns A responsive post grid or an empty state when the tag has no matching posts.
  */
-export async function BlogPostList({ tag }: BlogPostListProps) {
+export async function BlogPostList({ mode }: BlogPostListProps) {
+  const tag = mode.mode === "topic" ? mode.tag : undefined;
   const posts: BlogPost[] = [];
   let cursor: string | null = null;
   let isDone = false;

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AuthCTA } from "@/components/web/AuthCTA";
 import { Skeleton } from "@/components/ui/skeleton";
+import { normalizeDiscoverParams, type DiscoverParams } from "@/lib/discover";
 import { BlogFilter } from "./_components/BlogFilter";
 import { BlogPostList } from "./_components/BlogPostList";
 
@@ -12,18 +13,21 @@ export const metadata: Metadata = {
 };
 
 interface BlogPageProps {
-  searchParams: Promise<{ tag?: string | string[] }>;
+  searchParams: Promise<DiscoverParams>;
 }
 
 /**
- * Renders the blog page with an optional tag filter.
+ * Renders the blog discovery page using a normalized Discover mode.
  *
- * @param searchParams - Query parameters used to select the active tag.
+ * Search queries become `search`, canonical tags become `topic`, and all other
+ * inputs become `latest`.
+ *
+ * @param searchParams - Query parameters used to select the Discover mode.
  * @returns The rendered blog page.
  */
 export default async function BlogPost({ searchParams }: BlogPageProps) {
   const params = await searchParams;
-  const tag = typeof params.tag === "string" ? params.tag : undefined;
+  const mode = normalizeDiscoverParams(params);
 
   return (
     <div className="container mx-auto">
@@ -46,9 +50,9 @@ export default async function BlogPost({ searchParams }: BlogPageProps) {
           </div>
         </div>
       </div>
-      <BlogFilter tag={tag} />
+      <BlogFilter mode={mode} />
       <Suspense fallback={<SkeletonLoadingUi />}>
-        <BlogPostList tag={tag} />
+        <BlogPostList mode={mode} />
       </Suspense>
     </div>
   );

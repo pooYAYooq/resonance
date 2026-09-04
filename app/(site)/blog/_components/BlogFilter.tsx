@@ -1,17 +1,19 @@
 import Link from "next/link";
+import type { DiscoverMode } from "@/lib/discover";
 
 interface BlogFilterProps {
-  tag?: string;
+  mode: DiscoverMode;
 }
 
 /**
- * Displays the active blog tag filter and a link to clear it.
+ * Displays the active blog topic filter and a link to clear it.
  *
- * @param tag - The blog tag currently used to filter posts
- * @returns The filter bar when a tag is provided, or `null` otherwise
+ * @param mode - The normalized Discover mode
+ * @returns The filter bar for topic mode, or `null` otherwise
  */
-export function BlogFilter({ tag }: BlogFilterProps) {
-  if (!tag) return null;
+export function BlogFilter({ mode }: BlogFilterProps) {
+  if (mode.mode !== "topic") return null;
+  const { tag } = mode;
 
   return (
     <div className="flex items-center justify-between gap-4 border-y px-6 py-4">

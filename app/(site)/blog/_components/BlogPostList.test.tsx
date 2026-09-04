@@ -46,7 +46,7 @@ describe("BlogPostList", () => {
         continueCursor: "",
       });
 
-    render(await BlogPostList({ tag: "Technology" }));
+    render(await BlogPostList({ mode: { mode: "topic", tag: "Technology" } }));
 
     expect(screen.getByText("Tagged post")).toBeInTheDocument();
     expect(fetchAuthQueryMock).toHaveBeenNthCalledWith(1, "getPosts", {
@@ -67,7 +67,7 @@ describe("BlogPostList", () => {
       continueCursor: "",
     });
 
-    render(await BlogPostList({ tag: "Technology" }));
+    render(await BlogPostList({ mode: { mode: "topic", tag: "Technology" } }));
     expect(screen.getByText("No posts found")).toBeInTheDocument();
     expect(fetchAuthQueryMock).toHaveBeenCalledWith("getPosts", {
       tag: "Technology",
