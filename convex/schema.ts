@@ -236,6 +236,46 @@ export default defineSchema({
     ]),
 
   /**
+   * One published-post read-model row per source post for Discover search and
+   * Latest ordering. `postId` is the application-enforced unique source key.
+   */
+  discoverPosts: defineTable({
+    postId: v.id("posts"),
+    title: v.string(),
+    bodyText: v.string(),
+    searchableText: v.string(),
+    authorId: v.string(),
+    authorName: v.string(),
+    tags: v.array(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
+    publishedAt: v.number(),
+    commentCount: v.number(),
+    likeCount: v.number(),
+  })
+    .index("by_postId", ["postId"])
+    .index("by_authorId", ["authorId"])
+    .index("by_publishedAt", ["publishedAt"])
+    .searchIndex("search_searchableText", {
+      searchField: "searchableText",
+    }),
+
+  /** One topic row per unique `(postId, tag)` pair for bounded Topic listings. */
+  discoverPostTopics: defineTable({
+    tag: v.string(),
+    postId: v.id("posts"),
+    publishedAt: v.number(),
+  })
+    .index("by_tag_and_publishedAt", ["tag", "publishedAt"])
+    .index("by_postId_and_tag", ["postId", "tag"])
+    .index("by_postId", ["postId"]),
+
+  /** One non-negative published-post counter per canonical topic tag. */
+  topicStats: defineTable({
+    tag: v.string(),
+    publishedCount: v.number(),
+  }).index("by_tag", ["tag"]),
+
+  /**
    * App-level user enrichment table, synced from Better Auth on sign-in.
    *
    * Why a separate table?
