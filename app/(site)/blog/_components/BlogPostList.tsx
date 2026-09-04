@@ -1,69 +1,62 @@
-import { fetchAuthQuery } from "@/lib/auth-server";
-import type { FunctionReturnType } from "convex/server";
-import { api } from "@/convex/_generated/api";
-import { PostCard } from "@/components/web/PostCard";
-import { EmptyState } from "@/components/web/EmptyState";
-import { SearchX } from "lucide-react";
-import Link from "next/link";
-import type { Id } from "@/convex/_generated/dataModel";
-import type { DiscoverMode } from "@/lib/discover";
+"use client";
 
-type BlogPost = {
-  _id: Id<"posts">;
-  title: string;
-  body: string;
-  imageUrl: string | null;
-  commentCount: number;
-  likeCount?: number;
-  isLiked?: boolean;
-  isBookmarked: boolean;
-  createdAt: number;
-  authorId: string;
-  authorName: string | null;
-  authorAvatarUrl: string | null;
-  tags?: string[];
-};
-type GetPostsResult = FunctionReturnType<typeof api.posts.getPosts>;
+import { usePaginatedQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/web/EmptyState";
+import { DiscoverResultsSkeleton } from "./DiscoverStates";
+import { DiscoverPostSummary } from "./DiscoverPostSummary";
+import { Loader2, SearchX } from "lucide-react";
+import Link from "next/link";
+import { buildDiscoverLatestLink, type DiscoverMode } from "@/lib/discover";
 
 interface BlogPostListProps {
   mode: DiscoverMode;
 }
 
-/**
- * Displays blog posts for a normalized Discover mode.
- *
- * @param mode - The normalized Discover mode, including an optional topic tag.
- * @returns A responsive post grid or an empty state when the tag has no matching posts.
- */
-export async function BlogPostList({ mode }: BlogPostListProps) {
-  const tag = mode.mode === "topic" ? mode.tag : undefined;
-  const posts: BlogPost[] = [];
-  let cursor: string | null = null;
-  let isDone = false;
+// Results own one reactive paginated stream for each mode and expose continuation explicitly.
+export function BlogPostList({ mode }: BlogPostListProps) {
+  const queryArgs =
+    mode.mode === "topic"
+      ? { tag: mode.tag }
+      : {
+          mode: mode.mode,
+          ...(mode.mode === "search" ? { query: mode.query } : {}),
+        };
+  const { results, status, loadMore, isLoading } = usePaginatedQuery(
+    mode.mode === "topic"
+      ? api.discover.getTopicPosts
+      : api.discover.getDiscoverPosts,
+    queryArgs,
+    { initialNumItems: 12 },
+  );
 
-  while (!isDone && posts.length < 50) {
-    const result: GetPostsResult = await fetchAuthQuery(api.posts.getPosts, {
-      tag,
-      paginationOpts: { numItems: 50, cursor },
-    });
-    posts.push(...result.page);
-    isDone = result.isDone;
-    cursor = result.continueCursor;
-    if (!tag) break;
-  }
+  if (isLoading && results.length === 0) return <DiscoverResultsSkeleton />;
 
-  if (posts.length === 0 && tag) {
+  if (results.length === 0 && status === "Exhausted") {
+    const description =
+      mode.mode === "search"
+        ? `No results for “${mode.query}”.`
+        : mode.mode === "topic"
+          ? `No posts found for ${mode.tag}.`
+          : "No published content is available yet.";
     return (
       <EmptyState
         icon={SearchX}
-        title="No posts found"
-        description={`There are no posts tagged “${tag}”.`}
+        title={
+          mode.mode === "search"
+            ? "No search results"
+            : mode.mode === "topic"
+              ? "No topic results"
+              : "Nothing published yet"
+        }
+        description={description}
         action={
           <Link
-            href="/blog"
+            href={buildDiscoverLatestLink()}
             className="text-sm font-medium text-primary hover:underline"
           >
-            Clear filter
+            {mode.mode === "search" ? "Clear search" : "Browse latest"}
           </Link>
         }
       />
@@ -71,25 +64,30 @@ export async function BlogPostList({ mode }: BlogPostListProps) {
   }
 
   return (
-    <div className="grid px-6 py-6 items-stretch border-l border-r gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {posts.map((post) => (
-        <PostCard
-          key={post._id}
-          postId={post._id}
-          title={post.title}
-          body={post.body}
-          imageUrl={post.imageUrl}
-          commentCount={post.commentCount}
-          likeCount={post.likeCount ?? 0}
-          isLiked={post.isLiked ?? false}
-          isBookmarked={post.isBookmarked}
-          createdAt={post.createdAt}
-          authorId={post.authorId}
-          authorName={post.authorName}
-          authorAvatarUrl={post.authorAvatarUrl}
-          tags={post.tags}
-        />
-      ))}
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6">
+        {results.map((post) => (
+          <DiscoverPostSummary key={post._id} post={post} />
+        ))}
+      </div>
+      {status === "CanLoadMore" || status === "LoadingMore" ? (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            onClick={() => loadMore(12)}
+            disabled={status === "LoadingMore"}
+          >
+            {status === "LoadingMore" ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Loading more...
+              </>
+            ) : (
+              "Load more"
+            )}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

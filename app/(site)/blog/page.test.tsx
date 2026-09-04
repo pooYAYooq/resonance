@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import BlogPage from "./page";
 
 vi.mock("@/components/web/AuthCTA", () => ({
   AuthCTA: () => <div data-testid="auth-cta" />,
 }));
-const { blogFilter, blogPostList } = vi.hoisted(() => ({
-  blogFilter: vi.fn(() => null),
+const { discoverSearch, discoverTopics, blogPostList } = vi.hoisted(() => ({
+  discoverSearch: vi.fn(() => <div data-testid="discover-search" />),
+  discoverTopics: vi.fn(() => <div data-testid="discover-topics" />),
   blogPostList: vi.fn(() => <div data-testid="blog-post-list" />),
 }));
-vi.mock("./_components/BlogFilter", () => ({
-  BlogFilter: blogFilter,
+vi.mock("./_components/DiscoverSearch", () => ({
+  DiscoverSearch: discoverSearch,
+}));
+vi.mock("./_components/DiscoverTopics", () => ({
+  DiscoverTopics: discoverTopics,
 }));
 vi.mock("./_components/BlogPostList", () => ({
   BlogPostList: blogPostList,
@@ -18,7 +22,8 @@ vi.mock("./_components/BlogPostList", () => ({
 
 describe("BlogPage", () => {
   beforeEach(() => {
-    blogFilter.mockClear();
+    discoverSearch.mockClear();
+    discoverTopics.mockClear();
     blogPostList.mockClear();
   });
 
@@ -26,7 +31,8 @@ describe("BlogPage", () => {
     render(
       await BlogPage({ searchParams: Promise.resolve({ tag: "Technology" }) }),
     );
-    expect(blogFilter).toHaveBeenLastCalledWith(
+    expect(discoverSearch).toHaveBeenLastCalledWith({ query: "" }, undefined);
+    expect(discoverTopics).toHaveBeenCalledWith(
       { mode: { mode: "topic", tag: "Technology" } },
       undefined,
     );
@@ -43,10 +49,7 @@ describe("BlogPage", () => {
       }),
     );
 
-    expect(blogFilter).toHaveBeenLastCalledWith(
-      { mode: { mode: "topic", tag: "Technology" } },
-      undefined,
-    );
+    expect(discoverTopics).toHaveBeenCalled();
   });
 
   it("does not select a topic when a non-empty search query is present", async () => {
@@ -60,8 +63,8 @@ describe("BlogPage", () => {
       }),
     );
 
-    expect(blogFilter).toHaveBeenLastCalledWith(
-      { mode: { mode: "search", query: "design" } },
+    expect(discoverSearch).toHaveBeenLastCalledWith(
+      { query: "design" },
       undefined,
     );
   });
@@ -73,13 +76,43 @@ describe("BlogPage", () => {
       }),
     );
 
-    expect(blogFilter).toHaveBeenLastCalledWith(
-      { mode: { mode: "search", query: "design" } },
+    expect(discoverSearch).toHaveBeenLastCalledWith(
+      { query: "design" },
       undefined,
     );
     expect(blogPostList).toHaveBeenLastCalledWith(
       { mode: { mode: "search", query: "design" } },
       undefined,
+    );
+  });
+
+  it("renders search, results, and topics in reader order without Hot", async () => {
+    const { container } = render(
+      await BlogPage({ searchParams: Promise.resolve({}) }),
+    );
+
+    const search = screen.getByTestId("discover-search");
+    const main = container.querySelector("main");
+    const topics = screen.getByTestId("discover-topics");
+    expect(search.compareDocumentPosition(main!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(main!.compareDocumentPosition(topics)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(container.textContent).not.toMatch(/hot/i);
+  });
+
+  it("renders mode-switch links without incompatible parameters", async () => {
+    render(
+      await BlogPage({
+        searchParams: Promise.resolve({ q: "design", tag: "Technology" }),
+      }),
+    );
+
+    expect(screen.getByRole("link", { name: "Latest" })).toHaveAttribute(
+      "href",
+      "/blog",
     );
   });
 });
