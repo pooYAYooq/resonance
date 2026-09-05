@@ -116,6 +116,10 @@ describe("FeedContent", () => {
 
     expect(await screen.findByText("Your feed is empty")).toBeInTheDocument();
     expect(screen.getByText(/Follow authors/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /discover/i })).toHaveAttribute(
+      "href",
+      "/blog",
+    );
     expect(pushMock).not.toHaveBeenCalled();
   });
 

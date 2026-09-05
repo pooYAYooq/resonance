@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { Loader2, Rss } from "lucide-react";
@@ -67,6 +68,12 @@ export function FeedContent() {
         icon={Rss}
         title="Your feed is empty"
         description="Follow authors to see their latest posts here."
+        // Feed is retention; Discover is the recovery path for authors/topics.
+        action={
+          <Button asChild variant="outline">
+            <Link href="/blog">Discover</Link>
+          </Button>
+        }
       />
     );
   }
