@@ -14,6 +14,35 @@
 import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
+import { internal } from "./_generated/api";
+import { DISCOVER_BATCH_SIZE } from "./discoverBackfill";
+
+const userValidator = v.object({
+  _id: v.id("users"),
+  _creationTime: v.number(),
+  userId: v.string(),
+  displayName: v.string(),
+  email: v.optional(v.string()),
+  avatarUrl: v.optional(v.string()),
+  bio: v.optional(v.string()),
+  followerCount: v.optional(v.number()),
+  followingCount: v.optional(v.number()),
+  publishedPostCount: v.number(),
+  unreadNotificationCount: v.number(),
+  createdAt: v.number(),
+});
+
+const publicProfileValidator = v.object({
+  userId: v.string(),
+  displayName: v.string(),
+  bio: v.optional(v.string()),
+  avatarUrl: v.optional(v.string()),
+  followerCount: v.optional(v.number()),
+  followingCount: v.optional(v.number()),
+  postCount: v.number(),
+  viewerId: v.union(v.string(), v.null()),
+  isFollowing: v.boolean(),
+});
 
 /**
  * Idempotent upsert: creates or updates the app-level user record
@@ -34,6 +63,7 @@ import { authComponent } from "./auth";
  */
 export const syncUser = mutation({
   args: {},
+  returns: v.id("users"),
   handler: async (ctx) => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -50,28 +80,66 @@ export const syncUser = mutation({
       // Better Auth returns `string | null | undefined` for optional fields;
       // we only overwrite when a new non-null value is present, otherwise
       // we preserve the existing record to avoid accidentally clearing data.
+      const displayName = authUser.name || existing.displayName;
       await ctx.db.patch(existing._id, {
-        displayName: authUser.name || existing.displayName,
+        displayName,
         email: authUser.email != null ? authUser.email : existing.email,
         avatarUrl: authUser.image != null ? authUser.image : existing.avatarUrl,
       });
+      if (displayName !== existing.displayName) {
+        const projectedPosts = await ctx.db
+          .query("discoverPosts")
+          .withIndex("by_authorId", (q) => q.eq("authorId", authUser._id))
+          .take(1);
+        if (projectedPosts.length > 0) {
+          // Keep Discover's denormalized author fields aligned without blocking auth sync.
+          await ctx.scheduler.runAfter(
+            0,
+            internal.discoverBackfill.repairAuthorName,
+            {
+              authorId: authUser._id,
+              newAuthorName: displayName,
+              paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
+            },
+          );
+        }
+      }
       return existing._id;
     }
 
     // Create new user record
     // `?? undefined` coerces `null` → `undefined` so the value aligns with
     // `v.optional(v.string())`, which accepts `string | undefined` but not `null`.
+    const displayName = authUser.name || "Anonymous";
     const userId = await ctx.db.insert("users", {
       userId: authUser._id,
-      displayName: authUser.name || "Anonymous",
+      displayName,
       email: authUser.email ?? undefined,
       avatarUrl: authUser.image ?? undefined,
       bio: "",
       followerCount: 0,
       followingCount: 0,
       unreadNotificationCount: 0,
+      publishedPostCount: 0,
       createdAt: Date.now(),
     });
+
+    const projectedPosts = await ctx.db
+      .query("discoverPosts")
+      .withIndex("by_authorId", (q) => q.eq("authorId", authUser._id))
+      .take(1);
+    if (projectedPosts.length > 0) {
+      // Keep Discover's denormalized author fields aligned without blocking auth sync.
+      await ctx.scheduler.runAfter(
+        0,
+        internal.discoverBackfill.repairAuthorName,
+        {
+          authorId: authUser._id,
+          newAuthorName: displayName,
+          paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
+        },
+      );
+    }
 
     return userId;
   },
@@ -85,6 +153,7 @@ export const syncUser = mutation({
  */
 export const getCurrentUser = query({
   args: {},
+  returns: v.union(userValidator, v.null()),
   handler: async (ctx) => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -102,15 +171,16 @@ export const getCurrentUser = query({
  * Gets a user's public profile including their post count.
  *
  * Looks up the user by their Better Auth user ID and returns the profile
- * enriched with the number of published posts. Returns `null` when no
- * matching user is found.
+ * enriched with the maintained number of published posts. Returns `null` when
+ * no matching user is found.
  *
  * @param args.userId - `string`: Better Auth user ID to look up.
- * @returns The user record with an appended `postCount` field, or `null`
- *   if no user matches the given ID.
+ * @returns The user record with an appended `postCount` field, or
+ *   `null` if no user matches the given ID.
  */
 export const getUserProfile = query({
   args: { userId: v.string() },
+  returns: v.union(publicProfileValidator, v.null()),
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
@@ -129,16 +199,6 @@ export const getUserProfile = query({
           .unique())
       : false;
 
-    let postCount = 0;
-    const posts = ctx.db
-      .query("posts")
-      .withIndex("by_authorId_and_status_and_publishedAt", (q) =>
-        q.eq("authorId", args.userId).eq("status", "published"),
-      );
-    for await (const post of posts) {
-      postCount += post.status === "published" ? 1 : 0;
-    }
-
     return {
       userId: user.userId,
       displayName: user.displayName,
@@ -146,7 +206,7 @@ export const getUserProfile = query({
       avatarUrl: user.avatarUrl,
       followerCount: user.followerCount,
       followingCount: user.followingCount,
-      postCount,
+      postCount: user.publishedPostCount,
       viewerId: authUser?._id ?? null,
       isFollowing,
     };
@@ -174,6 +234,7 @@ export const updateProfile = mutation({
     displayName: v.string(),
     bio: v.string(),
   },
+  returns: v.id("users"),
   handler: async (ctx, args) => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -202,6 +263,18 @@ export const updateProfile = mutation({
       displayName,
       bio: args.bio,
     });
+    if (displayName !== existing.displayName) {
+      // The profile is the source event; repair denormalized Discover authors asynchronously.
+      await ctx.scheduler.runAfter(
+        0,
+        internal.discoverBackfill.repairAuthorName,
+        {
+          authorId: authUser._id,
+          newAuthorName: displayName,
+          paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
+        },
+      );
+    }
 
     return existing._id;
   },

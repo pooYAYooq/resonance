@@ -19,6 +19,31 @@ import { incrementFollowerGrowthInTransaction } from "./analytics";
 import { internal } from "./_generated/api";
 import { FEED_BATCH_SIZE, FEED_WINDOW_MS } from "./feed";
 
+function validateCounter(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new ConvexError(`${name} counter is invalid.`);
+  }
+}
+
+export function incrementCounter(value: number, name: string): number {
+  validateCounter(value, name);
+  const next = value + 1;
+  if (!Number.isSafeInteger(next)) {
+    throw new ConvexError(
+      `${name} counter cannot exceed Number.MAX_SAFE_INTEGER.`,
+    );
+  }
+  return next;
+}
+
+export function decrementCounter(value: number, name: string): number {
+  validateCounter(value, name);
+  if (value === 0) {
+    throw new ConvexError(`${name} counter cannot become negative.`);
+  }
+  return value - 1;
+}
+
 /**
  * Toggles a follow relationship between the currently authenticated
  * user (follower) and the target author (following).
@@ -44,6 +69,7 @@ export const toggleFollow = mutation({
   args: {
     followingId: v.string(),
   },
+  returns: v.object({ following: v.boolean() }),
   handler: async (ctx, args) => {
     // Auth gate — derives identity server-side, never from an arg.
     const authUser = await authComponent.safeGetAuthUser(ctx);
@@ -79,6 +105,11 @@ export const toggleFollow = mutation({
       throw new ConvexError("User not found.");
     }
 
+    const currentFollowingCount = currentUser.followingCount ?? 0;
+    const targetFollowerCount = target.followerCount ?? 0;
+    validateCounter(currentFollowingCount, "Following");
+    validateCounter(targetFollowerCount, "Follower");
+
     const existingFollow = await ctx.db
       .query("follows")
       .withIndex("by_followerId_and_followingId", (q) =>
@@ -89,10 +120,10 @@ export const toggleFollow = mutation({
     if (existingFollow) {
       await ctx.db.delete(existingFollow._id);
       await ctx.db.patch(currentUser._id, {
-        followingCount: Math.max(0, (currentUser.followingCount ?? 0) - 1),
+        followingCount: decrementCounter(currentFollowingCount, "Following"),
       });
       await ctx.db.patch(target._id, {
-        followerCount: Math.max(0, (target.followerCount ?? 0) - 1),
+        followerCount: decrementCounter(targetFollowerCount, "Follower"),
       });
       await ctx.scheduler.runAfter(0, internal.feed.deleteForUnfollow, {
         userId: authUser._id,
@@ -115,10 +146,10 @@ export const toggleFollow = mutation({
       createdAt,
     );
     await ctx.db.patch(currentUser._id, {
-      followingCount: (currentUser.followingCount ?? 0) + 1,
+      followingCount: incrementCounter(currentFollowingCount, "Following"),
     });
     await ctx.db.patch(target._id, {
-      followerCount: (target.followerCount ?? 0) + 1,
+      followerCount: incrementCounter(targetFollowerCount, "Follower"),
     });
     await ctx.scheduler.runAfter(0, internal.feed.backfillForFollow, {
       userId: authUser._id,
@@ -146,6 +177,7 @@ export const isFollowing = query({
   args: {
     followingId: v.string(),
   },
+  returns: v.boolean(),
   handler: async (ctx, args): Promise<boolean> => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -182,6 +214,7 @@ export const getFollowCounts = query({
   args: {
     userId: v.string(),
   },
+  returns: v.object({ followerCount: v.number(), followingCount: v.number() }),
   handler: async (
     ctx,
     args,
@@ -194,9 +227,10 @@ export const getFollowCounts = query({
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .unique();
 
-    return {
-      followerCount: user ? (user.followerCount ?? 0) : 0,
-      followingCount: user ? (user.followingCount ?? 0) : 0,
-    };
+    const followerCount = user?.followerCount ?? 0;
+    const followingCount = user?.followingCount ?? 0;
+    validateCounter(followerCount, "Follower");
+    validateCounter(followingCount, "Following");
+    return { followerCount, followingCount };
   },
 });

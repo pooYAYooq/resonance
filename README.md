@@ -7,19 +7,20 @@
 
 ## Features
 
-| Feature              | Description                                                                                                                                                                                  |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                                                    |
-| **Blog**             | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, edit published posts in place, browse paginated listings, read individual posts |
-| **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                                                   |
-| **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                                                    |
-| **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                                                   |
-| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/profile/edit`                                                                                        |
-| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, and published-post edit actions; analytics at `/dashboard/analytics`                                                         |
-| **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                                                    |
-| **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                                               |
-| **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                                                         |
-| **Responsive**       | Mobile-first design, works across all breakpoints                                                                                                                                            |
+| Feature              | Description                                                                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                             |
+| **Discover**         | Latest published posts, full-text Search over title/body/author, active canonical Topics, bounded paginated editorial summaries, and Feed recovery                    |
+| **Blog and Posts**   | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, edit published posts in place, and read individual posts |
+| **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                            |
+| **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                             |
+| **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                            |
+| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/profile/edit`                                                                 |
+| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, and published-post edit actions; analytics at `/dashboard/analytics`                                  |
+| **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                             |
+| **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                        |
+| **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                                  |
+| **Responsive**       | Mobile-first design, works across all breakpoints                                                                                                                     |
 
 ## Roadmap and Feature Status
 
@@ -36,8 +37,8 @@ Feature statuses are:
 - **Shipped** — available in the product.
 
 The short resume point is [`docs/status.md`](docs/status.md). The author
-dashboard, published post editing, and analytics dashboard are shipped; Phase 3
-is the next roadmap focus.
+dashboard, published post editing, analytics dashboard, and Discover Foundations
+are shipped. Phase 3A.3 — Writing & Management is the next focus.
 
 ---
 
@@ -150,8 +151,8 @@ app/
   (site)/                     # Reader routes (Navbar + compact Footer)
     layout.tsx                # SiteShell with the compact footer
     blog/
-      page.tsx                # Blog listing with gradient hero + optional tag filter
-      _components/            # BlogFilter and cursor-draining BlogPostList
+       page.tsx                # Discover route with normalized URL state
+       _components/            # Search, Topics, states, summaries, and paginated results
       [postId]/
         page.tsx              # Single post view with likes, comments, and publication timestamps
     feed/
@@ -176,19 +177,24 @@ app/
   api/auth/[...all]/          # Better Auth route handler → Convex HTTP
 
 convex/
-  schema.ts                   # Database schema, including owner-bound pendingUploads sessions
-  posts.ts                    # Draft save/publish, published editing, published-only reads, uploads, claims, and URL hydration
+  schema.ts                   # Database schema, including Discover projections and counters
+  posts.ts                    # Draft save/publish, published editing/deletion, published-only reads, uploads, claims, and URL hydration
+  discover.ts                 # Public Latest, Search, Topics, and Topic-post queries
+  discoverProjection.ts       # Indexed projection synchronization and invariants
+  discoverBackfill.ts         # Bounded author-name repair continuation
   pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations and private paginated liked-post query
                               # uses by_postId_and_userId for toggles and by_userId_and_createdAt for liked-post pagination
   follows.ts                  # toggleFollow + isFollowing + getFollowCounts (1.4). by_followerId_and_followingId
-                              # index only — by_followingId deferred to 1.6 (notification fan-out)
+                               # index only — by_followingId supports notification fan-out
   bookmarks.ts                # toggleBookmark + isBookmarked + getBookmarkedPosts (1.5).
                               # Private reading list, no denormalized counters.
   notifications.ts            # Published-post fan-out (batched 200 + scheduler, retry-idempotent), unread count, list, mark-all-read
   feed.ts                     # Published-only 30-day materialized reader feed, fan-out/backfill/deletion/cleanup, paginated query
-  users.ts                    # User sync, profile queries, updateProfile
+  postDeletion.ts             # Internal bounded deletion continuations, draft upload cleanup, and stale-job recovery
+  profilePostCount.ts         # Transactional profile count adjustment helper
+  users.ts                    # User sync, profile queries, updateProfile, Discover rename repair
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth)
   http.ts                     # Convex HTTP actions
@@ -228,6 +234,7 @@ lib/
   avatar.ts                   # DiceBear fallback + initials helpers
   utils.ts                    # cn() and other helpers
   post-content.ts             # Dependency-free body contract, image validation, captions, and storage-ID extraction
+  discover.ts                 # Discover URL normalization and mode-switch links
   auth-client.ts              # Better Auth client setup
   auth-server.ts              # Server-side auth helpers
 ```
@@ -255,12 +262,12 @@ User and session records live in the same Convex DB as application data.
 
 ### Data Fetching Patterns
 
-| Section       | Query                                              | Pattern                                         |
-| ------------- | -------------------------------------------------- | ----------------------------------------------- |
-| Landing stats | `fetchQuery(api.posts.countPosts)`                 | Live total post count                           |
-| Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`  | Paginated, wrapped in `<Suspense>`              |
-| Blog listing  | `fetchQuery(api.posts.getPosts, { numItems: 50 })` | Full paginated grid                             |
-| Post detail   | `fetchQuery(api.posts.getPostById)`                | Single post + cover/inline image URL resolution |
+| Section       | Query                                                                | Pattern                                         |
+| ------------- | -------------------------------------------------------------------- | ----------------------------------------------- |
+| Landing stats | `fetchQuery(api.posts.countPosts)`                                   | Live total post count                           |
+| Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`                    | Paginated, wrapped in `<Suspense>`              |
+| Discover      | `usePaginatedQuery(api.discover.getDiscoverPosts)` / `getTopicPosts` | Reactive Latest/Search/Topic projection reads   |
+| Post detail   | `fetchQuery(api.posts.getPostById)`                                  | Single post + cover/inline image URL resolution |
 
 ---
 

@@ -15,11 +15,21 @@
 import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
+import { incrementCounter, decrementCounter } from "./follows";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 
 describe("follows functions", () => {
+  it("validates follow counter arithmetic", () => {
+    expect(incrementCounter(4, "follower")).toBe(5);
+    expect(decrementCounter(1, "following")).toBe(0);
+    expect(() => incrementCounter(Number.MAX_SAFE_INTEGER, "follower")).toThrow(
+      "counter",
+    );
+    expect(() => decrementCounter(0, "following")).toThrow("counter");
+    expect(() => decrementCounter(-1, "following")).toThrow("counter");
+  });
   it("rejects toggleFollow when unauthenticated", async () => {
     const t = convexTest(schema, modules);
 
@@ -29,6 +39,7 @@ describe("follows functions", () => {
         displayName: "Author",
         followerCount: 0,
         followingCount: 0,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
@@ -50,6 +61,7 @@ describe("follows functions", () => {
         displayName: "Author",
         followerCount: 0,
         followingCount: 0,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
@@ -70,6 +82,7 @@ describe("follows functions", () => {
         displayName: "Author",
         followerCount: 0,
         followingCount: 0,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
@@ -98,6 +111,7 @@ describe("follows functions", () => {
         displayName: "Author",
         followerCount: 0,
         followingCount: 0,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
@@ -118,6 +132,7 @@ describe("follows functions", () => {
         displayName: "Author",
         followerCount: 7,
         followingCount: 3,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
@@ -136,6 +151,7 @@ describe("follows functions", () => {
       await ctx.db.insert("users", {
         userId: "legacy-user",
         displayName: "Legacy User",
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: Date.now(),
       });

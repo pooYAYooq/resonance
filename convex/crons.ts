@@ -33,4 +33,11 @@ crons.interval(
   { cursor: null },
 );
 
+crons.interval(
+  "recover stale post deletion jobs",
+  { minutes: 15 },
+  internal.postDeletion.recoverStaleDeletionJobs,
+  {},
+);
+
 export default crons;

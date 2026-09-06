@@ -87,7 +87,9 @@ export default defineSchema({
     body: v.string(),
     likeCount: v.number(),
     createdAt: v.number(),
-  }).index("by_postId", ["postId"]),
+  })
+    .index("by_postId", ["postId"])
+    .index("by_postId_and_createdAt", ["postId", "createdAt"]),
 
   /**
    * Individual like records, one per user per post. Stored as a separate
@@ -106,6 +108,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_postId_and_userId", ["postId", "userId"])
+    .index("by_postId", ["postId"])
     .index("by_userId_and_createdAt", ["userId", "createdAt"]),
 
   /**
@@ -178,21 +181,13 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_userId_and_postId", ["userId", "postId"])
+    .index("by_postId", ["postId"])
     .index("by_userId_and_createdAt", ["userId", "createdAt"]),
 
   /**
    * Individual notification records, one per follower per published
-   * post. Mirrors the `likes` / `follows` / `bookmarks` pattern: a
-   * separate table, not an array on the user doc, to keep the user
-   * document small and avoid the 1 MB document limit (Convex schema
-   * guideline: no unbounded arrays in documents).
-   *
-   * No `read` / `readAt` field — the Medium-High slice's
-   * "mark-all-read on page visit" resets the denormalized
-   * `users.unreadNotificationCount` rather than tracking per-row
-   * state. Adding `readAt: v.optional(v.number())` later is a
-   * non-breaking migration if per-row state is wanted (see the spec's
-   * Forward pointers).
+   * post. `readAt` is optional so legacy rows remain valid and are treated
+   * as unread until the bounded mark-all-read job reaches them.
    *
    * `recipientId` and `actorId` are Better Auth user ID strings
    * (same shape as `follows.followerId` / `follows.followingId` and
@@ -205,9 +200,11 @@ export default defineSchema({
     actorId: v.string(),
     postId: v.id("posts"),
     createdAt: v.number(),
+    readAt: v.optional(v.number()),
   })
     .index("by_recipientId_and_createdAt", ["recipientId", "createdAt"])
-    .index("by_recipientId_and_postId", ["recipientId", "postId"]),
+    .index("by_recipientId_and_postId", ["recipientId", "postId"])
+    .index("by_postId", ["postId"]),
 
   /**
    * Bounded, denormalized reader feed rows. These rows cover only the most
@@ -233,7 +230,48 @@ export default defineSchema({
       "authorId",
       "followId",
       "createdAt",
-    ]),
+    ])
+    .index("by_postId", ["postId"]),
+
+  /**
+   * One published-post read-model row per source post for Discover search and
+   * Latest ordering. `postId` is the application-enforced unique source key.
+   */
+  discoverPosts: defineTable({
+    postId: v.id("posts"),
+    title: v.string(),
+    bodyText: v.string(),
+    searchableText: v.string(),
+    authorId: v.string(),
+    authorName: v.string(),
+    tags: v.array(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
+    publishedAt: v.number(),
+    commentCount: v.number(),
+    likeCount: v.number(),
+  })
+    .index("by_postId", ["postId"])
+    .index("by_authorId", ["authorId"])
+    .index("by_publishedAt", ["publishedAt"])
+    .searchIndex("search_searchableText", {
+      searchField: "searchableText",
+    }),
+
+  /** One topic row per unique `(postId, tag)` pair for bounded Topic listings. */
+  discoverPostTopics: defineTable({
+    tag: v.string(),
+    postId: v.id("posts"),
+    publishedAt: v.number(),
+  })
+    .index("by_tag_and_publishedAt", ["tag", "publishedAt"])
+    .index("by_postId_and_tag", ["postId", "tag"])
+    .index("by_postId", ["postId"]),
+
+  /** One non-negative published-post counter per canonical topic tag. */
+  topicStats: defineTable({
+    tag: v.string(),
+    publishedCount: v.number(),
+  }).index("by_tag", ["tag"]),
 
   /**
    * App-level user enrichment table, synced from Better Auth on sign-in.
@@ -257,6 +295,8 @@ export default defineSchema({
      */
     followerCount: v.optional(v.number()),
     followingCount: v.optional(v.number()),
+    /** Denormalized published-post count maintained by post lifecycle writes. */
+    publishedPostCount: v.number(),
     /** Denormalized unread count maintained by notification mutations. */
     unreadNotificationCount: v.number(),
     createdAt: v.number(),
@@ -313,4 +353,51 @@ export default defineSchema({
     key: v.literal("pending-inline-uploads"),
     lockedUntil: v.number(),
   }).index("by_key", ["key"]),
+
+  /** Durable cursor state for bounded published-post deletion. */
+  postDeletionJobs: defineTable({
+    postId: v.id("posts"),
+    authorId: v.optional(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
+    likeCount: v.optional(v.number()),
+    uniqueViewCount: v.optional(v.number()),
+    stage: v.union(
+      v.literal("comments"),
+      v.literal("commentLikes"),
+      v.literal("pendingUploads"),
+      v.literal("likes"),
+      v.literal("bookmarks"),
+      v.literal("postViews"),
+      v.literal("analytics"),
+      v.literal("notifications"),
+      v.literal("feed"),
+      v.literal("done"),
+    ),
+    cursor: v.nullable(v.string()),
+    commentCursor: v.nullable(v.string()),
+    commentId: v.optional(v.id("comments")),
+    commentLikeCursor: v.nullable(v.string()),
+    analyticsCursor: v.optional(v.nullable(v.string())),
+    analyticsLikesCount: v.optional(v.number()),
+    analyticsViewsCount: v.optional(v.number()),
+    lockedUntil: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+    leaseVersion: v.optional(v.number()),
+  })
+    .index("by_postId", ["postId"])
+    .index("by_lockedUntil", ["lockedUntil"]),
+
+  /** Durable cursor state for bounded draft upload cleanup after draft deletion. */
+  draftUploadCleanupJobs: defineTable({
+    postId: v.id("posts"),
+    cursor: v.nullable(v.string()),
+    lockedUntil: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+    storageIds: v.optional(v.array(v.id("_storage"))),
+    retainedStorageIds: v.optional(v.array(v.id("_storage"))),
+    removeConsumed: v.optional(v.boolean()),
+    leaseVersion: v.optional(v.number()),
+  })
+    .index("by_postId", ["postId"])
+    .index("by_lockedUntil", ["lockedUntil"]),
 });

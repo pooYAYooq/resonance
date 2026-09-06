@@ -7,9 +7,60 @@
  */
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { paginationOptsValidator } from "convex/server";
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server";
 import { authComponent } from "./auth";
+import { updateDiscoverPostEngagement } from "./discoverProjection";
 import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
+
+function validatePaginationOptions(options: {
+  numItems: number;
+  maximumRowsRead?: number;
+}) {
+  if (
+    !Number.isSafeInteger(options.numItems) ||
+    options.numItems < 1 ||
+    options.numItems > 20
+  ) {
+    throw new ConvexError("Page size must be a safe integer between 1 and 20.");
+  }
+  if (
+    options.maximumRowsRead !== undefined &&
+    (!Number.isSafeInteger(options.maximumRowsRead) ||
+      options.maximumRowsRead < 1 ||
+      options.maximumRowsRead > 20)
+  ) {
+    throw new ConvexError(
+      "Pagination rows must be a safe integer between 1 and 20.",
+    );
+  }
+}
+
+const commentResultValidator = v.object({
+  _id: v.id("comments"),
+  _creationTime: v.number(),
+  postId: v.id("posts"),
+  authorId: v.string(),
+  authorName: v.string(),
+  body: v.string(),
+  likeCount: v.number(),
+  createdAt: v.number(),
+  authorAvatarUrl: v.union(v.string(), v.null()),
+  isLiked: v.boolean(),
+});
+
+function validateCommentCountForIncrement(commentCount: number) {
+  if (!Number.isSafeInteger(commentCount) || commentCount < 0) {
+    throw new ConvexError("Comment count is corrupted.");
+  }
+  if (commentCount === Number.MAX_SAFE_INTEGER) {
+    throw new ConvexError(
+      "Comment count cannot exceed Number.MAX_SAFE_INTEGER.",
+    );
+  }
+}
 
 /**
  * Fetches paginated comments for a given post, ordered newest-first.
@@ -25,7 +76,10 @@ export const getCommentsByPostId = query({
     postId: v.id("posts"),
     paginationOpts: paginationOptsValidator,
   },
+  returns: paginationResultValidator(commentResultValidator),
   handler: async (ctx, args) => {
+    validatePaginationOptions(args.paginationOpts);
+
     if (!(await getPublishedPost(ctx, args.postId))) {
       return {
         page: [],
@@ -36,7 +90,7 @@ export const getCommentsByPostId = query({
 
     const result = await ctx.db
       .query("comments")
-      .withIndex("by_postId", (q) => q.eq("postId", args.postId))
+      .withIndex("by_postId_and_createdAt", (q) => q.eq("postId", args.postId))
       .order("desc")
       .paginate(args.paginationOpts);
 
@@ -89,6 +143,7 @@ export const createComment = mutation({
     body: v.string(),
     postId: v.id("posts"),
   },
+  returns: v.id("comments"),
   handler: async (ctx, args) => {
     // Auth gate — derives identity server-side rather than accepting a userId argument.
     const user = await authComponent.safeGetAuthUser(ctx);
@@ -102,6 +157,7 @@ export const createComment = mutation({
     }
 
     const post = await requirePublishedPost(ctx, args.postId);
+    validateCommentCountForIncrement(post.commentCount);
 
     const commentId = await ctx.db.insert("comments", {
       postId: args.postId,
@@ -114,6 +170,9 @@ export const createComment = mutation({
 
     const nextCount = post.commentCount + 1;
     await ctx.db.patch(args.postId, {
+      commentCount: nextCount,
+    });
+    await updateDiscoverPostEngagement(ctx, args.postId, {
       commentCount: nextCount,
     });
 

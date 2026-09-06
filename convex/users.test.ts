@@ -48,6 +48,7 @@ describe("users functions", () => {
         followerCount: 0,
         followingCount: 0,
         unreadNotificationCount: 0,
+        publishedPostCount: 2,
         createdAt: Date.now(),
       });
 
@@ -108,6 +109,42 @@ describe("users functions", () => {
     expect(Object.hasOwn(result!, "_id")).toBe(false);
     expect(Object.hasOwn(result!, "_creationTime")).toBe(false);
     expect(Object.hasOwn(result!, "createdAt")).toBe(false);
+  });
+
+  it("uses the maintained published count without scanning source posts", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "counted-user",
+        displayName: "Counted User",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
+        publishedPostCount: 7,
+        createdAt: 1,
+      });
+      for (let i = 0; i < 2; i++) {
+        await ctx.db.insert("posts", {
+          title: `Published ${i}`,
+          body: "Body",
+          tags: [],
+          authorId: "counted-user",
+          status: "published",
+          publishedAt: i + 1,
+          commentCount: 0,
+          likeCount: 0,
+          uniqueViewCount: 0,
+          createdAt: i + 1,
+          updatedAt: i + 1,
+        });
+      }
+    });
+
+    const result = await t.query(api.users.getUserProfile, {
+      userId: "counted-user",
+    });
+    expect(result?.postCount).toBe(7);
   });
 
   it("getUserProfile returns null for missing user", async () => {

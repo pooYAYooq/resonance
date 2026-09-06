@@ -18,6 +18,23 @@ import {
   paginationOptsValidator,
   paginationResultValidator,
 } from "convex/server";
+
+function validateBookmarkPagination(options: {
+  numItems: number;
+  maximumRowsRead?: number;
+}) {
+  if (
+    !Number.isSafeInteger(options.numItems) ||
+    options.numItems < 1 ||
+    options.numItems > 20 ||
+    (options.maximumRowsRead !== undefined &&
+      (!Number.isSafeInteger(options.maximumRowsRead) ||
+        options.maximumRowsRead < 1 ||
+        options.maximumRowsRead > 20))
+  ) {
+    throw new ConvexError("Page size must be a safe integer between 1 and 20.");
+  }
+}
 import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
 import {
   hydratePostSummary,
@@ -41,6 +58,7 @@ export const toggleBookmark = mutation({
   args: {
     postId: v.id("posts"),
   },
+  returns: v.object({ bookmarked: v.boolean() }),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
@@ -84,6 +102,7 @@ export const isBookmarked = query({
   args: {
     postId: v.id("posts"),
   },
+  returns: v.boolean(),
   handler: async (ctx, args): Promise<boolean> => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -124,6 +143,7 @@ export const getBookmarkedPosts = query({
   },
   returns: paginationResultValidator(postSummaryValidator),
   handler: async (ctx, args) => {
+    validateBookmarkPagination(args.paginationOpts);
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
       // Fail-soft empty page for anonymous callers.

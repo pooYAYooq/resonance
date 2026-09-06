@@ -1,8 +1,18 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AuthCTA } from "@/components/web/AuthCTA";
-import { Skeleton } from "@/components/ui/skeleton";
-import { BlogFilter } from "./_components/BlogFilter";
+import Link from "next/link";
+import {
+  buildDiscoverLatestLink,
+  normalizeDiscoverParams,
+  type DiscoverParams,
+} from "@/lib/discover";
+import { DiscoverSearch } from "./_components/DiscoverSearch";
+import { DiscoverTopics } from "./_components/DiscoverTopics";
+import {
+  DiscoverResultsSkeleton,
+  DiscoverTopicsSkeleton,
+} from "./_components/DiscoverStates";
 import { BlogPostList } from "./_components/BlogPostList";
 
 export const metadata: Metadata = {
@@ -12,18 +22,21 @@ export const metadata: Metadata = {
 };
 
 interface BlogPageProps {
-  searchParams: Promise<{ tag?: string | string[] }>;
+  searchParams: Promise<DiscoverParams>;
 }
 
 /**
- * Renders the blog page with an optional tag filter.
+ * Renders the blog discovery page using a normalized Discover mode.
  *
- * @param searchParams - Query parameters used to select the active tag.
+ * Search queries become `search`, canonical tags become `topic`, and all other
+ * inputs become `latest`.
+ *
+ * @param searchParams - Query parameters used to select the Discover mode.
  * @returns The rendered blog page.
  */
 export default async function BlogPost({ searchParams }: BlogPageProps) {
   const params = await searchParams;
-  const tag = typeof params.tag === "string" ? params.tag : undefined;
+  const mode = normalizeDiscoverParams(params);
 
   return (
     <div className="container mx-auto">
@@ -46,32 +59,40 @@ export default async function BlogPost({ searchParams }: BlogPageProps) {
           </div>
         </div>
       </div>
-      <BlogFilter tag={tag} />
-      <Suspense fallback={<SkeletonLoadingUi />}>
-        <BlogPostList tag={tag} />
-      </Suspense>
-    </div>
-  );
-}
-
-/**
- * Renders placeholder cards while blog posts are loading.
- */
-function SkeletonLoadingUi() {
-  return (
-    <div className="grid items-stretch px-6 py-6 border-l border-r gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {[...Array(3)].map((_, i) => (
-        <div key={i} className="pt-0 gap-4 flex flex-col h-full">
-          <div className="relative h-48 w-full overflow-hidden mb-8">
-            <Skeleton className="object-cover h-full w-full rounded-t-lg" />
+      <div className="px-6">
+        <DiscoverSearch
+          key={mode.mode === "search" ? mode.query : ""}
+          query={mode.mode === "search" ? mode.query : ""}
+        />
+      </div>
+      {/* Results stay before the rail in DOM order so mobile readers encounter content first. */}
+      <div className="mt-8 grid items-start gap-8 px-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <main>
+          <div className="mb-5 flex items-center justify-between gap-4 border-b pb-4">
+            <h2 className="text-2xl font-semibold">
+              {mode.mode === "search"
+                ? `Search results for “${mode.query}”`
+                : mode.mode === "topic"
+                  ? mode.tag
+                  : "Latest"}
+            </h2>
+            {mode.mode !== "latest" ? (
+              <Link
+                href={buildDiscoverLatestLink()}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Latest
+              </Link>
+            ) : null}
           </div>
-          <div className="flex flex-col space-y-3">
-            <Skeleton className="h-6 w-full rounded bg-orange-50/40" />
-            <Skeleton className="h-4 w-full rounded bg-orange-50/40" />
-            <Skeleton className="h-4 w-5/6 rounded bg-orange-50/40" />
-          </div>
-        </div>
-      ))}
+          <Suspense fallback={<DiscoverResultsSkeleton />}>
+            <BlogPostList mode={mode} />
+          </Suspense>
+        </main>
+        <Suspense fallback={<DiscoverTopicsSkeleton />}>
+          <DiscoverTopics mode={mode} />
+        </Suspense>
+      </div>
     </div>
   );
 }

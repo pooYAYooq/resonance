@@ -95,6 +95,7 @@ describe("notifications functions", () => {
             displayName: followerId,
             followerCount: 0,
             followingCount: 0,
+            publishedPostCount: 0,
             unreadNotificationCount: 0,
             createdAt: Date.now(),
           });
@@ -166,6 +167,7 @@ describe("notifications functions", () => {
           displayName: "Follower",
           followerCount: 0,
           followingCount: 0,
+          publishedPostCount: 0,
           unreadNotificationCount: 0,
           createdAt: Date.now(),
         });
@@ -352,6 +354,82 @@ describe("notifications functions", () => {
         paginationOpts: { numItems: 200, cursor: null },
       });
       expect(result).toEqual({ done: true, processed: 5 });
+    });
+  });
+
+  describe("markReadBatch (internal)", () => {
+    it("marks a bounded read snapshot idempotently without touching unrelated notifications", async () => {
+      const t = convexTest(schema, modules);
+      const ids = await t.run(async (ctx) => {
+        const targetPostId = await ctx.db.insert("posts", {
+          title: "Target",
+          body: "Body",
+          tags: [],
+          authorId: "author-1",
+          status: "published",
+          publishedAt: 1,
+          commentCount: 0,
+          likeCount: 0,
+          uniqueViewCount: 0,
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        const unrelatedPostId = await ctx.db.insert("posts", {
+          title: "Unrelated",
+          body: "Body",
+          tags: [],
+          authorId: "author-2",
+          status: "published",
+          publishedAt: 1,
+          commentCount: 0,
+          likeCount: 0,
+          uniqueViewCount: 0,
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        for (let i = 0; i < 101; i++) {
+          await ctx.db.insert("notifications", {
+            recipientId: "reader",
+            actorId: "author-1",
+            postId: targetPostId,
+            createdAt: i + 1,
+          });
+        }
+        const unrelatedId = await ctx.db.insert("notifications", {
+          recipientId: "other-reader",
+          actorId: "author-2",
+          postId: unrelatedPostId,
+          createdAt: 1,
+        });
+        return { targetPostId, unrelatedId };
+      });
+
+      const args = {
+        recipientId: "reader",
+        readAt: 101,
+        paginationOpts: { numItems: 100, cursor: null },
+      };
+      await t.mutation(internal.notifications.markReadBatch, args);
+      await t.mutation(internal.notifications.markReadBatch, args);
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+      const targetNotifications = await t.run(async (ctx) =>
+        ctx.db
+          .query("notifications")
+          .withIndex("by_recipientId_and_createdAt", (q) =>
+            q.eq("recipientId", "reader"),
+          )
+          .take(101),
+      );
+      expect(targetNotifications).toHaveLength(101);
+      expect(
+        targetNotifications.every(
+          (notification) => notification.readAt === 101,
+        ),
+      ).toBe(true);
+      await expect(
+        t.run(async (ctx) => ctx.db.get(ids.unrelatedId)),
+      ).resolves.not.toHaveProperty("readAt");
     });
   });
 });

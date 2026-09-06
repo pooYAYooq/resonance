@@ -42,6 +42,17 @@ export function buildFollowerGrowthSeries(
   });
 }
 
+export function sumFollowerGrowth(growthDays: FollowerGrowthPoint[]): number {
+  let total = 0;
+  for (const day of growthDays) {
+    total += day.gainedCount;
+    if (!Number.isSafeInteger(total)) {
+      throw new ConvexError("Follower-growth aggregate is invalid.");
+    }
+  }
+  return total;
+}
+
 /**
  * Retrieves a user by userId or throws an error if not found.
  *
@@ -77,23 +88,33 @@ export async function incrementAuthorAnalytics(
   counter: "uniqueViews" | "likesReceived",
   delta: number,
 ) {
+  if (!Number.isSafeInteger(delta)) {
+    throw new ConvexError("Author analytics counter increment is invalid.");
+  }
   const analytics = await ctx.db
     .query("authorAnalytics")
     .withIndex("by_authorId", (q) => q.eq("authorId", authorId))
     .unique();
 
   if (!analytics) {
+    if (delta < 0) return;
     await ctx.db.insert("authorAnalytics", {
       authorId,
       uniqueViews: counter === "uniqueViews" ? delta : 0,
-      likesReceived: counter === "likesReceived" ? Math.max(0, delta) : 0,
+      likesReceived: counter === "likesReceived" ? delta : 0,
     });
     return;
   }
 
-  await ctx.db.patch(analytics._id, {
-    [counter]: analytics[counter] + delta,
-  });
+  const current = analytics[counter];
+  if (!Number.isSafeInteger(current) || current < 0) {
+    throw new ConvexError("Author analytics counter is invalid.");
+  }
+  const next = current + delta;
+  if (!Number.isSafeInteger(next) || next < 0) {
+    throw new ConvexError("Author analytics counter is invalid.");
+  }
+  await ctx.db.patch(analytics._id, { [counter]: next });
 }
 
 /**
@@ -126,6 +147,13 @@ export async function incrementFollowerGrowthInTransaction(
     return;
   }
 
+  if (
+    !Number.isSafeInteger(growthDay.gainedCount) ||
+    growthDay.gainedCount < 0 ||
+    growthDay.gainedCount === Number.MAX_SAFE_INTEGER
+  ) {
+    throw new ConvexError("Follower-growth counter is invalid.");
+  }
   await ctx.db.patch(growthDay._id, {
     gainedCount: growthDay.gainedCount + 1,
   });
@@ -153,13 +181,24 @@ export async function recordUniqueViewInTransaction(
     .unique();
   if (existingView) return false;
 
+  const currentViewCount = post.uniqueViewCount ?? 0;
+  if (!Number.isSafeInteger(currentViewCount) || currentViewCount < 0) {
+    throw new ConvexError("Post view count is invalid.");
+  }
+  const nextViewCount = currentViewCount + 1;
+  if (!Number.isSafeInteger(nextViewCount)) {
+    throw new ConvexError(
+      "Post view count cannot exceed Number.MAX_SAFE_INTEGER.",
+    );
+  }
+
   await ctx.db.insert("postViews", {
     postId: post._id,
     viewerKey,
     createdAt: Date.now(),
   });
   await ctx.db.patch(post._id, {
-    uniqueViewCount: (post.uniqueViewCount ?? 0) + 1,
+    uniqueViewCount: nextViewCount,
   });
   await incrementAuthorAnalytics(ctx, post.authorId, "uniqueViews", 1);
   return true;
@@ -202,6 +241,24 @@ export const getSummary = query({
       .query("authorAnalytics")
       .withIndex("by_authorId", (q) => q.eq("authorId", authUser._id))
       .unique();
+    if (
+      analytics &&
+      (!Number.isSafeInteger(analytics.uniqueViews) ||
+        analytics.uniqueViews < 0 ||
+        !Number.isSafeInteger(analytics.likesReceived) ||
+        analytics.likesReceived < 0)
+    ) {
+      throw new ConvexError("Author analytics counter is invalid.");
+    }
+    if (
+      (user.followerCount !== undefined &&
+        (!Number.isSafeInteger(user.followerCount) ||
+          user.followerCount < 0)) ||
+      (user.followingCount !== undefined &&
+        (!Number.isSafeInteger(user.followingCount) || user.followingCount < 0))
+    ) {
+      throw new ConvexError("Follow counter is invalid.");
+    }
     const asOfDayStart = getUtcDayStart(args.asOf);
     const followerGrowthStart = asOfDayStart - 29 * UTC_DAY_MS;
     const growthDays = await ctx.db
@@ -213,6 +270,11 @@ export const getSummary = query({
           .lte("dayStart", asOfDayStart),
       )
       .take(30);
+    for (const day of growthDays) {
+      if (!Number.isSafeInteger(day.gainedCount) || day.gainedCount < 0) {
+        throw new ConvexError("Follower-growth counter is invalid.");
+      }
+    }
     const followerGrowthDays = buildFollowerGrowthSeries(
       asOfDayStart,
       growthDays,
@@ -222,10 +284,7 @@ export const getSummary = query({
       views: analytics?.uniqueViews ?? 0,
       likes: Math.max(0, analytics?.likesReceived ?? 0),
       followerCount: user.followerCount ?? 0,
-      followerGrowth: followerGrowthDays.reduce(
-        (total, day) => total + day.gainedCount,
-        0,
-      ),
+      followerGrowth: sumFollowerGrowth(followerGrowthDays),
       followerGrowthStart,
       followerGrowthDays,
     };

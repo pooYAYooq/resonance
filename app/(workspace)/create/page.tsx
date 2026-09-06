@@ -92,15 +92,13 @@ function CreateEditor() {
   const capabilities = getEditorCapabilities(editorMode.mode);
   const hydratedDraft = useQuery(
     api.posts.getDraftById,
-    editorMode.mode === "draft" &&
-      requestedDraftId
+    editorMode.mode === "draft" && requestedDraftId
       ? { draftId: requestedDraftId as Id<"posts"> }
       : "skip",
   );
   const hydratedPublishedPost = useQuery(
     api.posts.getPublishedPostForEditing,
-    editorMode.mode === "published-edit" &&
-      requestedEditPostId
+    editorMode.mode === "published-edit" && requestedEditPostId
       ? { postId: requestedEditPostId as Id<"posts"> }
       : "skip",
   );
@@ -268,10 +266,13 @@ function CreateEditor() {
             storageId: Id<"_storage">;
           };
           storageId = result.storageId;
-          await finalizePendingUpload({
+          const finalizeResult = await finalizePendingUpload({
             sessionId: session.sessionId,
             storageId,
           });
+          if (!finalizeResult.accepted) {
+            throw new Error("Invalid inline upload session");
+          }
           submitSessions.set(session.sessionId, storageId);
         }
 
