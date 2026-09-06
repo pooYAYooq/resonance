@@ -2,11 +2,7 @@ import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
-import {
-  buildSearchableText,
-  ensureCanonicalTopicStats,
-  syncPublishedPostProjection,
-} from "./discoverProjection";
+import { buildSearchableText } from "./discoverProjection";
 
 export const DISCOVER_BATCH_SIZE = 50;
 
@@ -26,46 +22,6 @@ function validateBatchSize(numItems: number): void {
     );
   }
 }
-
-export const backfillDiscover = internalMutation({
-  args: { paginationOpts: paginationOptsValidator },
-  returns: maintenanceResult,
-  handler: async (ctx, args) => {
-    validateBatchSize(args.paginationOpts.numItems);
-    await ensureCanonicalTopicStats(ctx);
-
-    // Backfill is retry-safe and idempotent while continuing in bounded transactions.
-    const result = await ctx.db
-      .query("posts")
-      .withIndex("by_status_and_publishedAt", (q) =>
-        q.eq("status", "published"),
-      )
-      .order("desc")
-      .paginate({
-        ...args.paginationOpts,
-        maximumRowsRead: DISCOVER_BATCH_SIZE,
-      });
-
-    for (const post of result.page) {
-      await syncPublishedPostProjection(ctx, post._id);
-    }
-
-    if (!result.isDone) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.discoverBackfill.backfillDiscover,
-        {
-          paginationOpts: {
-            ...args.paginationOpts,
-            cursor: result.continueCursor,
-          },
-        },
-      );
-    }
-
-    return { processed: result.page.length, isDone: result.isDone };
-  },
-});
 
 export const repairAuthorName = internalMutation({
   args: {

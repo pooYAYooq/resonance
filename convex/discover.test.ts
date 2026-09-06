@@ -520,64 +520,6 @@ describe("Discover projection persistence helpers", () => {
     expect(rows).toEqual({ discover: null, topics: [] });
   });
 
-  it("backfills published posts in bounded pages and remains idempotent", async () => {
-    vi.useFakeTimers();
-    const t = convexTest(schema, modules);
-    const firstPostId = await insertPost(t, ["Technology"]);
-    const secondPostId = await insertPost(t, ["Design"]);
-    const draftPostId = await t.run(async (ctx) => {
-      return await ctx.db.insert("posts", {
-        title: "Backfill draft",
-        body: structuredBody("Draft body"),
-        tags: ["Culture"],
-        authorId: "author-1",
-        status: "draft",
-        commentCount: 0,
-        likeCount: 0,
-        uniqueViewCount: 0,
-        createdAt: 2,
-        updatedAt: 2,
-      });
-    });
-
-    const first = await t.mutation(internal.discoverBackfill.backfillDiscover, {
-      paginationOpts: { numItems: 1, cursor: null },
-    });
-    expect(first).toEqual({ processed: 1, isDone: false });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
-
-    const second = await t.mutation(
-      internal.discoverBackfill.backfillDiscover,
-      {
-        paginationOpts: { numItems: 1, cursor: null },
-      },
-    );
-    expect(second).toEqual({ processed: 1, isDone: false });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
-
-    const result = await t.run(async (ctx) => ({
-      first: await getDiscoverPostBySourceId(ctx, firstPostId),
-      second: await getDiscoverPostBySourceId(ctx, secondPostId),
-      draft: await getDiscoverPostBySourceId(ctx, draftPostId),
-      topics: await ctx.db.query("discoverPostTopics").take(10),
-      stats: await ctx.db.query("topicStats").take(100),
-    }));
-    expect(result.first).not.toBeNull();
-    expect(result.second).not.toBeNull();
-    expect(result.draft).toBeNull();
-    expect(result.topics).toHaveLength(2);
-    expect(result.stats).toHaveLength(POST_TAGS.length);
-    expect(
-      result.stats
-        .filter((stat) => stat.tag === "Technology" || stat.tag === "Design")
-        .map((stat) => stat.publishedCount)
-        .sort(),
-    ).toEqual([1, 1]);
-    expect(
-      result.stats.filter((stat) => stat.publishedCount === 0),
-    ).toHaveLength(POST_TAGS.length - 2);
-  });
-
   it("repairs author names and searchable text across bounded continuations", async () => {
     vi.useFakeTimers();
     const t = convexTest(schema, modules);
@@ -717,11 +659,6 @@ describe("Discover projection persistence helpers", () => {
       const t = convexTest(schema, modules);
       const paginationOpts = { numItems, cursor: null };
 
-      await expect(
-        t.mutation(internal.discoverBackfill.backfillDiscover, {
-          paginationOpts,
-        }),
-      ).rejects.toThrow(ConvexError);
       await expect(
         t.mutation(internal.discoverBackfill.repairAuthorName, {
           authorId: "author-1",

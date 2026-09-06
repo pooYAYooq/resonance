@@ -135,7 +135,7 @@ resonance/
 │   │                           # deletion hides source/projection immediately and starts cleanup
 │   ├── discover.ts             # Public Latest, Search, Topics, and Topic-post queries
 │   ├── discoverProjection.ts   # Shared projection synchronization and indexed invariants
-│   ├── discoverBackfill.ts     # Bounded initial backfill and author-rename repair
+│   ├── discoverBackfill.ts     # Bounded author-name repair continuation
 │   ├── pendingUploads.ts       # Owner-bound inline upload sessions, finalization,
 │   │                           # failed-submit cleanup, and bounded expiry cleanup
  │   ├── postDeletion.ts         # Versioned, leased bounded cleanup jobs for published
@@ -431,8 +431,8 @@ full-text `search_searchableText` index. Topic rows use
 post, one Topic row per `(postId, tag)`, and one counter per canonical tag.
 
 Publish and published-edit mutations synchronize affected projection rows and
-counters transactionally. A bounded cursor backfill and bounded author rename
-continuation reuse the same idempotent helpers. Published deletion removes the
+counters transactionally. A bounded author rename continuation reuses the same
+idempotent helpers. Published deletion removes the
 source and projection immediately, then drains upload claims, comments,
 comment likes, likes, bookmarks, views, notifications, and feed rows through
 durable bounded cursor continuations while correcting derived counters. Like

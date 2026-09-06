@@ -181,7 +181,7 @@ convex/
   posts.ts                    # Draft save/publish, published editing/deletion, published-only reads, uploads, claims, and URL hydration
   discover.ts                 # Public Latest, Search, Topics, and Topic-post queries
   discoverProjection.ts       # Indexed projection synchronization and invariants
-  discoverBackfill.ts         # Bounded projection backfill and author-name repair
+  discoverBackfill.ts         # Bounded author-name repair continuation
   pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations and private paginated liked-post query
