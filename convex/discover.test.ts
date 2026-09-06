@@ -62,6 +62,25 @@ async function insertPost(
   );
 }
 
+type UpdateDiscoverPostEngagement = (
+  ctx: Parameters<typeof getDiscoverPostBySourceId>[0],
+  postId: Id<"posts">,
+  counts: { likeCount?: number; commentCount?: number },
+) => Promise<void>;
+
+async function getUpdateDiscoverPostEngagement(): Promise<
+  UpdateDiscoverPostEngagement | undefined
+> {
+  const projection = (await import("./discoverProjection")) as Record<
+    string,
+    unknown
+  >;
+  const helper = projection["updateDiscoverPostEngagement"];
+  return typeof helper === "function"
+    ? (helper as UpdateDiscoverPostEngagement)
+    : undefined;
+}
+
 describe("Discover projection helpers", () => {
   it("builds the published source row shape and searchable text", async () => {
     const t = convexTest(schema, modules);
@@ -196,7 +215,7 @@ describe("Discover projection helpers", () => {
     expect(rows[0].publishedCount).toBe(0);
   });
 
-  it("rejects duplicate topic stats without deleting either row", async () => {
+  it("lets Convex report duplicate topic stats without deleting either row", async () => {
     const t = convexTest(schema, modules);
 
     await t.run(async (ctx) => {
@@ -212,7 +231,7 @@ describe("Discover projection helpers", () => {
 
     await expect(
       t.run(async (ctx) => ensureTopicStat(ctx, "Technology")),
-    ).rejects.toThrow(ConvexError);
+    ).rejects.toThrow(/unique/i);
 
     const rows = await t.run(async (ctx) =>
       ctx.db
@@ -224,7 +243,7 @@ describe("Discover projection helpers", () => {
     expect(rows.map((row) => row.publishedCount).sort()).toEqual([1, 2]);
   });
 
-  it("fails before writes when topic stat duplicates exceed the cleanup bound", async () => {
+  it("lets Convex report topic stat duplicates beyond the cleanup bound", async () => {
     const t = convexTest(schema, modules);
 
     await t.run(async (ctx) => {
@@ -238,7 +257,7 @@ describe("Discover projection helpers", () => {
 
     await expect(
       t.run(async (ctx) => ensureTopicStat(ctx, "Technology")),
-    ).rejects.toThrow(ConvexError);
+    ).rejects.toThrow(/unique/i);
 
     const rows = await t.run(async (ctx) =>
       ctx.db
@@ -251,6 +270,81 @@ describe("Discover projection helpers", () => {
 });
 
 describe("Discover projection persistence helpers", () => {
+  it("updates only supplied engagement counts on an existing projection", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await insertPost(t);
+    const updateDiscoverPostEngagement =
+      await getUpdateDiscoverPostEngagement();
+    expect(updateDiscoverPostEngagement).toBeTypeOf("function");
+    if (!updateDiscoverPostEngagement) return;
+
+    await t.run(async (ctx) => {
+      const post = await ctx.db.get("posts", postId);
+      expect(post).not.toBeNull();
+      await upsertDiscoverPost(
+        ctx,
+        getDiscoverSourceData(post!, "Ada Lovelace")!,
+      );
+      await updateDiscoverPostEngagement(ctx, postId, { likeCount: 8 });
+    });
+
+    expect(
+      await t.run(async (ctx) => getDiscoverPostBySourceId(ctx, postId)),
+    ).toMatchObject({ likeCount: 8, commentCount: 4 });
+
+    await t.run(async (ctx) => {
+      await updateDiscoverPostEngagement(ctx, postId, { commentCount: 5 });
+    });
+
+    expect(
+      await t.run(async (ctx) => getDiscoverPostBySourceId(ctx, postId)),
+    ).toMatchObject({ likeCount: 8, commentCount: 5 });
+  });
+
+  it("does not create a projection when updating absent engagement data", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await insertPost(t);
+    const updateDiscoverPostEngagement =
+      await getUpdateDiscoverPostEngagement();
+    expect(updateDiscoverPostEngagement).toBeTypeOf("function");
+    if (!updateDiscoverPostEngagement) return;
+
+    await t.run(async (ctx) => {
+      await updateDiscoverPostEngagement(ctx, postId, { likeCount: 8 });
+    });
+
+    await expect(
+      t.run(async (ctx) => getDiscoverPostBySourceId(ctx, postId)),
+    ).resolves.toBeNull();
+  });
+
+  it.each([
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    -1,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+  ])("rejects invalid projection engagement counts: %s", async (count) => {
+    const t = convexTest(schema, modules);
+    const postId = await insertPost(t);
+    const updateDiscoverPostEngagement =
+      await getUpdateDiscoverPostEngagement();
+    expect(updateDiscoverPostEngagement).toBeTypeOf("function");
+    if (!updateDiscoverPostEngagement) return;
+
+    await expect(
+      t.run(async (ctx) =>
+        updateDiscoverPostEngagement(ctx, postId, { likeCount: count }),
+      ),
+    ).rejects.toThrow(ConvexError);
+    await expect(
+      t.run(async (ctx) =>
+        updateDiscoverPostEngagement(ctx, postId, { commentCount: count }),
+      ),
+    ).rejects.toThrow(ConvexError);
+  });
+
   it("syncs a published post into all projections and ignores stale tags", async () => {
     const t = convexTest(schema, modules);
     const postId = await insertPost(t, ["Technology", "Design", "Stale tag"]);
@@ -262,6 +356,7 @@ describe("Discover projection persistence helpers", () => {
         bio: "",
         followerCount: 0,
         followingCount: 0,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: 1,
       });
@@ -499,6 +594,7 @@ describe("Discover projection persistence helpers", () => {
         bio: "",
         followerCount: 0,
         followingCount: 0,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: 1,
       });
@@ -553,6 +649,7 @@ describe("Discover projection persistence helpers", () => {
         bio: "",
         followerCount: 0,
         followingCount: 0,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: 1,
       });
@@ -634,6 +731,16 @@ describe("Discover projection persistence helpers", () => {
       ).rejects.toThrow(ConvexError);
     },
   );
+
+  it("rejects Discover pagination scans above the server cap", async () => {
+    const t = convexTest(schema, modules);
+    await expect(
+      t.query(api.discover.getDiscoverPosts, {
+        mode: "latest",
+        paginationOpts: { numItems: 20, maximumRowsRead: 21, cursor: null },
+      }),
+    ).rejects.toThrow("rows");
+  });
 
   it("uses exact indexed lookups and keeps post/topic upserts idempotent", async () => {
     const t = convexTest(schema, modules);
@@ -741,6 +848,28 @@ describe("Discover projection persistence helpers", () => {
         .take(10),
     );
     expect(rows.map((row) => row.tag).sort()).toEqual(["Design", "Technology"]);
+  });
+
+  it("lets Convex report duplicate exact topic rows", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await insertPost(t, ["Technology"]);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("discoverPostTopics", {
+        tag: "Technology",
+        postId,
+        publishedAt: 123,
+      });
+      await ctx.db.insert("discoverPostTopics", {
+        tag: "Technology",
+        postId,
+        publishedAt: 123,
+      });
+    });
+
+    await expect(
+      t.run(async (ctx) => getTopicRow(ctx, postId, "Technology")),
+    ).rejects.toThrow(/unique/i);
   });
 
   it("rejects duplicate topic tags before writing the discover post", async () => {
@@ -904,6 +1033,34 @@ describe("Discover projection persistence helpers", () => {
 });
 
 describe("Public Discover queries", () => {
+  it.each([0, -1, 21, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects invalid public Discover page sizes: %s",
+    async (numItems) => {
+      const t = convexTest(schema, modules);
+      const paginationOpts = { numItems, cursor: null };
+
+      await expect(
+        t.query(api.discover.getDiscoverPosts, {
+          mode: "latest",
+          paginationOpts,
+        }),
+      ).rejects.toThrow(ConvexError);
+      await expect(
+        t.query(api.discover.getDiscoverPosts, {
+          mode: "search",
+          query: "design",
+          paginationOpts,
+        }),
+      ).rejects.toThrow(ConvexError);
+      await expect(
+        t.query(api.discover.getTopicPosts, {
+          tag: "Technology",
+          paginationOpts,
+        }),
+      ).rejects.toThrow(ConvexError);
+    },
+  );
+
   it("does not include a draft source post in anonymous Latest results", async () => {
     const t = convexTest(schema, modules);
     const publishedPostId = await insertPost(t);
@@ -1087,6 +1244,20 @@ describe("Public Discover queries", () => {
       { tag: "Science", publishedCount: 2 },
     ]);
   });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5])(
+    "omits invalid persisted topic counters: %s",
+    async (publishedCount) => {
+      const t = convexTest(schema, modules);
+      await t.run(async (ctx) => {
+        await ctx.db.insert("topicStats", {
+          tag: "Technology",
+          publishedCount,
+        });
+      });
+      await expect(t.query(api.discover.getTopics, {})).resolves.toEqual([]);
+    },
+  );
 
   it("hydrates a bounded Topic page, preserves pagination metadata, and skips missing rows", async () => {
     const t = convexTest(schema, modules);

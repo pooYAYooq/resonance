@@ -1,11 +1,52 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
+import { register } from "@convex-dev/better-auth/test";
 import { describe, expect, it, vi } from "vitest";
-import { api, internal } from "./_generated/api";
+import { api, components, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+
+async function createAuthenticatedTestUser(
+  t: ReturnType<typeof convexTest>,
+  email: string,
+) {
+  register(t);
+  const identity = await t.run(async (ctx) => {
+    const now = Date.now();
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Upload owner",
+          email,
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: `session-${email}`,
+            expiresAt: now + 60_000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+  await t.withIdentity(identity).mutation(api.users.syncUser, {});
+  return identity;
+}
 
 describe("pending upload functions", () => {
   it("rejects unauthenticated session creation", async () => {
@@ -139,6 +180,35 @@ describe("pending upload functions", () => {
     expect(row.byStorageId?._id).toBe(row.sessionId);
     expect(row.byUserId?._id).toBe(row.sessionId);
     expect(row.byExpiresAt?._id).toBe(row.sessionId);
+  });
+
+  it("reclaims an invalid uploaded object and its session", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "owner@example.com");
+    const { sessionId } = await t
+      .withIdentity(identity)
+      .mutation(api.pendingUploads.createPendingUpload, {});
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(
+        new Blob([new Uint8Array([1])], { type: "text/plain" }),
+      ),
+    );
+
+    await expect(
+      t
+        .withIdentity(identity)
+        .mutation(api.pendingUploads.finalizePendingUpload, {
+          sessionId,
+          storageId,
+        }),
+    ).resolves.toEqual({ accepted: false });
+
+    await expect(
+      t.run(async (ctx) => ({
+        session: await ctx.db.get(sessionId),
+        file: await ctx.storage.get(storageId),
+      })),
+    ).resolves.toEqual({ session: null, file: null });
   });
 
   it("cleans expired files and rows while preserving live sessions", async () => {

@@ -102,7 +102,7 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
       <section className="py-10">
         <SectionHeading
           title="Posts"
-          count={profile.postCount}
+          count={profile.postCount ?? undefined}
           countLabel={postCountLabel}
         />
         <ProfilePostList userId={profile.userId} />

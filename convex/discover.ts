@@ -2,7 +2,7 @@ import {
   paginationOptsValidator,
   paginationResultValidator,
 } from "convex/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { query } from "./_generated/server";
@@ -20,6 +20,33 @@ const discoverSummaryValidator = v.object({
   commentCount: v.number(),
   likeCount: v.number(),
 });
+
+const MAX_DISCOVER_PAGE_SIZE = 20;
+
+function assertDiscoverPageSize(options: {
+  numItems: number;
+  maximumRowsRead?: number;
+}): void {
+  if (
+    !Number.isSafeInteger(options.numItems) ||
+    options.numItems < 1 ||
+    options.numItems > MAX_DISCOVER_PAGE_SIZE
+  ) {
+    throw new ConvexError(
+      "Discover page size must be a safe integer from 1 to 20.",
+    );
+  }
+  if (
+    options.maximumRowsRead !== undefined &&
+    (!Number.isSafeInteger(options.maximumRowsRead) ||
+      options.maximumRowsRead < 1 ||
+      options.maximumRowsRead > MAX_DISCOVER_PAGE_SIZE)
+  ) {
+    throw new ConvexError(
+      "Discover pagination rows must be a safe integer from 1 to 20.",
+    );
+  }
+}
 
 type DiscoverSummary = {
   _id: Doc<"posts">["_id"];
@@ -67,6 +94,8 @@ export const getDiscoverPosts = query({
   },
   returns: paginationResultValidator(discoverSummaryValidator),
   handler: async (ctx, args) => {
+    assertDiscoverPageSize(args.paginationOpts);
+
     if (args.mode === "search") {
       const searchQuery = args.query?.trim();
       if (!searchQuery) {
@@ -112,7 +141,12 @@ export const getTopics = query({
         .query("topicStats")
         .withIndex("by_tag", (q) => q.eq("tag", tag))
         .unique();
-      if (stat && stat.publishedCount > 0) {
+      if (
+        stat &&
+        Number.isSafeInteger(stat.publishedCount) &&
+        stat.publishedCount >= 0 &&
+        stat.publishedCount > 0
+      ) {
         topics.push({ tag, publishedCount: stat.publishedCount });
       }
     }
@@ -127,6 +161,8 @@ export const getTopicPosts = query({
   },
   returns: paginationResultValidator(discoverSummaryValidator),
   handler: async (ctx, args) => {
+    assertDiscoverPageSize(args.paginationOpts);
+
     if (!isCanonicalPostTag(args.tag)) {
       return { page: [], isDone: true, continueCursor: "" };
     }

@@ -129,6 +129,67 @@ describe("analytics storage contracts", () => {
     });
   });
 
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, 1.5])(
+    "rejects an invalid analytics increment: %s",
+    async (delta) => {
+      const t = convexTest(schema, modules);
+      await expect(
+        t.run(async (ctx) =>
+          incrementAuthorAnalytics(ctx, "author-1", "likesReceived", delta),
+        ),
+      ).rejects.toThrow("analytics counter");
+    },
+  );
+
+  it("rejects an analytics increment that would overflow", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("authorAnalytics", {
+        authorId: "author-1",
+        uniqueViews: 0,
+        likesReceived: Number.MAX_SAFE_INTEGER,
+      });
+    });
+    await expect(
+      t.run(async (ctx) =>
+        incrementAuthorAnalytics(ctx, "author-1", "likesReceived", 1),
+      ),
+    ).rejects.toThrow("analytics counter");
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5])(
+    "rejects a corrupted post view count before writing: %s",
+    async (uniqueViewCount) => {
+      const t = convexTest(schema, modules);
+      const postId = await t.run(async (ctx) =>
+        ctx.db.insert("posts", { ...publishedPost, uniqueViewCount }),
+      );
+      await expect(
+        t.run(async (ctx) => {
+          const post = await ctx.db.get(postId);
+          if (!post) throw new Error("Missing post");
+          return recordUniqueViewInTransaction(ctx, post, "viewer");
+        }),
+      ).rejects.toThrow("view count");
+    },
+  );
+
+  it("rejects corrupted follower-growth counters before writing", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("followerGrowthDays", {
+        authorId: "author-1",
+        dayStart: getUtcDayStart(1),
+        gainedCount: -1,
+      });
+    });
+    await expect(
+      t.run(async (ctx) =>
+        incrementFollowerGrowthInTransaction(ctx, "author-1", 1),
+      ),
+    ).rejects.toThrow("Follower-growth counter");
+  });
+
   it("combines follows for an author on the same UTC day", async () => {
     const t = convexTest(schema, modules);
     const timestamp = Date.UTC(2026, 7, 26, 19, 30);

@@ -19,11 +19,28 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
-import { paginationOptsValidator } from "convex/server";
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server";
 import { internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
 
 export const FANOUT_BATCH_SIZE = 200;
+const READ_BATCH_SIZE = 100;
+
+const notificationValidator = v.object({
+  _id: v.id("notifications"),
+  _creationTime: v.number(),
+  recipientId: v.string(),
+  actorId: v.string(),
+  postId: v.id("posts"),
+  createdAt: v.number(),
+  readAt: v.optional(v.number()),
+  actorName: v.union(v.string(), v.null()),
+  actorAvatarUrl: v.union(v.string(), v.null()),
+  postTitle: v.string(),
+});
 
 /**
  * Fans out a single published post to the author's followers by
@@ -87,7 +104,7 @@ export const fanOutForPost = internalMutation({
     const result = await ctx.db
       .query("follows")
       .withIndex("by_followingId", (q) => q.eq("followingId", args.authorId))
-      .paginate(args.paginationOpts);
+      .paginate({ ...args.paginationOpts, maximumRowsRead: FANOUT_BATCH_SIZE });
 
     for (const follower of result.page) {
       const existing = await ctx.db
@@ -112,6 +129,13 @@ export const fanOutForPost = internalMutation({
         .withIndex("by_userId", (q) => q.eq("userId", follower.followerId))
         .unique();
       if (recipient) {
+        if (
+          !Number.isSafeInteger(recipient.unreadNotificationCount) ||
+          recipient.unreadNotificationCount < 0 ||
+          recipient.unreadNotificationCount === Number.MAX_SAFE_INTEGER
+        ) {
+          throw new ConvexError("Unread notification counter is invalid.");
+        }
         await ctx.db.patch(recipient._id, {
           unreadNotificationCount: recipient.unreadNotificationCount + 1,
         });
@@ -152,6 +176,7 @@ export const fanOutForPost = internalMutation({
  */
 export const getUnreadCount = query({
   args: {},
+  returns: v.number(),
   handler: async (ctx): Promise<number> => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -198,7 +223,21 @@ export const getNotifications = query({
   args: {
     paginationOpts: paginationOptsValidator,
   },
+  returns: paginationResultValidator(notificationValidator),
   handler: async (ctx, args) => {
+    if (
+      !Number.isSafeInteger(args.paginationOpts.numItems) ||
+      args.paginationOpts.numItems < 1 ||
+      args.paginationOpts.numItems > 20 ||
+      (args.paginationOpts.maximumRowsRead !== undefined &&
+        (!Number.isSafeInteger(args.paginationOpts.maximumRowsRead) ||
+          args.paginationOpts.maximumRowsRead < 1 ||
+          args.paginationOpts.maximumRowsRead > 20))
+    ) {
+      throw new ConvexError(
+        "Page size must be a safe integer between 1 and 20.",
+      );
+    }
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
       return { page: [], isDone: true, continueCursor: "" };
@@ -210,7 +249,7 @@ export const getNotifications = query({
         q.eq("recipientId", authUser._id),
       )
       .order("desc")
-      .paginate(args.paginationOpts);
+      .paginate({ ...args.paginationOpts, maximumRowsRead: 20 });
 
     const uniqueActorIds = Array.from(
       new Set(result.page.map((n) => n.actorId)),
@@ -275,6 +314,7 @@ export const getNotifications = query({
  */
 export const markAllRead = mutation({
   args: {},
+  returns: v.object({ ok: v.literal(true) }),
   handler: async (ctx): Promise<{ ok: true }> => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
@@ -287,7 +327,74 @@ export const markAllRead = mutation({
     if (!user) {
       throw new ConvexError("User not found.");
     }
+    if (
+      !Number.isSafeInteger(user.unreadNotificationCount) ||
+      user.unreadNotificationCount < 0
+    ) {
+      throw new ConvexError("Unread notification counter is invalid.");
+    }
+    const readAt = Date.now();
+    const firstBatch = await ctx.db
+      .query("notifications")
+      .withIndex("by_recipientId_and_createdAt", (q) =>
+        q.eq("recipientId", authUser._id).lte("createdAt", readAt),
+      )
+      .paginate({
+        numItems: READ_BATCH_SIZE,
+        maximumRowsRead: READ_BATCH_SIZE,
+        cursor: null,
+      });
+    for (const notification of firstBatch.page) {
+      if (notification.readAt === undefined) {
+        await ctx.db.patch(notification._id, { readAt });
+      }
+    }
     await ctx.db.patch(user._id, { unreadNotificationCount: 0 });
+    if (!firstBatch.isDone) {
+      await ctx.scheduler.runAfter(0, internal.notifications.markReadBatch, {
+        recipientId: authUser._id,
+        readAt,
+        paginationOpts: {
+          numItems: READ_BATCH_SIZE,
+          cursor: firstBatch.continueCursor,
+        },
+      });
+    }
     return { ok: true };
+  },
+});
+
+export const markReadBatch = internalMutation({
+  args: {
+    recipientId: v.string(),
+    readAt: v.number(),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("notifications")
+      .withIndex("by_recipientId_and_createdAt", (q) =>
+        q.eq("recipientId", args.recipientId).lte("createdAt", args.readAt),
+      )
+      .paginate({
+        ...args.paginationOpts,
+        maximumRowsRead: READ_BATCH_SIZE,
+      });
+    for (const notification of result.page) {
+      if (notification.readAt === undefined) {
+        await ctx.db.patch(notification._id, { readAt: args.readAt });
+      }
+    }
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.notifications.markReadBatch, {
+        ...args,
+        paginationOpts: {
+          numItems: args.paginationOpts.numItems,
+          cursor: result.continueCursor,
+        },
+      });
+    }
+    return null;
   },
 });

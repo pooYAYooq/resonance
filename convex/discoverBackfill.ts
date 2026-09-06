@@ -41,7 +41,10 @@ export const backfillDiscover = internalMutation({
         q.eq("status", "published"),
       )
       .order("desc")
-      .paginate(args.paginationOpts);
+      .paginate({
+        ...args.paginationOpts,
+        maximumRowsRead: DISCOVER_BATCH_SIZE,
+      });
 
     for (const post of result.page) {
       await syncPublishedPostProjection(ctx, post._id);
@@ -87,7 +90,10 @@ export const repairAuthorName = internalMutation({
     const result = await ctx.db
       .query("discoverPosts")
       .withIndex("by_authorId", (q) => q.eq("authorId", args.authorId))
-      .paginate(args.paginationOpts);
+      .paginate({
+        ...args.paginationOpts,
+        maximumRowsRead: DISCOVER_BATCH_SIZE,
+      });
 
     for (const post of result.page) {
       await ctx.db.patch(post._id, {

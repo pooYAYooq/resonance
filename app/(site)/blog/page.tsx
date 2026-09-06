@@ -60,7 +60,10 @@ export default async function BlogPost({ searchParams }: BlogPageProps) {
         </div>
       </div>
       <div className="px-6">
-        <DiscoverSearch query={mode.mode === "search" ? mode.query : ""} />
+        <DiscoverSearch
+          key={mode.mode === "search" ? mode.query : ""}
+          query={mode.mode === "search" ? mode.query : ""}
+        />
       </div>
       {/* Results stay before the rail in DOM order so mobile readers encounter content first. */}
       <div className="mt-8 grid items-start gap-8 px-6 lg:grid-cols-[minmax(0,1fr)_18rem]">

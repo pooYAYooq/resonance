@@ -3,6 +3,7 @@
  * A single-row table that avoids loading all posts just to count them.
  */
 import { query, type MutationCtx } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
 
 /**
  * Increments the total post count in the stats table within a transaction.
@@ -15,8 +16,26 @@ export async function incrementPostCountInTransaction(ctx: MutationCtx) {
   if (!stats) {
     await ctx.db.insert("stats", { totalPosts: 1 });
   } else {
+    if (
+      !Number.isSafeInteger(stats.totalPosts) ||
+      stats.totalPosts < 0 ||
+      stats.totalPosts === Number.MAX_SAFE_INTEGER
+    ) {
+      throw new ConvexError("Post count is invalid.");
+    }
     await ctx.db.patch(stats._id, { totalPosts: stats.totalPosts + 1 });
   }
+}
+
+export async function decrementPostCountInTransaction(ctx: MutationCtx) {
+  const stats = await ctx.db.query("stats").first();
+  if (!stats) return;
+  if (!Number.isSafeInteger(stats.totalPosts) || stats.totalPosts <= 0) {
+    throw new ConvexError("Post count is invalid.");
+  }
+  await ctx.db.patch(stats._id, {
+    totalPosts: stats.totalPosts - 1,
+  });
 }
 
 /**
@@ -25,10 +44,14 @@ export async function incrementPostCountInTransaction(ctx: MutationCtx) {
  */
 export const getStats = query({
   args: {},
+  returns: v.object({ totalPosts: v.number() }),
   handler: async (ctx) => {
     const stats = await ctx.db.query("stats").first();
     if (!stats) {
       return { totalPosts: 0 };
+    }
+    if (!Number.isSafeInteger(stats.totalPosts) || stats.totalPosts < 0) {
+      throw new ConvexError("Post count is invalid.");
     }
     return { totalPosts: stats.totalPosts };
   },

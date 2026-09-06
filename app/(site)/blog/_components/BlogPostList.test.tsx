@@ -155,7 +155,7 @@ describe("BlogPostList", () => {
     );
   });
 
-  it("shows a recovery state when latest has no published content", () => {
+  it("shows a static empty state when latest has no published content", () => {
     paginatedState.mockReturnValue({
       results: [],
       status: "Exhausted",
@@ -165,5 +165,6 @@ describe("BlogPostList", () => {
 
     render(<BlogPostList mode={{ mode: "latest" }} />);
     expect(screen.getByText(/nothing published yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });

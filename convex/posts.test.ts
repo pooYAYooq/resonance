@@ -9,8 +9,9 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { register } from "@convex-dev/better-auth/test";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { api, components } from "./_generated/api";
 import schema from "./schema";
 import { isValidPostTags } from "../lib/constants/post-tags";
 import {
@@ -29,6 +30,8 @@ import {
   requirePublishedPost,
   validatePublishedEditUploadClaims,
 } from "./postLifecycle";
+
+afterEach(() => vi.useRealTimers());
 import type { Id } from "./_generated/dataModel";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -396,6 +399,272 @@ describe("posts functions", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
+  it("cleans removed draft uploads through a bounded job after saving", async () => {
+    const t = convexTest(schema, modules);
+    register(t);
+    vi.useFakeTimers();
+    const identity = await t.run(async (ctx) => {
+      const now = Date.now();
+      const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "user",
+          data: {
+            name: "Draft owner",
+            email: "draft-save@example.com",
+            emailVerified: true,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      });
+      const session = await ctx.runMutation(
+        components.betterAuth.adapter.create,
+        {
+          input: {
+            model: "session",
+            data: {
+              userId: user._id,
+              token: "draft-save-session",
+              expiresAt: now + 60_000,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+        },
+      );
+      return { subject: user._id, sessionId: session._id };
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    const ids = await t.run(async (ctx) => {
+      const storageId = await ctx.storage.store(new Blob(["removed"]));
+      const postId = await ctx.db.insert("posts", {
+        title: "Draft",
+        body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+        tags: [],
+        authorId: identity.subject,
+        imageStorageId: storageId,
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const claimId = await ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        postId,
+        storageId,
+        createdAt: 1,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+      return { postId, claimId, storageId };
+    });
+
+    await t.withIdentity(identity).mutation(api.posts.saveDraft, {
+      draftId: ids.postId,
+      title: "Draft",
+      body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+      tags: [],
+    });
+    await expect(
+      t.run(async (ctx) => ctx.db.get(ids.claimId)),
+    ).resolves.not.toBeNull();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await expect(
+      t.run(async (ctx) => ctx.db.get(ids.claimId)),
+    ).resolves.toBeNull();
+    await expect(
+      t.run(async (ctx) => ctx.storage.getUrl(ids.storageId)),
+    ).resolves.toBeNull();
+  });
+
+  it("preserves a retained draft upload claim during cleanup", async () => {
+    const t = convexTest(schema, modules);
+    register(t);
+    vi.useFakeTimers();
+    const identity = await t.run(async (ctx) => {
+      const now = Date.now();
+      const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "user",
+          data: {
+            name: "Retained draft owner",
+            email: "retained-draft@example.com",
+            emailVerified: true,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      });
+      const session = await ctx.runMutation(
+        components.betterAuth.adapter.create,
+        {
+          input: {
+            model: "session",
+            data: {
+              userId: user._id,
+              token: "retained-draft-session",
+              expiresAt: now + 60_000,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+        },
+      );
+      return { subject: user._id, sessionId: session._id };
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    const ids = await t.run(async (ctx) => {
+      const retainedStorageId = await ctx.storage.store(new Blob(["retained"]));
+      const removedStorageId = await ctx.storage.store(new Blob(["removed"]));
+      const postId = await ctx.db.insert("posts", {
+        title: "Draft",
+        body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+        tags: [],
+        authorId: identity.subject,
+        imageStorageId: retainedStorageId,
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const retainedClaimId = await ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        postId,
+        storageId: retainedStorageId,
+        createdAt: 1,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+      const removedClaimId = await ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        postId,
+        storageId: removedStorageId,
+        createdAt: 1,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+      return {
+        postId,
+        retainedClaimId,
+        retainedStorageId,
+        removedClaimId,
+        removedStorageId,
+      };
+    });
+
+    await t.withIdentity(identity).mutation(api.posts.saveDraft, {
+      draftId: ids.postId,
+      title: "Draft",
+      body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+      tags: [],
+      imageStorageId: ids.retainedStorageId,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    await expect(
+      t.run(async (ctx) => ctx.db.get(ids.retainedClaimId)),
+    ).resolves.not.toBeNull();
+    await expect(
+      t.run(async (ctx) => ctx.db.get(ids.removedClaimId)),
+    ).resolves.toBeNull();
+    await expect(
+      t.run(async (ctx) => ctx.storage.getUrl(ids.retainedStorageId)),
+    ).resolves.not.toBeNull();
+    await expect(
+      t.run(async (ctx) => ctx.storage.getUrl(ids.removedStorageId)),
+    ).resolves.toBeNull();
+  });
+
+  it("increments the author's published count exactly once on publish", async () => {
+    const t = convexTest(schema, modules);
+    register(t);
+    vi.useFakeTimers();
+    const identity = await t.run(async (ctx) => {
+      const now = Date.now();
+      const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "user",
+          data: {
+            name: "Publisher",
+            email: "publisher@example.com",
+            emailVerified: true,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      });
+      const session = await ctx.runMutation(
+        components.betterAuth.adapter.create,
+        {
+          input: {
+            model: "session",
+            data: {
+              userId: user._id,
+              token: "publish-session",
+              expiresAt: now + 60_000,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+        },
+      );
+      return { subject: user._id, sessionId: session._id };
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    await t.run(async (ctx) => {
+      for (const createdAt of [1, 2]) {
+        await ctx.db.insert("posts", {
+          title: "Existing post",
+          body: "Body",
+          tags: [],
+          authorId: identity.subject,
+          status: "published",
+          publishedAt: createdAt,
+          commentCount: 0,
+          likeCount: 0,
+          uniqueViewCount: 0,
+          createdAt,
+          updatedAt: createdAt,
+        });
+      }
+    });
+    const postId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Publish me",
+        body: JSON.stringify({
+          format: BLOCKNOTE_FORMAT,
+          blocks: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Publishable content." }],
+            },
+          ],
+        }),
+        tags: [],
+        authorId: identity.subject,
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.posts.publishPost, { draftId: postId });
+    await expect(
+      t.run(async (ctx) =>
+        ctx.db
+          .query("users")
+          .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+          .unique(),
+      ),
+    ).resolves.toMatchObject({ publishedPostCount: 1 });
+  });
+
   it("fails softly for unauthenticated draft reads", async () => {
     const t = convexTest(schema, modules);
 
@@ -423,14 +692,6 @@ describe("posts functions", () => {
     expect(await t.query(api.posts.getDraftById, { draftId })).toBeNull();
     await expect(
       t.mutation(api.posts.deleteDraft, { draftId }),
-    ).rejects.toThrow("Unauthorized");
-  });
-
-  it("rejects upload URL generation when unauthenticated", async () => {
-    const t = convexTest(schema, modules);
-
-    await expect(
-      t.mutation(api.posts.generateImageUploadUrl, {}),
     ).rejects.toThrow("Unauthorized");
   });
 
@@ -1053,6 +1314,7 @@ describe("posts functions", () => {
         avatarUrl: "https://example.com/bob.png",
         followerCount: 0,
         followingCount: 0,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: Date.now(),
       });
@@ -1249,6 +1511,7 @@ describe("posts functions", () => {
         avatarUrl: "https://example.com/alice.png",
         followerCount: 0,
         followingCount: 0,
+        publishedPostCount: 0,
         unreadNotificationCount: 0,
         createdAt: Date.now(),
       });

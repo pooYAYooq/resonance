@@ -7,6 +7,7 @@ const {
   paramsState,
   pushMock,
   paginatedQueryArgsMock,
+  paginatedQueryOptionsMock,
   queryArgsMock,
   paginatedQueryState,
   queryState,
@@ -15,6 +16,7 @@ const {
   paramsState: vi.fn(),
   pushMock: vi.fn(),
   paginatedQueryArgsMock: vi.fn(),
+  paginatedQueryOptionsMock: vi.fn(),
   queryArgsMock: vi.fn(),
   paginatedQueryState: vi.fn(),
   queryState: vi.fn(),
@@ -28,8 +30,9 @@ vi.mock("next/navigation", () => ({
 vi.mock("convex/react", () => ({
   useConvexAuth: () => authState(),
   useMutation: () => vi.fn(),
-  usePaginatedQuery: (_query: unknown, args: unknown) => {
+  usePaginatedQuery: (_query: unknown, args: unknown, options: unknown) => {
     paginatedQueryArgsMock(args);
+    paginatedQueryOptionsMock(options);
     return paginatedQueryState();
   },
   useQuery: (_query: unknown, args: unknown) => {
@@ -59,6 +62,7 @@ describe("CommentSection", () => {
     authState.mockReturnValue({ isAuthenticated: false, isLoading: false });
     paramsState.mockReturnValue({ postId: "post-1" });
     paginatedQueryArgsMock.mockClear();
+    paginatedQueryOptionsMock.mockClear();
     queryArgsMock.mockClear();
     paginatedQueryState.mockReturnValue({
       results: [],
@@ -102,6 +106,27 @@ describe("CommentSection", () => {
       postId: "post-1",
     });
     expect(queryArgsMock).toHaveBeenLastCalledWith({ postId: "post-1" });
+  });
+
+  it("uses the supported 20-comment page size", async () => {
+    const user = userEvent.setup();
+    const loadMore = vi.fn();
+    paginatedQueryState.mockReturnValue({
+      results: [],
+      status: "CanLoadMore",
+      isLoading: false,
+      loadMore,
+    });
+
+    render(<CommentSection initialTotalCount={1} />);
+
+    expect(paginatedQueryOptionsMock).toHaveBeenLastCalledWith({
+      initialNumItems: 20,
+    });
+    await user.click(
+      screen.getByRole("button", { name: /load more comments/i }),
+    );
+    expect(loadMore).toHaveBeenCalledWith(20);
   });
 
   it("reads comments with the authenticated client after authentication resolves", () => {

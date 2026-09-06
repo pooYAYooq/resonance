@@ -16,12 +16,42 @@ import {
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { authComponent } from "./auth";
 import { incrementAuthorAnalytics } from "./analytics";
+import { updateDiscoverPostEngagement } from "./discoverProjection";
 import { requirePublishedPost } from "./postLifecycle";
 import {
   hydratePostSummary,
   postSummaryValidator,
   type PostSummary,
 } from "./postSummary";
+
+function validatePageSize(options: {
+  numItems: number;
+  maximumRowsRead?: number;
+}) {
+  if (
+    !Number.isSafeInteger(options.numItems) ||
+    options.numItems < 1 ||
+    options.numItems > 20
+  ) {
+    throw new ConvexError("Page size must be a safe integer between 1 and 20.");
+  }
+  if (
+    options.maximumRowsRead !== undefined &&
+    (!Number.isSafeInteger(options.maximumRowsRead) ||
+      options.maximumRowsRead < 1 ||
+      options.maximumRowsRead > 20)
+  ) {
+    throw new ConvexError(
+      "Pagination rows must be a safe integer between 1 and 20.",
+    );
+  }
+}
+
+function validateLikeCount(likeCount: number) {
+  if (!Number.isSafeInteger(likeCount) || likeCount < 0) {
+    throw new ConvexError("Like count is corrupted.");
+  }
+}
 
 export async function getLikedPostsForUser(
   ctx: QueryCtx,
@@ -55,6 +85,8 @@ export const getLikedPosts = query({
   },
   returns: paginationResultValidator(postSummaryValidator),
   handler: async (ctx, args) => {
+    validatePageSize(args.paginationOpts);
+
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) {
       return { page: [], isDone: true, continueCursor: "" };
@@ -83,6 +115,7 @@ export const toggleLike = mutation({
   args: {
     postId: v.id("posts"),
   },
+  returns: v.object({ liked: v.boolean(), likeCount: v.number() }),
   handler: async (ctx, args) => {
     // Auth gate — derives identity server-side rather than accepting a userId argument.
     const user = await authComponent.safeGetAuthUser(ctx);
@@ -91,6 +124,7 @@ export const toggleLike = mutation({
     }
 
     const post = await requirePublishedPost(ctx, args.postId);
+    validateLikeCount(post.likeCount);
 
     const existingLike = await ctx.db
       .query("likes")
@@ -100,15 +134,26 @@ export const toggleLike = mutation({
       .unique();
 
     if (existingLike) {
+      if (post.likeCount === 0) {
+        throw new ConvexError("Like count cannot be decremented below zero.");
+      }
       await ctx.db.delete(existingLike._id);
       const nextCount = post.likeCount - 1;
       await ctx.db.patch(args.postId, {
+        likeCount: nextCount,
+      });
+      await updateDiscoverPostEngagement(ctx, args.postId, {
         likeCount: nextCount,
       });
       await incrementAuthorAnalytics(ctx, post.authorId, "likesReceived", -1);
       return { liked: false, likeCount: nextCount };
     }
 
+    if (post.likeCount === Number.MAX_SAFE_INTEGER) {
+      throw new ConvexError(
+        "Like count cannot exceed Number.MAX_SAFE_INTEGER.",
+      );
+    }
     await ctx.db.insert("likes", {
       postId: args.postId,
       userId: user._id,
@@ -116,6 +161,9 @@ export const toggleLike = mutation({
     });
     const nextCount = post.likeCount + 1;
     await ctx.db.patch(args.postId, {
+      likeCount: nextCount,
+    });
+    await updateDiscoverPostEngagement(ctx, args.postId, {
       likeCount: nextCount,
     });
     await incrementAuthorAnalytics(ctx, post.authorId, "likesReceived", 1);
@@ -139,6 +187,7 @@ export const toggleCommentLike = mutation({
   args: {
     commentId: v.id("comments"),
   },
+  returns: v.object({ liked: v.boolean(), likeCount: v.number() }),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
@@ -150,6 +199,7 @@ export const toggleCommentLike = mutation({
       throw new ConvexError("Comment not found.");
     }
     await requirePublishedPost(ctx, comment.postId);
+    validateLikeCount(comment.likeCount);
 
     const existingLike = await ctx.db
       .query("commentLikes")
@@ -159,6 +209,9 @@ export const toggleCommentLike = mutation({
       .unique();
 
     if (existingLike) {
+      if (comment.likeCount === 0) {
+        throw new ConvexError("Like count cannot be decremented below zero.");
+      }
       await ctx.db.delete(existingLike._id);
       const nextCount = comment.likeCount - 1;
       await ctx.db.patch(args.commentId, {
@@ -167,6 +220,11 @@ export const toggleCommentLike = mutation({
       return { liked: false, likeCount: nextCount };
     }
 
+    if (comment.likeCount === Number.MAX_SAFE_INTEGER) {
+      throw new ConvexError(
+        "Like count cannot exceed Number.MAX_SAFE_INTEGER.",
+      );
+    }
     await ctx.db.insert("commentLikes", {
       commentId: args.commentId,
       userId: user._id,

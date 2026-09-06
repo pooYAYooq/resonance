@@ -52,12 +52,14 @@ export function BlogPostList({ mode }: BlogPostListProps) {
         }
         description={description}
         action={
-          <Link
-            href={buildDiscoverLatestLink()}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            {mode.mode === "search" ? "Clear search" : "Browse latest"}
-          </Link>
+          mode.mode === "latest" ? null : (
+            <Link
+              href={buildDiscoverLatestLink()}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {mode.mode === "search" ? "Clear search" : "Browse latest"}
+            </Link>
+          )
         }
       />
     );

@@ -21,6 +21,10 @@ export type DiscoverTopicData = {
   publishedAt: number;
 };
 
+export type DiscoverEngagementCounts =
+  | { likeCount: number; commentCount?: number }
+  | { likeCount?: number; commentCount: number };
+
 // Projection writes and author rename repairs must share this construction.
 export function buildSearchableText(
   title: string,
@@ -83,6 +87,10 @@ function isValidTopicCounter(value: number): boolean {
   return Number.isFinite(value) && Number.isSafeInteger(value) && value >= 0;
 }
 
+function isValidEngagementCount(value: number): boolean {
+  return Number.isFinite(value) && Number.isSafeInteger(value) && value >= 0;
+}
+
 function assertWithinCleanupBound(
   rows: readonly unknown[],
   message: string,
@@ -123,30 +131,22 @@ export async function getTopicRow(
   postId: Id<"posts">,
   tag: string,
 ): Promise<Doc<"discoverPostTopics"> | null> {
-  const rows = await ctx.db
+  return await ctx.db
     .query("discoverPostTopics")
     .withIndex("by_postId_and_tag", (q) =>
       q.eq("postId", postId).eq("tag", tag),
     )
-    .take(2);
-  if (rows.length > 1) {
-    throw new ConvexError("Duplicate topic rows exist for a post and tag.");
-  }
-  return rows[0] ?? null;
+    .unique();
 }
 
 export async function getTopicStat(
   ctx: Pick<MutationCtx, "db">,
   tag: string,
 ): Promise<Doc<"topicStats"> | null> {
-  const rows = await ctx.db
+  return await ctx.db
     .query("topicStats")
     .withIndex("by_tag", (q) => q.eq("tag", tag))
-    .take(2);
-  if (rows.length > 1) {
-    throw new ConvexError("Duplicate topic stat rows exist for a tag.");
-  }
-  return rows[0] ?? null;
+    .unique();
 }
 
 export async function ensureTopicStat(
@@ -214,6 +214,32 @@ export async function upsertDiscoverPost(
   }
 
   return await ctx.db.insert("discoverPosts", sourceData);
+}
+
+/** Applies source engagement counts without rebuilding the published projection. */
+export async function updateDiscoverPostEngagement(
+  ctx: Pick<MutationCtx, "db">,
+  postId: Id<"posts">,
+  counts: DiscoverEngagementCounts,
+): Promise<void> {
+  const updates: { likeCount?: number; commentCount?: number } = {};
+  if (counts.likeCount !== undefined) {
+    if (!isValidEngagementCount(counts.likeCount)) {
+      throw new ConvexError("Discover projection like count is invalid.");
+    }
+    updates.likeCount = counts.likeCount;
+  }
+  if (counts.commentCount !== undefined) {
+    if (!isValidEngagementCount(counts.commentCount)) {
+      throw new ConvexError("Discover projection comment count is invalid.");
+    }
+    updates.commentCount = counts.commentCount;
+  }
+  if (Object.keys(updates).length === 0) return;
+
+  const projection = await getDiscoverPostBySourceId(ctx, postId);
+  if (!projection) return;
+  await ctx.db.patch("discoverPosts", projection._id, updates);
 }
 
 export async function upsertTopicRow(
@@ -342,5 +368,54 @@ export async function syncPublishedPostProjection(
         rowsByTag.delete(tag);
       }
     }
+  }
+}
+
+/** Removes a published post's bounded Discover projection and topic counters. */
+export async function deletePublishedPostProjection(
+  ctx: Pick<MutationCtx, "db">,
+  postId: Id<"posts">,
+): Promise<void> {
+  const projection = await getDiscoverPostBySourceId(ctx, postId);
+  if (projection) await ctx.db.delete(projection._id);
+
+  const topicRows = await ctx.db
+    .query("discoverPostTopics")
+    .withIndex("by_postId", (q) => q.eq("postId", postId))
+    .take(MAX_CLEANUP_ROWS + 1);
+  assertWithinCleanupBound(topicRows, "Too many topic rows to delete safely.");
+  const statsByTag = new Map<string, Doc<"topicStats">>();
+  const rowsByCanonicalTag = new Map<string, number>();
+  for (const row of topicRows) {
+    if (!isCanonicalPostTag(row.tag)) continue;
+    rowsByCanonicalTag.set(row.tag, (rowsByCanonicalTag.get(row.tag) ?? 0) + 1);
+    const stat = await getTopicStat(ctx, row.tag);
+    if (!stat) {
+      throw new ConvexError("Missing topic stat for deleted topic.");
+    }
+    if (
+      !isValidTopicCounter(stat.publishedCount) ||
+      stat.publishedCount === 0
+    ) {
+      throw new ConvexError("Topic stat counter is invalid for deleted topic.");
+    }
+    statsByTag.set(row.tag, stat);
+  }
+  for (const [tag, rowCount] of rowsByCanonicalTag) {
+    const stat = statsByTag.get(tag);
+    if (!stat || stat.publishedCount < rowCount) {
+      throw new ConvexError(
+        "Topic stat counter is insufficient for deleted topic.",
+      );
+    }
+  }
+  for (const row of topicRows) {
+    await ctx.db.delete(row._id);
+  }
+  for (const [tag, rowCount] of rowsByCanonicalTag) {
+    const stat = statsByTag.get(tag)!;
+    await ctx.db.patch(stat._id, {
+      publishedCount: stat.publishedCount - rowCount,
+    });
   }
 }

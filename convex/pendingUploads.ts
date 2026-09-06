@@ -17,6 +17,18 @@ const CLEANUP_BATCH_SIZE = 100;
 const MAX_CLEANUP_REQUEST_SIZE = 100;
 const CLEANUP_LEASE_MS = 30 * 60 * 1000;
 
+async function deleteStorageIfUnclaimed(
+  ctx: Pick<MutationCtx, "db" | "storage">,
+  storageId: Id<"_storage"> | undefined,
+): Promise<void> {
+  if (storageId === undefined) return;
+  const claims = await ctx.db
+    .query("pendingUploads")
+    .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+    .take(1);
+  if (claims.length === 0) await ctx.storage.delete(storageId);
+}
+
 /**
  * Requires an authenticated user or throws an error.
  *
@@ -85,24 +97,11 @@ export const finalizePendingUpload = mutation({
     sessionId: v.id("pendingUploads"),
     storageId: v.id("_storage"),
   },
-  returns: v.null(),
+  returns: v.object({ accepted: v.boolean() }),
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx);
     const session = await ctx.db.get(args.sessionId);
     if (!session || session.userId !== user._id) {
-      throw new ConvexError("Invalid inline upload session");
-    }
-    if (session.expiresAt <= Date.now()) {
-      throw new ConvexError("Inline image expired");
-    }
-    if (
-      !(await isValidUploadedImage(
-        ctx,
-        args.storageId,
-        session.createdAt,
-        Date.now(),
-      ))
-    ) {
       throw new ConvexError("Invalid inline upload session");
     }
     const existingClaims = await ctx.db
@@ -122,7 +121,21 @@ export const finalizePendingUpload = mutation({
       await ctx.db.patch(args.sessionId, { storageId: args.storageId });
     }
 
-    return null;
+    const valid =
+      session.expiresAt > Date.now() &&
+      (await isValidUploadedImage(
+        ctx,
+        args.storageId,
+        session.createdAt,
+        Date.now(),
+      ));
+    if (!valid) {
+      await ctx.db.delete(args.sessionId);
+      await deleteStorageIfUnclaimed(ctx, args.storageId);
+      return { accepted: false };
+    }
+
+    return { accepted: true };
   },
 });
 
@@ -153,9 +166,7 @@ export const cleanupPending = mutation({
       if (session.postId !== undefined) {
         continue;
       }
-      if (session.storageId !== undefined) {
-        await ctx.storage.delete(session.storageId);
-      } else {
+      if (session.storageId === undefined) {
         const storageId = upload.storageId;
         if (
           storageId !== undefined &&
@@ -166,10 +177,13 @@ export const cleanupPending = mutation({
             Date.now(),
           ))
         ) {
-          await ctx.storage.delete(storageId);
+          await ctx.db.delete(upload.sessionId);
+          await deleteStorageIfUnclaimed(ctx, storageId);
+          continue;
         }
       }
       await ctx.db.delete(upload.sessionId);
+      await deleteStorageIfUnclaimed(ctx, session.storageId);
     }
 
     return null;
@@ -210,16 +224,18 @@ export const cleanupExpired = internalMutation({
     const page = await ctx.db
       .query("pendingUploads")
       .withIndex("by_expiresAt", (q) => q.lte("expiresAt", now))
-      .paginate({ numItems: CLEANUP_BATCH_SIZE, cursor: args.cursor });
+      .paginate({
+        numItems: CLEANUP_BATCH_SIZE,
+        maximumRowsRead: CLEANUP_BATCH_SIZE,
+        cursor: args.cursor,
+      });
 
     for (const session of page.page) {
       if (session.postId !== undefined) {
         continue;
       }
-      if (session.storageId !== undefined) {
-        await ctx.storage.delete(session.storageId);
-      }
       await ctx.db.delete(session._id);
+      await deleteStorageIfUnclaimed(ctx, session.storageId);
     }
 
     if (!page.isDone) {

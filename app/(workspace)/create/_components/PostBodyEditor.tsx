@@ -315,7 +315,7 @@ async function retryFinalize(
   finalizePendingUpload: (args: {
     sessionId: Id<"pendingUploads">;
     storageId: Id<"_storage">;
-  }) => Promise<null>,
+  }) => Promise<{ accepted: boolean }>,
   args: { sessionId: Id<"pendingUploads">; storageId: Id<"_storage"> },
 ) {
   try {
@@ -418,10 +418,13 @@ export default function PostBodyEditor({
           storageId: Id<"_storage">;
         };
         uploadedStorageId = result.storageId;
-        await retryFinalize(finalizePendingUpload, {
+        const finalizeResult = await retryFinalize(finalizePendingUpload, {
           sessionId: session.sessionId,
           storageId: result.storageId,
         });
+        if (!finalizeResult.accepted) {
+          throw new Error("Invalid inline upload session");
+        }
 
         onUploadSessionCreatedRef.current?.(
           session.sessionId,

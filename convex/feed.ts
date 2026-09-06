@@ -1,8 +1,32 @@
 import { ConvexError, v } from "convex/values";
-import { paginationOptsValidator } from "convex/server";
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server";
 import { internalMutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
+const hydratedPostValidator = v.object({
+  _id: v.id("posts"),
+  _creationTime: v.number(),
+  title: v.string(),
+  body: v.string(),
+  tags: v.array(v.string()),
+  authorId: v.string(),
+  imageStorageId: v.optional(v.id("_storage")),
+  status: v.union(v.literal("draft"), v.literal("published")),
+  publishedAt: v.optional(v.number()),
+  commentCount: v.number(),
+  likeCount: v.number(),
+  uniqueViewCount: v.optional(v.number()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  imageUrl: v.union(v.string(), v.null()),
+  authorName: v.union(v.string(), v.null()),
+  authorAvatarUrl: v.union(v.string(), v.null()),
+  isLiked: v.boolean(),
+  isBookmarked: v.boolean(),
+});
 
 export const FEED_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 export const FEED_PAGE_SIZE = 20;
@@ -13,6 +37,7 @@ export const getFeed = query({
     asOf: v.number(),
     paginationOpts: paginationOptsValidator,
   },
+  returns: paginationResultValidator(hydratedPostValidator),
   handler: async (ctx, args) => {
     if (
       args.paginationOpts.numItems !== FEED_PAGE_SIZE ||
@@ -35,7 +60,7 @@ export const getFeed = query({
           .lte("createdAt", args.asOf),
       )
       .order("desc")
-      .paginate(args.paginationOpts);
+      .paginate({ ...args.paginationOpts, maximumRowsRead: FEED_BATCH_SIZE });
 
     const seenPostIds = new Set<string>();
     const hydrated = [];
@@ -94,7 +119,11 @@ export const fanOutForPost = internalMutation({
   },
   handler: async (ctx, args) => {
     const post = await ctx.db.get(args.postId);
-    if (!post || post.status !== "published" || post.authorId !== args.authorId) {
+    if (
+      !post ||
+      post.status !== "published" ||
+      post.authorId !== args.authorId
+    ) {
       return { done: true, processed: 0 };
     }
     const publicationTime = post.publishedAt;
@@ -108,7 +137,7 @@ export const fanOutForPost = internalMutation({
     const result = await ctx.db
       .query("follows")
       .withIndex("by_followingId", (q) => q.eq("followingId", args.authorId))
-      .paginate(args.paginationOpts);
+      .paginate({ ...args.paginationOpts, maximumRowsRead: FEED_BATCH_SIZE });
 
     for (const follower of result.page) {
       const currentFollow = await ctx.db.get(follower._id);
@@ -180,7 +209,7 @@ export const backfillForFollow = internalMutation({
           .gte("publishedAt", args.cutoffAt),
       )
       .order("desc")
-      .paginate(args.paginationOpts);
+      .paginate({ ...args.paginationOpts, maximumRowsRead: FEED_BATCH_SIZE });
 
     for (const post of result.page) {
       const existing = await ctx.db
@@ -234,7 +263,7 @@ export const deleteForUnfollow = internalMutation({
           .eq("authorId", args.authorId)
           .eq("followId", args.followId),
       )
-      .paginate(args.paginationOpts);
+      .paginate({ ...args.paginationOpts, maximumRowsRead: FEED_BATCH_SIZE });
 
     for (const row of result.page) {
       await ctx.db.delete(row._id);
@@ -263,7 +292,7 @@ export const cleanupExpired = internalMutation({
     const result = await ctx.db
       .query("feed")
       .order("asc")
-      .paginate(args.paginationOpts);
+      .paginate({ ...args.paginationOpts, maximumRowsRead: FEED_BATCH_SIZE });
 
     for (const row of result.page) {
       const currentRow = await ctx.db.get(row._id);

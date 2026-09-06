@@ -57,7 +57,7 @@ export function CommentSection({ initialTotalCount }: CommentSectionProps) {
     isLoading,
     loadMore,
   } = usePaginatedQuery(api.comments.getCommentsByPostId, queryArgs, {
-    initialNumItems: 50,
+    initialNumItems: 20,
   });
 
   // Fetch the post client-side so commentCount updates reactively when
@@ -138,7 +138,7 @@ export function CommentSection({ initialTotalCount }: CommentSectionProps) {
           <div className="mb-6">
             <Button
               variant="outline"
-              onClick={() => loadMore(50)}
+              onClick={() => loadMore(20)}
               disabled={isLoadingMore}
               className="w-full"
             >

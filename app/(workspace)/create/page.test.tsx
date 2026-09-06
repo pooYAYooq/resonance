@@ -226,7 +226,7 @@ describe("CreateRoute", () => {
       uploadUrl: "https://upload.url",
       expiresAt: 1_000,
     });
-    finalizePendingUploadMock.mockResolvedValue(null);
+    finalizePendingUploadMock.mockResolvedValue({ accepted: true });
     saveDraftMock.mockResolvedValue({ draftId: "draft-1", updatedAt: 1 });
     publishPostMock.mockResolvedValue("draft-1");
     updatePublishedPostMock.mockResolvedValue("post-1");
