@@ -49,7 +49,10 @@ describe("BlogPage", () => {
       }),
     );
 
-    expect(discoverTopics).toHaveBeenCalled();
+    expect(discoverTopics).toHaveBeenCalledWith(
+      { mode: { mode: "topic", tag: "Technology" } },
+      undefined,
+    );
   });
 
   it("does not select a topic when a non-empty search query is present", async () => {

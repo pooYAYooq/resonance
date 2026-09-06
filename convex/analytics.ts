@@ -42,6 +42,17 @@ export function buildFollowerGrowthSeries(
   });
 }
 
+export function sumFollowerGrowth(growthDays: FollowerGrowthPoint[]): number {
+  let total = 0;
+  for (const day of growthDays) {
+    total += day.gainedCount;
+    if (!Number.isSafeInteger(total)) {
+      throw new ConvexError("Follower-growth aggregate is invalid.");
+    }
+  }
+  return total;
+}
+
 /**
  * Retrieves a user by userId or throws an error if not found.
  *
@@ -273,10 +284,7 @@ export const getSummary = query({
       views: analytics?.uniqueViews ?? 0,
       likes: Math.max(0, analytics?.likesReceived ?? 0),
       followerCount: user.followerCount ?? 0,
-      followerGrowth: followerGrowthDays.reduce(
-        (total, day) => total + day.gainedCount,
-        0,
-      ),
+      followerGrowth: sumFollowerGrowth(followerGrowthDays),
       followerGrowthStart,
       followerGrowthDays,
     };

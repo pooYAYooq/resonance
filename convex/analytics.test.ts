@@ -16,6 +16,7 @@ import {
   incrementFollowerGrowthInTransaction,
   recordUniqueViewInTransaction,
   requireCurrentUser,
+  sumFollowerGrowth,
 } from "./analytics";
 import schema from "./schema";
 
@@ -71,6 +72,15 @@ describe("analytics storage contracts", () => {
         .map(({ dayStart }) => dayStart),
     );
     expect(series.reduce((total, day) => total + day.gainedCount, 0)).toBe(5);
+  });
+
+  it("rejects a follower-growth aggregate that exceeds the safe integer range", () => {
+    expect(() =>
+      sumFollowerGrowth([
+        { dayStart: 1, gainedCount: Number.MAX_SAFE_INTEGER },
+        { dayStart: 2, gainedCount: 1 },
+      ]),
+    ).toThrow("Follower-growth aggregate");
   });
 
   it("records a viewer only once and increments post and author totals", async () => {

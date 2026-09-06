@@ -93,8 +93,9 @@ The remaining redesign is constrained by these repository facts:
 - Liked and Saved both have authenticated, paginated reader collection access
   paths. Collection presentation refinement remains part of Slice 4.
 - Post bodies are BlockNote JSON and tags are arrays. Search and topic browsing
-  need deliberate query/index contracts, but their exact projection/index/table
-  strategy is a Slice 2 planning decision.
+  use dedicated bounded read models: `discoverPosts` for published-post search
+  and Latest, `discoverPostTopics` for topic listings, and `topicStats` for
+  canonical topic counts.
 - Published deletion touches comments, likes, bookmarks, views, notifications,
   feed rows, storage claims, and derived counters. The bounded deletion
   lifecycle is shipped with Discover Foundations; Phase 3A.3 still owns its
@@ -305,8 +306,9 @@ of misleading public placeholders are complete.
 1. Establish route/shell boundaries before workspace or Create redesign work.
 2. Establish the shared post-summary boundary before adding list consumers, but
    do not force all existing queries into one implementation.
-3. Plan Search and Topics together with their target access contracts before
-   implementing Discover UI. Do not preselect a table/projection strategy.
+3. Keep Search and Topics on their approved access contracts and dedicated
+   bounded read models; update those projections transactionally with published
+   post lifecycle changes.
 4. Treat published deletion as a bounded lifecycle operation, not a single
    `posts` delete.
 5. Functional desktop collapse and mobile drawer access belong with the
@@ -349,7 +351,6 @@ notification expansion, final visual-system work, or a universal card redesign.
 - Hot ranking formula and time window.
 - Autosave, unpublish, revision history, and detailed Create/Edit composition.
 - Avatar upload/custom storage and other new public identity fields.
-- Search and Topic physical read-model strategy.
 - Exact typography, supporting color palette, compact-footer composition, and
   final responsive visual treatments.
 - Follower/following directories, activity feeds, recommendation infrastructure,

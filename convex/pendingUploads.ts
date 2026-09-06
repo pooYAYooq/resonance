@@ -59,15 +59,32 @@ const isValidUploadedImage = async (
   createdAt: number,
   now: number,
 ) => {
-  const metadata = await ctx.db.system.get("_storage", storageId);
+  const metadata = await getStorageObjectForSession(
+    ctx,
+    storageId,
+    createdAt,
+    now,
+  );
   return !!(
     metadata &&
-    metadata._creationTime >= createdAt &&
-    metadata._creationTime <= now &&
     metadata.contentType &&
     isAllowedInlineImageType(metadata.contentType) &&
     metadata.size <= MAX_INLINE_IMAGE_SIZE_BYTES
   );
+};
+
+const getStorageObjectForSession = async (
+  ctx: MutationCtx,
+  storageId: Id<"_storage">,
+  createdAt: number,
+  now: number,
+) => {
+  const metadata = await ctx.db.system.get("_storage", storageId);
+  return metadata &&
+    metadata._creationTime >= createdAt &&
+    metadata._creationTime <= now
+    ? metadata
+    : null;
 };
 
 export const createPendingUpload = mutation({
@@ -170,7 +187,7 @@ export const cleanupPending = mutation({
         const storageId = upload.storageId;
         if (
           storageId !== undefined &&
-          (await isValidUploadedImage(
+          (await getStorageObjectForSession(
             ctx,
             storageId,
             session.createdAt,
@@ -183,7 +200,10 @@ export const cleanupPending = mutation({
         }
       }
       await ctx.db.delete(upload.sessionId);
-      await deleteStorageIfUnclaimed(ctx, session.storageId);
+      await deleteStorageIfUnclaimed(
+        ctx,
+        session.storageId ?? upload.storageId,
+      );
     }
 
     return null;

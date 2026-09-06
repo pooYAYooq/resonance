@@ -206,9 +206,36 @@ describe("pending upload functions", () => {
     await expect(
       t.run(async (ctx) => ({
         session: await ctx.db.get(sessionId),
-        file: await ctx.storage.get(storageId),
+        hasFile: (await ctx.storage.get(storageId)) !== null,
       })),
-    ).resolves.toEqual({ session: null, file: null });
+    ).resolves.toEqual({ session: null, hasFile: false });
+  });
+
+  it("reclaims an invalid uploaded object supplied through cleanup fallback", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "fallback-owner@example.com",
+    );
+    const { sessionId } = await t
+      .withIdentity(identity)
+      .mutation(api.pendingUploads.createPendingUpload, {});
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(
+        new Blob([new Uint8Array([1])], { type: "text/plain" }),
+      ),
+    );
+
+    await t.withIdentity(identity).mutation(api.pendingUploads.cleanupPending, {
+      uploads: [{ sessionId, storageId }],
+    });
+
+    await expect(
+      t.run(async (ctx) => ({
+        session: await ctx.db.get(sessionId),
+        hasFile: (await ctx.storage.get(storageId)) !== null,
+      })),
+    ).resolves.toEqual({ session: null, hasFile: false });
   });
 
   it("cleans expired files and rows while preserving live sessions", async () => {

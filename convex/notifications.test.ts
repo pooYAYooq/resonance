@@ -413,18 +413,20 @@ describe("notifications functions", () => {
       await t.mutation(internal.notifications.markReadBatch, args);
       await t.finishAllScheduledFunctions(vi.runAllTimers);
 
-      await expect(
-        t.run(async (ctx) =>
-          ctx.db
-            .query("notifications")
-            .withIndex("by_recipientId_and_createdAt", (q) =>
-              q.eq("recipientId", "reader"),
-            )
-            .take(101),
-        ),
-      ).resolves.toEqual(
-        expect.arrayContaining([expect.objectContaining({ readAt: 101 })]),
+      const targetNotifications = await t.run(async (ctx) =>
+        ctx.db
+          .query("notifications")
+          .withIndex("by_recipientId_and_createdAt", (q) =>
+            q.eq("recipientId", "reader"),
+          )
+          .take(101),
       );
+      expect(targetNotifications).toHaveLength(101);
+      expect(
+        targetNotifications.every(
+          (notification) => notification.readAt === 101,
+        ),
+      ).toBe(true);
       await expect(
         t.run(async (ctx) => ctx.db.get(ids.unrelatedId)),
       ).resolves.not.toHaveProperty("readAt");
