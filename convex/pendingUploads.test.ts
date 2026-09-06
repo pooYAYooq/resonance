@@ -2,11 +2,13 @@
 
 import { convexTest } from "convex-test";
 import { register } from "@convex-dev/better-auth/test";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, components, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+
+afterEach(() => vi.useRealTimers());
 
 async function createAuthenticatedTestUser(
   t: ReturnType<typeof convexTest>,
@@ -278,6 +280,7 @@ describe("pending upload functions", () => {
   });
 
   it("continues bounded cleanup without deleting another owner's live session", async () => {
+    vi.useFakeTimers();
     const t = convexTest(schema, modules);
     const now = Date.now();
     const finalizedStorageId = await t.run(async (ctx) =>
@@ -314,16 +317,16 @@ describe("pending upload functions", () => {
     );
 
     await t.mutation(internal.pendingUploads.cleanupExpired, { cursor: null });
-    await t.finishAllScheduledFunctions(() => undefined);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
 
     const result = await t.run(async (ctx) => ({
       expired: await Promise.all(expiredIds.map((id) => ctx.db.get(id))),
       liveOtherOwner: await ctx.db.get(liveOtherOwnerId),
-      file: await ctx.storage.get(finalizedStorageId),
+      hasFile: (await ctx.storage.get(finalizedStorageId)) !== null,
     }));
     expect(result.expired.every((session) => session === null)).toBe(true);
     expect(result.liveOtherOwner?._id).toBe(liveOtherOwnerId);
-    expect(result.file).toBeNull();
+    expect(result.hasFile).toBe(false);
   });
 
   it("isolates a new cleanup run from a stale continuation after lease expiry", async () => {
