@@ -74,8 +74,8 @@ resonance/
 │   ├── (site)/                 # Reader routes (Navbar + compact Footer)
 │   │   ├── layout.tsx          # SiteShell with the compact footer.
 │   │   ├── blog/
-│   │   │   ├── page.tsx        # Blog listing. Server Component. Awaits searchParams.
-│   │   │   ├── _components/    # Active filter + cursor-draining filtered post list
+│   │   │   ├── page.tsx        # Discover route. Server Component. Normalizes URL state.
+│   │   │   ├── _components/    # Search, Topics, states, summaries, and paginated results
 │   │   │   └── [postId]/
 │   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
 │   │   ├── u/[userId]/
@@ -120,7 +120,7 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: posts, comments, likes, commentLikes, follows, bookmarks, notifications, feed, analytics, users, stats
+│   ├── schema.ts               # DB schema: source tables plus bounded Discover projections and counters
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
@@ -128,11 +128,18 @@ resonance/
 │   ├── posts.ts                # saveDraft/publishPost/updatePublishedPost (owner-scoped drafts,
 │   │                           # published edits, tag validation,
 │   │                           # and claim transitions),
-│   │                           # generateImageUploadUrl, and detail URL hydration;
+│   │                           # owner-bound upload session lifecycle and detail URL hydration;
 │   │                           # getPosts, getPostById, getPostsByAuthorId,
-│   │                           # countPosts queries (countPosts reads the stats table)
+│   │                           # countPosts queries (countPosts reads the stats table);
+│   │                           # publish/edit synchronization updates Discover projections;
+│   │                           # deletion hides source/projection immediately and starts cleanup
+│   ├── discover.ts             # Public Latest, Search, Topics, and Topic-post queries
+│   ├── discoverProjection.ts   # Shared projection synchronization and indexed invariants
+│   ├── discoverBackfill.ts     # Bounded initial backfill and author-rename repair
 │   ├── pendingUploads.ts       # Owner-bound inline upload sessions, finalization,
 │   │                           # failed-submit cleanup, and bounded expiry cleanup
+ │   ├── postDeletion.ts         # Versioned, leased bounded cleanup jobs for published
+ │   │                           # deletion and draft/published-edit upload reclamation
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
 │   │                           # (paginated, enriches authorAvatarUrl, isLiked, likeCount)
 │   ├── likes.ts                # toggleLike + toggleCommentLike mutations (idempotent), plus
@@ -158,17 +165,19 @@ resonance/
 │   │                           # scheduler continuation via
 │   │                           # follows.by_followingId), getUnreadCount,
 │   │                           # getNotifications (paginated, hydrated
-│   │                           # actor + published post, retry-idempotent), markAllRead (resets the
+│   │                           # actor + published post, retry-idempotent), markAllRead (records
+│   │                           # bounded per-row readAt state and resets the
 │   │                           # denormalized users.unreadNotificationCount;
 │   │                           # rows remain as visual history)
 │   ├── feed.ts                 # Private getFeed query plus 30-day materialized
 │   │                           # fan-out, follow backfill, unfollow deletion,
 │   │                           # and bounded expiration cleanup.
-│   ├── crons.ts                # Daily feed expiration and 15-minute inline upload cleanup.
+│   ├── profilePostCount.ts     # Transactional profile count adjustment helper.
+│   ├── crons.ts                # Daily feed expiration, upload cleanup, and deletion recovery.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserProfile,
-│   │                           # updateProfile mutations/queries
+│   │                           # updateProfile mutations/queries and Discover rename repair
 │
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (Button, Card, Input, etc.)
@@ -410,18 +419,61 @@ Route groups are a Next.js App Router convention: the parentheses mean a group
 name is not part of the URL. For example, `/blog` resolves to
 `app/(site)/blog/page.tsx`.
 
-### Post Tags and Blog Filtering
+### Discover Projections, Topics, and URL State
+
+`posts` remains the source of truth. Discover maintains three bounded read
+models: `discoverPosts` for Latest and full-text Search, `discoverPostTopics`
+for Topic listings, and `topicStats` for active canonical-topic counts.
+`discoverPosts` has `by_postId`, `by_authorId`, `by_publishedAt`, and a
+full-text `search_searchableText` index. Topic rows use
+`by_tag_and_publishedAt`, `by_postId_and_tag`, and `by_postId`; counters use
+`topicStats.by_tag`. Indexed lookups enforce one post projection per source
+post, one Topic row per `(postId, tag)`, and one counter per canonical tag.
+
+Publish and published-edit mutations synchronize affected projection rows and
+counters transactionally. A bounded cursor backfill and bounded author rename
+continuation reuse the same idempotent helpers. Published deletion removes the
+source and projection immediately, then drains upload claims, comments,
+comment likes, likes, bookmarks, views, notifications, and feed rows through
+durable bounded cursor continuations while correcting derived counters. Like
+and view deletion reconciles damaged or missing author analytics from the
+remaining author counters, then decrements it in the same transaction as each
+source-row deletion; zero/underflow states do not stall cleanup. Topic rows validate their
+canonical stats before any projection deletion. Draft deletion removes the
+draft immediately and schedules a separate bounded upload-claim cleanup job.
+Deletion jobs carry leases and are resumed by an indexed internal watchdog when
+their lease expires.
+
+The `/blog` Server Component normalizes URL state once. `/blog` defaults to
+Latest, `q` selects Search, and a valid canonical `tag` selects a paginated
+Topic listing; a non-empty `q` takes precedence over `tag`, and incompatible
+parameters are removed from mode-switch links. Search uses native Convex
+full-text relevance over title, extracted body text, and current author name.
+Latest and Topic results use indexed, bounded pagination by `publishedAt`.
+Result pages hydrate only their bounded rows through `discoverPosts`, resolving
+cover URLs after the page is known. Missing projection rows
+are omitted rather than exposing incomplete summaries.
+
+The projected `commentCount` and `likeCount` values are copied during publish
+and published-edit synchronization, then kept aligned by the like and comment
+mutations through the same transaction.
+
+The route composes `DiscoverSearch`, `BlogPostList`, `DiscoverPostSummary`,
+`DiscoverStates`, and `DiscoverTopics`. Search remains first; on mobile the
+main result stream remains before the Topic section, while desktop uses a
+dominant main column and narrower Topic rail. The authenticated Feed empty
+state links to `/blog` as its recovery path. Hot is not rendered or
+implemented because its ranking formula and time window remain deferred.
+
+### Post Tags and Legacy Post Reads
 
 Posts store a required `tags: string[]` field. New create requests validate the
-canonical fifteen-value list and reject duplicates or more than five tags in
+canonical sixteen-value list and reject duplicates or more than five tags in
 both Zod and Convex.
 
-`getPosts` accepts an optional exact, case-sensitive `tag`. Convex paginates the
-newest-first source query, filters each bounded source page in memory, and
-preserves the source cursor metadata because Convex has no array-membership
-filter operator. The blog list drains those source cursors for active filters
-until it has 50 matches or reaches the end. Unknown query values return an
-empty completed page and never fall back to the unfiltered listing.
+Legacy `getPosts` remains available for its existing consumers. Discover does
+not scan the source `posts` table or filter tag arrays in memory; its public
+queries read the bounded projection access paths described above.
 
 ### Post Body Authoring and Rendering
 
@@ -637,13 +689,15 @@ Two distinct rendering patterns are used depending on what the page needs.
 │                                                                  │
 │  Next.js Server                        Convex                    │
 │      │                                     │                     │
-│      │── fetchQuery(api.posts.getPosts) ──>│                     │
-│      │   (convex/nextjs, runs at           │── reads posts table │
-│      │    request time on the server)      │                     │
-│      │<── posts[] ─────────────────────────│                     │
+│      │  Normalizes q/tag/sort and renders Discover shell           │
 │      │                                     │                     │
-│      │  Renders HTML with data baked in.                         │
-│      │  Wrapped in <Suspense> with skeleton fallback.            │
+│      │── client usePaginatedQuery ─────────>│                     │
+│      │   api.discover.getDiscoverPosts     │── reads projection    │
+│      │   or api.discover.getTopicPosts     │   indexes, hydrates   │
+│      │<── bounded result pages ────────────│   summaries/URLs      │
+│      │                                     │                     │
+│      │  Search/Latest/Topic results remain reactive and paginated. │
+│      │  Result and Topic areas have local loading/state boundaries.  │
 └──────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────────┐
@@ -778,15 +832,14 @@ then read the cached `user` value inside the map. Doing it inside the map would
 issue one user lookup per post. The image URL still has to be resolved per post
 because each `imageStorageId` is unique — that one stays in the map.
 
-### 9. Why share a single `PostCard` across every list surface?
+### 9. Why separate Discover summaries from `PostCard`?
 
-Every surface that lists posts, the blog listing, the landing page's
-`RecentPostsSection`, and the profile page's post list, renders posts
-through the same `PostCard` component with the same cover aspect ratio
-(`aspect-video`) and hover-lift treatment. Visual consistency comes from
-reusing one component, not from aligning hand-written styles across files.
-A future change to the card (e.g. a new badge, a new affordance) is a
-single-file edit, not a sweep.
+Discover uses `DiscoverPostSummary` because its editorial result presentation
+has a different density and metadata hierarchy from the universal `PostCard`.
+Feed, profile, saved, liked, and marketing consumers retain `PostCard` until
+their own context-specific work is scheduled. Shared data contracts and
+primitives provide consistency without forcing every surface into one visual
+card.
 
 ### 10. Why a single-row `stats` table for the total post count?
 
@@ -850,9 +903,8 @@ future agent needs to know:
   keeps `FollowButton` self-contained (owns only its label) and
   `ProfileStats` authoritative (one source of truth — no
   optimistic/reconcile drift). Crucially, `getFollowCounts` is a
-  separate query from `getUserProfile` (which runs an unbounded
-  `.collect()` for `postCount`) so a reactive subscription to counts
-  doesn't amplify that read every render. **Any future count-type stat
+  separate query from `getUserProfile`, whose published count is maintained
+  transactionally and read directly from `users`. **Any future count-type stat
   on the profile header extends `getFollowCounts`, never subscribes
   `ProfileStats` to `getUserProfile`.**
 

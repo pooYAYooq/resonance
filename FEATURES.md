@@ -34,22 +34,26 @@ Feature status is managed with five labels:
 | Phase 2 — The Author                | Editor, drafts, editing, private analytics, and dashboard visualization | ✅ Complete |
 | Phase 3A.0 — UX Correctness         | Public reading, auth returns, viewer state, publishing, honest claims   | ✅ Complete |
 | Phase 3A.1 — Product Structure      | Shells, navigation, reader utilities, Profile/Settings, analytics       | ✅ Shipped  |
-| Phase 3A.2 — Discover Foundations   | Search, Topics, Latest, Feed recovery; Hot after ranking is defined     | 🔵 Next     |
-| Phase 3A.3 — Writing & Management   | Writing environment, review/publish, management, deletion               | 🟡 Later    |
+| Phase 3A.2 — Discover Foundations   | Search, Topics, Latest, Feed recovery; Hot remains deferred             | ✅ Shipped  |
+| Phase 3A.3 — Writing & Management   | Writing environment, review/publish, management, deletion               | 🔵 Next     |
 | Phase 3A.4 — Identity & Engagement  | Profiles, Notifications, collections, contextual post presentation      | 🟡 Later    |
 | Phase 3A.5 — Visual System & Polish | Typography, color, density, states, responsive interaction              | 🟡 Later    |
 | Phase 3 — The Platform              | Moderation, AI, subscriptions, digest                                   | 🟡 Later    |
 
 **Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
 documented as optional features and are not current delivery commitments.
-They should be promoted to **Next** only after there is enough content and
-engagement data, or a clear product need for them.
+
+Published-post deletion now hides the source and Discover projections
+transactionally and drains dependent rows, storage claims, and derived counters
+in bounded scheduled batches with strict integrity checks and stale-job recovery.
+Hot remains deferred until its ranking formula and time window are defined.
 
 Phase 2 includes the shipped editor, draft lifecycle, private author dashboard,
 owner-scoped published editing, private analytics totals, and the four-card
-analytics dashboard with its dense 30-day follower-growth chart. Phase 3A.0 and
-Phase 3A.1 are shipped; Phase 3A.2 — Discover Foundations is the sole current
-delivery focus. The approved Phase 3A target direction, scope map, delivery
+analytics dashboard with its dense 30-day follower-growth chart. Phase 3A.0,
+Phase 3A.1, and Phase 3A.2 are shipped; Phase 3A.3 — Writing & Management is
+the sole current delivery focus. The approved Phase 3A target direction, scope
+map, delivery
 slices, sequencing rules, and deferrals are maintained in
 [`docs/PHASE_3A.md`](docs/PHASE_3A.md). Section 18 scope areas are not a rigid
 implementation order.
@@ -80,9 +84,12 @@ instead of the provider picture until the user record sync completes
   canonical Convex Storage IDs separately from the cover-image flow
 - Post bodies use the canonical `blocknote@1` structured document format,
   validated at both the browser form and the Convex write boundary
-- Paginated listing at `/blog` (server-rendered); post detail at `/blog/[postId]` with dynamic OG metadata
+- Discover at `/blog` defaults to Latest published posts, searches title,
+  extracted body text, and author name with `q`, and opens paginated canonical
+  Topic listings with `tag`; post detail remains at `/blog/[postId]` with
+  dynamic OG metadata
 - Denormalized `commentCount` and `likeCount` on posts; O(1) total via `stats` table
-- Curated tags on posts (up to five from a shared fifteen-value list), clickable
+- Curated tags on posts (up to five from a shared sixteen-value list), clickable
   tag pills, and exact `/blog?tag=<tag>` filtering
 
 ### Drafts & Publishing
@@ -141,6 +148,17 @@ instead of the provider picture until the user record sync completes
 - `/notifications` page, client-gated, paginated, marks all read on visit
 - `markAllRead` resets the counter; rows remain as visual history
 
+### Discover
+
+- `/blog` provides Latest, published-post and author-name Search, and active
+  canonical Topics with bounded pagination and Discover-specific editorial
+  summaries
+- Published posts maintain bounded `discoverPosts`, `discoverPostTopics`, and
+  `topicStats` projections through publish/edit lifecycle synchronization;
+  bounded backfill and author-name repair are retry-safe
+- An authenticated empty Feed state links to Discover so readers can find
+  authors and topics before following them
+
 ### Reader Feed
 
 - `/feed` is a private, client-gated route showing posts from the reader's current follows
@@ -187,7 +205,10 @@ roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
 ### Deferred Phase 1C — Optional Discovery & Polish
 
 - **1.8 Post Tags** ✅ **Shipped** — `tags` array on posts, tag pills, filter `/blog?tag=`. _Medium._
-- **1.9 Trending / Popular** — **Deferred** — "Latest" / "Popular" tabs on `/blog` via `likeCount`/`commentCount`. Revisit when the site has enough posts and engagement for ranking to be useful. _Low._
+- **1.9 Trending / Popular** — **Deferred** — a ranked Popular or Hot mode on
+  `/blog` via `likeCount`/`commentCount`. Discover's Latest, Search, and Topics
+  are shipped, but Hot is not rendered or implemented. Revisit when its ranking
+  formula and time window are defined. _Low._
 - **1.10 User Activity Feed** — **Deferred** — recent activity ("X liked Y's post") on profiles. Revisit when profiles have enough activity to avoid a noisy or empty feed and privacy rules are defined. _Medium._
 - **1.11 Polish** — **Deferred** — reading-time estimate (~200 wpm) on cards/detail; share links (copy-to-clipboard / Web Share API). Consider share links independently when distribution becomes a priority. _Low._
 

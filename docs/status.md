@@ -4,12 +4,13 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 3A.2 — Discover Foundations (next)
+Phase 3A.2 — Discover Foundations — shipped
 
 ## Next focus
 
-Phase 3A.0 — UX Correctness and Phase 3A.1 — Product Structure are shipped.
-Phase 3A.2 — Discover Foundations is the sole next focus. The Phase 3A target
+Phase 3A.0 — UX Correctness, Phase 3A.1 — Product Structure, and Phase 3A.2 —
+Discover Foundations are shipped. Phase 3A.3 — Writing & Management is the sole
+next focus. The Phase 3A target
 direction and delivery map are canonicalized. Slice 1 Task 1, the private
 liked-posts backend contract, is committed. Task 2, separate marketing and
 authenticated site shells plus the dependency-required Saved/Liked reader
@@ -65,6 +66,46 @@ convex/bookmarks.test.ts` passed: 17 files, 184 tests; full `pnpm test:ci`
   304 tests. `pnpm lint`, `pnpm build`, `git diff --check`, and the approved
   legacy-path check passed. `pnpm format:check` still reports the known
   repository-wide 46-file formatting baseline; no unrelated files were changed.
+- Discover Foundations Task 1 — `pnpm test:ci -- convex/discover.test.ts`
+  passed: 18 files, 208 tests; `npx tsc --noEmit`, targeted ESLint, Prettier,
+  and `git diff --check` passed. Specification and Convex quality reviews
+  approved the projection schema and helper implementation. Committed as
+  `714dd8d`.
+- Discover Foundations Task 2 — `pnpm test:ci -- convex/discover.test.ts
+convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
+  `npx tsc --noEmit`, `pnpm lint`, targeted Prettier, and `git diff --check`
+  passed. Specification and Convex quality reviews approved transactional
+  lifecycle synchronization, bounded idempotent maintenance, and author rename
+  repair. Committed as `7910ad3`. Task 3, public Discover queries, is complete.
+  Task 4 URL-state normalization is committed as `219be85`.
+- Discover Foundations Task 4 — `pnpm test:ci -- lib/discover.test.ts` passed:
+  19 files, 241 tests; focused component tests passed: 61 files, 307 tests;
+  `pnpm lint`, `npx tsc --noEmit`, `pnpm build`, targeted Prettier, and
+  `git diff --check` passed. Specification and code-quality reviews approved
+  the implementation, and CodeRabbit reported zero findings. No Discover UI or
+  Convex query behavior was added. Committed as `219be85`.
+- Discover Foundations Task 5 — focused component tests passed: 65 files, 320
+  tests; route tests passed: 19 files, 241 tests; full `pnpm test:ci` passed:
+  19 files, 241 tests; `pnpm lint`, `npx tsc --noEmit`, targeted Prettier,
+  `git diff --check`, and `pnpm build` passed. Specification and code-quality
+  reviews approved the UI; CodeRabbit reported zero findings. Committed as
+  `9479de9`. Legacy development content was intentionally not backfilled.
+- Discover Foundations Task 6 — focused `pnpm test:component --
+"app/(site)/feed/_components/FeedContent.test.tsx"` passed: 65 files, 320
+  tests; targeted ESLint, Prettier, and `git diff --check` passed. Specification
+  and code-quality reviews approved the Feed recovery link. Committed as
+  `1c67c4c`.
+- Discover Foundations Task 7 verification is complete. Documentation now
+  describes the shipped Discover projections, public queries, URL-state route
+  composition, editorial summaries, Feed recovery, and the bounded
+  published-deletion lifecycle, including upload reclamation, analytics
+  reconciliation, strict topic-stat validation, draft cleanup jobs, and stale
+  job recovery. Hot remains deferred because its ranking formula and time window
+  are not defined.
+- Development-only corrections — profile published-post counts are required
+  from user creation onward with no backfill state, and rejected inline image
+  finalization reclaims its session and unclaimed storage object. Existing
+  deletion analytics and public return-validator corrections remain intact.
 
 ## Completed phases
 
@@ -83,6 +124,7 @@ convex/bookmarks.test.ts` passed: 17 files, 184 tests; full `pnpm test:ci`
 - Phase 2.8 — Analytics Dashboard UI
 - Phase 3A.0 — UX Correctness
 - Phase 3A.1 — Product Structure
+- Phase 3A.2 — Discover Foundations
 
 ## Where to continue
 
@@ -92,7 +134,7 @@ convex/bookmarks.test.ts` passed: 17 files, 184 tests; full `pnpm test:ci`
   [`docs/PHASE_3A.md`](PHASE_3A.md)
 - Phase 3A cross-cutting decisions:
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
-- Next focus: Phase 3A.2 — Discover Foundations
+- Next focus: Phase 3A.3 — Writing & Management
 
 ## Status maintenance
 

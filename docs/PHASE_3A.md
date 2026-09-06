@@ -5,10 +5,9 @@
 **Authority:** This is the tracked product and delivery source of truth for
 the remaining Phase 3A redesign work.
 
-**Current delivery position:** Phase 3A.0 is shipped. Phase 3A.1, Product
-Structure, is shipped as Slice 1. Tasks 1–5 are committed, and Task 6
-verification and cleanup are complete. Phase 3A.2, Discover Foundations, is
-the sole next delivery focus.
+**Current delivery position:** Phase 3A.0, Phase 3A.1 Product Structure, and
+Phase 3A.2 Discover Foundations are shipped. Phase 3A.3, Writing and Content
+Management, is the sole next delivery focus.
 
 **Required fresh-session reading order:**
 
@@ -97,8 +96,9 @@ The remaining redesign is constrained by these repository facts:
   need deliberate query/index contracts, but their exact projection/index/table
   strategy is a Slice 2 planning decision.
 - Published deletion touches comments, likes, bookmarks, views, notifications,
-  feed rows, and derived counters. It is deliberately deferred to Writing and
-  Content Management.
+  feed rows, storage claims, and derived counters. The bounded deletion
+  lifecycle is shipped with Discover Foundations; Phase 3A.3 still owns its
+  writing-management UI and confirmation experience.
 - Feed is a bounded retention stream. Do not turn it into a discovery system or
   redesign it before its Slice 2 recovery work.
 
@@ -163,12 +163,13 @@ of misleading public placeholders are complete.
 - Profile/Settings responsibility split.
 - Analytics as a secondary workspace destination.
 
-### 3A.2: Discover Foundations
+### 3A.2: Discover Foundations - Shipped
 
 - Discover redesign at `/blog`.
 - Published-post and author-name search.
 - Topic browsing using curated tags.
-- Hot and Latest paths after the Hot ranking rule is defined.
+- Latest, Search, and Topics paths with bounded projections and pagination.
+- Bounded published deletion, profile count maintenance, and upload cleanup.
 - Feed empty-state recovery to Discover.
 
 ### 3A.3: Writing and Content Management
@@ -176,7 +177,7 @@ of misleading public placeholders are complete.
 - Full-page Create/Edit environment inside the workspace shell.
 - Preview/Review -> explicit Publish -> newly published post.
 - My Posts and Drafts management rows.
-- Clear confirmation and cleanup semantics for published-post deletion.
+- Clear confirmation and management UI for published-post deletion.
 
 ### 3A.4: Profiles and Engagement Surfaces
 
@@ -295,7 +296,7 @@ of misleading public placeholders are complete.
 | 0. Documentation Canonicalization      | One durable source of truth, decision log, roadmap, and resume point.                           | Delivery governance                                           | Prevents rediscovery and conflicting instructions before any code changes.                                                           | Application implementation.                                                   |
 | 1. Product Structure                   | Coherent shells/navigation, reader utilities, Settings/Profile split, and analytics relocation. | 3A.1 plus Saved/Liked data foundations needed for navigation. | A sidebar cannot expose working reader utilities until their routes/access paths exist. The shell boundary must be established once. | Dashboard Overview redesign, final card variants, Discover, writing redesign. |
 | 2. Discover Foundations                | Real Search, Latest, Topics, and Feed recovery to Discover.                                     | 3A.2 with editorial post presentation foundations.            | Search, topic browsing, result pagination, cards, and empty states form one honest discovery loop.                                   | Hot implementation until its formula/time window is defined.                  |
-| 3. Writing and Content Management      | Writing environment, review/publish completion, management rows, and safe published deletion.   | 3A.3 plus My Posts dependencies.                              | Create/Edit, Drafts, My Posts, publishing, and deletion are one author lifecycle.                                                    | Autosave, revision history, unpublish, and detailed editor-layout decisions.  |
+| 3. Writing and Content Management      | Writing environment, review/publish completion, management rows, and deletion UI.               | 3A.3 plus My Posts dependencies.                              | Create/Edit, Drafts, My Posts, publishing, and deletion confirmation are one author lifecycle.                                       | Autosave, revision history, unpublish, and detailed editor-layout decisions.  |
 | 4. Identity and Engagement Surfaces    | Stronger profiles, actionable Notifications, and compact collection presentations.              | 3A.4 with shared page-state work from 3A.5.                   | These surfaces support the reader-to-author loop and must use consistent recovery, loading, and collection behavior.                 | Follower directories, activity feeds, notification expansion.                 |
 | 5. Visual System and Responsive Polish | Deliberate Resonance visual system and final interaction polish.                                | 3A.5 across shipped surfaces.                                 | A durable visual system depends on settled page responsibilities and component families.                                             | New product infrastructure.                                                   |
 
