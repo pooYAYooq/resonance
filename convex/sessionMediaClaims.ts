@@ -7,6 +7,7 @@ import { internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import type { Id } from "./_generated/dataModel";
+import { extractImageStorageIds, parsePostBody } from "../lib/post-content";
 
 export const SESSION_MEDIA_CLAIM_TTL_MS = 60 * 60 * 1000;
 export const SESSION_MEDIA_RENEW_INTERVAL_MS = 5 * 60 * 1000;
@@ -28,25 +29,64 @@ async function hasOwnedPendingAsset(
   ctx: MutationCtx,
   userId: string,
   storageId: Id<"_storage">,
+  now: number,
 ): Promise<boolean> {
-  const claims = await ctx.db
-    .query("pendingUploads")
-    .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-    .take(MAX_SESSION_MEDIA_BATCH);
-  return claims.some((claim) => claim.userId === userId);
+  let cursor: string | null = null;
+  while (true) {
+    const page = await ctx.db
+      .query("pendingUploads")
+      .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+      .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
+    for (const claim of page.page) {
+      if (claim.userId !== userId) continue;
+      if (claim.consumedAt === undefined && claim.expiresAt > now) {
+        return true;
+      }
+      if (
+        claim.postId !== undefined &&
+        (await ownedPostReferencesStorage(ctx, userId, claim.postId, storageId))
+      ) {
+        return true;
+      }
+    }
+    if (page.isDone) return false;
+    cursor = page.continueCursor;
+  }
 }
 
-async function getSessionClaims(
+async function ownedPostReferencesStorage(
+  ctx: MutationCtx,
+  userId: string,
+  postId: Id<"posts">,
+  storageId: Id<"_storage">,
+): Promise<boolean> {
+  const post = await ctx.db.get(postId);
+  if (!post || post.authorId !== userId) return false;
+  if (post.imageStorageId === storageId) return true;
+  const parsedBody = parsePostBody(post.body);
+  return (
+    parsedBody.kind === "structured" &&
+    (
+      extractImageStorageIds(parsedBody.document.blocks) as Id<"_storage">[]
+    ).includes(storageId)
+  );
+}
+
+async function getSessionClaim(
   ctx: MutationCtx,
   userId: string,
   sessionId: string,
+  storageId: Id<"_storage">,
 ) {
   return ctx.db
     .query("sessionMediaClaims")
-    .withIndex("by_userId_and_sessionId", (q) =>
-      q.eq("userId", userId).eq("sessionId", sessionId),
+    .withIndex("by_userId_and_sessionId_and_storageId", (q) =>
+      q
+        .eq("userId", userId)
+        .eq("sessionId", sessionId)
+        .eq("storageId", storageId),
     )
-    .take(MAX_SESSION_MEDIA_BATCH);
+    .take(2);
 }
 
 export async function hasActiveSessionMediaClaim(
@@ -54,16 +94,25 @@ export async function hasActiveSessionMediaClaim(
   storageId: Id<"_storage">,
   now = Date.now(),
 ): Promise<boolean> {
-  const claims = await ctx.db
-    .query("sessionMediaClaims")
-    .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-    .take(MAX_SESSION_MEDIA_BATCH);
-  return claims.some(
-    (claim) =>
-      claim.releasedAt === undefined &&
-      claim.consumedAt === undefined &&
-      claim.expiresAt > now,
-  );
+  let cursor: string | null = null;
+  while (true) {
+    const page = await ctx.db
+      .query("sessionMediaClaims")
+      .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+      .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
+    if (
+      page.page.some(
+        (claim) =>
+          claim.releasedAt === undefined &&
+          claim.consumedAt === undefined &&
+          claim.expiresAt > now,
+      )
+    ) {
+      return true;
+    }
+    if (page.isDone) return false;
+    cursor = page.continueCursor;
+  }
 }
 
 export async function consumeSessionMediaClaims(
@@ -75,18 +124,21 @@ export async function consumeSessionMediaClaims(
   const uniqueStorageIds = [...new Set(storageIds)];
   assertBatchSize(uniqueStorageIds);
   for (const storageId of uniqueStorageIds) {
-    const claims = await ctx.db
-      .query("sessionMediaClaims")
-      .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-      .take(MAX_SESSION_MEDIA_BATCH);
-    for (const claim of claims) {
-      if (
-        claim.userId === userId &&
-        claim.releasedAt === undefined &&
-        claim.consumedAt === undefined
-      ) {
-        await ctx.db.patch(claim._id, { consumedAt });
+    let cursor: string | null = null;
+    while (true) {
+      const page = await ctx.db
+        .query("sessionMediaClaims")
+        .withIndex("by_userId_and_storageId", (q) =>
+          q.eq("userId", userId).eq("storageId", storageId),
+        )
+        .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
+      for (const claim of page.page) {
+        if (claim.releasedAt === undefined && claim.consumedAt === undefined) {
+          await ctx.db.patch(claim._id, { consumedAt });
+        }
       }
+      if (page.isDone) break;
+      cursor = page.continueCursor;
     }
   }
 }
@@ -102,13 +154,14 @@ export const claim = mutation({
   }),
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx);
-    if (!(await hasOwnedPendingAsset(ctx, user._id, args.storageId))) {
-      throw new ConvexError("Media asset is not owned by this user");
+    const now = Date.now();
+    if (!(await hasOwnedPendingAsset(ctx, user._id, args.storageId, now))) {
+      throw new ConvexError("Media asset is not eligible for this session");
     }
 
     const existing = (
-      await getSessionClaims(ctx, user._id, args.sessionId)
-    ).find((claim) => claim.storageId === args.storageId);
+      await getSessionClaim(ctx, user._id, args.sessionId, args.storageId)
+    )[0];
     if (existing) {
       if (existing.releasedAt !== undefined) {
         throw new ConvexError("Media claim was released");
@@ -122,7 +175,6 @@ export const claim = mutation({
       return { claimId: existing._id, expiresAt: existing.expiresAt };
     }
 
-    const now = Date.now();
     const claimId = await ctx.db.insert("sessionMediaClaims", {
       userId: user._id,
       sessionId: args.sessionId,
@@ -152,13 +204,13 @@ export const renew = mutation({
 
     const requestedStorageIds = new Set(args.storageIds);
     const now = Date.now();
-    const claims = await getSessionClaims(ctx, user._id, args.sessionId);
-    const matchingClaims = claims.filter((claim) =>
-      requestedStorageIds.has(claim.storageId),
-    );
     let renewed = 0;
     let latestExpiry: number | undefined;
-    for (const claim of matchingClaims) {
+    for (const storageId of requestedStorageIds) {
+      const claim = (
+        await getSessionClaim(ctx, user._id, args.sessionId, storageId)
+      )[0];
+      if (!claim) continue;
       if (claim.releasedAt !== undefined || claim.consumedAt !== undefined) {
         continue;
       }
@@ -183,12 +235,14 @@ export const release = mutation({
     const user = await requireAuthUser(ctx);
     assertBatchSize(args.storageIds);
     const requestedStorageIds = new Set(args.storageIds);
-    const claims = await getSessionClaims(ctx, user._id, args.sessionId);
     const releasedAt = Date.now();
     let released = 0;
-    for (const claim of claims) {
+    for (const storageId of requestedStorageIds) {
+      const claim = (
+        await getSessionClaim(ctx, user._id, args.sessionId, storageId)
+      )[0];
       if (
-        requestedStorageIds.has(claim.storageId) &&
+        claim &&
         claim.releasedAt === undefined &&
         claim.consumedAt === undefined
       ) {

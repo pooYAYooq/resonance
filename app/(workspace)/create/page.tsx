@@ -337,6 +337,9 @@ function CreateEditor() {
                   attemptId: reservation.attemptId,
                   proposal,
                 });
+        if (result.kind === "failed") {
+          throw new Error(result.message);
+        }
         draftSaved = mode === "draft";
         setPersistedUpdatedAt(result.updatedAt);
         if (result.status === "draft") {

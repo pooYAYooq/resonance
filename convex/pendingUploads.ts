@@ -256,6 +256,15 @@ export const cleanupExpired = internalMutation({
       if (session.postId !== undefined) {
         continue;
       }
+      if (
+        session.storageId !== undefined &&
+        (await hasActiveSessionMediaClaim(ctx, session.storageId))
+      ) {
+        await ctx.db.patch(session._id, {
+          expiresAt: now + PENDING_UPLOAD_TTL_MS,
+        });
+        continue;
+      }
       await ctx.db.delete(session._id);
       await deleteStorageIfUnclaimed(ctx, session.storageId);
     }

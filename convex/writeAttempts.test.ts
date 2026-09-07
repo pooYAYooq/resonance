@@ -24,6 +24,15 @@ const proposal = {
 
 afterEach(() => vi.useRealTimers());
 
+function assertSucceeded<
+  T extends
+    | { kind: "succeeded"; postId: string; updatedAt: number; status: string }
+    | { kind: "failed"; category: string; message: string },
+>(result: T): Extract<T, { kind: "succeeded" }> {
+  if (result.kind !== "succeeded") throw new Error(result.message);
+  return result as Extract<T, { kind: "succeeded" }>;
+}
+
 it("rejects write-attempt reservations without an authenticated author", async () => {
   const t = convexTest(schema, modules);
 
@@ -193,12 +202,12 @@ it("executes a reserved draft save once and replays its result", async () => {
       proposal: nextProposal,
     });
 
-  const result = await t
-    .withIdentity(identity)
-    .mutation(api.writeAttempts.executeAttempt, {
+  const result = assertSucceeded(
+    await t.withIdentity(identity).mutation(api.writeAttempts.executeAttempt, {
       attemptId: reservation.attemptId,
       proposal: nextProposal,
-    });
+    }),
+  );
   expect(result).toMatchObject({
     postId: draftId,
     status: "draft",
@@ -222,6 +231,164 @@ it("executes a reserved draft save once and replays its result", async () => {
       proposal: { ...nextProposal, title: "Tampered title" },
     }),
   ).rejects.toThrow("Request binding mismatch");
+});
+
+it("persists and replays deterministic validation failures after expiry", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-09-07T00:00:00.000Z"));
+  const t = convexTest(schema, modules);
+  register(t);
+  const now = Date.now();
+  const identity = await t.run(async (ctx) => {
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Failure author",
+          email: "failure-author@example.com",
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: "failure-session",
+            expiresAt: now + 48 * 60 * 60 * 1000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+  await t.withIdentity(identity).mutation(api.users.syncUser, {});
+  const invalidProposal = { ...proposal, body: "not a structured document" };
+  const reservation = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "invalid-proposal-request",
+      operationKind: "save-draft",
+      proposal: invalidProposal,
+    });
+
+  const failed = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.executeAttempt, {
+      attemptId: reservation.attemptId,
+      proposal: invalidProposal,
+    });
+  expect(failed).toEqual({
+    kind: "failed",
+    category: "invalid-proposal",
+    message: "Invalid content",
+  });
+  await expect(
+    t.run(async (ctx) => ctx.db.get(reservation.attemptId)),
+  ).resolves.toMatchObject({ outcome: failed });
+
+  vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1);
+  await expect(
+    t.withIdentity(identity).mutation(api.writeAttempts.reconcileAttempt, {
+      attemptId: reservation.attemptId,
+      proposal: invalidProposal,
+    }),
+  ).resolves.toEqual(failed);
+});
+
+it("rolls back unexpected projection failures without recording a failure", async () => {
+  const t = convexTest(schema, modules);
+  register(t);
+  const now = Date.now();
+  const identity = await t.run(async (ctx) => {
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "System failure author",
+          email: "system-failure@example.com",
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: "system-failure-session",
+            expiresAt: now + 60 * 60 * 1000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+  await t.withIdentity(identity).mutation(api.users.syncUser, {});
+  const postId = await t.run(async (ctx) => {
+    const postId = await ctx.db.insert("posts", {
+      title: "Original title",
+      body: proposal.body,
+      tags: ["Technology"],
+      authorId: identity.subject,
+      status: "published",
+      publishedAt: now,
+      commentCount: 0,
+      likeCount: 0,
+      uniqueViewCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await ctx.db.insert("discoverPostTopics", {
+      tag: "Technology",
+      postId,
+      publishedAt: now,
+    });
+    await ctx.db.insert("discoverPostTopics", {
+      tag: "Technology",
+      postId,
+      publishedAt: now,
+    });
+    return postId;
+  });
+  const updateProposal = { ...proposal, title: "Updated title" };
+  const reservation = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "unexpected-failure-request",
+      operationKind: "update-post",
+      postId,
+      expectedUpdatedAt: now,
+      proposal: updateProposal,
+    });
+
+  await expect(
+    t.withIdentity(identity).mutation(api.writeAttempts.executeAttempt, {
+      attemptId: reservation.attemptId,
+      proposal: updateProposal,
+    }),
+  ).rejects.toThrow("Duplicate topic rows");
+  await expect(t.run(async (ctx) => ctx.db.get(postId))).resolves.toMatchObject(
+    {
+      title: "Original title",
+      updatedAt: now,
+    },
+  );
+  const attempt = await t.run(async (ctx) => ctx.db.get(reservation.attemptId));
+  expect(attempt?.outcome).toBeUndefined();
 });
 
 it("publishes a reserved proposal and applies a versioned published update", async () => {
@@ -285,12 +452,12 @@ it("publishes a reserved proposal and applies a versioned published update", asy
       operationKind: "publish",
       proposal: publishedProposal,
     });
-  const published = await t
-    .withIdentity(identity)
-    .mutation(api.writeAttempts.executeAttempt, {
+  const published = assertSucceeded(
+    await t.withIdentity(identity).mutation(api.writeAttempts.executeAttempt, {
       attemptId: publication.attemptId,
       proposal: publishedProposal,
-    });
+    }),
+  );
   expect(published.status).toBe("published");
 
   const updateProposal = { ...publishedProposal, title: "Updated title" };
@@ -303,12 +470,12 @@ it("publishes a reserved proposal and applies a versioned published update", asy
       expectedUpdatedAt: published.updatedAt,
       proposal: updateProposal,
     });
-  const updated = await t
-    .withIdentity(identity)
-    .mutation(api.writeAttempts.executeAttempt, {
+  const updated = assertSucceeded(
+    await t.withIdentity(identity).mutation(api.writeAttempts.executeAttempt, {
       attemptId: update.attemptId,
       proposal: updateProposal,
-    });
+    }),
+  );
 
   expect(updated.updatedAt).toBeGreaterThan(published.updatedAt);
   await expect(

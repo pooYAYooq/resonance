@@ -24,7 +24,11 @@ import {
   parsePostBody,
 } from "../lib/post-content";
 import { getPublishedPost } from "./postLifecycle";
-import { executeOwnedAttempt, writeProposalValidator } from "./writeAttempts";
+import {
+  executeOwnedAttempt,
+  writeProposalValidator,
+  writeResultValidator,
+} from "./writeAttempts";
 import { decrementPostCountInTransaction } from "./stats";
 import { deletePublishedPostProjection } from "./discoverProjection";
 import { adjustPublishedPostCount } from "./profilePostCount";
@@ -179,11 +183,7 @@ export const saveDraft = mutation({
     attemptId: v.id("writeAttempts"),
     proposal: writeProposalValidator,
   },
-  returns: v.object({
-    postId: v.id("posts"),
-    updatedAt: v.number(),
-    status: v.literal("draft"),
-  }),
+  returns: writeResultValidator,
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) throw new ConvexError("Unauthorized");
@@ -194,7 +194,9 @@ export const saveDraft = mutation({
       args.proposal,
       "save-draft",
     );
-    return { ...result, status: "draft" as const };
+    return result.kind === "failed"
+      ? result
+      : { ...result, status: "draft" as const };
   },
 });
 
@@ -203,11 +205,7 @@ export const publishPost = mutation({
     attemptId: v.id("writeAttempts"),
     proposal: writeProposalValidator,
   },
-  returns: v.object({
-    postId: v.id("posts"),
-    updatedAt: v.number(),
-    status: v.literal("published"),
-  }),
+  returns: writeResultValidator,
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) throw new ConvexError("Unauthorized");
@@ -218,7 +216,9 @@ export const publishPost = mutation({
       args.proposal,
       "publish",
     );
-    return { ...result, status: "published" as const };
+    return result.kind === "failed"
+      ? result
+      : { ...result, status: "published" as const };
   },
 });
 
@@ -370,11 +370,7 @@ export const updatePublishedPost = mutation({
     attemptId: v.id("writeAttempts"),
     proposal: writeProposalValidator,
   },
-  returns: v.object({
-    postId: v.id("posts"),
-    updatedAt: v.number(),
-    status: v.literal("published"),
-  }),
+  returns: writeResultValidator,
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) throw new ConvexError("Unauthorized");
@@ -385,7 +381,9 @@ export const updatePublishedPost = mutation({
       args.proposal,
       "update-post",
     );
-    return { ...result, status: "published" as const };
+    return result.kind === "failed"
+      ? result
+      : { ...result, status: "published" as const };
   },
 });
 

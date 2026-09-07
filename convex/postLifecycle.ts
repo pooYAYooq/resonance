@@ -17,6 +17,7 @@ import { syncPublishedPostProjection } from "./discoverProjection";
 import { FANOUT_BATCH_SIZE } from "./notifications";
 import { FEED_BATCH_SIZE } from "./feed";
 import { consumeSessionMediaClaims } from "./sessionMediaClaims";
+import type { WriteErrorCategory } from "../lib/write-contract";
 
 type WriteProposal = {
   title: string;
@@ -31,11 +32,35 @@ type WriteExecutionArgs = {
   proposal: WriteProposal;
 };
 
-export type WriteExecutionResult = {
-  postId: Id<"posts">;
-  updatedAt: number;
-  status: PostStatus;
-};
+export type WriteExecutionResult =
+  | {
+      kind: "succeeded";
+      postId: Id<"posts">;
+      updatedAt: number;
+      status: PostStatus;
+    }
+  | {
+      kind: "failed";
+      category: WriteErrorCategory;
+      message: string;
+    };
+
+export class DeterministicWriteError extends Error {
+  constructor(
+    public readonly category: WriteErrorCategory,
+    message: string,
+  ) {
+    super(message);
+    this.name = "DeterministicWriteError";
+  }
+}
+
+function deterministicFailure(
+  category: WriteErrorCategory,
+  message: string,
+): never {
+  throw new DeterministicWriteError(category, message);
+}
 
 type UploadClaimContext = Pick<MutationCtx, "db">;
 
@@ -113,10 +138,10 @@ export async function validateDraftUploadClaims(
       claim.consumedAt !== undefined ||
       (claim.postId !== undefined && claim.postId !== draftId)
     ) {
-      throw new ConvexError("Invalid inline upload claim");
+      deterministicFailure("invalid-media", "Invalid inline upload claim");
     }
     if (claim.expiresAt <= now) {
-      throw new ConvexError("Inline image expired");
+      deterministicFailure("invalid-media", "Inline image expired");
     }
     claimIds.push(claim._id);
   }
@@ -166,10 +191,10 @@ export async function validatePublishedEditUploadClaims(
       claim.consumedAt !== undefined ||
       (claim.postId !== undefined && claim.postId !== postId)
     ) {
-      throw new ConvexError("Invalid inline upload claim");
+      deterministicFailure("invalid-media", "Invalid inline upload claim");
     }
     if (claim.expiresAt <= now) {
-      throw new ConvexError("Inline image expired");
+      deterministicFailure("invalid-media", "Inline image expired");
     }
     claimIds.push(claim._id);
   }
@@ -197,17 +222,17 @@ function getReferencedStorageIds(
 
 function validateDraftProposal(proposal: WriteProposal) {
   if (proposal.title.length > 100) {
-    throw new ConvexError("Invalid title");
+    deterministicFailure("invalid-proposal", "Invalid title");
   }
   const document = getStructuredBody(proposal.body);
   if (
     !document ||
     extractPlainText(document.blocks).trim().length > MAX_POST_TEXT_LENGTH
   ) {
-    throw new ConvexError("Invalid content");
+    deterministicFailure("invalid-proposal", "Invalid content");
   }
   if (!isValidPostTags(proposal.tags)) {
-    throw new ConvexError("Invalid tags");
+    deterministicFailure("invalid-proposal", "Invalid tags");
   }
 }
 
@@ -219,7 +244,7 @@ function validatePublicationProposal(proposal: WriteProposal) {
     proposal.title.trim().length === 0 ||
     extractPlainText(document.blocks).trim().length < MIN_POST_TEXT_LENGTH
   ) {
-    throw new ConvexError("Invalid content");
+    deterministicFailure("invalid-proposal", "Invalid content");
   }
 }
 
@@ -285,14 +310,14 @@ export async function executeSaveDraft(
     args.postId !== undefined &&
     (!draft || draft.authorId !== userId || draft.status !== "draft")
   ) {
-    throw new ConvexError("Post not found.");
+    deterministicFailure("not-found", "Post not found.");
   }
   if (
     draft &&
     (args.expectedUpdatedAt === undefined ||
       draft.updatedAt !== args.expectedUpdatedAt)
   ) {
-    throw new ConvexError("Document changed elsewhere.");
+    deterministicFailure("conflict", "Document changed elsewhere.");
   }
 
   const now = Date.now();
@@ -371,7 +396,7 @@ export async function executeSaveDraft(
     });
   }
   await consumeSessionMediaClaims(ctx, userId, referencedStorageIds, updatedAt);
-  return { postId, updatedAt, status: "draft" };
+  return { kind: "succeeded", postId, updatedAt, status: "draft" };
 }
 
 export async function executePublish(
@@ -386,14 +411,14 @@ export async function executePublish(
     args.postId !== undefined &&
     (!draft || draft.authorId !== userId || draft.status !== "draft")
   ) {
-    throw new ConvexError("Post not found.");
+    deterministicFailure("not-found", "Post not found.");
   }
   if (
     draft &&
     (args.expectedUpdatedAt === undefined ||
       draft.updatedAt !== args.expectedUpdatedAt)
   ) {
-    throw new ConvexError("Document changed elsewhere.");
+    deterministicFailure("conflict", "Document changed elsewhere.");
   }
 
   const now = Date.now();
@@ -488,7 +513,7 @@ export async function executePublish(
     paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
     retryCount: 0,
   });
-  return { postId, updatedAt, status: "published" };
+  return { kind: "succeeded", postId, updatedAt, status: "published" };
 }
 
 export async function executePublishedUpdate(
@@ -498,7 +523,7 @@ export async function executePublishedUpdate(
 ): Promise<WriteExecutionResult> {
   validatePublicationProposal(args.proposal);
   if (args.postId === undefined || args.expectedUpdatedAt === undefined) {
-    throw new ConvexError("Post version is required.");
+    deterministicFailure("conflict", "Post version is required.");
   }
   const post = await ctx.db.get(args.postId);
   if (
@@ -507,10 +532,10 @@ export async function executePublishedUpdate(
     post.status !== "published" ||
     post.publishedAt === undefined
   ) {
-    throw new ConvexError("Post not found.");
+    deterministicFailure("not-found", "Post not found.");
   }
   if (post.updatedAt !== args.expectedUpdatedAt) {
-    throw new ConvexError("Document changed elsewhere.");
+    deterministicFailure("conflict", "Document changed elsewhere.");
   }
 
   const now = Date.now();
@@ -555,5 +580,10 @@ export async function executePublishedUpdate(
     true,
   );
   await syncPublishedPostProjection(ctx, post._id, post.tags);
-  return { postId: post._id, updatedAt, status: "published" };
+  return {
+    kind: "succeeded",
+    postId: post._id,
+    updatedAt,
+    status: "published",
+  };
 }

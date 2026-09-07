@@ -8,6 +8,7 @@ import {
   executePublish,
   executePublishedUpdate,
   executeSaveDraft,
+  DeterministicWriteError,
   type WriteExecutionResult,
 } from "./postLifecycle";
 
@@ -31,11 +32,21 @@ const reserveResultValidator = v.object({
   expiresAt: v.number(),
 });
 
-const writeResultValidator = v.object({
+const writeSuccessValidator = v.object({
+  kind: v.literal("succeeded"),
   postId: v.id("posts"),
   updatedAt: v.number(),
   status: v.union(v.literal("draft"), v.literal("published")),
 });
+const writeFailureValidator = v.object({
+  kind: v.literal("failed"),
+  category: v.string(),
+  message: v.string(),
+});
+export const writeResultValidator = v.union(
+  writeSuccessValidator,
+  writeFailureValidator,
+);
 
 const reconciliationResultValidator = v.union(
   v.object({
@@ -228,7 +239,7 @@ export const reconcileAttempt = mutation({
         args.attemptId,
         args.proposal,
       );
-      return { kind: "succeeded" as const, ...result };
+      return result;
     }
 
     const outcome = {
@@ -267,6 +278,7 @@ export async function executeOwnedAttempt(
   }
   if (attempt.outcome?.kind === "succeeded") {
     return {
+      kind: "succeeded",
       postId: attempt.outcome.postId,
       updatedAt: attempt.outcome.updatedAt,
       status: attempt.outcome.status,
@@ -278,12 +290,29 @@ export async function executeOwnedAttempt(
     expectedUpdatedAt: attempt.expectedUpdatedAt,
     proposal,
   };
-  const result =
-    attempt.operationKind === "save-draft"
-      ? await executeSaveDraft(ctx, userId, executionArgs)
-      : attempt.operationKind === "publish"
-        ? await executePublish(ctx, userId, executionArgs)
-        : await executePublishedUpdate(ctx, userId, executionArgs);
+  let result: WriteExecutionResult;
+  try {
+    result =
+      attempt.operationKind === "save-draft"
+        ? await executeSaveDraft(ctx, userId, executionArgs)
+        : attempt.operationKind === "publish"
+          ? await executePublish(ctx, userId, executionArgs)
+          : await executePublishedUpdate(ctx, userId, executionArgs);
+  } catch (error) {
+    if (!(error instanceof DeterministicWriteError)) throw error;
+    const failed = {
+      kind: "failed" as const,
+      category: error.category,
+      message: error.message,
+    };
+    await ctx.db.patch(attempt._id, { outcome: failed });
+    return failed;
+  }
+
+  if (result.kind === "failed") {
+    await ctx.db.patch(attempt._id, { outcome: result });
+    return result;
+  }
 
   await ctx.db.patch(attempt._id, {
     outcome: {

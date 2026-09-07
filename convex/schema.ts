@@ -364,6 +364,12 @@ export default defineSchema({
     consumedAt: v.optional(v.number()),
   })
     .index("by_userId_and_sessionId", ["userId", "sessionId"])
+    .index("by_userId_and_sessionId_and_storageId", [
+      "userId",
+      "sessionId",
+      "storageId",
+    ])
+    .index("by_userId_and_storageId", ["userId", "storageId"])
     .index("by_storageId", ["storageId"])
     .index("by_expiresAt", ["expiresAt"]),
 
@@ -376,7 +382,8 @@ export default defineSchema({
   /**
    * Author-bound reservations for deliberate draft saves and public writes.
    * The proposal and fingerprint are immutable request identity; the outcome
-   * is added by the execution boundary once the write commits.
+   * is added by the execution boundary after a committed write or a
+   * deterministic validation failure.
    */
   writeAttempts: defineTable({
     userId: v.string(),

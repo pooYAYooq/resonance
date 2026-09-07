@@ -5,6 +5,7 @@ import { register } from "@convex-dev/better-auth/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, components } from "./_generated/api";
 import schema from "./schema";
+import { consumeSessionMediaClaims } from "./sessionMediaClaims";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -87,7 +88,95 @@ describe("session media claims", () => {
         sessionId: "editor-1",
         storageId,
       }),
-    ).rejects.toThrow("Media asset is not owned by this user");
+    ).rejects.toThrow("Media asset is not eligible for this session");
+  });
+
+  it("rejects an expired orphan upload and stale consumed media", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "stale@example.com");
+    const expiredStorageId = await createPendingAsset(t, identity.subject);
+    const consumedStorageId = await createPendingAsset(t, identity.subject);
+    await t.run(async (ctx) => {
+      const claims = await ctx.db
+        .query("pendingUploads")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .take(10);
+      for (const claim of claims) {
+        if (claim.storageId === expiredStorageId) {
+          await ctx.db.patch(claim._id, { expiresAt: Date.now() - 1 });
+        }
+        if (claim.storageId === consumedStorageId) {
+          await ctx.db.patch(claim._id, {
+            consumedAt: Date.now(),
+            expiresAt: Number.MAX_SAFE_INTEGER,
+          });
+        }
+      }
+    });
+
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId: expiredStorageId,
+      }),
+    ).rejects.toThrow("Media asset is not eligible for this session");
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId: consumedStorageId,
+      }),
+    ).rejects.toThrow("Media asset is not eligible for this session");
+  });
+
+  it("allows a consumed asset only while its owned post still references it", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "retained@example.com",
+    );
+    const storageId = await createPendingAsset(t, identity.subject);
+    const postId = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Retained media",
+        body: JSON.stringify({ format: "blocknote@1", blocks: [] }),
+        tags: [],
+        authorId: identity.subject,
+        imageStorageId: storageId,
+        status: "published",
+        publishedAt: Date.now(),
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      const claim = await ctx.db
+        .query("pendingUploads")
+        .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+        .unique();
+      if (!claim) throw new Error("Pending claim missing");
+      await ctx.db.patch(claim._id, {
+        postId,
+        consumedAt: Date.now(),
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+      return postId;
+    });
+
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId,
+      }),
+    ).resolves.toMatchObject({ expiresAt: expect.any(Number) });
+
+    await t.run(async (ctx) => ctx.db.delete(postId));
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-2",
+        storageId,
+      }),
+    ).rejects.toThrow("Media asset is not eligible for this session");
   });
 
   it("keeps independent tabs independently renewable and idempotent", async () => {
@@ -304,5 +393,114 @@ describe("session media claims", () => {
         isActive: true,
       }),
     ).rejects.toThrow("Too many media claims");
+  });
+
+  it("keeps the 101st asset addressable across lifecycle batches", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T00:00:00.000Z"));
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "large@example.com");
+    const storageIds = await t.run(async (ctx) => {
+      const ids = await Promise.all(
+        Array.from({ length: 101 }, () =>
+          ctx.storage.store(
+            new Blob([new Uint8Array([1])], { type: "image/png" }),
+          ),
+        ),
+      );
+      for (const storageId of ids) {
+        await ctx.db.insert("pendingUploads", {
+          userId: identity.subject,
+          storageId,
+          createdAt: Date.now(),
+          expiresAt: Date.now() + 60 * 60 * 1000,
+        });
+      }
+      return ids;
+    });
+
+    const claimResults = [];
+    for (const storageId of storageIds) {
+      claimResults.push(
+        await t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+          sessionId: "editor-1",
+          storageId,
+        }),
+      );
+    }
+    const repeatedLast = await t
+      .withIdentity(identity)
+      .mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId: storageIds[100],
+      });
+    expect(repeatedLast.claimId).toBe(claimResults[100].claimId);
+
+    vi.advanceTimersByTime(5 * 60 * 1000);
+    const firstBatch = storageIds.slice(0, 100);
+    const secondBatch = storageIds.slice(100);
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.renew, {
+        sessionId: "editor-1",
+        storageIds: firstBatch,
+        isVisible: true,
+        isActive: true,
+      }),
+    ).resolves.toMatchObject({ renewed: 100 });
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.renew, {
+        sessionId: "editor-1",
+        storageIds: secondBatch,
+        isVisible: true,
+        isActive: true,
+      }),
+    ).resolves.toMatchObject({ renewed: 1 });
+
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.release, {
+        sessionId: "editor-1",
+        storageIds: firstBatch,
+      }),
+    ).resolves.toEqual({ released: 100 });
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.release, {
+        sessionId: "editor-1",
+        storageIds: secondBatch,
+      }),
+    ).resolves.toEqual({ released: 1 });
+
+    await t.run(async (ctx) => {
+      for (const storageId of storageIds) {
+        const now = Date.now();
+        await ctx.db.insert("sessionMediaClaims", {
+          userId: identity.subject,
+          sessionId: "editor-2",
+          storageId,
+          createdAt: now,
+          renewedAt: now,
+          expiresAt: now + 60 * 60 * 1000,
+        });
+      }
+      await consumeSessionMediaClaims(
+        ctx,
+        identity.subject,
+        storageIds.slice(0, 100),
+      );
+      await consumeSessionMediaClaims(
+        ctx,
+        identity.subject,
+        storageIds.slice(100),
+      );
+    });
+    const consumedCount = await t.run(async (ctx) => {
+      const claims = await ctx.db
+        .query("sessionMediaClaims")
+        .withIndex("by_userId_and_sessionId", (q) =>
+          q.eq("userId", identity.subject).eq("sessionId", "editor-2"),
+        )
+        .take(200);
+      return claims.filter((claim) => claim.consumedAt !== undefined).length;
+    });
+    expect(consumedCount).toBe(101);
   });
 });
