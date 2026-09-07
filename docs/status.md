@@ -136,7 +136,8 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
 - Next focus: Phase 3A.3 — Writing & Management
 - Design-only specification:
-  [`Writing and Content Management`](superpowers/specs/2026-09-07-writing-management-design.md).
+  Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
+  intentionally git-ignored).
   Sections 1-7 and final Q64-Q65 clarifications are approved. Section 7 includes
   the minimal BlockNote interaction contract. The implementation roadmap and
   four focused plans are now written under `superpowers/plans/`. Track 2 is the

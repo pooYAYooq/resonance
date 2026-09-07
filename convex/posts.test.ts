@@ -517,6 +517,106 @@ describe("posts functions", () => {
     ).resolves.toBeNull();
   });
 
+  it("cleans removed draft uploads when publishing the draft", async () => {
+    const t = convexTest(schema, modules);
+    register(t);
+    vi.useFakeTimers();
+    const identity = await t.run(async (ctx) => {
+      const now = Date.now();
+      const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "user",
+          data: {
+            name: "Publish owner",
+            email: "publish-cleanup@example.com",
+            emailVerified: true,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      });
+      const session = await ctx.runMutation(
+        components.betterAuth.adapter.create,
+        {
+          input: {
+            model: "session",
+            data: {
+              userId: user._id,
+              token: "publish-cleanup-session",
+              expiresAt: now + 60_000,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+        },
+      );
+      return { subject: user._id, sessionId: session._id };
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    const ids = await t.run(async (ctx) => {
+      const storageId = await ctx.storage.store(new Blob(["removed"]));
+      const postId = await ctx.db.insert("posts", {
+        title: "Draft",
+        body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+        tags: [],
+        authorId: identity.subject,
+        imageStorageId: storageId,
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const claimId = await ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        postId,
+        storageId,
+        createdAt: 1,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+      return { postId, claimId, storageId };
+    });
+    const proposal = {
+      title: "Published draft",
+      body: JSON.stringify({
+        format: BLOCKNOTE_FORMAT,
+        blocks: [
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: "This published draft has enough readable content.",
+              },
+            ],
+          },
+        ],
+      }),
+      tags: [],
+    };
+    const attempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "cleanup-publish-1",
+        operationKind: "publish",
+        postId: ids.postId,
+        expectedUpdatedAt: 1,
+        proposal,
+      });
+    await t.withIdentity(identity).mutation(api.posts.publishPost, {
+      attemptId: attempt.attemptId,
+      proposal,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await expect(
+      t.run(async (ctx) => ctx.db.get(ids.claimId)),
+    ).resolves.toBeNull();
+    await expect(
+      t.run(async (ctx) => ctx.storage.getUrl(ids.storageId)),
+    ).resolves.toBeNull();
+  });
+
   it("preserves a retained draft upload claim during cleanup", async () => {
     const t = convexTest(schema, modules);
     register(t);

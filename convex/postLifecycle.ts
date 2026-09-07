@@ -187,10 +187,11 @@ function getReferencedStorageIds(
   imageStorageId?: Id<"_storage">,
 ): Id<"_storage">[] {
   const document = getStructuredBody(body);
-  if (!document) return [];
   return [
     ...(imageStorageId === undefined ? [] : [imageStorageId]),
-    ...(extractImageStorageIds(document.blocks) as Id<"_storage">[]),
+    ...(document
+      ? (extractImageStorageIds(document.blocks) as Id<"_storage">[])
+      : []),
   ];
 }
 
@@ -407,6 +408,15 @@ export async function executePublish(
     now,
     draft?._id,
   );
+  const attachedClaims = draft
+    ? await ctx.db
+        .query("pendingUploads")
+        .withIndex("by_postId", (q) => q.eq("postId", draft._id))
+        .take(100)
+    : [];
+  const attachedStorageIds = attachedClaims.flatMap((claim) =>
+    claim.storageId === undefined ? [] : [claim.storageId],
+  );
   const postId =
     draft?._id ??
     (await ctx.db.insert("posts", {
@@ -427,6 +437,17 @@ export async function executePublish(
     ? Math.max(now, draft.updatedAt, draft.publishedAt ?? 0) + 1
     : now;
   if (draft) {
+    const oldStorageIds = getReferencedStorageIds(
+      draft.body,
+      draft.imageStorageId,
+    );
+    const removedStorageIds = [
+      ...new Set(
+        [...oldStorageIds, ...attachedStorageIds].filter(
+          (storageId) => !referencedStorageIds.includes(storageId),
+        ),
+      ),
+    ];
     await ctx.db.patch(draft._id, {
       title: args.proposal.title,
       body: args.proposal.body,
@@ -436,6 +457,14 @@ export async function executePublish(
       publishedAt: now,
       updatedAt,
     });
+    await scheduleDraftCleanup(
+      ctx,
+      draft._id,
+      removedStorageIds,
+      referencedStorageIds,
+      updatedAt,
+      true,
+    );
   }
   for (const claimId of claimIds) {
     await ctx.db.patch(claimId, {

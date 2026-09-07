@@ -113,6 +113,9 @@ export const claim = mutation({
       if (existing.releasedAt !== undefined) {
         throw new ConvexError("Media claim was released");
       }
+      if (existing.consumedAt !== undefined) {
+        throw new ConvexError("Media claim was consumed");
+      }
       if (existing.expiresAt <= Date.now()) {
         throw new ConvexError("Media claim has expired");
       }
@@ -159,12 +162,8 @@ export const renew = mutation({
       if (claim.releasedAt !== undefined || claim.consumedAt !== undefined) {
         continue;
       }
-      if (claim.expiresAt <= now) {
-        throw new ConvexError("Media claim has expired");
-      }
-      if (claim.renewedAt + SESSION_MEDIA_RENEW_INTERVAL_MS > now) {
-        throw new ConvexError("Renewal is not due yet");
-      }
+      if (claim.expiresAt <= now) continue;
+      if (claim.renewedAt + SESSION_MEDIA_RENEW_INTERVAL_MS > now) continue;
       const expiresAt = now + SESSION_MEDIA_CLAIM_TTL_MS;
       await ctx.db.patch(claim._id, { renewedAt: now, expiresAt });
       renewed += 1;

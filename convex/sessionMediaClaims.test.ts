@@ -137,7 +137,7 @@ describe("session media claims", () => {
         isVisible: true,
         isActive: true,
       }),
-    ).rejects.toThrow("Renewal is not due yet");
+    ).resolves.toEqual({ renewed: 0 });
 
     vi.advanceTimersByTime(5 * 60 * 1000);
     const renewed = await t
@@ -182,7 +182,7 @@ describe("session media claims", () => {
         isVisible: true,
         isActive: true,
       }),
-    ).rejects.toThrow("Media claim has expired");
+    ).resolves.toEqual({ renewed: 0 });
   });
 
   it("releases an active claim", async () => {
@@ -213,6 +213,74 @@ describe("session media claims", () => {
         .unique(),
     );
     expect(claim?.releasedAt).toBeTypeOf("number");
+  });
+
+  it("does not return a consumed claim as active", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "consumed@example.com",
+    );
+    const storageId = await createPendingAsset(t, identity.subject);
+    const claimed = await t
+      .withIdentity(identity)
+      .mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId,
+      });
+    await t.run(async (ctx) =>
+      ctx.db.patch(claimed.claimId, { consumedAt: Date.now() }),
+    );
+
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId,
+      }),
+    ).rejects.toThrow("Media claim was consumed");
+  });
+
+  it("renews eligible claims without failing the rest of the batch", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T00:00:00.000Z"));
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "batch-renew@example.com",
+    );
+    const firstStorageId = await createPendingAsset(t, identity.subject);
+    const secondStorageId = await createPendingAsset(t, identity.subject);
+    await t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+      sessionId: "editor-1",
+      storageId: firstStorageId,
+    });
+    await t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+      sessionId: "editor-1",
+      storageId: secondStorageId,
+    });
+    vi.advanceTimersByTime(5 * 60 * 1000);
+    await t.run(async (ctx) => {
+      const claims = await ctx.db
+        .query("sessionMediaClaims")
+        .withIndex("by_userId_and_sessionId", (q) =>
+          q.eq("userId", identity.subject).eq("sessionId", "editor-1"),
+        )
+        .take(10);
+      const firstClaim = claims.find(
+        (claim) => claim.storageId === firstStorageId,
+      );
+      if (!firstClaim) throw new Error("First claim missing");
+      await ctx.db.patch(firstClaim._id, { expiresAt: Date.now() - 1 });
+    });
+
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.renew, {
+        sessionId: "editor-1",
+        storageIds: [firstStorageId, secondStorageId],
+        isVisible: true,
+        isActive: true,
+      }),
+    ).resolves.toMatchObject({ renewed: 1 });
   });
 
   it("bounds client batches", async () => {
