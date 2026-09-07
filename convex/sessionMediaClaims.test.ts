@@ -238,6 +238,35 @@ describe("session media claims", () => {
     ).resolves.toEqual(claimed);
   });
 
+  it("fails loudly when duplicate exact claims violate the invariant", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "duplicate@example.com",
+    );
+    const storageId = await createPendingAsset(t, identity.subject);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 2; index += 1) {
+        await ctx.db.insert("sessionMediaClaims", {
+          userId: identity.subject,
+          sessionId: "editor-1",
+          storageId,
+          createdAt: now,
+          renewedAt: now,
+          expiresAt: now + 60 * 60 * 1000,
+        });
+      }
+    });
+
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId,
+      }),
+    ).rejects.toThrow();
+  });
+
   it("renews only after the server interval for an active visible session", async () => {
     vi.useFakeTimers();
     const now = new Date("2026-09-07T00:00:00.000Z");

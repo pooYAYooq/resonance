@@ -86,7 +86,7 @@ async function getSessionClaim(
         .eq("sessionId", sessionId)
         .eq("storageId", storageId),
     )
-    .take(2);
+    .unique();
 }
 
 export async function hasActiveSessionMediaClaim(
@@ -166,9 +166,12 @@ export const claim = mutation({
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx);
     const now = Date.now();
-    const existing = (
-      await getSessionClaim(ctx, user._id, args.sessionId, args.storageId)
-    )[0];
+    const existing = await getSessionClaim(
+      ctx,
+      user._id,
+      args.sessionId,
+      args.storageId,
+    );
     if (existing) {
       if (existing.releasedAt !== undefined) {
         throw new ConvexError("Media claim was released");
@@ -217,9 +220,12 @@ export const renew = mutation({
     let renewed = 0;
     let latestExpiry: number | undefined;
     for (const storageId of requestedStorageIds) {
-      const claim = (
-        await getSessionClaim(ctx, user._id, args.sessionId, storageId)
-      )[0];
+      const claim = await getSessionClaim(
+        ctx,
+        user._id,
+        args.sessionId,
+        storageId,
+      );
       if (!claim) continue;
       if (claim.releasedAt !== undefined || claim.consumedAt !== undefined) {
         continue;
@@ -248,9 +254,12 @@ export const release = mutation({
     const releasedAt = Date.now();
     let released = 0;
     for (const storageId of requestedStorageIds) {
-      const claim = (
-        await getSessionClaim(ctx, user._id, args.sessionId, storageId)
-      )[0];
+      const claim = await getSessionClaim(
+        ctx,
+        user._id,
+        args.sessionId,
+        storageId,
+      );
       if (
         claim &&
         claim.releasedAt === undefined &&
