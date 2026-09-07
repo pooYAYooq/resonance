@@ -2,7 +2,7 @@
 
 import { register } from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
-import { expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { api, components } from "./_generated/api";
 import schema from "./schema";
 
@@ -21,6 +21,8 @@ const proposal = {
   }),
   tags: ["Technology"],
 };
+
+afterEach(() => vi.useRealTimers());
 
 it("rejects write-attempt reservations without an authenticated author", async () => {
   const t = convexTest(schema, modules);
@@ -104,6 +106,30 @@ it("reserves an immutable author-bound request", async () => {
       proposal: { ...proposal, title: "Changed proposal" },
     }),
   ).rejects.toThrow("Request binding mismatch");
+
+  const foreignPostId = await t.run(async (ctx) =>
+    ctx.db.insert("posts", {
+      title: "Foreign post",
+      body: proposal.body,
+      tags: proposal.tags,
+      authorId: "another-account",
+      status: "draft",
+      commentCount: 0,
+      likeCount: 0,
+      uniqueViewCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    }),
+  );
+  await expect(
+    t.withIdentity(identity).mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "foreign-target",
+      operationKind: "update-post",
+      postId: foreignPostId,
+      expectedUpdatedAt: now,
+      proposal,
+    }),
+  ).rejects.toThrow("Write target not found");
 });
 
 it("executes a reserved draft save once and replays its result", async () => {
@@ -292,4 +318,88 @@ it("publishes a reserved proposal and applies a versioned published update", asy
     status: "published",
     updatedAt: updated.updatedAt,
   });
+});
+
+it("returns indeterminate after an expired attempt lacks authoritative evidence", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-09-07T00:00:00.000Z"));
+  const t = convexTest(schema, modules);
+  register(t);
+  const now = Date.now();
+  const identity = await t.run(async (ctx) => {
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Uncertain author",
+          email: "uncertain-author@example.com",
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: "uncertain-session",
+            expiresAt: now + 48 * 60 * 60 * 1000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+  await t.withIdentity(identity).mutation(api.users.syncUser, {});
+
+  const reservation = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "uncertain-request",
+      operationKind: "save-draft",
+      proposal,
+    });
+  vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1);
+
+  await expect(
+    t.withIdentity(identity).mutation(api.writeAttempts.reconcileAttempt, {
+      attemptId: reservation.attemptId,
+      proposal,
+    }),
+  ).resolves.toEqual({
+    kind: "indeterminate",
+    message:
+      "The write may have succeeded, but no authoritative result remains.",
+  });
+
+  await expect(
+    t.run(async (ctx) => ctx.db.get(reservation.attemptId)),
+  ).resolves.toMatchObject({
+    outcome: {
+      kind: "indeterminate",
+    },
+  });
+
+  await expect(
+    t.withIdentity(identity).mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "uncertain-request",
+      operationKind: "save-draft",
+      proposal,
+    }),
+  ).resolves.toMatchObject({ attemptId: reservation.attemptId });
+
+  const acknowledgedNewAction = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "acknowledged-new-request",
+      operationKind: "save-draft",
+      proposal,
+    });
+  expect(acknowledgedNewAction.attemptId).not.toBe(reservation.attemptId);
 });

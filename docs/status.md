@@ -143,12 +143,13 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   required foundation, followed by Track 3, Track 1, and Track 4. Current
   database content is disposable test data: implementation must not add
   migrations, backfills, dual reads/writes, or compatibility fields. Runtime
-  capacity/Search/browser evidence remains explicitly gated. Track 2 Tasks 1
-  and 2 are implemented and committed. Task 3 is implemented in the current
-  worktree: active session media claims now provide owner/session/storage
-  protection, bounded renewal, release/consumption state, and cleanup guards.
-  No migration, backfill, dual read/write, or compatibility field was added.
-  Task 3 is awaiting human review before commit. Task boundaries
+  capacity/Search/browser evidence remains explicitly gated. Track 2 Tasks 1,
+  2, and 3 are implemented and committed. Task 4 is implemented in the
+  current worktree: expired attempts now reconcile to an explicit
+  indeterminate outcome when evidence is insufficient, and reservation,
+  execution, media, and target ownership are isolated by account. No
+  migration, backfill, dual read/write, or compatibility field was added.
+  Task 4 is awaiting human review before commit. Task boundaries
   also require human review/commit gates and an explicit compaction/handoff
   resume record before work continues. The development-only plans, spec, and
   visual helpers are ignored by Git and must not be staged or tracked.

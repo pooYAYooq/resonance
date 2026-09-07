@@ -37,6 +37,24 @@ const writeResultValidator = v.object({
   status: v.union(v.literal("draft"), v.literal("published")),
 });
 
+const reconciliationResultValidator = v.union(
+  v.object({
+    kind: v.literal("succeeded"),
+    postId: v.id("posts"),
+    updatedAt: v.number(),
+    status: v.union(v.literal("draft"), v.literal("published")),
+  }),
+  v.object({
+    kind: v.literal("failed"),
+    category: v.string(),
+    message: v.string(),
+  }),
+  v.object({
+    kind: v.literal("indeterminate"),
+    message: v.string(),
+  }),
+);
+
 export type WriteAttempt = Doc<"writeAttempts">;
 
 function sameOptionalValue<T>(left: T | undefined, right: T | undefined) {
@@ -78,6 +96,43 @@ export async function getOwnedAttempt(
   return attempt;
 }
 
+async function getOwnedAttemptRecord(
+  ctx: Pick<MutationCtx, "db">,
+  attemptId: Id<"writeAttempts">,
+  userId: string,
+): Promise<WriteAttempt> {
+  const attempt = await ctx.db.get(attemptId);
+  if (!attempt || attempt.userId !== userId) {
+    throw new ConvexError("Write attempt not found.");
+  }
+  return attempt;
+}
+
+function getRecordedOutcome(attempt: WriteAttempt) {
+  if (attempt.outcome?.kind === "succeeded") {
+    return {
+      kind: "succeeded" as const,
+      postId: attempt.outcome.postId,
+      updatedAt: attempt.outcome.updatedAt,
+      status: attempt.outcome.status,
+    };
+  }
+  if (attempt.outcome?.kind === "failed") {
+    return {
+      kind: "failed" as const,
+      category: attempt.outcome.category,
+      message: attempt.outcome.message,
+    };
+  }
+  if (attempt.outcome?.kind === "indeterminate") {
+    return {
+      kind: "indeterminate" as const,
+      message: attempt.outcome.message,
+    };
+  }
+  return null;
+}
+
 export const reserveAttempt = mutation({
   args: {
     clientRequestId: v.string(),
@@ -92,6 +147,12 @@ export const reserveAttempt = mutation({
     if (!user) throw new ConvexError("Unauthorized");
     if (args.clientRequestId.trim().length === 0) {
       throw new ConvexError("Client request ID is required");
+    }
+    if (args.postId !== undefined) {
+      const target = await ctx.db.get(args.postId);
+      if (!target || target.authorId !== user._id) {
+        throw new ConvexError("Write target not found.");
+      }
     }
 
     const fingerprint = await fingerprintProposal(args.proposal);
@@ -138,6 +199,45 @@ export const executeAttempt = mutation({
     if (!user) throw new ConvexError("Unauthorized");
 
     return executeOwnedAttempt(ctx, user._id, args.attemptId, args.proposal);
+  },
+});
+
+export const reconcileAttempt = mutation({
+  args: {
+    attemptId: v.id("writeAttempts"),
+    proposal: writeProposalValidator,
+  },
+  returns: reconciliationResultValidator,
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) throw new ConvexError("Unauthorized");
+
+    const attempt = await getOwnedAttemptRecord(ctx, args.attemptId, user._id);
+    const fingerprint = await fingerprintProposal(args.proposal);
+    if (fingerprint !== attempt.fingerprint) {
+      throw new ConvexError("Request binding mismatch");
+    }
+
+    const recordedOutcome = getRecordedOutcome(attempt);
+    if (recordedOutcome) return recordedOutcome;
+
+    if (attempt.expiresAt > Date.now()) {
+      const result = await executeOwnedAttempt(
+        ctx,
+        user._id,
+        args.attemptId,
+        args.proposal,
+      );
+      return { kind: "succeeded" as const, ...result };
+    }
+
+    const outcome = {
+      kind: "indeterminate" as const,
+      message:
+        "The write may have succeeded, but no authoritative result remains.",
+    };
+    await ctx.db.patch(attempt._id, { outcome });
+    return outcome;
   },
 });
 
