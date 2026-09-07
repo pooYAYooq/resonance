@@ -120,6 +120,7 @@ const {
   getDraftByIdMock,
   getPublishedPostForEditingMock,
   updatePublishedPostMock,
+  reserveAttemptMock,
   draftIdParam,
   editPostIdParam,
   useConvexAuthState,
@@ -136,6 +137,7 @@ const {
   getDraftByIdMock: vi.fn(),
   getPublishedPostForEditingMock: vi.fn(),
   updatePublishedPostMock: vi.fn(),
+  reserveAttemptMock: vi.fn(),
   draftIdParam: { value: undefined as string | undefined },
   editPostIdParam: { value: undefined as string | undefined },
   useConvexAuthState: vi.fn(),
@@ -170,6 +172,7 @@ vi.mock("convex/react", () => ({
     if (apiRef === "saveDraft") return saveDraftMock;
     if (apiRef === "publishPost") return publishPostMock;
     if (apiRef === "updatePublishedPost") return updatePublishedPostMock;
+    if (apiRef === "reserveAttempt") return reserveAttemptMock;
     return vi.fn();
   },
   useQuery: (apiRef: unknown, args: unknown) => {
@@ -197,6 +200,9 @@ vi.mock("@/convex/_generated/api", () => ({
       getPublishedPostForEditing: "getPublishedPostForEditing",
       updatePublishedPost: "updatePublishedPost",
     },
+    writeAttempts: {
+      reserveAttempt: "reserveAttempt",
+    },
   },
 }));
 
@@ -215,6 +221,7 @@ describe("CreateRoute", () => {
     getDraftByIdMock.mockReset();
     getPublishedPostForEditingMock.mockReset();
     updatePublishedPostMock.mockReset();
+    reserveAttemptMock.mockReset();
     draftIdParam.value = undefined;
     editPostIdParam.value = undefined;
     useConvexAuthState.mockReturnValue({
@@ -227,9 +234,25 @@ describe("CreateRoute", () => {
       expiresAt: 1_000,
     });
     finalizePendingUploadMock.mockResolvedValue({ accepted: true });
-    saveDraftMock.mockResolvedValue({ draftId: "draft-1", updatedAt: 1 });
-    publishPostMock.mockResolvedValue("draft-1");
-    updatePublishedPostMock.mockResolvedValue("post-1");
+    reserveAttemptMock.mockResolvedValue({
+      attemptId: "attempt-1",
+      expiresAt: 2_000,
+    });
+    saveDraftMock.mockResolvedValue({
+      postId: "draft-1",
+      updatedAt: 1,
+      status: "draft",
+    });
+    publishPostMock.mockResolvedValue({
+      postId: "draft-1",
+      updatedAt: 2,
+      status: "published",
+    });
+    updatePublishedPostMock.mockResolvedValue({
+      postId: "post-1",
+      updatedAt: 2,
+      status: "published",
+    });
     getDraftByIdMock.mockReturnValue(undefined);
     getPublishedPostForEditingMock.mockReturnValue(undefined);
     fetchMock = vi.fn();
@@ -304,13 +327,9 @@ describe("CreateRoute", () => {
       .click(screen.getByRole("button", { name: "Update Published Post" }));
 
     await waitFor(() => {
-      expect(updatePublishedPostMock).toHaveBeenCalledWith({
-        postId: "post-1",
-        title: "Published title",
-        body: JSON.stringify(validEnvelope),
-        tags: ["Technology"],
-        imageStorageId: "cover-1",
-      });
+      expect(updatePublishedPostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ attemptId: "attempt-1" }),
+      );
     });
     expect(saveDraftMock).not.toHaveBeenCalled();
     expect(publishPostMock).not.toHaveBeenCalled();
@@ -436,10 +455,12 @@ describe("CreateRoute", () => {
 
     await waitFor(() => {
       expect(saveDraftMock).toHaveBeenCalledWith({
-        draftId: undefined,
-        title: "Unfinished thought",
-        body: JSON.stringify({ format: "blocknote@1", blocks: [] }),
-        tags: [],
+        attemptId: "attempt-1",
+        proposal: {
+          title: "Unfinished thought",
+          body: JSON.stringify({ format: "blocknote@1", blocks: [] }),
+          tags: [],
+        },
       });
     });
     expect(publishPostMock).not.toHaveBeenCalled();
@@ -550,16 +571,10 @@ describe("CreateRoute", () => {
     });
 
     await waitFor(() => {
-      expect(saveDraftMock).toHaveBeenCalledWith({
-        draftId: undefined,
-        title: "My Post",
-        body: JSON.stringify(validEnvelope),
-        tags: [],
-        imageStorageId: "storage-123",
-      });
+      expect(publishPostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ attemptId: "attempt-1" }),
+      );
     });
-
-    expect(publishPostMock).toHaveBeenCalledWith({ draftId: "draft-1" });
 
     await waitFor(() => {
       expect(toastSuccessMock).toHaveBeenCalledWith(
@@ -614,14 +629,10 @@ describe("CreateRoute", () => {
     await user.click(screen.getByRole("button", { name: /publish/i }));
 
     await waitFor(() => {
-      expect(saveDraftMock).toHaveBeenCalledWith({
-        draftId: undefined,
-        title: "My Post",
-        body: JSON.stringify(validEnvelope),
-        tags: [],
-      });
+      expect(publishPostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ attemptId: "attempt-1" }),
+      );
     });
-    expect(publishPostMock).toHaveBeenCalledWith({ draftId: "draft-1" });
 
     await waitFor(() => {
       expect(toastSuccessMock).toHaveBeenCalledWith(
@@ -636,7 +647,7 @@ describe("CreateRoute", () => {
 
   it("cleans up only the current submit's inline sessions after a failure", async () => {
     const user = userEvent.setup();
-    saveDraftMock.mockRejectedValue(new Error("Invalid inline upload claim"));
+    publishPostMock.mockRejectedValue(new Error("Invalid inline upload claim"));
     cleanupPendingUploadsMock.mockResolvedValue(null);
 
     render(<CreateRoute />);
@@ -665,7 +676,7 @@ describe("CreateRoute", () => {
 
   it("shows the inline expiry recovery message and preserves it when cleanup fails", async () => {
     const user = userEvent.setup();
-    saveDraftMock.mockRejectedValue(new Error("Inline image expired"));
+    publishPostMock.mockRejectedValue(new Error("Inline image expired"));
     cleanupPendingUploadsMock.mockRejectedValue(new Error("cleanup failed"));
 
     render(<CreateRoute />);
@@ -698,11 +709,10 @@ describe("CreateRoute", () => {
   });
 
   it("does not clean up an inline upload registered after submission starts", async () => {
-    // The first claim is consumed by saveDraft/publishPost; the second is
-    // newer than the submission snapshot and must not be cleaned up.
+    // The second upload is newer than the submission snapshot and must not
+    // be cleaned up with the first submission's upload.
     const user = userEvent.setup();
     let rejectPublishPost: ((error: Error) => void) | undefined;
-    saveDraftMock.mockResolvedValue({ draftId: "draft-1", updatedAt: 1 });
     publishPostMock.mockImplementation(
       () =>
         new Promise((_, reject) => {
@@ -725,7 +735,7 @@ describe("CreateRoute", () => {
     );
     await user.click(screen.getByRole("button", { name: /publish/i }));
 
-    await waitFor(() => expect(saveDraftMock).toHaveBeenCalled());
+    await waitFor(() => expect(publishPostMock).toHaveBeenCalled());
 
     await user.click(
       screen.getByRole("button", { name: "Register later inline upload" }),
@@ -735,7 +745,11 @@ describe("CreateRoute", () => {
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith("Failed to save post");
     });
-    expect(cleanupPendingUploadsMock).not.toHaveBeenCalled();
+    expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
+      uploads: [
+        { sessionId: "session-inline-1", storageId: "storage-inline-1" },
+      ],
+    });
   });
 
   it("rejects an empty or short structured document before upload or mutation", async () => {

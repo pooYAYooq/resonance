@@ -1,0 +1,295 @@
+/// <reference types="vite/client" />
+
+import { register } from "@convex-dev/better-auth/test";
+import { convexTest } from "convex-test";
+import { expect, it } from "vitest";
+import { api, components } from "./_generated/api";
+import schema from "./schema";
+
+const modules = import.meta.glob("./**/*.ts");
+
+const proposal = {
+  title: "A considered title",
+  body: JSON.stringify({
+    format: "blocknote@1",
+    blocks: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "A considered body." }],
+      },
+    ],
+  }),
+  tags: ["Technology"],
+};
+
+it("rejects write-attempt reservations without an authenticated author", async () => {
+  const t = convexTest(schema, modules);
+
+  await expect(
+    t.mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "request-1",
+      operationKind: "save-draft",
+      proposal,
+    }),
+  ).rejects.toThrow("Unauthorized");
+});
+
+it("reserves an immutable author-bound request", async () => {
+  const t = convexTest(schema, modules);
+  register(t);
+  const now = Date.now();
+  const identity = await t.run(async (ctx) => {
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Writing author",
+          email: "writing-author@example.com",
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: "writing-session",
+            expiresAt: now + 60_000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+
+  await t.withIdentity(identity).mutation(api.users.syncUser, {});
+
+  const result = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "request-1",
+      operationKind: "save-draft",
+      proposal,
+    });
+
+  expect(result.attemptId).toBeDefined();
+  expect(result.expiresAt).toBeGreaterThan(now);
+  await expect(
+    t.run(async (ctx) => ctx.db.get(result.attemptId)),
+  ).resolves.toMatchObject({
+    clientRequestId: "request-1",
+    operationKind: "save-draft",
+    userId: identity.subject,
+  });
+
+  await expect(
+    t.withIdentity(identity).mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "request-1",
+      operationKind: "save-draft",
+      proposal,
+    }),
+  ).resolves.toEqual(result);
+
+  await expect(
+    t.withIdentity(identity).mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "request-1",
+      operationKind: "save-draft",
+      proposal: { ...proposal, title: "Changed proposal" },
+    }),
+  ).rejects.toThrow("Request binding mismatch");
+});
+
+it("executes a reserved draft save once and replays its result", async () => {
+  const t = convexTest(schema, modules);
+  register(t);
+  const now = Date.now();
+  const identity = await t.run(async (ctx) => {
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Draft author",
+          email: "draft-author@example.com",
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: "draft-write-session",
+            expiresAt: now + 60_000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+  await t.withIdentity(identity).mutation(api.users.syncUser, {});
+
+  const draftId = await t.run(async (ctx) =>
+    ctx.db.insert("posts", {
+      title: "Original title",
+      body: proposal.body,
+      tags: proposal.tags,
+      authorId: identity.subject,
+      status: "draft",
+      commentCount: 0,
+      likeCount: 0,
+      uniqueViewCount: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+  const nextProposal = { ...proposal, title: "Saved title" };
+  const reservation = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "draft-save-1",
+      operationKind: "save-draft",
+      postId: draftId,
+      expectedUpdatedAt: 1,
+      proposal: nextProposal,
+    });
+
+  const result = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.executeAttempt, {
+      attemptId: reservation.attemptId,
+      proposal: nextProposal,
+    });
+  expect(result).toMatchObject({
+    postId: draftId,
+    status: "draft",
+  });
+
+  await expect(
+    t.run(async (ctx) => ctx.db.get(draftId)),
+  ).resolves.toMatchObject({
+    title: "Saved title",
+    updatedAt: result.updatedAt,
+  });
+  await expect(
+    t.withIdentity(identity).mutation(api.writeAttempts.executeAttempt, {
+      attemptId: reservation.attemptId,
+      proposal: nextProposal,
+    }),
+  ).resolves.toEqual(result);
+  await expect(
+    t.withIdentity(identity).mutation(api.writeAttempts.executeAttempt, {
+      attemptId: reservation.attemptId,
+      proposal: { ...nextProposal, title: "Tampered title" },
+    }),
+  ).rejects.toThrow("Request binding mismatch");
+});
+
+it("publishes a reserved proposal and applies a versioned published update", async () => {
+  const t = convexTest(schema, modules);
+  register(t);
+  const now = Date.now();
+  const identity = await t.run(async (ctx) => {
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Publisher",
+          email: "publisher-write@example.com",
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: "publisher-write-session",
+            expiresAt: now + 60_000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+  await t.withIdentity(identity).mutation(api.users.syncUser, {});
+
+  const publishedProposal = {
+    ...proposal,
+    title: "Published title",
+    body: JSON.stringify({
+      format: "blocknote@1",
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "This publication has enough readable content.",
+            },
+          ],
+        },
+      ],
+    }),
+  };
+  const publication = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "publish-1",
+      operationKind: "publish",
+      proposal: publishedProposal,
+    });
+  const published = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.executeAttempt, {
+      attemptId: publication.attemptId,
+      proposal: publishedProposal,
+    });
+  expect(published.status).toBe("published");
+
+  const updateProposal = { ...publishedProposal, title: "Updated title" };
+  const update = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "update-1",
+      operationKind: "update-post",
+      postId: published.postId,
+      expectedUpdatedAt: published.updatedAt,
+      proposal: updateProposal,
+    });
+  const updated = await t
+    .withIdentity(identity)
+    .mutation(api.writeAttempts.executeAttempt, {
+      attemptId: update.attemptId,
+      proposal: updateProposal,
+    });
+
+  expect(updated.updatedAt).toBeGreaterThan(published.updatedAt);
+  await expect(
+    t.run(async (ctx) => ctx.db.get(published.postId)),
+  ).resolves.toMatchObject({
+    title: "Updated title",
+    status: "published",
+    updatedAt: updated.updatedAt,
+  });
+});

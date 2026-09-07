@@ -354,6 +354,46 @@ export default defineSchema({
     lockedUntil: v.number(),
   }).index("by_key", ["key"]),
 
+  /**
+   * Author-bound reservations for deliberate draft saves and public writes.
+   * The proposal and fingerprint are immutable request identity; the outcome
+   * is added by the execution boundary once the write commits.
+   */
+  writeAttempts: defineTable({
+    userId: v.string(),
+    clientRequestId: v.string(),
+    operationKind: v.union(
+      v.literal("save-draft"),
+      v.literal("publish"),
+      v.literal("update-post"),
+    ),
+    postId: v.optional(v.id("posts")),
+    expectedUpdatedAt: v.optional(v.number()),
+    fingerprint: v.string(),
+    expiresAt: v.number(),
+    outcome: v.optional(
+      v.union(
+        v.object({
+          kind: v.literal("succeeded"),
+          postId: v.id("posts"),
+          updatedAt: v.number(),
+          status: v.union(v.literal("draft"), v.literal("published")),
+        }),
+        v.object({
+          kind: v.literal("failed"),
+          category: v.string(),
+          message: v.string(),
+        }),
+        v.object({
+          kind: v.literal("indeterminate"),
+          message: v.string(),
+        }),
+      ),
+    ),
+  })
+    .index("by_userId_and_clientRequestId", ["userId", "clientRequestId"])
+    .index("by_expiresAt", ["expiresAt"]),
+
   /** Durable cursor state for bounded published-post deletion. */
   postDeletionJobs: defineTable({
     postId: v.id("posts"),

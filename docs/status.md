@@ -144,8 +144,10 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   database content is disposable test data: implementation must not add
   migrations, backfills, dual reads/writes, or compatibility fields. Runtime
   capacity/Search/browser evidence remains explicitly gated. Track 2 Task 1 is
-  implementing the pure canonical proposal, fingerprint, error, and body-text
-  contracts; no Convex write path or schema has changed yet. Task boundaries
+  complete, and Task 2 now adds author-bound write reservations, canonical
+  proposal fingerprints, expiry, atomic post writes, and successful outcome
+  replay. No migration, backfill, dual read/write, or compatibility field was
+  added. Task boundaries
   also require human review/commit gates and an explicit compaction/handoff
   resume record before work continues. The development-only plans, spec, and
   visual helpers are ignored by Git and must not be staged or tracked.

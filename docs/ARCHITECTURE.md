@@ -125,9 +125,11 @@ resonance/
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
-│   ├── posts.ts                # saveDraft/publishPost/updatePublishedPost (owner-scoped drafts,
+│   ├── posts.ts                # attempt-bound saveDraft/publishPost/updatePublishedPost (owner-scoped drafts,
 │   │                           # published edits, tag validation,
 │   │                           # and claim transitions),
+│   ├── writeAttempts.ts        # Author-bound write reservations, fingerprints, expiry,
+│   │                           # and successful outcome replay
 │   │                           # owner-bound upload session lifecycle and detail URL hydration;
 │   │                           # getPosts, getPostById, getPostsByAuthorId,
 │   │                           # countPosts queries (countPosts reads the stats table);
@@ -533,7 +535,13 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   (`storageId`, nonblank `altText`, optional `caption`) and no children/content.
   `saveDraft` verifies owner-bound, unexpired claims and binds each unique
   claim to the draft; `publishPost` consumes those claims in the publication
-  transaction.
+  transaction. Each deliberate author write first reserves a `writeAttempts`
+  row containing the server-derived author, operation kind, target/version,
+  canonical proposal fingerprint, and 24-hour expiry. The attempt-bound write
+  mutations validate the exact proposal and atomically persist the post,
+  upload claims, projections, counters, and scheduled effects. A completed
+  successful attempt replays its stored outcome without repeating side effects;
+  mismatched, expired, missing, or foreign attempts are rejected.
 
 - **Detail hydration** — `getPostById` extracts unique image storage IDs in
   document order, resolves their URLs in parallel, and returns one

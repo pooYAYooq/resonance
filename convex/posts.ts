@@ -15,12 +15,7 @@ import {
 } from "convex/server";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { FANOUT_BATCH_SIZE } from "./notifications";
-import { FEED_BATCH_SIZE } from "./feed";
-import {
-  isCanonicalPostTag,
-  isValidPostTags,
-} from "../lib/constants/post-tags";
+import { isCanonicalPostTag } from "../lib/constants/post-tags";
 import {
   MAX_POST_TEXT_LENGTH,
   MIN_POST_TEXT_LENGTH,
@@ -28,20 +23,10 @@ import {
   extractImageStorageIds,
   parsePostBody,
 } from "../lib/post-content";
-import {
-  getPublishedPost,
-  validateDraftUploadClaims,
-  validatePublishedEditUploadClaims,
-} from "./postLifecycle";
-import {
-  decrementPostCountInTransaction,
-  incrementPostCountInTransaction,
-} from "./stats";
-import {
-  deletePublishedPostProjection,
-  syncPublishedPostProjection,
-} from "./discoverProjection";
-import { mergeCleanupStorageState } from "./postDeletion";
+import { getPublishedPost } from "./postLifecycle";
+import { executeOwnedAttempt, writeProposalValidator } from "./writeAttempts";
+import { decrementPostCountInTransaction } from "./stats";
+import { deletePublishedPostProjection } from "./discoverProjection";
 import { adjustPublishedPostCount } from "./profilePostCount";
 const MAX_PUBLIC_PAGE_SIZE = 20;
 const postFieldsValidator = {
@@ -189,208 +174,51 @@ export function validateInlineUploadClaims(
   });
 }
 
-function getReferencedStorageIds(
-  body: string,
-  imageStorageId?: Id<"_storage">,
-): Id<"_storage">[] {
-  const document = getStructuredPostBody(body);
-  if (!document) return [];
-  return [
-    ...(imageStorageId === undefined ? [] : [imageStorageId]),
-    ...(extractImageStorageIds(document.blocks) as Id<"_storage">[]),
-  ];
-}
-
 export const saveDraft = mutation({
   args: {
-    draftId: v.optional(v.id("posts")),
-    title: v.string(),
-    body: v.string(),
-    tags: v.optional(v.array(v.string())),
-    imageStorageId: v.optional(v.id("_storage")),
+    attemptId: v.id("writeAttempts"),
+    proposal: writeProposalValidator,
   },
   returns: v.object({
-    draftId: v.id("posts"),
+    postId: v.id("posts"),
     updatedAt: v.number(),
+    status: v.literal("draft"),
   }),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) throw new ConvexError("Unauthorized");
-
-    const tags = args.tags ?? [];
-    if (args.title.length > 100) throw new ConvexError("Invalid title");
-    if (!isValidDraftPostBody(args.body)) {
-      throw new ConvexError("Invalid content");
-    }
-    if (!isValidPostTags(tags)) throw new ConvexError("Invalid tags");
-
-    const now = Date.now();
-    const draft =
-      args.draftId === undefined ? null : await ctx.db.get(args.draftId);
-    if (
-      args.draftId !== undefined &&
-      (!draft || draft.authorId !== user._id || draft.status !== "draft")
-    ) {
-      throw new ConvexError("Post not found.");
-    }
-
-    const referencedStorageIds = getReferencedStorageIds(
-      args.body,
-      args.imageStorageId,
-    );
-    const claimIds = await validateDraftUploadClaims(
+    const result = await executeOwnedAttempt(
       ctx,
-      referencedStorageIds,
       user._id,
-      now,
-      draft?._id,
+      args.attemptId,
+      args.proposal,
+      "save-draft",
     );
-    const retainedStorageIds = new Set(referencedStorageIds);
-
-    if (draft) {
-      const removedStorageIds = getReferencedStorageIds(
-        draft.body,
-        draft.imageStorageId,
-      ).filter((storageId) => !retainedStorageIds.has(storageId));
-      const existingCleanupJob = await ctx.db
-        .query("draftUploadCleanupJobs")
-        .withIndex("by_postId", (q) => q.eq("postId", draft._id))
-        .unique();
-      const merged = mergeCleanupStorageState(
-        existingCleanupJob?.storageIds ?? [],
-        removedStorageIds,
-        referencedStorageIds,
-      );
-      const leaseVersion = (existingCleanupJob?.leaseVersion ?? 0) + 1;
-      const cleanupJobId =
-        existingCleanupJob?._id ??
-        (await ctx.db.insert("draftUploadCleanupJobs", {
-          postId: draft._id,
-          cursor: null,
-          lockedUntil: 0,
-          updatedAt: now,
-          storageIds: merged.storageIds as Id<"_storage">[],
-          retainedStorageIds: merged.retainedStorageIds as Id<"_storage">[],
-          removeConsumed: false,
-          leaseVersion,
-        }));
-      if (existingCleanupJob) {
-        await ctx.db.patch(existingCleanupJob._id, {
-          cursor: null,
-          lockedUntil: 0,
-          updatedAt: now,
-          storageIds: merged.storageIds as Id<"_storage">[],
-          retainedStorageIds: merged.retainedStorageIds as Id<"_storage">[],
-          removeConsumed: false,
-          leaseVersion,
-        });
-      }
-      await ctx.db.patch(draft._id, {
-        title: args.title,
-        body: args.body,
-        tags,
-        imageStorageId: args.imageStorageId,
-        updatedAt: now,
-      });
-      await ctx.scheduler.runAfter(
-        0,
-        internal.postDeletion.continueDraftUploadCleanup,
-        { jobId: cleanupJobId, leaseVersion },
-      );
-    } else {
-      const draftId = await ctx.db.insert("posts", {
-        title: args.title,
-        body: args.body,
-        tags,
-        imageStorageId: args.imageStorageId,
-        authorId: user._id,
-        status: "draft",
-        commentCount: 0,
-        likeCount: 0,
-        uniqueViewCount: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
-      for (const claimId of claimIds) {
-        await ctx.db.patch(claimId, {
-          postId: draftId,
-          expiresAt: Number.MAX_SAFE_INTEGER,
-        });
-      }
-      return { draftId, updatedAt: now };
-    }
-
-    for (const claimId of claimIds) {
-      await ctx.db.patch(claimId, {
-        postId: draft._id,
-        expiresAt: Number.MAX_SAFE_INTEGER,
-      });
-    }
-    return { draftId: draft._id, updatedAt: now };
+    return { ...result, status: "draft" as const };
   },
 });
 
 export const publishPost = mutation({
-  args: { draftId: v.id("posts") },
-  returns: v.id("posts"),
+  args: {
+    attemptId: v.id("writeAttempts"),
+    proposal: writeProposalValidator,
+  },
+  returns: v.object({
+    postId: v.id("posts"),
+    updatedAt: v.number(),
+    status: v.literal("published"),
+  }),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) throw new ConvexError("Unauthorized");
-
-    const draft = await ctx.db.get(args.draftId);
-    if (!draft || draft.authorId !== user._id || draft.status !== "draft") {
-      throw new ConvexError("Post not found.");
-    }
-    if (
-      draft.title.trim().length === 0 ||
-      !isValidPublishPostBody(draft.body)
-    ) {
-      throw new ConvexError("Invalid content");
-    }
-    if (!isValidPostTags(draft.tags)) {
-      throw new ConvexError("Invalid tags");
-    }
-
-    const now = Date.now();
-    const referencedStorageIds = getReferencedStorageIds(
-      draft.body,
-      draft.imageStorageId,
-    );
-    const claimIds = await validateDraftUploadClaims(
+    const result = await executeOwnedAttempt(
       ctx,
-      referencedStorageIds,
       user._id,
-      now,
-      draft._id,
+      args.attemptId,
+      args.proposal,
+      "publish",
     );
-
-    await ctx.db.patch(draft._id, {
-      status: "published",
-      publishedAt: now,
-      updatedAt: now,
-    });
-    for (const claimId of claimIds) {
-      await ctx.db.patch(claimId, {
-        consumedAt: now,
-        expiresAt: Number.MAX_SAFE_INTEGER,
-      });
-    }
-    await incrementPostCountInTransaction(ctx);
-    await adjustPublishedPostCount(ctx, draft.authorId, 1);
-    await syncPublishedPostProjection(ctx, draft._id);
-    await ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, {
-      postId: draft._id,
-      authorId: draft.authorId,
-      paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
-    });
-    await ctx.scheduler.runAfter(0, internal.feed.fanOutForPost, {
-      postId: draft._id,
-      authorId: draft.authorId,
-      paginationOpts: { numItems: FEED_BATCH_SIZE, cursor: null },
-      retryCount: 0,
-    });
-
-    return draft._id;
+    return { ...result, status: "published" as const };
   },
 });
 
@@ -539,116 +367,25 @@ export const getPublishedPostForEditing = query({
 
 export const updatePublishedPost = mutation({
   args: {
-    postId: v.id("posts"),
-    title: v.string(),
-    body: v.string(),
-    tags: v.optional(v.array(v.string())),
-    imageStorageId: v.optional(v.id("_storage")),
+    attemptId: v.id("writeAttempts"),
+    proposal: writeProposalValidator,
   },
-  returns: v.id("posts"),
+  returns: v.object({
+    postId: v.id("posts"),
+    updatedAt: v.number(),
+    status: v.literal("published"),
+  }),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) throw new ConvexError("Unauthorized");
-
-    const post = await ctx.db.get(args.postId);
-    if (
-      !post ||
-      post.authorId !== user._id ||
-      post.status !== "published" ||
-      post.publishedAt === undefined
-    ) {
-      throw new ConvexError("Post not found.");
-    }
-
-    const tags = args.tags ?? [];
-    if (args.title.trim().length === 0 || args.title.length > 100) {
-      throw new ConvexError("Invalid title");
-    }
-    if (!isValidPublishPostBody(args.body)) {
-      throw new ConvexError("Invalid content");
-    }
-    if (!isValidPostTags(tags)) throw new ConvexError("Invalid tags");
-
-    const now = Date.now();
-    const oldStorageIds = getReferencedStorageIds(
-      post.body,
-      post.imageStorageId,
-    );
-    const submittedStorageIds = getReferencedStorageIds(
-      args.body,
-      args.imageStorageId,
-    );
-    const claimIds = await validatePublishedEditUploadClaims(
+    const result = await executeOwnedAttempt(
       ctx,
-      oldStorageIds,
-      submittedStorageIds,
       user._id,
-      now,
-      post._id,
+      args.attemptId,
+      args.proposal,
+      "update-post",
     );
-    const updatedAt = Math.max(now, post.publishedAt, post.updatedAt) + 1;
-    const previousTags = post.tags;
-    const retainedStorageSet = new Set(submittedStorageIds);
-    const removedStorageIds = oldStorageIds.filter(
-      (storageId) => !retainedStorageSet.has(storageId),
-    );
-
-    await ctx.db.patch(post._id, {
-      title: args.title,
-      body: args.body,
-      tags,
-      imageStorageId: args.imageStorageId,
-      updatedAt,
-    });
-    for (const claimId of claimIds) {
-      await ctx.db.patch(claimId, {
-        consumedAt: updatedAt,
-        expiresAt: Number.MAX_SAFE_INTEGER,
-      });
-    }
-    const existingCleanupJob = await ctx.db
-      .query("draftUploadCleanupJobs")
-      .withIndex("by_postId", (q) => q.eq("postId", post._id))
-      .unique();
-    if (removedStorageIds.length > 0 || existingCleanupJob) {
-      const merged = mergeCleanupStorageState(
-        existingCleanupJob?.storageIds ?? [],
-        removedStorageIds,
-        submittedStorageIds,
-      );
-      const leaseVersion = (existingCleanupJob?.leaseVersion ?? 0) + 1;
-      const cleanupJobId =
-        existingCleanupJob?._id ??
-        (await ctx.db.insert("draftUploadCleanupJobs", {
-          postId: post._id,
-          cursor: null,
-          lockedUntil: 0,
-          updatedAt,
-          storageIds: merged.storageIds as Id<"_storage">[],
-          retainedStorageIds: merged.retainedStorageIds as Id<"_storage">[],
-          removeConsumed: true,
-          leaseVersion,
-        }));
-      if (existingCleanupJob) {
-        await ctx.db.patch(existingCleanupJob._id, {
-          cursor: null,
-          updatedAt,
-          lockedUntil: 0,
-          storageIds: merged.storageIds as Id<"_storage">[],
-          retainedStorageIds: merged.retainedStorageIds as Id<"_storage">[],
-          removeConsumed: true,
-          leaseVersion,
-        });
-      }
-      await ctx.scheduler.runAfter(
-        0,
-        internal.postDeletion.continueDraftUploadCleanup,
-        { jobId: cleanupJobId, leaseVersion },
-      );
-    }
-    await syncPublishedPostProjection(ctx, post._id, previousTags);
-
-    return post._id;
+    return { ...result, status: "published" as const };
   },
 });
 
