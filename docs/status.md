@@ -135,6 +135,20 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
 - Phase 3A cross-cutting decisions:
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
 - Next focus: Phase 3A.3 — Writing & Management
+- Design-only specification:
+  [`Writing and Content Management`](superpowers/specs/2026-09-07-writing-management-design.md).
+  Sections 1-7 and final Q64-Q65 clarifications are approved. Section 7 includes
+  the minimal BlockNote interaction contract. The implementation roadmap and
+  four focused plans are now written under `superpowers/plans/`. Track 2 is the
+  required foundation, followed by Track 3, Track 1, and Track 4. Current
+  database content is disposable test data: implementation must not add
+  migrations, backfills, dual reads/writes, or compatibility fields. Runtime
+  capacity/Search/browser evidence remains explicitly gated. Track 2 Task 1 is
+  implementing the pure canonical proposal, fingerprint, error, and body-text
+  contracts; no Convex write path or schema has changed yet. Task boundaries
+  also require human review/commit gates and an explicit compaction/handoff
+  resume record before work continues. The development-only plans, spec, and
+  visual helpers are ignored by Git and must not be staged or tracked.
 
 ## Status maintenance
 
