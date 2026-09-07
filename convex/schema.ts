@@ -348,6 +348,25 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_expiresAt", ["expiresAt"]),
 
+  /**
+   * Short-lived protection for media retained by an active authoring session.
+   * These claims grant no source or post authority; they only prevent cleanup
+   * while an eligible session still has a live reference.
+   */
+  sessionMediaClaims: defineTable({
+    userId: v.string(),
+    sessionId: v.string(),
+    storageId: v.id("_storage"),
+    createdAt: v.number(),
+    renewedAt: v.number(),
+    expiresAt: v.number(),
+    releasedAt: v.optional(v.number()),
+    consumedAt: v.optional(v.number()),
+  })
+    .index("by_userId_and_sessionId", ["userId", "sessionId"])
+    .index("by_storageId", ["storageId"])
+    .index("by_expiresAt", ["expiresAt"]),
+
   /** Lease guarding the scheduled pending-upload cleanup chain. */
   pendingUploadCleanupLocks: defineTable({
     key: v.literal("pending-inline-uploads"),

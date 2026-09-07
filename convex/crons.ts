@@ -34,6 +34,13 @@ crons.interval(
 );
 
 crons.interval(
+  "expired session media claim cleanup",
+  { minutes: 15 },
+  internal.sessionMediaClaims.cleanupExpired,
+  { cursor: null },
+);
+
+crons.interval(
   "recover stale post deletion jobs",
   { minutes: 15 },
   internal.postDeletion.recoverStaleDeletionJobs,

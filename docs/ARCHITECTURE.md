@@ -140,6 +140,8 @@ resonance/
 │   ├── discoverBackfill.ts     # Bounded author-name repair continuation
 │   ├── pendingUploads.ts       # Owner-bound inline upload sessions, finalization,
 │   │                           # failed-submit cleanup, and bounded expiry cleanup
+│   ├── sessionMediaClaims.ts   # Short-lived owner/session media protection,
+│   │                           # bounded renewal, release, consumption, and cleanup
  │   ├── postDeletion.ts         # Versioned, leased bounded cleanup jobs for published
  │   │                           # deletion and draft/published-edit upload reclamation
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
@@ -542,6 +544,15 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   upload claims, projections, counters, and scheduled effects. A completed
   successful attempt replays its stored outcome without repeating side effects;
   mismatched, expired, missing, or foreign attempts are rejected.
+
+- **Active session media protection** — `sessionMediaClaims` records an
+  owner-bound `(sessionId, storageId)` protection claim separately from the
+  durable `pendingUploads` claim. Claims expire after one hour, renew no more
+  than every five minutes in bounded batches when the client reports a visible
+  active session, and are cleaned every 15 minutes. Released or consumed
+  claims no longer protect temporary storage. Upload and post-deletion cleanup
+  checks live session claims before deleting storage; session claims never
+  grant upload, post, or deletion authority.
 
 - **Detail hydration** — `getPostById` extracts unique image storage IDs in
   document order, resolves their URLs in parallel, and returns one

@@ -3,6 +3,7 @@ import { internalMutation, type MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { extractImageStorageIds, parsePostBody } from "../lib/post-content";
+import { hasActiveSessionMediaClaim } from "./sessionMediaClaims";
 
 const BATCH_SIZE = 100;
 const LEASE_MS = 30 * 60 * 1000;
@@ -45,6 +46,7 @@ async function deleteStorageIfUnclaimed(
   retainedStorageIds?: Set<string>,
 ): Promise<void> {
   if (storageId === undefined || retainedStorageIds?.has(storageId)) return;
+  if (await hasActiveSessionMediaClaim(ctx, storageId)) return;
   const claims = await ctx.db
     .query("pendingUploads")
     .withIndex("by_storageId", (q) => q.eq("storageId", storageId))

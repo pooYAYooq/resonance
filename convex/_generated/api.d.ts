@@ -27,6 +27,7 @@ import type * as postLifecycle from "../postLifecycle.js";
 import type * as postSummary from "../postSummary.js";
 import type * as posts from "../posts.js";
 import type * as profilePostCount from "../profilePostCount.js";
+import type * as sessionMediaClaims from "../sessionMediaClaims.js";
 import type * as stats from "../stats.js";
 import type * as users from "../users.js";
 import type * as writeAttempts from "../writeAttempts.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   postSummary: typeof postSummary;
   posts: typeof posts;
   profilePostCount: typeof profilePostCount;
+  sessionMediaClaims: typeof sessionMediaClaims;
   stats: typeof stats;
   users: typeof users;
   writeAttempts: typeof writeAttempts;

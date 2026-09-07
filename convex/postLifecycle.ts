@@ -16,6 +16,7 @@ import { adjustPublishedPostCount } from "./profilePostCount";
 import { syncPublishedPostProjection } from "./discoverProjection";
 import { FANOUT_BATCH_SIZE } from "./notifications";
 import { FEED_BATCH_SIZE } from "./feed";
+import { consumeSessionMediaClaims } from "./sessionMediaClaims";
 
 type WriteProposal = {
   title: string;
@@ -368,6 +369,7 @@ export async function executeSaveDraft(
       expiresAt: Number.MAX_SAFE_INTEGER,
     });
   }
+  await consumeSessionMediaClaims(ctx, userId, referencedStorageIds, updatedAt);
   return { postId, updatedAt, status: "draft" };
 }
 
@@ -442,6 +444,7 @@ export async function executePublish(
       expiresAt: Number.MAX_SAFE_INTEGER,
     });
   }
+  await consumeSessionMediaClaims(ctx, userId, referencedStorageIds, now);
   await incrementPostCountInTransaction(ctx);
   await adjustPublishedPostCount(ctx, userId, 1);
   await syncPublishedPostProjection(ctx, postId);
@@ -513,6 +516,7 @@ export async function executePublishedUpdate(
       expiresAt: Number.MAX_SAFE_INTEGER,
     });
   }
+  await consumeSessionMediaClaims(ctx, userId, submittedStorageIds, updatedAt);
   await scheduleDraftCleanup(
     ctx,
     post._id,
