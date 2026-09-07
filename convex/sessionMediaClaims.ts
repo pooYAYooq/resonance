@@ -122,23 +122,34 @@ export async function consumeSessionMediaClaims(
   consumedAt = Date.now(),
 ): Promise<void> {
   const uniqueStorageIds = [...new Set(storageIds)];
-  assertBatchSize(uniqueStorageIds);
-  for (const storageId of uniqueStorageIds) {
-    let cursor: string | null = null;
-    while (true) {
-      const page = await ctx.db
-        .query("sessionMediaClaims")
-        .withIndex("by_userId_and_storageId", (q) =>
-          q.eq("userId", userId).eq("storageId", storageId),
-        )
-        .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
-      for (const claim of page.page) {
-        if (claim.releasedAt === undefined && claim.consumedAt === undefined) {
-          await ctx.db.patch(claim._id, { consumedAt });
+  for (
+    let start = 0;
+    start < uniqueStorageIds.length;
+    start += MAX_SESSION_MEDIA_BATCH
+  ) {
+    for (const storageId of uniqueStorageIds.slice(
+      start,
+      start + MAX_SESSION_MEDIA_BATCH,
+    )) {
+      let cursor: string | null = null;
+      while (true) {
+        const page = await ctx.db
+          .query("sessionMediaClaims")
+          .withIndex("by_userId_and_storageId", (q) =>
+            q.eq("userId", userId).eq("storageId", storageId),
+          )
+          .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
+        for (const claim of page.page) {
+          if (
+            claim.releasedAt === undefined &&
+            claim.consumedAt === undefined
+          ) {
+            await ctx.db.patch(claim._id, { consumedAt });
+          }
         }
+        if (page.isDone) break;
+        cursor = page.continueCursor;
       }
-      if (page.isDone) break;
-      cursor = page.continueCursor;
     }
   }
 }
@@ -155,10 +166,6 @@ export const claim = mutation({
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx);
     const now = Date.now();
-    if (!(await hasOwnedPendingAsset(ctx, user._id, args.storageId, now))) {
-      throw new ConvexError("Media asset is not eligible for this session");
-    }
-
     const existing = (
       await getSessionClaim(ctx, user._id, args.sessionId, args.storageId)
     )[0];
@@ -173,6 +180,9 @@ export const claim = mutation({
         throw new ConvexError("Media claim has expired");
       }
       return { claimId: existing._id, expiresAt: existing.expiresAt };
+    }
+    if (!(await hasOwnedPendingAsset(ctx, user._id, args.storageId, now))) {
+      throw new ConvexError("Media asset is not eligible for this session");
     }
 
     const claimId = await ctx.db.insert("sessionMediaClaims", {

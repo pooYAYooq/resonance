@@ -381,9 +381,10 @@ export default defineSchema({
 
   /**
    * Author-bound reservations for deliberate draft saves and public writes.
-   * The proposal and fingerprint are immutable request identity; the outcome
-   * is added by the execution boundary after a committed write or a
-   * deterministic validation failure.
+   * The immutable request binding is the operation, target/version, and
+   * canonical proposal fingerprint. An outcome is added after a committed
+   * write or deterministic validation failure, then retained for bounded
+   * reconciliation after execution expiry.
    */
   writeAttempts: defineTable({
     userId: v.string(),

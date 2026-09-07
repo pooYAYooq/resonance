@@ -4,7 +4,7 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 3A.2 — Discover Foundations — shipped
+Phase 3A.3 — Writing & Management — current
 
 ## Next focus
 
@@ -134,7 +134,9 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   [`docs/PHASE_3A.md`](PHASE_3A.md)
 - Phase 3A cross-cutting decisions:
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
-- Next focus: Phase 3A.3 — Writing & Management, Track 3: Long-Form Content and Discovery
+- Current correction focus: Phase 3A.3 — Writing & Management, Track 2 backend
+  contracts. After this correction is human-reviewed and merged, continue in
+  the approved order: Track 3, then Track 1, then Track 4.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
   intentionally git-ignored).
@@ -149,10 +151,15 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   reconcile to an explicit indeterminate outcome when evidence is insufficient,
   and reservation, execution, media, and target ownership are isolated by
   account. No migration, backfill, dual read/write, or compatibility field was
-  added. Track 3 is next: Long-Form Content and Discovery. Task boundaries
-  also require human review/commit gates and an explicit compaction/handoff
-  resume record before work continues. The development-only plans, spec, and
-  visual helpers are ignored by Git and must not be staged or tracked.
+  added. Track 1 remains explicitly out of scope for this correction: it owns
+  unresolved attempt identity, same-attempt reconciliation after uncertain
+  results, blocking a new attempt until the prior result is authoritative or
+  acknowledged, and production claim/renew/release wiring. It does not promise
+  hard-reload recovery without a separately approved architecture. Task
+  boundaries also require human review/commit gates and an explicit
+  compaction/handoff resume record before work continues. The development-only
+  plans, spec, and visual helpers are ignored by Git and must not be staged or
+  tracked.
 
 ## Status maintenance
 

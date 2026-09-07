@@ -207,6 +207,37 @@ describe("session media claims", () => {
     expect(second.claimId).not.toBe(first.claimId);
   });
 
+  it("replays a live exact claim after its pending upload expires", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T00:00:00.000Z"));
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "replay@example.com");
+    const storageId = await createPendingAsset(t, identity.subject);
+    await t.run(async (ctx) => {
+      const pendingUpload = await ctx.db
+        .query("pendingUploads")
+        .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+        .unique();
+      if (!pendingUpload) throw new Error("Pending upload missing");
+      await ctx.db.patch(pendingUpload._id, { expiresAt: Date.now() + 1 });
+    });
+    const claimed = await t
+      .withIdentity(identity)
+      .mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId,
+      });
+
+    vi.advanceTimersByTime(2);
+
+    await expect(
+      t.withIdentity(identity).mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId,
+      }),
+    ).resolves.toEqual(claimed);
+  });
+
   it("renews only after the server interval for an active visible session", async () => {
     vi.useFakeTimers();
     const now = new Date("2026-09-07T00:00:00.000Z");
@@ -395,7 +426,7 @@ describe("session media claims", () => {
     ).rejects.toThrow("Too many media claims");
   });
 
-  it("keeps the 101st asset addressable across lifecycle batches", async () => {
+  it("consumes more than 100 internal session claims in one lifecycle call", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-07T00:00:00.000Z"));
     const t = convexTest(schema, modules);
@@ -481,16 +512,7 @@ describe("session media claims", () => {
           expiresAt: now + 60 * 60 * 1000,
         });
       }
-      await consumeSessionMediaClaims(
-        ctx,
-        identity.subject,
-        storageIds.slice(0, 100),
-      );
-      await consumeSessionMediaClaims(
-        ctx,
-        identity.subject,
-        storageIds.slice(100),
-      );
+      await consumeSessionMediaClaims(ctx, identity.subject, storageIds);
     });
     const consumedCount = await t.run(async (ctx) => {
       const claims = await ctx.db

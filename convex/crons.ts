@@ -41,6 +41,13 @@ crons.interval(
 );
 
 crons.interval(
+  "expired write attempt cleanup",
+  { hours: 24 },
+  internal.writeAttempts.cleanupExpired,
+  { cursor: null },
+);
+
+crons.interval(
   "recover stale post deletion jobs",
   { minutes: 15 },
   internal.postDeletion.recoverStaleDeletionJobs,

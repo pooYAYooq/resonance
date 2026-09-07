@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
 import { fingerprintProposal } from "../lib/write-contract";
 import type { MutationCtx } from "./_generated/server";
@@ -12,7 +13,13 @@ import {
   type WriteExecutionResult,
 } from "./postLifecycle";
 
-const ATTEMPT_TTL_MS = 24 * 60 * 60 * 1000;
+export const WRITE_ATTEMPT_EXECUTION_TTL_MS = 24 * 60 * 60 * 1000;
+export const WRITE_ATTEMPT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const WRITE_ATTEMPT_CLEANUP_BATCH_SIZE = 100;
+
+function getRetentionExpiresAt(attempt: Pick<WriteAttempt, "expiresAt">) {
+  return attempt.expiresAt + WRITE_ATTEMPT_RETENTION_MS;
+}
 
 export const writeProposalValidator = v.object({
   title: v.string(),
@@ -184,7 +191,7 @@ export const reserveAttempt = mutation({
       return { attemptId: existing._id, expiresAt: existing.expiresAt };
     }
 
-    const expiresAt = Date.now() + ATTEMPT_TTL_MS;
+    const expiresAt = Date.now() + WRITE_ATTEMPT_EXECUTION_TTL_MS;
     const attemptId = await ctx.db.insert("writeAttempts", {
       userId: user._id,
       clientRequestId: args.clientRequestId,
@@ -324,3 +331,30 @@ export async function executeOwnedAttempt(
   });
   return result;
 }
+
+export const cleanupExpired = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const retentionCutoff = Date.now() - WRITE_ATTEMPT_RETENTION_MS;
+    const page = await ctx.db
+      .query("writeAttempts")
+      .withIndex("by_expiresAt", (q) => q.lte("expiresAt", retentionCutoff))
+      .paginate({
+        numItems: WRITE_ATTEMPT_CLEANUP_BATCH_SIZE,
+        maximumRowsRead: WRITE_ATTEMPT_CLEANUP_BATCH_SIZE,
+        cursor: args.cursor,
+      });
+    for (const attempt of page.page) {
+      if (getRetentionExpiresAt(attempt) <= Date.now()) {
+        await ctx.db.delete(attempt._id);
+      }
+    }
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(0, internal.writeAttempts.cleanupExpired, {
+        cursor: page.continueCursor,
+      });
+    }
+    return null;
+  },
+});
