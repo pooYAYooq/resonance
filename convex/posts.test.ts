@@ -372,7 +372,7 @@ describe("posts functions", () => {
 
   it("rejects draft and publish mutations when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    const draftId = await t.run(async (ctx) =>
+    await t.run(async (ctx) =>
       ctx.db.insert("posts", {
         title: "Draft",
         body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
@@ -386,16 +386,43 @@ describe("posts functions", () => {
         updatedAt: 1,
       }),
     );
+    const attemptId = await t.run(async (ctx) =>
+      ctx.db.insert("writeAttempts", {
+        userId: "author-1",
+        clientRequestId: "unauthenticated-request",
+        operationKind: "save-draft",
+        fingerprint: "fingerprint",
+        expiresAt: Date.now() + 60_000,
+      }),
+    );
 
     await expect(
       t.mutation(api.posts.saveDraft, {
-        title: "",
-        body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
-        tags: [],
+        attemptId,
+        proposal: {
+          title: "",
+          body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+          tags: [],
+        },
       }),
     ).rejects.toThrow("Unauthorized");
     await expect(
-      t.mutation(api.posts.publishPost, { draftId }),
+      t.mutation(api.posts.publishPost, {
+        attemptId,
+        proposal: {
+          title: "Published",
+          body: JSON.stringify({
+            format: BLOCKNOTE_FORMAT,
+            blocks: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "Published content." }],
+              },
+            ],
+          }),
+          tags: [],
+        },
+      }),
     ).rejects.toThrow("Unauthorized");
   });
 
@@ -460,15 +487,127 @@ describe("posts functions", () => {
       return { postId, claimId, storageId };
     });
 
-    await t.withIdentity(identity).mutation(api.posts.saveDraft, {
-      draftId: ids.postId,
+    const proposal = {
       title: "Draft",
       body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
       tags: [],
+    };
+    const attempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "cleanup-save-1",
+        operationKind: "save-draft",
+        postId: ids.postId,
+        expectedUpdatedAt: 1,
+        proposal,
+      });
+    await t.withIdentity(identity).mutation(api.posts.saveDraft, {
+      attemptId: attempt.attemptId,
+      proposal,
     });
     await expect(
       t.run(async (ctx) => ctx.db.get(ids.claimId)),
     ).resolves.not.toBeNull();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await expect(
+      t.run(async (ctx) => ctx.db.get(ids.claimId)),
+    ).resolves.toBeNull();
+    await expect(
+      t.run(async (ctx) => ctx.storage.getUrl(ids.storageId)),
+    ).resolves.toBeNull();
+  });
+
+  it("cleans removed draft uploads when publishing the draft", async () => {
+    const t = convexTest(schema, modules);
+    register(t);
+    vi.useFakeTimers();
+    const identity = await t.run(async (ctx) => {
+      const now = Date.now();
+      const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "user",
+          data: {
+            name: "Publish owner",
+            email: "publish-cleanup@example.com",
+            emailVerified: true,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      });
+      const session = await ctx.runMutation(
+        components.betterAuth.adapter.create,
+        {
+          input: {
+            model: "session",
+            data: {
+              userId: user._id,
+              token: "publish-cleanup-session",
+              expiresAt: now + 60_000,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+        },
+      );
+      return { subject: user._id, sessionId: session._id };
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    const ids = await t.run(async (ctx) => {
+      const storageId = await ctx.storage.store(new Blob(["removed"]));
+      const postId = await ctx.db.insert("posts", {
+        title: "Draft",
+        body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
+        tags: [],
+        authorId: identity.subject,
+        imageStorageId: storageId,
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const claimId = await ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        postId,
+        storageId,
+        createdAt: 1,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+      return { postId, claimId, storageId };
+    });
+    const proposal = {
+      title: "Published draft",
+      body: JSON.stringify({
+        format: BLOCKNOTE_FORMAT,
+        blocks: [
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: "This published draft has enough readable content.",
+              },
+            ],
+          },
+        ],
+      }),
+      tags: [],
+    };
+    const attempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "cleanup-publish-1",
+        operationKind: "publish",
+        postId: ids.postId,
+        expectedUpdatedAt: 1,
+        proposal,
+      });
+    await t.withIdentity(identity).mutation(api.posts.publishPost, {
+      attemptId: attempt.attemptId,
+      proposal,
+    });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     await expect(
       t.run(async (ctx) => ctx.db.get(ids.claimId)),
@@ -553,12 +692,24 @@ describe("posts functions", () => {
       };
     });
 
-    await t.withIdentity(identity).mutation(api.posts.saveDraft, {
-      draftId: ids.postId,
+    const proposal = {
       title: "Draft",
       body: JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: [] }),
       tags: [],
       imageStorageId: ids.retainedStorageId,
+    };
+    const attempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "retained-save-1",
+        operationKind: "save-draft",
+        postId: ids.postId,
+        expectedUpdatedAt: 1,
+        proposal,
+      });
+    await t.withIdentity(identity).mutation(api.posts.saveDraft, {
+      attemptId: attempt.attemptId,
+      proposal,
     });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
@@ -651,10 +802,32 @@ describe("posts functions", () => {
         updatedAt: 1,
       }),
     );
-
-    await t
+    const proposal = {
+      title: "Publish me",
+      body: JSON.stringify({
+        format: BLOCKNOTE_FORMAT,
+        blocks: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Publishable content." }],
+          },
+        ],
+      }),
+      tags: [],
+    };
+    const attempt = await t
       .withIdentity(identity)
-      .mutation(api.posts.publishPost, { draftId: postId });
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "publish-existing-1",
+        operationKind: "publish",
+        postId,
+        expectedUpdatedAt: 1,
+        proposal,
+      });
+    await t.withIdentity(identity).mutation(api.posts.publishPost, {
+      attemptId: attempt.attemptId,
+      proposal,
+    });
     await expect(
       t.run(async (ctx) =>
         ctx.db
@@ -712,16 +885,29 @@ describe("posts functions", () => {
         updatedAt: 100,
       }),
     );
+    const attemptId = await t.run(async (ctx) =>
+      ctx.db.insert("writeAttempts", {
+        userId: "author-1",
+        clientRequestId: "unauthenticated-update",
+        operationKind: "update-post",
+        postId,
+        expectedUpdatedAt: 100,
+        fingerprint: "fingerprint",
+        expiresAt: Date.now() + 60_000,
+      }),
+    );
 
     expect(
       await t.query(api.posts.getPublishedPostForEditing, { postId }),
     ).toBeNull();
     await expect(
       t.mutation(api.posts.updatePublishedPost, {
-        postId,
-        title: "Updated title",
-        body: "Updated body content.",
-        tags: [],
+        attemptId,
+        proposal: {
+          title: "Updated title",
+          body: "Updated body content.",
+          tags: [],
+        },
       }),
     ).rejects.toThrow("Unauthorized");
   });

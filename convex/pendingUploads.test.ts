@@ -279,6 +279,89 @@ describe("pending upload functions", () => {
     expect(result.file).toBeNull();
   });
 
+  it("preserves storage protected by an active session media claim", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob([new Uint8Array([1])], { type: "image/png" })),
+    );
+    const ids = await t.run(async (ctx) => {
+      const pendingUploadId = await ctx.db.insert("pendingUploads", {
+        userId: "owner-1",
+        storageId,
+        createdAt: now - 2,
+        expiresAt: now - 1,
+      });
+      const sessionClaimId = await ctx.db.insert("sessionMediaClaims", {
+        userId: "owner-1",
+        sessionId: "editor-1",
+        storageId,
+        createdAt: now - 1,
+        renewedAt: now,
+        expiresAt: now + 60 * 60 * 1000,
+      });
+      return { pendingUploadId, sessionClaimId };
+    });
+
+    await t.mutation(internal.pendingUploads.cleanupExpired, { cursor: null });
+
+    const result = await t.run(async (ctx) => ({
+      pendingUpload: await ctx.db.get(ids.pendingUploadId),
+      sessionClaim: await ctx.db.get(ids.sessionClaimId),
+      hasFile: (await ctx.storage.get(storageId)) !== null,
+    }));
+    expect(result.pendingUpload?.expiresAt).toBeGreaterThan(Date.now());
+    expect(result.sessionClaim?._id).toBe(ids.sessionClaimId);
+    expect(result.hasFile).toBe(true);
+  });
+
+  it("extends pending authorization while active protection is live", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob([new Uint8Array([1])], { type: "image/png" })),
+    );
+    const ids = await t.run(async (ctx) => {
+      const pendingUploadId = await ctx.db.insert("pendingUploads", {
+        userId: "owner-1",
+        storageId,
+        createdAt: now - 2 * 60 * 60 * 1000,
+        expiresAt: now - 1,
+      });
+      const sessionClaimId = await ctx.db.insert("sessionMediaClaims", {
+        userId: "owner-1",
+        sessionId: "editor-1",
+        storageId,
+        createdAt: now - 60 * 60 * 1000,
+        renewedAt: now,
+        expiresAt: now + 60 * 60 * 1000,
+      });
+      return { pendingUploadId, sessionClaimId };
+    });
+
+    await t.mutation(internal.pendingUploads.cleanupExpired, { cursor: null });
+    const extended = await t.run(async (ctx) => ({
+      pendingUpload: await ctx.db.get(ids.pendingUploadId),
+      sessionClaim: await ctx.db.get(ids.sessionClaimId),
+    }));
+    expect(extended.pendingUpload?.expiresAt).toBeGreaterThan(now);
+    expect(extended.sessionClaim?._id).toBe(ids.sessionClaimId);
+
+    await t.run(async (ctx) =>
+      ctx.db.patch(ids.sessionClaimId, { expiresAt: Date.now() - 1 }),
+    );
+    await t.run(async (ctx) =>
+      ctx.db.patch(ids.pendingUploadId, { expiresAt: Date.now() - 1 }),
+    );
+    await t.mutation(internal.pendingUploads.cleanupExpired, { cursor: null });
+    const cleaned = await t.run(async (ctx) => ({
+      pendingUpload: await ctx.db.get(ids.pendingUploadId),
+      hasFile: (await ctx.storage.get(storageId)) !== null,
+    }));
+    expect(cleaned.pendingUpload).toBeNull();
+    expect(cleaned.hasFile).toBe(false);
+  });
+
   it("continues bounded cleanup without deleting another owner's live session", async () => {
     vi.useFakeTimers();
     const t = convexTest(schema, modules);

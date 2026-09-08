@@ -5,7 +5,7 @@ Use this checklist before requesting approval to open a pull request. It is inte
 1. Confirm the working tree contains only intended task changes plus any intentionally local, untracked planning artifacts.
 2. Read `docs/status.md` and verify the current delivery focus and next task are accurate.
 3. Mark completed plan steps and record any known limitations.
-4. Update `FEATURES.md` when tracked roadmap or delivery status changed; maintain exactly one item as `🔵 up next`.
+4. Update `FEATURES.md` when tracked roadmap or delivery status changed; maintain exactly one item as `🔵 Next On`.
 5. Update `docs/status.md` in the same change when the project resume point changed.
 6. Update `README.md` and `docs/ARCHITECTURE.md` only when their documented shipped behavior or architecture actually changed.
 7. Run the required verification commands from `AGENTS.md` and report the actual results.

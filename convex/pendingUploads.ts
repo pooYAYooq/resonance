@@ -11,6 +11,7 @@ import {
   isAllowedInlineImageType,
   MAX_INLINE_IMAGE_SIZE_BYTES,
 } from "../lib/inline-image";
+import { hasActiveSessionMediaClaim } from "./sessionMediaClaims";
 
 export const PENDING_UPLOAD_TTL_MS = 60 * 60 * 1000;
 const CLEANUP_BATCH_SIZE = 100;
@@ -22,6 +23,7 @@ async function deleteStorageIfUnclaimed(
   storageId: Id<"_storage"> | undefined,
 ): Promise<void> {
   if (storageId === undefined) return;
+  if (await hasActiveSessionMediaClaim(ctx, storageId)) return;
   const claims = await ctx.db
     .query("pendingUploads")
     .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
@@ -252,6 +254,15 @@ export const cleanupExpired = internalMutation({
 
     for (const session of page.page) {
       if (session.postId !== undefined) {
+        continue;
+      }
+      if (
+        session.storageId !== undefined &&
+        (await hasActiveSessionMediaClaim(ctx, session.storageId))
+      ) {
+        await ctx.db.patch(session._id, {
+          expiresAt: now + PENDING_UPLOAD_TTL_MS,
+        });
         continue;
       }
       await ctx.db.delete(session._id);

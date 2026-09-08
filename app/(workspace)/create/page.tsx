@@ -76,6 +76,9 @@ export default function CreateRoute() {
 function CreateEditor() {
   const [isPending, startTransition] = useTransition();
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
+  const [persistedUpdatedAt, setPersistedUpdatedAt] = useState<
+    number | undefined
+  >();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
   const [initialContent, setInitialContent] = useState<BlockNoteDocument>();
   const [resolvedImageUrls, setResolvedImageUrls] = useState<
@@ -112,6 +115,7 @@ function CreateEditor() {
   const saveDraft = useMutation(api.posts.saveDraft);
   const publishPost = useMutation(api.posts.publishPost);
   const updatePublishedPost = useMutation(api.posts.updatePublishedPost);
+  const reserveAttempt = useMutation(api.writeAttempts.reserveAttempt);
   const inlineSessions = useRef(
     new Map<Id<"pendingUploads">, Id<"_storage">>(),
   );
@@ -143,6 +147,7 @@ function CreateEditor() {
           image: undefined,
         });
         setDraftId(undefined);
+        setPersistedUpdatedAt(undefined);
         setCoverStorageId(undefined);
         setInitialContent(emptyDocument);
         setResolvedImageUrls({});
@@ -195,6 +200,7 @@ function CreateEditor() {
         image: undefined,
       });
       if (editorMode.mode === "draft") setDraftId(target._id);
+      setPersistedUpdatedAt(target.updatedAt);
       setCoverStorageId(target.imageStorageId ?? undefined);
       setInitialContent(parsed.document);
       setResolvedImageUrls(
@@ -291,29 +297,54 @@ function CreateEditor() {
             storageId: currentStorageId,
           }));
 
-        if (editorMode.mode === "published-edit") {
-          await updatePublishedPost({
-            postId: editorMode.id as Id<"posts">,
-            title: values.title,
-            body: JSON.stringify(values.content),
-            tags: values.tags,
-            ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
-          });
-        } else {
-          const saved = await saveDraft({
-            ...(draftId && { draftId }),
-            title: values.title,
-            body: JSON.stringify(values.content),
-            tags: values.tags,
-            ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
-          });
-          draftSaved = true;
-          setDraftId(saved.draftId);
+        const proposal = {
+          title: values.title,
+          body: JSON.stringify(values.content),
+          tags: values.tags,
+          ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
+        };
+        const operationKind =
+          editorMode.mode === "published-edit"
+            ? "update-post"
+            : mode === "publish"
+              ? "publish"
+              : "save-draft";
+        const operationTarget =
+          editorMode.mode === "published-edit"
+            ? (editorMode.id as Id<"posts">)
+            : draftId;
+        const reservation = await reserveAttempt({
+          clientRequestId: crypto.randomUUID(),
+          operationKind,
+          ...(operationTarget && { postId: operationTarget }),
+          ...(persistedUpdatedAt !== undefined && {
+            expectedUpdatedAt: persistedUpdatedAt,
+          }),
+          proposal,
+        });
+        const result =
+          editorMode.mode === "published-edit"
+            ? await updatePublishedPost({
+                attemptId: reservation.attemptId,
+                proposal,
+              })
+            : mode === "publish"
+              ? await publishPost({
+                  attemptId: reservation.attemptId,
+                  proposal,
+                })
+              : await saveDraft({
+                  attemptId: reservation.attemptId,
+                  proposal,
+                });
+        if (result.kind === "failed") {
+          throw new Error(result.message);
+        }
+        draftSaved = mode === "draft";
+        setPersistedUpdatedAt(result.updatedAt);
+        if (result.status === "draft") {
+          setDraftId(result.postId);
           setCoverStorageId(savedCoverStorageId);
-
-          if (mode === "publish") {
-            await publishPost({ draftId: saved.draftId });
-          }
         }
         mutationSucceeded = true;
 

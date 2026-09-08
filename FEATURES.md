@@ -19,7 +19,7 @@
 Feature status is managed with five labels:
 
 - **Now** — actively being implemented.
-- **Next** — the next agreed delivery focus.
+- **Next On** — the next agreed delivery focus.
 - **Later** — planned, but not scheduled.
 - **Deferred** — intentionally postponed; revisit when its trigger is met.
 - **Shipped** — available in the product.
@@ -35,7 +35,7 @@ Feature status is managed with five labels:
 | Phase 3A.0 — UX Correctness         | Public reading, auth returns, viewer state, publishing, honest claims   | ✅ Complete |
 | Phase 3A.1 — Product Structure      | Shells, navigation, reader utilities, Profile/Settings, analytics       | ✅ Shipped  |
 | Phase 3A.2 — Discover Foundations   | Search, Topics, Latest, Feed recovery; Hot remains deferred             | ✅ Shipped  |
-| Phase 3A.3 — Writing & Management   | Writing environment, review/publish, management, deletion               | 🔵 Next     |
+| Phase 3A.3 — Writing & Management   | Writing environment, review/publish, management, deletion               | 🔵 Now      |
 | Phase 3A.4 — Identity & Engagement  | Profiles, Notifications, collections, contextual post presentation      | 🟡 Later    |
 | Phase 3A.5 — Visual System & Polish | Typography, color, density, states, responsive interaction              | 🟡 Later    |
 | Phase 3 — The Platform              | Moderation, AI, subscriptions, digest                                   | 🟡 Later    |
@@ -57,6 +57,15 @@ map, delivery
 slices, sequencing rules, and deferrals are maintained in
 [`docs/PHASE_3A.md`](docs/PHASE_3A.md). Section 18 scope areas are not a rigid
 implementation order.
+
+### Phase 3A.3 Track Status
+
+| Track   | Delivery focus                                | Status     |
+| ------- | --------------------------------------------- | ---------- |
+| Track 2 | Persistence, Retry, Session, and Media Safety | ✅ Shipped |
+| Track 3 | Long-Form Content and Discovery               | 🔵 Next On |
+| Track 1 | Authoring Workspace and BlockNote Experience  | 🟡 Later   |
+| Track 4 | Management, Navigation, and Accessibility     | 🟡 Later   |
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes

@@ -125,9 +125,11 @@ resonance/
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
-│   ├── posts.ts                # saveDraft/publishPost/updatePublishedPost (owner-scoped drafts,
+│   ├── posts.ts                # attempt-bound saveDraft/publishPost/updatePublishedPost (owner-scoped drafts,
 │   │                           # published edits, tag validation,
 │   │                           # and claim transitions),
+│   ├── writeAttempts.ts        # Author-bound write reservations, fingerprints, expiry,
+│   │                           # and successful outcome replay
 │   │                           # owner-bound upload session lifecycle and detail URL hydration;
 │   │                           # getPosts, getPostById, getPostsByAuthorId,
 │   │                           # countPosts queries (countPosts reads the stats table);
@@ -138,6 +140,8 @@ resonance/
 │   ├── discoverBackfill.ts     # Bounded author-name repair continuation
 │   ├── pendingUploads.ts       # Owner-bound inline upload sessions, finalization,
 │   │                           # failed-submit cleanup, and bounded expiry cleanup
+│   ├── sessionMediaClaims.ts   # Short-lived owner/session media protection,
+│   │                           # bounded renewal, release, consumption, and cleanup
  │   ├── postDeletion.ts         # Versioned, leased bounded cleanup jobs for published
  │   │                           # deletion and draft/published-edit upload reclamation
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
@@ -533,7 +537,22 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   (`storageId`, nonblank `altText`, optional `caption`) and no children/content.
   `saveDraft` verifies owner-bound, unexpired claims and binds each unique
   claim to the draft; `publishPost` consumes those claims in the publication
-  transaction.
+  transaction. Each deliberate author write first reserves a `writeAttempts`
+  row containing the server-derived author, operation kind, target/version,
+  canonical proposal fingerprint, and 24-hour expiry. The attempt-bound write
+  mutations validate the exact proposal and atomically persist the post,
+  upload claims, projections, counters, and scheduled effects. A completed
+  successful attempt replays its stored outcome without repeating side effects;
+  mismatched, expired, missing, or foreign attempts are rejected.
+
+- **Active session media protection** — `sessionMediaClaims` records an
+  owner-bound `(sessionId, storageId)` protection claim separately from the
+  durable `pendingUploads` claim. Claims expire after one hour, renew no more
+  than every five minutes in bounded batches when the client reports a visible
+  active session, and are cleaned every 15 minutes. Released or consumed
+  claims no longer protect temporary storage. Upload and post-deletion cleanup
+  checks live session claims before deleting storage; session claims never
+  grant upload, post, or deletion authority.
 
 - **Detail hydration** — `getPostById` extracts unique image storage IDs in
   document order, resolves their URLs in parallel, and returns one

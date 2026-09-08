@@ -348,11 +348,78 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_expiresAt", ["expiresAt"]),
 
+  /**
+   * Short-lived protection for media retained by an active authoring session.
+   * These claims grant no source or post authority; they only prevent cleanup
+   * while an eligible session still has a live reference.
+   */
+  sessionMediaClaims: defineTable({
+    userId: v.string(),
+    sessionId: v.string(),
+    storageId: v.id("_storage"),
+    createdAt: v.number(),
+    renewedAt: v.number(),
+    expiresAt: v.number(),
+    releasedAt: v.optional(v.number()),
+    consumedAt: v.optional(v.number()),
+  })
+    .index("by_userId_and_sessionId", ["userId", "sessionId"])
+    .index("by_userId_and_sessionId_and_storageId", [
+      "userId",
+      "sessionId",
+      "storageId",
+    ])
+    .index("by_userId_and_storageId", ["userId", "storageId"])
+    .index("by_storageId", ["storageId"])
+    .index("by_expiresAt", ["expiresAt"]),
+
   /** Lease guarding the scheduled pending-upload cleanup chain. */
   pendingUploadCleanupLocks: defineTable({
     key: v.literal("pending-inline-uploads"),
     lockedUntil: v.number(),
   }).index("by_key", ["key"]),
+
+  /**
+   * Author-bound reservations for deliberate draft saves and public writes.
+   * The immutable request binding is the operation, target/version, and
+   * canonical proposal fingerprint. An outcome is added after a committed
+   * write or deterministic validation failure, then retained for bounded
+   * reconciliation after execution expiry.
+   */
+  writeAttempts: defineTable({
+    userId: v.string(),
+    clientRequestId: v.string(),
+    operationKind: v.union(
+      v.literal("save-draft"),
+      v.literal("publish"),
+      v.literal("update-post"),
+    ),
+    postId: v.optional(v.id("posts")),
+    expectedUpdatedAt: v.optional(v.number()),
+    fingerprint: v.string(),
+    expiresAt: v.number(),
+    outcome: v.optional(
+      v.union(
+        v.object({
+          kind: v.literal("succeeded"),
+          postId: v.id("posts"),
+          updatedAt: v.number(),
+          status: v.union(v.literal("draft"), v.literal("published")),
+        }),
+        v.object({
+          kind: v.literal("failed"),
+          category: v.string(),
+          message: v.string(),
+        }),
+        v.object({
+          kind: v.literal("indeterminate"),
+          message: v.string(),
+        }),
+      ),
+    ),
+  })
+    .index("by_userId_and_clientRequestId", ["userId", "clientRequestId"])
+    .index("by_expiresAt", ["expiresAt"]),
 
   /** Durable cursor state for bounded published-post deletion. */
   postDeletionJobs: defineTable({

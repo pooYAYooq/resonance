@@ -86,7 +86,7 @@ no docs.
 
 - Use `docs/status.md` as the first place to resume work after an absence.
 - When a task or plan step is genuinely complete, update its checkbox in the relevant plan and update `docs/status.md` in the same change when the resume point changes.
-- When a tracked delivery item ships, update `FEATURES.md` and `docs/status.md`, then mark exactly one next delivery focus as `🔵 up next`.
+- When a tracked delivery item ships, update `FEATURES.md` and `docs/status.md`, then mark exactly one next delivery focus as `🔵 Next On`.
 - Do not assume implementation must follow roadmap phase numbering. Use the currently approved product/system slice or task as the delivery unit.
 - Never mark work complete without fresh verification evidence. Record known limitations rather than marking incomplete work as complete.
 - Before preparing a PR, follow the local procedure in `docs/PR_CHECKLIST.md`. This is an agent workflow document, not a GitHub PR template.

@@ -4,7 +4,7 @@ This is the resume point for returning to Resonance after time away.
 
 ## Current phase
 
-Phase 3A.2 — Discover Foundations — shipped
+Phase 3A.3 — Writing & Management — current
 
 ## Next focus
 
@@ -106,6 +106,12 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   from user creation onward with no backfill state, and rejected inline image
   finalization reclaims its session and unclaimed storage object. Existing
   deletion analytics and public return-validator corrections remain intact.
+- Track 2 final verification — `pnpm lint` passed; focused `pnpm test:ci --
+  convex/writeAttempts.test.ts convex/posts.test.ts
+  convex/sessionMediaClaims.test.ts convex/pendingUploads.test.ts
+  lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
+  tests; `pnpm build` and `git diff --check` passed. The passing test run still
+  emits the known Convex-test scheduled-function rollback warning.
 
 ## Completed phases
 
@@ -134,7 +140,33 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   [`docs/PHASE_3A.md`](PHASE_3A.md)
 - Phase 3A cross-cutting decisions:
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
-- Next focus: Phase 3A.3 — Writing & Management
+- Track 2 final verification is complete. Continue with Phase 3A.3 — Writing &
+  Management, Track 3: Long-Form Content and Discovery. Track 1 then Track 4
+  follow in the approved order.
+- Design-only specification:
+  Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
+  intentionally git-ignored).
+  Sections 1-7 and final Q64-Q65 clarifications are approved. Section 7 includes
+  the minimal BlockNote interaction contract. The implementation roadmap and
+  four focused plans are now written under `superpowers/plans/`. Track 2 is the
+  required foundation, followed by Track 3, Track 1, and Track 4. Current
+  database content is disposable test data: implementation must not add
+  migrations, backfills, dual reads/writes, or compatibility fields. Runtime
+  capacity/Search/browser evidence remains explicitly gated. Track 2 Tasks 1
+  through 4 are implemented, reviewed, committed, and finally verified.
+  Expired attempts now
+  reconcile to an explicit indeterminate outcome when evidence is insufficient,
+  and reservation, execution, media, and target ownership are isolated by
+  account. No migration, backfill, dual read/write, or compatibility field was
+  added. Track 1 remains explicitly out of scope for this correction: it owns
+  unresolved attempt identity, same-attempt reconciliation after uncertain
+  results, blocking a new attempt until the prior result is authoritative or
+  acknowledged, and production claim/renew/release wiring. It does not promise
+  hard-reload recovery without a separately approved architecture. Task
+  boundaries also require human review/commit gates and an explicit
+  compaction/handoff resume record before work continues. The development-only
+  plans, spec, and visual helpers are ignored by Git and must not be staged or
+  tracked.
 
 ## Status maintenance
 

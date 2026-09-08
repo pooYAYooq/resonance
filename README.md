@@ -179,10 +179,13 @@ app/
 convex/
   schema.ts                   # Database schema, including Discover projections and counters
   posts.ts                    # Draft save/publish, published editing/deletion, published-only reads, uploads, claims, and URL hydration
+  postLifecycle.ts             # Transactional post writes, deterministic preconditions, and projection synchronization
   discover.ts                 # Public Latest, Search, Topics, and Topic-post queries
   discoverProjection.ts       # Indexed projection synchronization and invariants
   discoverBackfill.ts         # Bounded author-name repair continuation
   pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
+  sessionMediaClaims.ts       # Session-scoped media retention claims with expiry and lifecycle transitions
+  writeAttempts.ts             # Author-bound idempotent write reservations, retained outcomes, reconciliation, and cleanup
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations and private paginated liked-post query
                               # uses by_postId_and_userId for toggles and by_userId_and_createdAt for liked-post pagination
