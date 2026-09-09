@@ -286,8 +286,9 @@ export function getCompactExcerpt(blocks: PostBlock[]): string {
   const codePoints = Array.from(
     getCanonicalBodyText(blocks, { includeImageCaptions: false }),
   );
-  const excerpt = codePoints.slice(0, 280).join("");
-  return codePoints.length > 280 ? `${excerpt}…` : excerpt;
+  if (codePoints.length <= 280) return codePoints.join("");
+  const excerpt = codePoints.slice(0, 279).join("");
+  return `${excerpt}…`;
 }
 
 /**
@@ -371,11 +372,13 @@ export function parsePostBody(
     return { kind: "invalid" };
   }
 
-  if (!validateBlocks(value.blocks, 0, {
-    blocks: 0,
-    inlineNodes: 0,
-    textLength: 0,
-  })) {
+  if (
+    !validateBlocks(value.blocks, 0, {
+      blocks: 0,
+      inlineNodes: 0,
+      textLength: 0,
+    })
+  ) {
     return { kind: "invalid" };
   }
   if (

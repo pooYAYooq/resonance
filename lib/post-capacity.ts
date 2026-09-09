@@ -1,4 +1,8 @@
-import type { BlockNoteDocument, PostBlock, PostInlineContent } from "./post-content";
+import type {
+  BlockNoteDocument,
+  PostBlock,
+  PostInlineContent,
+} from "./post-content";
 
 export const MAX_POST_TEXT_CODE_POINTS = 150_000;
 export const MAX_POST_SOURCE_BYTES = 838_860;
@@ -6,6 +10,10 @@ export const MAX_POST_FINAL_DOCUMENT_BYTES = 838_860;
 // Keep Search records below the document ceiling to leave room for index and
 // projection overhead; this budget is independent from source capacity.
 export const MAX_POST_CORPUS_BYTES = 786_432;
+export const MAX_POST_AUTHOR_NAME_CODE_POINTS = 100;
+// A rename can grow both authorName and searchableText. Reserve enough UTF-8
+// headroom so a bounded rename cannot invalidate an already-published corpus.
+export const MAX_POST_CORPUS_RENAME_RESERVE_BYTES = 2_048;
 export const MAX_POST_BLOCKS = 100;
 export const MAX_POST_INLINE_NODES = 500;
 export const MAX_POST_DEPTH = 8;
@@ -14,6 +22,12 @@ export const MAX_POST_IMAGE_REFERENCES = 100;
 export const MAX_POST_URL_CODE_POINTS = 2_048;
 export const MAX_POST_ALT_TEXT_CODE_POINTS = 1_000;
 export const MAX_POST_CAPTION_CODE_POINTS = 5_000;
+
+export function truncatePostAuthorName(authorName: string): string {
+  return Array.from(authorName)
+    .slice(0, MAX_POST_AUTHOR_NAME_CODE_POINTS)
+    .join("");
+}
 
 export type PostContentMeasurements = {
   textCodePoints: number;
@@ -37,7 +51,9 @@ export type PostCorpusInput = {
   sourcePostId?: string;
   title: string;
   bodyText: string;
+  authorId?: string;
   authorName: string;
+  searchableText?: string;
 };
 
 export type PostCorpusMeasurements = PostCorpusInput & {
@@ -65,7 +81,19 @@ export type PostCapacityError = {
 
 export type PostCapacityResult =
   | { ok: true; measurements: PostContentMeasurements }
-  | { ok: false; error: PostCapacityError; measurements: PostContentMeasurements };
+  | {
+      ok: false;
+      error: PostCapacityError;
+      measurements: PostContentMeasurements;
+    };
+
+export type PostCorpusCapacityResult =
+  | { ok: true; measurements: PostCorpusMeasurements }
+  | {
+      ok: false;
+      error: PostCapacityError;
+      measurements: PostCorpusMeasurements;
+    };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -147,6 +175,30 @@ export function measurePostCorpus(
     ...corpus,
     serializedCorpusBytes: getUtf8ByteLength(corpus),
   };
+}
+
+export function validatePostCorpusCapacity(
+  corpus: PostCorpusInput,
+  options: { reserveBytes?: number } = {},
+): PostCorpusCapacityResult {
+  const measurements = measurePostCorpus(corpus);
+  const reserveBytes = options.reserveBytes ?? 0;
+  if (
+    !Number.isSafeInteger(reserveBytes) ||
+    reserveBytes < 0 ||
+    reserveBytes >= MAX_POST_CORPUS_BYTES ||
+    measurements.serializedCorpusBytes > MAX_POST_CORPUS_BYTES - reserveBytes
+  ) {
+    return {
+      ok: false,
+      error: {
+        category: "corpus-bytes",
+        message: "The complete Search corpus exceeds the supported size.",
+      },
+      measurements,
+    };
+  }
+  return { ok: true, measurements };
 }
 
 function measureInline(
@@ -259,6 +311,7 @@ export function validatePostCapacity(
     finalDocument?: unknown;
     finalDocumentBytes?: number;
     corpus?: PostCorpusInput;
+    corpusReserveBytes?: number;
   } = {},
 ): PostCapacityResult {
   const measurements = measurePostContent(document, options);
@@ -292,7 +345,11 @@ export function validatePostCapacity(
     );
   }
   if (measurements.blockCount > MAX_POST_BLOCKS) {
-    return capacityError("block-count", "Content contains too many blocks.", measurements);
+    return capacityError(
+      "block-count",
+      "Content contains too many blocks.",
+      measurements,
+    );
   }
   if (measurements.inlineNodeCount > MAX_POST_INLINE_NODES) {
     return capacityError(
@@ -302,13 +359,25 @@ export function validatePostCapacity(
     );
   }
   if (measurements.maxDepth > MAX_POST_DEPTH) {
-    return capacityError("depth", "Content is nested too deeply.", measurements);
+    return capacityError(
+      "depth",
+      "Content is nested too deeply.",
+      measurements,
+    );
   }
   if (measurements.maxChildWidth > MAX_POST_CHILDREN_PER_BLOCK) {
-    return capacityError("child-width", "Content contains too many child blocks.", measurements);
+    return capacityError(
+      "child-width",
+      "Content contains too many child blocks.",
+      measurements,
+    );
   }
   if (measurements.maxUrlCodePoints > MAX_POST_URL_CODE_POINTS) {
-    return capacityError("url-code-points", "A link URL is too long.", measurements);
+    return capacityError(
+      "url-code-points",
+      "A link URL is too long.",
+      measurements,
+    );
   }
   if (measurements.maxAltTextCodePoints > MAX_POST_ALT_TEXT_CODE_POINTS) {
     return capacityError(
@@ -326,12 +395,15 @@ export function validatePostCapacity(
   }
 
   if (options.corpus) {
-    const corpus = measurePostCorpus(options.corpus);
-    measurements.serializedCorpusBytes = corpus.serializedCorpusBytes;
-    if (corpus.serializedCorpusBytes > MAX_POST_CORPUS_BYTES) {
+    const corpus = validatePostCorpusCapacity(options.corpus, {
+      reserveBytes: options.corpusReserveBytes,
+    });
+    measurements.serializedCorpusBytes =
+      corpus.measurements.serializedCorpusBytes;
+    if (!corpus.ok) {
       return capacityError(
-        "corpus-bytes",
-        "The complete Search corpus exceeds the supported size.",
+        corpus.error.category,
+        corpus.error.message,
         measurements,
       );
     }

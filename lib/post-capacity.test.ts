@@ -24,18 +24,27 @@ function bodyWithSerializedByteLength(targetBytes: number): BlockNoteDocument {
 
   for (const inline of document.blocks[0].content ?? []) {
     if (remainingBytes === 0) break;
-    if (typeof inline !== "object" || inline === null || inline.type !== "link") {
+    if (
+      typeof inline !== "object" ||
+      inline === null ||
+      inline.type !== "link"
+    ) {
       continue;
     }
 
     const emojiCount = Math.min(2_048, Math.floor(remainingBytes / 4));
-    const asciiCount = Math.min(2_048 - emojiCount, remainingBytes - emojiCount * 4);
+    const asciiCount = Math.min(
+      2_048 - emojiCount,
+      remainingBytes - emojiCount * 4,
+    );
     inline.href = `${"😀".repeat(emojiCount)}${"x".repeat(asciiCount)}`;
     remainingBytes -= emojiCount * 4 + asciiCount;
   }
 
   if (remainingBytes !== 0) {
-    throw new Error("Fixture cannot reach the requested serialized byte length.");
+    throw new Error(
+      "Fixture cannot reach the requested serialized byte length.",
+    );
   }
   expect(getSerializedByteLength(document)).toBe(targetBytes);
   return document;
@@ -69,6 +78,17 @@ const document = {
 } satisfies BlockNoteDocument;
 
 describe("post capacity", () => {
+  it("truncates provider author names by Unicode code point", async () => {
+    const capacity = await import("./post-capacity");
+
+    expect(capacity.truncatePostAuthorName("😀".repeat(101))).toBe(
+      "😀".repeat(100),
+    );
+    expect(capacity.truncatePostAuthorName("Ada Lovelace")).toBe(
+      "Ada Lovelace",
+    );
+  });
+
   it("measures canonical text and recursive structure without extracting URLs", async () => {
     const capacity = await import("./post-capacity").catch(() => null);
 
@@ -157,11 +177,15 @@ describe("post capacity", () => {
       ok: false,
       error: { category: "url-code-points" },
     });
-    expect(validatePostCapacity(bodyWithSerializedByteLength(838_860))).toMatchObject({
+    expect(
+      validatePostCapacity(bodyWithSerializedByteLength(838_860)),
+    ).toMatchObject({
       ok: true,
       measurements: { serializedSourceBytes: 838_860 },
     });
-    expect(validatePostCapacity(bodyWithSerializedByteLength(838_861))).toMatchObject({
+    expect(
+      validatePostCapacity(bodyWithSerializedByteLength(838_861)),
+    ).toMatchObject({
       ok: false,
       error: { category: "source-bytes" },
       measurements: { serializedSourceBytes: 838_861 },
@@ -224,18 +248,51 @@ describe("post capacity", () => {
   });
 
   it("measures a representative maximum-length Search record shape", async () => {
-    const { MAX_POST_CORPUS_BYTES, measurePostCorpus } = await import(
-      "./post-capacity"
-    );
+    const { MAX_POST_CORPUS_BYTES, measurePostCorpus } =
+      await import("./post-capacity");
+    const bodyText = `${"a".repeat(149_900)} العربية 日本語 हिन्दी`;
+    const title = "Multilingual long-form title";
+    const authorName = "Author with a long-token handle";
     const corpus = measurePostCorpus({
       sourcePostId: "post-representative",
-      title: "Multilingual long-form title",
-      bodyText: `${"a".repeat(149_900)} العربية 日本語 हिन्दी`,
-      authorName: "Author with a long-token handle",
+      title,
+      bodyText,
+      authorId: "author-representative",
+      authorName,
+      searchableText: `${title}\n${bodyText}\n${authorName}`,
     });
 
     expect(corpus.serializedCorpusBytes).toBeLessThan(MAX_POST_CORPUS_BYTES);
     expect(corpus.serializedCorpusBytes).toBeGreaterThan(150_000);
+  });
+
+  it("reserves enough bytes for a 100-code-point JSON-escaped rename", async () => {
+    const { MAX_POST_CORPUS_RENAME_RESERVE_BYTES, measurePostCorpus } =
+      await import("./post-capacity");
+    const bodyText = "A body near the Search budget";
+    const title = "A valid title";
+    const searchable = (authorName: string) =>
+      `${title}\n${bodyText}\n${authorName}`;
+    const before = measurePostCorpus({
+      sourcePostId: "post-rename",
+      title,
+      bodyText,
+      authorId: "author-1",
+      authorName: "A",
+      searchableText: searchable("A"),
+    });
+    const after = measurePostCorpus({
+      sourcePostId: "post-rename",
+      title,
+      bodyText,
+      authorId: "author-1",
+      authorName: "\u0000".repeat(100),
+      searchableText: searchable("\u0000".repeat(100)),
+    });
+
+    expect(
+      after.serializedCorpusBytes - before.serializedCorpusBytes,
+    ).toBeLessThanOrEqual(MAX_POST_CORPUS_RENAME_RESERVE_BYTES);
   });
 
   it("checks the complete final post shape independently from source bytes", async () => {
@@ -259,7 +316,9 @@ describe("post capacity", () => {
       updatedAt: 1,
     };
 
-    expect(measurePostContent(sourceDocument).serializedSourceBytes).toBe(838_700);
+    expect(measurePostContent(sourceDocument).serializedSourceBytes).toBe(
+      838_700,
+    );
     expect(
       measurePostContent(sourceDocument, { finalDocument }).finalDocumentBytes,
     ).toBeGreaterThan(MAX_POST_FINAL_DOCUMENT_BYTES);
@@ -278,7 +337,9 @@ describe("post capacity", () => {
       blocks: [
         {
           type: "paragraph",
-          content: [{ type: "text", text: "العربية 日本語 " + "x".repeat(150_001) }],
+          content: [
+            { type: "text", text: "العربية 日本語 " + "x".repeat(150_001) },
+          ],
         },
       ],
     } satisfies BlockNoteDocument;
@@ -294,7 +355,9 @@ describe("post capacity", () => {
   it("counts Unicode code points independently from grapheme clusters", () => {
     const family = "👩‍👩‍👧‍👦";
     const graphemeCount = Array.from(
-      new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(family),
+      new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
+        family,
+      ),
     ).length;
 
     expect(getCodePointCount(family)).toBe(7);
@@ -305,9 +368,15 @@ describe("post capacity", () => {
     const { validatePostCapacity } = await import("./post-capacity");
     const image = (altText: string, caption?: string) => ({
       type: "image",
-      props: { storageId: crypto.randomUUID(), altText, ...(caption ? { caption } : {}) },
+      props: {
+        storageId: crypto.randomUUID(),
+        altText,
+        ...(caption ? { caption } : {}),
+      },
     });
-    const documentWith = (blocks: BlockNoteDocument["blocks"]): BlockNoteDocument => ({
+    const documentWith = (
+      blocks: BlockNoteDocument["blocks"],
+    ): BlockNoteDocument => ({
       format: "blocknote@1",
       blocks,
     });
@@ -371,9 +440,16 @@ describe("post capacity", () => {
       ),
     ).toMatchObject({ error: { category: "image-reference-count" } });
 
-    let deeplyNested: BlockNoteDocument["blocks"][number] = { type: "paragraph", content: [] };
+    let deeplyNested: BlockNoteDocument["blocks"][number] = {
+      type: "paragraph",
+      content: [],
+    };
     for (let depth = 0; depth < 9; depth += 1) {
-      deeplyNested = { type: "bulletListItem", content: [], children: [deeplyNested] };
+      deeplyNested = {
+        type: "bulletListItem",
+        content: [],
+        children: [deeplyNested],
+      };
     }
     expect(validatePostCapacity(documentWith([deeplyNested]))).toMatchObject({
       error: { category: "depth" },

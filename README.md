@@ -181,8 +181,7 @@ convex/
   posts.ts                    # Draft save/publish, published editing/deletion, published-only reads, uploads, claims, and URL hydration
   postLifecycle.ts             # Transactional post writes, deterministic preconditions, and projection synchronization
   discover.ts                 # Public Latest, Search, Topics, and Topic-post queries
-  discoverProjection.ts       # Indexed projection synchronization and invariants
-  discoverBackfill.ts         # Bounded author-name repair continuation
+  discoverProjection.ts       # Compact/Search projection synchronization, repair, and invariants
   pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
   sessionMediaClaims.ts       # Session-scoped media retention claims with expiry and lifecycle transitions
   writeAttempts.ts             # Author-bound idempotent write reservations, retained outcomes, reconciliation, and cleanup

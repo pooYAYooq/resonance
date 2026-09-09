@@ -1,19 +1,44 @@
-import { ConvexError } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
+import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { internalMutation, type MutationCtx } from "./_generated/server";
 import {
   isCanonicalPostTag,
   MAX_POST_TAGS,
   POST_TAGS,
 } from "../lib/constants/post-tags";
-import { extractPlainText, parsePostBody } from "../lib/post-content";
+import {
+  extractPlainText,
+  getCompactExcerpt,
+  parsePostBody,
+} from "../lib/post-content";
+import {
+  MAX_POST_CORPUS_RENAME_RESERVE_BYTES,
+  MAX_POST_AUTHOR_NAME_CODE_POINTS,
+  getCodePointCount,
+  validatePostCapacity,
+  validatePostCorpusCapacity,
+  type PostCorpusInput,
+} from "../lib/post-capacity";
 
 const MAX_CLEANUP_ROWS = 100;
+export const DISCOVER_BATCH_SIZE = 50;
 
 export type DiscoverSourceData = Omit<
   Doc<"discoverPosts">,
   "_id" | "_creationTime"
 >;
+
+export type DiscoverSearchData = Omit<
+  Doc<"discoverPostSearch">,
+  "_id" | "_creationTime"
+>;
+
+type DiscoverProjectionData = {
+  sourceData: DiscoverSourceData;
+  searchData: DiscoverSearchData;
+};
 
 export type DiscoverTopicData = {
   tag: string;
@@ -24,6 +49,38 @@ export type DiscoverTopicData = {
 export type DiscoverEngagementCounts =
   | { likeCount: number; commentCount?: number }
   | { likeCount?: number; commentCount: number };
+
+const maintenanceResult = v.object({
+  processed: v.number(),
+  isDone: v.boolean(),
+});
+
+function validateBatchSize(numItems: number): void {
+  if (
+    !Number.isSafeInteger(numItems) ||
+    numItems < 1 ||
+    numItems > DISCOVER_BATCH_SIZE
+  ) {
+    throw new ConvexError(
+      `Discover maintenance pages must request 1-${DISCOVER_BATCH_SIZE} rows`,
+    );
+  }
+}
+
+function assertSearchCorpusCapacity(corpus: PostCorpusInput): void {
+  const capacity = validatePostCorpusCapacity(corpus, {
+    reserveBytes: MAX_POST_CORPUS_RENAME_RESERVE_BYTES,
+  });
+  if (!capacity.ok) throw new ConvexError(capacity.error.message);
+}
+
+function assertAuthorNameCapacity(authorName: string): void {
+  if (getCodePointCount(authorName) > MAX_POST_AUTHOR_NAME_CODE_POINTS) {
+    throw new ConvexError(
+      `Display name must be ${MAX_POST_AUTHOR_NAME_CODE_POINTS} characters or fewer.`,
+    );
+  }
+}
 
 // Projection writes and author rename repairs must share this construction.
 export function buildSearchableText(
@@ -37,10 +94,10 @@ export function buildSearchableText(
     .join("\n");
 }
 
-export function getDiscoverSourceData(
+function getPublishedProjectionData(
   post: Doc<"posts">,
   authorName: string,
-): DiscoverSourceData | null {
+): DiscoverProjectionData | null {
   if (
     post.status !== "published" ||
     typeof post.publishedAt !== "number" ||
@@ -50,24 +107,61 @@ export function getDiscoverSourceData(
   }
 
   const parsedBody = parsePostBody(post.body);
-  const bodyText =
-    parsedBody.kind === "structured"
-      ? extractPlainText(parsedBody.document.blocks)
-      : "";
+  if (parsedBody.kind !== "structured") return null;
+
+  const bodyText = extractPlainText(parsedBody.document.blocks);
+  const searchableText = buildSearchableText(post.title, bodyText, authorName);
+  const capacity = validatePostCapacity(parsedBody.document, {
+    corpus: {
+      sourcePostId: post._id,
+      title: post.title,
+      bodyText,
+      authorId: post.authorId,
+      authorName,
+      searchableText,
+    },
+    corpusReserveBytes: MAX_POST_CORPUS_RENAME_RESERVE_BYTES,
+  });
+  if (!capacity.ok) {
+    throw new ConvexError(capacity.error.message);
+  }
 
   return {
-    postId: post._id,
-    title: post.title,
-    bodyText,
-    searchableText: buildSearchableText(post.title, bodyText, authorName),
-    authorId: post.authorId,
-    authorName,
-    tags: post.tags,
-    ...(post.imageStorageId ? { imageStorageId: post.imageStorageId } : {}),
-    publishedAt: post.publishedAt,
-    commentCount: post.commentCount,
-    likeCount: post.likeCount,
+    sourceData: {
+      postId: post._id,
+      title: post.title,
+      bodyText: getCompactExcerpt(parsedBody.document.blocks),
+      authorId: post.authorId,
+      authorName,
+      tags: post.tags,
+      ...(post.imageStorageId ? { imageStorageId: post.imageStorageId } : {}),
+      publishedAt: post.publishedAt,
+      commentCount: post.commentCount,
+      likeCount: post.likeCount,
+    },
+    searchData: {
+      postId: post._id,
+      title: post.title,
+      bodyText,
+      authorId: post.authorId,
+      authorName,
+      searchableText,
+    },
   };
+}
+
+export function getDiscoverSourceData(
+  post: Doc<"posts">,
+  authorName: string,
+): DiscoverSourceData | null {
+  return getPublishedProjectionData(post, authorName)?.sourceData ?? null;
+}
+
+export function getDiscoverSearchData(
+  post: Doc<"posts">,
+  authorName: string,
+): DiscoverSearchData | null {
+  return getPublishedProjectionData(post, authorName)?.searchData ?? null;
 }
 
 function uniqueTags(tags: readonly string[]): string[] {
@@ -125,6 +219,91 @@ export async function getDiscoverPostBySourceId(
     .withIndex("by_postId", (q) => q.eq("postId", postId))
     .unique();
 }
+
+export async function getDiscoverSearchBySourceId(
+  ctx: Pick<MutationCtx, "db">,
+  postId: Id<"posts">,
+): Promise<Doc<"discoverPostSearch"> | null> {
+  return await ctx.db
+    .query("discoverPostSearch")
+    .withIndex("by_postId", (q) => q.eq("postId", postId))
+    .unique();
+}
+
+export const repairAuthorName = internalMutation({
+  args: {
+    authorId: v.string(),
+    paginationOpts: paginationOptsValidator,
+    newAuthorName: v.string(),
+  },
+  returns: maintenanceResult,
+  handler: async (ctx, args) => {
+    validateBatchSize(args.paginationOpts.numItems);
+
+    const author = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", args.authorId))
+      .unique();
+    const authorName =
+      author && author.displayName !== args.newAuthorName
+        ? author.displayName
+        : args.newAuthorName;
+    assertAuthorNameCapacity(authorName);
+
+    const result = await ctx.db
+      .query("discoverPostSearch")
+      .withIndex("by_authorId", (q) => q.eq("authorId", args.authorId))
+      .paginate({
+        ...args.paginationOpts,
+        maximumRowsRead: DISCOVER_BATCH_SIZE,
+        maximumBytesRead: 1_048_576,
+      });
+
+    for (const post of result.page) {
+      assertSearchCorpusCapacity({
+        sourcePostId: post.postId,
+        title: post.title,
+        bodyText: post.bodyText,
+        authorId: post.authorId,
+        authorName,
+        searchableText: buildSearchableText(
+          post.title,
+          post.bodyText,
+          authorName,
+        ),
+      });
+      await ctx.db.patch(post._id, {
+        authorName,
+        searchableText: buildSearchableText(
+          post.title,
+          post.bodyText,
+          authorName,
+        ),
+      });
+      const summary = await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_postId", (q) => q.eq("postId", post.postId))
+        .unique();
+      if (summary) await ctx.db.patch(summary._id, { authorName });
+    }
+
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.discoverProjection.repairAuthorName,
+        {
+          ...args,
+          paginationOpts: {
+            ...args.paginationOpts,
+            cursor: result.continueCursor,
+          },
+        },
+      );
+    }
+
+    return { processed: result.page.length, isDone: result.isDone };
+  },
+});
 
 export async function getTopicRow(
   ctx: Pick<MutationCtx, "db">,
@@ -216,6 +395,19 @@ export async function upsertDiscoverPost(
   return await ctx.db.insert("discoverPosts", sourceData);
 }
 
+export async function upsertDiscoverSearch(
+  ctx: Pick<MutationCtx, "db">,
+  searchData: DiscoverSearchData,
+): Promise<Id<"discoverPostSearch">> {
+  const existing = await getDiscoverSearchBySourceId(ctx, searchData.postId);
+  if (existing) {
+    await ctx.db.replace("discoverPostSearch", existing._id, searchData);
+    return existing._id;
+  }
+
+  return await ctx.db.insert("discoverPostSearch", searchData);
+}
+
 /** Applies source engagement counts without rebuilding the published projection. */
 export async function updateDiscoverPostEngagement(
   ctx: Pick<MutationCtx, "db">,
@@ -276,11 +468,11 @@ export async function syncPublishedPostProjection(
     .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
     .unique();
   const tags = canonicalTags(post.tags);
-  const sourceData = getDiscoverSourceData(
+  const projectionData = getPublishedProjectionData(
     { ...post, tags },
     author?.displayName ?? "Anonymous",
   );
-  if (!sourceData) return;
+  if (!projectionData) return;
 
   const existingRows = await ctx.db
     .query("discoverPostTopics")
@@ -302,7 +494,8 @@ export async function syncPublishedPostProjection(
   }
 
   // Atomic bounded retries cannot duplicate rows or inflate counters.
-  await upsertDiscoverPost(ctx, sourceData);
+  await upsertDiscoverPost(ctx, projectionData.sourceData);
+  await upsertDiscoverSearch(ctx, projectionData.searchData);
   const oldTags = canonicalTags(
     previousTags ?? existingRows.map((row) => row.tag),
   );
@@ -332,7 +525,7 @@ export async function syncPublishedPostProjection(
         throw new ConvexError("Topic stat counter is invalid.");
       }
       await ctx.db.patch(existing._id, {
-        publishedAt: sourceData.publishedAt,
+        publishedAt: projectionData.sourceData.publishedAt,
       });
       rowsByTag.set(tag, [existing]);
       return;
@@ -341,7 +534,7 @@ export async function syncPublishedPostProjection(
     await ctx.db.insert("discoverPostTopics", {
       tag,
       postId,
-      publishedAt: sourceData.publishedAt,
+      publishedAt: projectionData.sourceData.publishedAt,
     });
     rowsByTag.set(tag, []);
     await applyTopicStatDelta(ctx, tag, 1);
@@ -378,6 +571,8 @@ export async function deletePublishedPostProjection(
 ): Promise<void> {
   const projection = await getDiscoverPostBySourceId(ctx, postId);
   if (projection) await ctx.db.delete(projection._id);
+  const search = await getDiscoverSearchBySourceId(ctx, postId);
+  if (search) await ctx.db.delete(search._id);
 
   const topicRows = await ctx.db
     .query("discoverPostTopics")

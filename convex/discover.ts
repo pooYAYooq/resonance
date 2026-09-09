@@ -86,6 +86,26 @@ async function hydrateDiscoverPosts(
   );
 }
 
+async function hydrateSearchPosts(
+  ctx: QueryCtx,
+  rows: readonly Doc<"discoverPostSearch">[],
+): Promise<DiscoverSummary[]> {
+  const summaries = await Promise.all(
+    rows.map(async (row) => {
+      return await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_postId", (q) => q.eq("postId", row.postId))
+        .unique();
+    }),
+  );
+  return await hydrateDiscoverPosts(
+    ctx,
+    summaries.filter(
+      (summary): summary is Doc<"discoverPosts"> => summary !== null,
+    ),
+  );
+}
+
 export const getDiscoverPosts = query({
   args: {
     mode: v.union(v.literal("latest"), v.literal("search")),
@@ -103,14 +123,14 @@ export const getDiscoverPosts = query({
       }
 
       const result = await ctx.db
-        .query("discoverPosts")
+        .query("discoverPostSearch")
         .withSearchIndex("search_searchableText", (q) =>
           q.search("searchableText", searchQuery),
         )
         .paginate(args.paginationOpts);
       return {
         ...result,
-        page: await hydrateDiscoverPosts(ctx, result.page),
+        page: await hydrateSearchPosts(ctx, result.page),
       };
     }
 

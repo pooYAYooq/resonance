@@ -14,7 +14,6 @@ import type * as bookmarks from "../bookmarks.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
 import type * as discover from "../discover.js";
-import type * as discoverBackfill from "../discoverBackfill.js";
 import type * as discoverProjection from "../discoverProjection.js";
 import type * as feed from "../feed.js";
 import type * as follows from "../follows.js";
@@ -45,7 +44,6 @@ declare const fullApi: ApiFromModules<{
   comments: typeof comments;
   crons: typeof crons;
   discover: typeof discover;
-  discoverBackfill: typeof discoverBackfill;
   discoverProjection: typeof discoverProjection;
   feed: typeof feed;
   follows: typeof follows;

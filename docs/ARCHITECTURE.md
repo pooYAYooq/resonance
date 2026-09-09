@@ -136,8 +136,7 @@ resonance/
 │   │                           # publish/edit synchronization updates Discover projections;
 │   │                           # deletion hides source/projection immediately and starts cleanup
 │   ├── discover.ts             # Public Latest, Search, Topics, and Topic-post queries
-│   ├── discoverProjection.ts   # Shared projection synchronization and indexed invariants
-│   ├── discoverBackfill.ts     # Bounded author-name repair continuation
+│   ├── discoverProjection.ts   # Shared compact/Search synchronization, repair, and indexed invariants
 │   ├── pendingUploads.ts       # Owner-bound inline upload sessions, finalization,
 │   │                           # failed-submit cleanup, and bounded expiry cleanup
 │   ├── sessionMediaClaims.ts   # Short-lived owner/session media protection,
@@ -425,10 +424,12 @@ name is not part of the URL. For example, `/blog` resolves to
 
 ### Discover Projections, Topics, and URL State
 
-`posts` remains the source of truth. Discover maintains three bounded read
-models: `discoverPosts` for Latest and full-text Search, `discoverPostTopics`
-for Topic listings, and `topicStats` for active canonical-topic counts.
-`discoverPosts` has `by_postId`, `by_authorId`, `by_publishedAt`, and a
+`posts` remains the source of truth. Discover maintains four bounded read
+models: compact `discoverPosts` summaries for Latest and result rendering,
+`discoverPostSearch` for the complete full-text corpus,
+`discoverPostTopics` for Topic listings, and `topicStats` for active
+canonical-topic counts. `discoverPosts` has `by_postId`, `by_authorId`, and
+`by_publishedAt`; `discoverPostSearch` has `by_postId`, `by_authorId`, and the
 full-text `search_searchableText` index. Topic rows use
 `by_tag_and_publishedAt`, `by_postId_and_tag`, and `by_postId`; counters use
 `topicStats.by_tag`. Indexed lookups enforce one post projection per source

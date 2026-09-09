@@ -202,15 +202,17 @@ describe("extractPlainText", () => {
 
   it("counts words with locale-aware segmentation and deterministic whitespace fallback", async () => {
     const postContent = await import("./post-content");
-    const getWordCount = (postContent as Record<string, unknown>)["getWordCount"];
+    const getWordCount = (postContent as Record<string, unknown>)[
+      "getWordCount"
+    ];
 
     expect(typeof getWordCount).toBe("function");
     if (typeof getWordCount !== "function") return;
 
     expect(getWordCount("Hello, world! 你好世界")).toBe(4);
-    expect(
-      getWordCount("  one\t two\nthree ", { segmenter: undefined }),
-    ).toBe(3);
+    expect(getWordCount("  one\t two\nthree ", { segmenter: undefined })).toBe(
+      3,
+    );
   });
 
   it("creates a body-only 280-code-point excerpt with an ellipsis only when truncated", async () => {
@@ -235,12 +237,28 @@ describe("extractPlainText", () => {
       },
       {
         type: "image",
-        props: { storageId: "image-1", altText: "Hidden alt", caption: "Caption" },
+        props: {
+          storageId: "image-1",
+          altText: "Hidden alt",
+          caption: "Caption",
+        },
       },
     ];
 
-    expect(getCompactExcerpt(blocks)).toBe(`${"x".repeat(279)}😀…`);
-    expect(getCompactExcerpt([{ type: "paragraph", content: [{ type: "text", text: "short" }] }])).toBe("short");
+    expect(getCompactExcerpt(blocks)).toBe(`${"x".repeat(279)}…`);
+    expect(
+      getCompactExcerpt([
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "e".repeat(280) }],
+        },
+      ]),
+    ).toBe("e".repeat(280));
+    expect(
+      getCompactExcerpt([
+        { type: "paragraph", content: [{ type: "text", text: "short" }] },
+      ]),
+    ).toBe("short");
 
     const shortBodyWithCaption: PostBlock[] = [
       { type: "paragraph", content: [{ type: "text", text: "Body only" }] },
