@@ -16,7 +16,11 @@ import {
 import { mergeCleanupStorageState } from "./postDeletion";
 import { incrementPostCountInTransaction } from "./stats";
 import { adjustPublishedPostCount } from "./profilePostCount";
-import { syncPublishedPostProjection } from "./discoverProjection";
+import {
+  assertPublishedProjectionCapacity,
+  DiscoverProjectionCapacityError,
+  syncPublishedPostProjection,
+} from "./discoverProjection";
 import { FANOUT_BATCH_SIZE } from "./notifications";
 import { FEED_BATCH_SIZE } from "./feed";
 import { consumeSessionMediaClaims } from "./sessionMediaClaims";
@@ -122,6 +126,25 @@ function assertFinalPostDocumentCapacity(
 }
 
 type UploadClaimContext = Pick<MutationCtx, "db">;
+
+async function validateProjectionCapacity(
+  ctx: MutationCtx,
+  post: Parameters<typeof assertPublishedProjectionCapacity>[0],
+  authorId: string,
+): Promise<void> {
+  const author = await ctx.db
+    .query("users")
+    .withIndex("by_userId", (q) => q.eq("userId", authorId))
+    .unique();
+  try {
+    assertPublishedProjectionCapacity(post, author?.displayName ?? "Anonymous");
+  } catch (error) {
+    if (error instanceof DiscoverProjectionCapacityError) {
+      deterministicFailure("capacity", error.message);
+    }
+    throw error;
+  }
+}
 
 export const POST_STATUSES = ["draft", "published"] as const;
 export type PostStatus = (typeof POST_STATUSES)[number];
@@ -512,6 +535,22 @@ export async function executePublish(
   const updatedAt = draft
     ? Math.max(now, draft.updatedAt, draft.publishedAt ?? 0) + 1
     : now;
+  const projectionCandidate = {
+    ...(draft ?? {
+      // Reserve more ID bytes than a Convex post ID uses during preflight.
+      _id: "x".repeat(64) as Id<"posts">,
+      commentCount: 0,
+      likeCount: 0,
+    }),
+    title: args.proposal.title,
+    body: args.proposal.body,
+    tags: args.proposal.tags,
+    imageStorageId: args.proposal.imageStorageId,
+    authorId: userId,
+    status: "published" as const,
+    publishedAt: now,
+  };
+  await validateProjectionCapacity(ctx, projectionCandidate, userId);
   assertFinalPostDocumentCapacity(
     args.proposal,
     userId,
@@ -628,6 +667,17 @@ export async function executePublishedUpdate(
     post._id,
   );
   const updatedAt = Math.max(now, post.updatedAt, post.publishedAt) + 1;
+  await validateProjectionCapacity(
+    ctx,
+    {
+      ...post,
+      title: args.proposal.title,
+      body: args.proposal.body,
+      tags: args.proposal.tags,
+      imageStorageId: args.proposal.imageStorageId,
+    },
+    userId,
+  );
   assertFinalPostDocumentCapacity(
     args.proposal,
     userId,

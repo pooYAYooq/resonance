@@ -35,6 +35,20 @@ export type DiscoverSearchData = Omit<
   "_id" | "_creationTime"
 >;
 
+type PublishedProjectionSource = Pick<
+  Doc<"posts">,
+  | "_id"
+  | "title"
+  | "body"
+  | "authorId"
+  | "status"
+  | "publishedAt"
+  | "tags"
+  | "imageStorageId"
+  | "commentCount"
+  | "likeCount"
+>;
+
 type DiscoverProjectionData = {
   sourceData: DiscoverSourceData;
   searchData: DiscoverSearchData;
@@ -67,11 +81,23 @@ function validateBatchSize(numItems: number): void {
   }
 }
 
-function assertSearchCorpusCapacity(corpus: PostCorpusInput): void {
+function assertSearchCorpusCapacity(
+  corpus: PostCorpusInput,
+  reserveBytes = MAX_POST_CORPUS_RENAME_RESERVE_BYTES,
+): void {
   const capacity = validatePostCorpusCapacity(corpus, {
-    reserveBytes: MAX_POST_CORPUS_RENAME_RESERVE_BYTES,
+    reserveBytes,
   });
-  if (!capacity.ok) throw new ConvexError(capacity.error.message);
+  if (!capacity.ok) {
+    throw new DiscoverProjectionCapacityError(capacity.error.message);
+  }
+}
+
+export class DiscoverProjectionCapacityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DiscoverProjectionCapacityError";
+  }
 }
 
 function assertAuthorNameCapacity(authorName: string): void {
@@ -95,7 +121,7 @@ export function buildSearchableText(
 }
 
 function getPublishedProjectionData(
-  post: Doc<"posts">,
+  post: PublishedProjectionSource,
   authorName: string,
 ): DiscoverProjectionData | null {
   if (
@@ -123,7 +149,7 @@ function getPublishedProjectionData(
     corpusReserveBytes: MAX_POST_CORPUS_RENAME_RESERVE_BYTES,
   });
   if (!capacity.ok) {
-    throw new ConvexError(capacity.error.message);
+    throw new DiscoverProjectionCapacityError(capacity.error.message);
   }
 
   return {
@@ -148,6 +174,13 @@ function getPublishedProjectionData(
       searchableText,
     },
   };
+}
+
+export function assertPublishedProjectionCapacity(
+  post: PublishedProjectionSource,
+  authorName: string,
+): void {
+  getPublishedProjectionData(post, authorName);
 }
 
 export function getDiscoverSourceData(
@@ -260,25 +293,25 @@ export const repairAuthorName = internalMutation({
       });
 
     for (const post of result.page) {
-      assertSearchCorpusCapacity({
-        sourcePostId: post.postId,
-        title: post.title,
-        bodyText: post.bodyText,
-        authorId: post.authorId,
+      const searchableText = buildSearchableText(
+        post.title,
+        post.bodyText,
         authorName,
-        searchableText: buildSearchableText(
-          post.title,
-          post.bodyText,
+      );
+      assertSearchCorpusCapacity(
+        {
+          sourcePostId: post.postId,
+          title: post.title,
+          bodyText: post.bodyText,
+          authorId: post.authorId,
           authorName,
-        ),
-      });
+          searchableText,
+        },
+        0,
+      );
       await ctx.db.patch(post._id, {
         authorName,
-        searchableText: buildSearchableText(
-          post.title,
-          post.bodyText,
-          authorName,
-        ),
+        searchableText,
       });
       const summary = await ctx.db
         .query("discoverPosts")

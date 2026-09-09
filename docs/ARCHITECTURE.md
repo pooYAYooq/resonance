@@ -435,9 +435,11 @@ full-text `search_searchableText` index. Topic rows use
 `topicStats.by_tag`. Indexed lookups enforce one post projection per source
 post, one Topic row per `(postId, tag)`, and one counter per canonical tag.
 
-Publish and published-edit mutations synchronize affected projection rows and
-counters transactionally. A bounded author rename continuation reuses the same
-idempotent helpers. Published deletion removes the
+Draft writes remain private and do not create Discover or Search rows. Publish
+and published-edit mutations preflight final-document and complete-corpus
+capacity before changing the source, then synchronize affected projection rows
+and counters transactionally. A bounded author rename continuation reuses the
+same idempotent helpers. Published deletion removes the
 source and projection immediately, then drains upload claims, comments,
 comment likes, likes, bookmarks, views, notifications, and feed rows through
 durable bounded cursor continuations while correcting derived counters. Like

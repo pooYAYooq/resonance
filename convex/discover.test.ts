@@ -7,6 +7,10 @@ import { api, internal } from "./_generated/api";
 import { POST_TAGS } from "../lib/constants/post-tags";
 import { BLOCKNOTE_FORMAT } from "../lib/post-content";
 import {
+  MAX_POST_CORPUS_BYTES,
+  MAX_POST_CORPUS_RENAME_RESERVE_BYTES,
+} from "../lib/post-capacity";
+import {
   applyTopicStatDelta,
   buildSearchableText,
   diffPostTags,
@@ -486,6 +490,85 @@ describe("Discover summary and Search corpus boundaries", () => {
     await expect(
       t.run(async (ctx) => getDiscoverSearchBySourceId(ctx, postId)),
     ).resolves.toMatchObject({ authorName: "A" });
+  });
+
+  it("repairs a corpus that safely consumes its rename reserve", async () => {
+    const t = convexTest(schema, modules);
+    const title = "Valid title";
+    const oldAuthorName = "A";
+    const newAuthorName = "\u0000".repeat(100);
+    const postId = await insertPost(t);
+    const corpusBytes = (bodyText: string, authorName: string) =>
+      new TextEncoder().encode(
+        JSON.stringify({
+          sourcePostId: postId,
+          title,
+          bodyText,
+          authorId: "author-1",
+          authorName,
+          searchableText: `${title}\n${bodyText}\n${authorName}`,
+        }),
+      ).byteLength;
+    const emptyCorpusBytes = corpusBytes("", oldAuthorName);
+    const reservedLimit =
+      MAX_POST_CORPUS_BYTES - MAX_POST_CORPUS_RENAME_RESERVE_BYTES;
+    const bodyText = "😀".repeat(
+      Math.floor((reservedLimit - emptyCorpusBytes) / 8),
+    );
+
+    expect(corpusBytes(bodyText, oldAuthorName)).toBeLessThanOrEqual(
+      reservedLimit,
+    );
+    expect(corpusBytes(bodyText, newAuthorName)).toBeGreaterThan(reservedLimit);
+    expect(corpusBytes(bodyText, newAuthorName)).toBeLessThanOrEqual(
+      MAX_POST_CORPUS_BYTES,
+    );
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("discoverPosts", {
+        postId,
+        title,
+        bodyText: "Compact body",
+        authorId: "author-1",
+        authorName: oldAuthorName,
+        tags: [],
+        publishedAt: 123,
+        commentCount: 4,
+        likeCount: 7,
+      });
+      await ctx.db.insert("discoverPostSearch", {
+        postId,
+        title,
+        bodyText,
+        authorId: "author-1",
+        authorName: oldAuthorName,
+        searchableText: `${title}\n${bodyText}\n${oldAuthorName}`,
+      });
+    });
+
+    await expect(
+      t.mutation(internal.discoverProjection.repairAuthorName, {
+        authorId: "author-1",
+        newAuthorName,
+        paginationOpts: { numItems: 1, cursor: null },
+      }),
+    ).resolves.toEqual({ processed: 1, isDone: true });
+
+    const projections = await t.run(async (ctx) => ({
+      summary: await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique(),
+      search: await ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique(),
+    }));
+    expect(projections.summary?.authorName).toBe(newAuthorName);
+    expect(projections.search?.authorName).toBe(newAuthorName);
+    expect(projections.search?.searchableText.endsWith(newAuthorName)).toBe(
+      true,
+    );
   });
 
   it("validates the resolved author name on stale repair requests", async () => {

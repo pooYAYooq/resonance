@@ -11,8 +11,9 @@ Phase 3A.3 — Writing & Management — current
 Phase 3A.0 — UX Correctness, Phase 3A.1 — Product Structure, and Phase 3A.2 —
 Discover Foundations are shipped. Phase 3A.3 — Writing & Management is the sole
 next focus. The Phase 3A target direction and delivery map are canonicalized.
-Track 3 Tasks 1 and 2 are reviewed and committed as `60396e2`; Track 3 Task 3,
-Atomic Lifecycle Wiring, is the next focus. Slice 1 Task 1, the private
+Track 3 Tasks 1 and 2 are reviewed and committed as `72f382b`; Track 3 Task 3,
+Atomic Lifecycle Wiring, is implemented and verified pending human review.
+Slice 1 Task 1, the private
 liked-posts backend contract, is committed. Task 2, separate marketing and
 authenticated site shells plus the dependency-required Saved/Liked reader
 routes, is verified and committed as `784db9d`. Task 3, the workspace shell and
@@ -108,15 +109,20 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   finalization reclaims its session and unclaimed storage object. Existing
   deletion analytics and public return-validator corrections remain intact.
 - Track 2 final verification — `pnpm lint` passed; focused `pnpm test:ci --
-  convex/writeAttempts.test.ts convex/posts.test.ts
-  convex/sessionMediaClaims.test.ts convex/pendingUploads.test.ts
-  lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
+convex/writeAttempts.test.ts convex/posts.test.ts
+convex/sessionMediaClaims.test.ts convex/pendingUploads.test.ts
+lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   tests; `pnpm build` and `git diff --check` passed. The passing test run still
   emits the known Convex-test scheduled-function rollback warning.
 - Track 3 Tasks 1–2 — focused capacity/Discover tests passed: 82 tests; full
   local Vitest passed: 25 files, 391 tests; component suite passed: 65 files,
   321 tests; typecheck, lint, targeted formatting, build, and diff checks passed.
-  Capacity and projection changes were reviewed and committed as `60396e2`.
+  Capacity and projection changes were reviewed and committed as `72f382b`.
+- Track 3 Task 3 is committed. Post-commit review exposed a rename-reserve
+  boundary defect; its test-first correction passed human and CodeRabbit review
+  and was amended into the lifecycle commit. The lifecycle test command passes:
+  25 files, 397 tests; `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build`,
+  targeted formatting, and diff checks pass.
 
 ## Completed phases
 
@@ -145,8 +151,8 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   [`docs/PHASE_3A.md`](PHASE_3A.md)
 - Phase 3A cross-cutting decisions:
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
-- Track 2 final verification is complete. Continue with Phase 3A.3 — Writing &
-  Management, Track 3: Long-Form Content and Discovery. Track 1 then Track 4
+- Track 2 final verification and Track 3 Task 3 are complete. Continue with
+  Track 3 Task 4, Capacity and Native Search Evidence. Track 1 then Track 4
   follow in the approved order.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
