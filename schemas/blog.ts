@@ -1,9 +1,9 @@
 import z from "zod";
 import { POST_TAGS } from "@/lib/constants/post-tags";
 import {
-  MAX_POST_TEXT_LENGTH,
   MIN_POST_TEXT_LENGTH,
-  extractPlainText,
+  getCanonicalBodyText,
+  getCodePointCount,
   isValidBlockNoteDoc,
   type BlockNoteDocument,
 } from "@/lib/post-content";
@@ -32,13 +32,9 @@ const blockNoteDocumentSchema = z.custom<BlockNoteDocument>(
     }
 
     const document = value as BlockNoteDocument;
-    if (!isValidBlockNoteDoc(document.blocks)) return false;
-
-    return (
-      extractPlainText(document.blocks).trim().length <= MAX_POST_TEXT_LENGTH
-    );
+    return isValidBlockNoteDoc(document.blocks);
   },
-  "Content must be a valid BlockNote document with no more than 50,000 readable characters.",
+  "Content must be a valid BlockNote document within the supported capacity limits.",
 );
 
 export const draftPostSchema = z.object({
@@ -61,8 +57,9 @@ export const publishPostSchema = draftPostSchema.extend({
   title: z.string().min(1).max(100),
   content: blockNoteDocumentSchema.refine(
     (document) =>
-      extractPlainText(document.blocks).trim().length >= MIN_POST_TEXT_LENGTH,
-    "Content must contain between 10 and 50,000 readable characters.",
+      getCodePointCount(getCanonicalBodyText(document.blocks)) >=
+      MIN_POST_TEXT_LENGTH,
+    "Content must contain between 10 and 150,000 readable characters.",
   ),
 });
 

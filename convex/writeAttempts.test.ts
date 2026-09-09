@@ -398,12 +398,42 @@ it("persists and replays deterministic validation failures after expiry", async 
     return { subject: user._id, sessionId: session._id };
   });
   await t.withIdentity(identity).mutation(api.users.syncUser, {});
-  const invalidProposal = { ...proposal, body: "not a structured document" };
+  const draftId = await t.run(async (ctx) =>
+    ctx.db.insert("posts", {
+      title: "Original draft",
+      body: proposal.body,
+      tags: proposal.tags,
+      authorId: identity.subject,
+      status: "draft",
+      commentCount: 0,
+      likeCount: 0,
+      uniqueViewCount: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+  const invalidProposal = {
+    ...proposal,
+    body: JSON.stringify({
+      format: "blocknote@1",
+      blocks: [
+        {
+          type: "image",
+          props: {
+            storageId: "image-1",
+            altText: "x".repeat(1_001),
+          },
+        },
+      ],
+    }),
+  };
   const reservation = await t
     .withIdentity(identity)
     .mutation(api.writeAttempts.reserveAttempt, {
       clientRequestId: "invalid-proposal-request",
-      operationKind: "save-draft",
+      operationKind: "update-post",
+      postId: draftId,
+      expectedUpdatedAt: 1,
       proposal: invalidProposal,
     });
 
@@ -415,8 +445,15 @@ it("persists and replays deterministic validation failures after expiry", async 
     });
   expect(failed).toEqual({
     kind: "failed",
-    category: "invalid-proposal",
-    message: "Invalid content",
+    category: "capacity",
+    message: "Image alt text is too long.",
+  });
+  await expect(
+    t.run(async (ctx) => ctx.db.get(draftId)),
+  ).resolves.toMatchObject({
+    title: "Original draft",
+    body: proposal.body,
+    updatedAt: 1,
   });
   await expect(
     t.run(async (ctx) => ctx.db.get(reservation.attemptId)),

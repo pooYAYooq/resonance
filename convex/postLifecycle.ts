@@ -1,15 +1,18 @@
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { ConvexError } from "convex/values";
+import { ConvexError, getDocumentSize, type Value } from "convex/values";
 import { internal } from "./_generated/api";
 import {
   extractImageStorageIds,
   extractPlainText,
-  MAX_POST_TEXT_LENGTH,
   MIN_POST_TEXT_LENGTH,
   parsePostBody,
 } from "../lib/post-content";
 import { isValidPostTags } from "../lib/constants/post-tags";
+import {
+  MAX_POST_FINAL_DOCUMENT_BYTES,
+  validatePostCapacity,
+} from "../lib/post-capacity";
 import { mergeCleanupStorageState } from "./postDeletion";
 import { incrementPostCountInTransaction } from "./stats";
 import { adjustPublishedPostCount } from "./profilePostCount";
@@ -60,6 +63,62 @@ function deterministicFailure(
   message: string,
 ): never {
   throw new DeterministicWriteError(category, message);
+}
+
+function assertFinalPostDocumentCapacity(
+  proposal: WriteProposal,
+  userId: string,
+  status: PostStatus,
+  updatedAt: number,
+  existing?: Doc<"posts">,
+  publishedAt?: number,
+): void {
+  const existingBase = existing
+    ? Object.fromEntries(
+        Object.entries(existing).filter(
+          ([key, value]) =>
+            key !== "imageStorageId" &&
+            key !== "publishedAt" &&
+            value !== undefined,
+        ),
+      )
+    : null;
+  const candidate = existingBase
+    ? {
+        ...existingBase,
+        title: proposal.title,
+        body: proposal.body,
+        tags: proposal.tags,
+        ...(proposal.imageStorageId
+          ? { imageStorageId: proposal.imageStorageId }
+          : {}),
+        status,
+        updatedAt,
+        ...(publishedAt === undefined ? {} : { publishedAt }),
+      }
+    : {
+        title: proposal.title,
+        body: proposal.body,
+        tags: proposal.tags,
+        ...(proposal.imageStorageId
+          ? { imageStorageId: proposal.imageStorageId }
+          : {}),
+        authorId: userId,
+        status,
+        ...(publishedAt === undefined ? {} : { publishedAt }),
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: updatedAt,
+        updatedAt,
+      };
+  const size = getDocumentSize(candidate as Record<string, Value>);
+  if (size > MAX_POST_FINAL_DOCUMENT_BYTES) {
+    deterministicFailure(
+      "capacity",
+      "Content exceeds the supported final document size.",
+    );
+  }
 }
 
 type UploadClaimContext = Pick<MutationCtx, "db">;
@@ -203,7 +262,7 @@ export async function validatePublishedEditUploadClaims(
 }
 
 function getStructuredBody(body: string) {
-  const parsed = parsePostBody(body);
+  const parsed = parsePostBody(body, { validateCapacity: false });
   return parsed.kind === "structured" ? parsed.document : null;
 }
 
@@ -225,11 +284,12 @@ function validateDraftProposal(proposal: WriteProposal) {
     deterministicFailure("invalid-proposal", "Invalid title");
   }
   const document = getStructuredBody(proposal.body);
-  if (
-    !document ||
-    extractPlainText(document.blocks).trim().length > MAX_POST_TEXT_LENGTH
-  ) {
+  if (!document) {
     deterministicFailure("invalid-proposal", "Invalid content");
+  }
+  const capacity = validatePostCapacity(document);
+  if (!capacity.ok) {
+    deterministicFailure("capacity", capacity.error.message);
   }
   if (!isValidPostTags(proposal.tags)) {
     deterministicFailure("invalid-proposal", "Invalid tags");
@@ -242,7 +302,7 @@ function validatePublicationProposal(proposal: WriteProposal) {
   if (
     !document ||
     proposal.title.trim().length === 0 ||
-    extractPlainText(document.blocks).trim().length < MIN_POST_TEXT_LENGTH
+    Array.from(extractPlainText(document.blocks)).length < MIN_POST_TEXT_LENGTH
   ) {
     deterministicFailure("invalid-proposal", "Invalid content");
   }
@@ -335,6 +395,13 @@ export async function executeSaveDraft(
   const updatedAt = draft
     ? Math.max(now, draft.updatedAt) + 1
     : Math.max(now, 1);
+  assertFinalPostDocumentCapacity(
+    args.proposal,
+    userId,
+    "draft",
+    updatedAt,
+    draft ?? undefined,
+  );
   const attachedClaims = draft
     ? await ctx.db
         .query("pendingUploads")
@@ -442,6 +509,17 @@ export async function executePublish(
   const attachedStorageIds = attachedClaims.flatMap((claim) =>
     claim.storageId === undefined ? [] : [claim.storageId],
   );
+  const updatedAt = draft
+    ? Math.max(now, draft.updatedAt, draft.publishedAt ?? 0) + 1
+    : now;
+  assertFinalPostDocumentCapacity(
+    args.proposal,
+    userId,
+    "published",
+    updatedAt,
+    draft ?? undefined,
+    now,
+  );
   const postId =
     draft?._id ??
     (await ctx.db.insert("posts", {
@@ -456,11 +534,8 @@ export async function executePublish(
       likeCount: 0,
       uniqueViewCount: 0,
       createdAt: now,
-      updatedAt: now,
+      updatedAt,
     }));
-  const updatedAt = draft
-    ? Math.max(now, draft.updatedAt, draft.publishedAt ?? 0) + 1
-    : now;
   if (draft) {
     const oldStorageIds = getReferencedStorageIds(
       draft.body,
@@ -553,6 +628,14 @@ export async function executePublishedUpdate(
     post._id,
   );
   const updatedAt = Math.max(now, post.updatedAt, post.publishedAt) + 1;
+  assertFinalPostDocumentCapacity(
+    args.proposal,
+    userId,
+    "published",
+    updatedAt,
+    post,
+    post.publishedAt,
+  );
   const removedStorageIds = oldStorageIds.filter(
     (storageId) => !submittedStorageIds.includes(storageId),
   );

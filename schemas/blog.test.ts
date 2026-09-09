@@ -71,4 +71,35 @@ describe("blog form schemas", () => {
       }).success,
     ).toBe(true);
   });
+
+  it("uses Unicode code points instead of UTF-16 length for the body limit", () => {
+    expect(
+      draftPostSchema.safeParse({
+        title: "Draft",
+        content: bodyWithText(`${"x".repeat(149_999)}😀`),
+        tags: [],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects image metadata beyond the shared capacity limit", () => {
+    expect(
+      draftPostSchema.safeParse({
+        title: "Draft",
+        content: {
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "image",
+              props: {
+                storageId: "image-1",
+                altText: "x".repeat(1_001),
+              },
+            },
+          ],
+        },
+        tags: [],
+      }).success,
+    ).toBe(false);
+  });
 });

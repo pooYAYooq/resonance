@@ -17,12 +17,12 @@ import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { isCanonicalPostTag } from "../lib/constants/post-tags";
 import {
-  MAX_POST_TEXT_LENGTH,
   MIN_POST_TEXT_LENGTH,
   extractPlainText,
   extractImageStorageIds,
   parsePostBody,
 } from "../lib/post-content";
+import { validatePostCapacity } from "../lib/post-capacity";
 import { getPublishedPost } from "./postLifecycle";
 import {
   executeOwnedAttempt,
@@ -118,9 +118,7 @@ export function isValidDraftPostBody(body: string): boolean {
   const document = getStructuredPostBody(body);
   if (!document) return false;
 
-  return (
-    extractPlainText(document.blocks).trim().length <= MAX_POST_TEXT_LENGTH
-  );
+  return validatePostCapacity(document).ok;
 }
 
 /**
@@ -134,7 +132,7 @@ export function isValidPublishPostBody(body: string): boolean {
   if (!isValidDraftPostBody(body)) return false;
   const document = getStructuredPostBody(body);
   if (!document) return false;
-  const textLength = extractPlainText(document.blocks).trim().length;
+  const textLength = Array.from(extractPlainText(document.blocks)).length;
   return textLength >= MIN_POST_TEXT_LENGTH;
 }
 
