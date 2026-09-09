@@ -2069,7 +2069,6 @@ describe("atomic discovery lifecycle", () => {
       await ctx.db.insert("discoverPostSearch", {
         postId,
         title: "Rename lifecycle",
-        bodyText: "A published body for the rename lifecycle.",
         authorId: identity.subject,
         authorName: "Lifecycle owner",
         searchableText:
@@ -2105,7 +2104,7 @@ describe("atomic discovery lifecycle", () => {
     expect(state.search?.searchableText).not.toContain("Lifecycle owner");
   });
 
-  it("preserves the old source and public projections when corpus validation fails", async () => {
+  it("updates all projections with a 150,000-code-point Japanese body", async () => {
     const t = convexTest(schema, modules);
     const identity = await createPostTestUser(
       t,
@@ -2134,9 +2133,10 @@ describe("atomic discovery lifecycle", () => {
     expect(published.kind).toBe("succeeded");
     if (published.kind !== "succeeded") return;
 
-    const oversizedProposal = {
-      title: "Oversized lifecycle",
-      body: lifecycleBody("😀".repeat(100_000)),
+    const boundaryBody = "界".repeat(150_000);
+    const boundaryProposal = {
+      title: "Japanese lifecycle boundary",
+      body: lifecycleBody(boundaryBody),
       tags: ["Design"],
     };
     const updateAttempt = await t
@@ -2146,20 +2146,16 @@ describe("atomic discovery lifecycle", () => {
         operationKind: "update-post",
         postId: published.postId,
         expectedUpdatedAt: published.updatedAt,
-        proposal: oversizedProposal,
+        proposal: boundaryProposal,
       });
-    const rejected = await t
+    const updated = await t
       .withIdentity(identity)
       .mutation(api.posts.updatePublishedPost, {
         attemptId: updateAttempt.attemptId,
-        proposal: oversizedProposal,
+        proposal: boundaryProposal,
       });
 
-    expect(rejected).toEqual({
-      kind: "failed",
-      category: "capacity",
-      message: "The complete Search corpus exceeds the supported size.",
-    });
+    expect(updated).toMatchObject({ kind: "succeeded", status: "published" });
     await expect(
       t.run(async (ctx) => ({
         post: await ctx.db.get(published.postId),
@@ -2179,20 +2175,19 @@ describe("atomic discovery lifecycle", () => {
       })),
     ).resolves.toMatchObject({
       post: {
-        title: initialProposal.title,
-        body: initialProposal.body,
-        tags: initialProposal.tags,
+        title: boundaryProposal.title,
+        body: boundaryProposal.body,
+        tags: boundaryProposal.tags,
       },
-      summary: { title: initialProposal.title },
+      summary: { title: boundaryProposal.title },
       search: {
-        title: initialProposal.title,
-        searchableText: expect.stringContaining(
-          "The old body remains public after a rejected update.",
-        ),
+        title: boundaryProposal.title,
+        searchableText: expect.stringContaining(boundaryBody),
       },
-      topics: [expect.objectContaining({ tag: "Technology" })],
+      topics: [expect.objectContaining({ tag: "Design" })],
       topicStats: [
-        expect.objectContaining({ tag: "Technology", publishedCount: 1 }),
+        expect.objectContaining({ tag: "Technology", publishedCount: 0 }),
+        expect.objectContaining({ tag: "Design", publishedCount: 1 }),
       ],
     });
   });

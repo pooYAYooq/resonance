@@ -50,10 +50,9 @@ export type PostContentMeasurements = {
 export type PostCorpusInput = {
   sourcePostId?: string;
   title: string;
-  bodyText: string;
   authorId?: string;
   authorName: string;
-  searchableText?: string;
+  searchableText: string;
 };
 
 export type PostCorpusMeasurements = PostCorpusInput & {

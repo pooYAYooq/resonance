@@ -120,6 +120,19 @@ export function buildSearchableText(
     .join("\n");
 }
 
+/** Replaces only the author suffix written by {@link buildSearchableText}. */
+export function replaceSearchableAuthorName(
+  searchableText: string,
+  previousAuthorName: string,
+  nextAuthorName: string,
+): string {
+  const previousSuffix = `\n${previousAuthorName.trim()}`;
+  if (!searchableText.endsWith(previousSuffix)) {
+    throw new ConvexError("Discover Search author suffix is invalid.");
+  }
+  return `${searchableText.slice(0, -previousSuffix.length)}\n${nextAuthorName.trim()}`;
+}
+
 function getPublishedProjectionData(
   post: PublishedProjectionSource,
   authorName: string,
@@ -132,7 +145,7 @@ function getPublishedProjectionData(
     return null;
   }
 
-  const parsedBody = parsePostBody(post.body);
+  const parsedBody = parsePostBody(post.body, { validateCapacity: false });
   if (parsedBody.kind !== "structured") return null;
 
   const bodyText = extractPlainText(parsedBody.document.blocks);
@@ -141,7 +154,6 @@ function getPublishedProjectionData(
     corpus: {
       sourcePostId: post._id,
       title: post.title,
-      bodyText,
       authorId: post.authorId,
       authorName,
       searchableText,
@@ -168,7 +180,6 @@ function getPublishedProjectionData(
     searchData: {
       postId: post._id,
       title: post.title,
-      bodyText,
       authorId: post.authorId,
       authorName,
       searchableText,
@@ -290,25 +301,33 @@ export const repairAuthorName = internalMutation({
         ...args.paginationOpts,
         maximumRowsRead: DISCOVER_BATCH_SIZE,
         maximumBytesRead: 1_048_576,
-      });
+    });
 
     for (const post of result.page) {
-      const searchableText = buildSearchableText(
-        post.title,
-        post.bodyText,
-        authorName,
-      );
-      assertSearchCorpusCapacity(
-        {
-          sourcePostId: post.postId,
-          title: post.title,
-          bodyText: post.bodyText,
-          authorId: post.authorId,
+      let searchableText: string;
+      try {
+        searchableText = replaceSearchableAuthorName(
+          post.searchableText,
+          post.authorName,
           authorName,
-          searchableText,
-        },
-        0,
-      );
+        );
+        assertSearchCorpusCapacity(
+          {
+            sourcePostId: post.postId,
+            title: post.title,
+            authorId: post.authorId,
+            authorName,
+            searchableText,
+          },
+          0,
+        );
+      } catch (error) {
+        console.error("Skipping Discover Search rename repair", {
+          postId: post.postId,
+          error,
+        });
+        continue;
+      }
       await ctx.db.patch(post._id, {
         authorName,
         searchableText,

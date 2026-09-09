@@ -119,7 +119,6 @@ describe("published post deletion", () => {
       await ctx.db.insert("discoverPostSearch", {
         postId,
         title: "Delete me",
-        bodyText: "Body",
         authorId: identity.subject,
         authorName: "Post owner",
         searchableText: "Delete me\nBody\nPost owner",

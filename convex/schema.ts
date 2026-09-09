@@ -254,7 +254,6 @@ export default defineSchema({
   discoverPostSearch: defineTable({
     postId: v.id("posts"),
     title: v.string(),
-    bodyText: v.string(),
     authorId: v.string(),
     authorName: v.string(),
     searchableText: v.string(),

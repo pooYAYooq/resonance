@@ -11,9 +11,12 @@ Phase 3A.3 — Writing & Management — current
 Phase 3A.0 — UX Correctness, Phase 3A.1 — Product Structure, and Phase 3A.2 —
 Discover Foundations are shipped. Phase 3A.3 — Writing & Management is the sole
 next focus. The Phase 3A target direction and delivery map are canonicalized.
-Track 3 Tasks 1 and 2 are reviewed and committed as `72f382b`; Track 3 Task 3,
-Atomic Lifecycle Wiring, is implemented and verified pending human review.
-Slice 1 Task 1, the private
+Track 3 Tasks 1 and 2 are reviewed and committed as `72f382b`; Task 3 Atomic
+Lifecycle Wiring is committed as `a169b2e`. Task 4 implementation and native
+development verification are complete. The approved slim Search projection
+removes the duplicate complete-body field, and the 150,000-code-point Japanese
+fixture fits within the measured Search budget. Task 4 now awaits human
+approval and its commit gate. Slice 1 Task 1, the private
 liked-posts backend contract, is committed. Task 2, separate marketing and
 authenticated site shells plus the dependency-required Saved/Liked reader
 routes, is verified and committed as `784db9d`. Task 3, the workspace shell and
@@ -123,6 +126,19 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   and was amended into the lifecycle commit. The lifecycle test command passes:
   25 files, 397 tests; `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build`,
   targeted formatting, and diff checks pass.
+- Track 3 Task 4 local baseline passed: 25 files and 397 unit tests, plus 65
+  files and 321 component tests. The representative fixture runner passed 2
+  tests. Its initial 900,238-byte Japanese Search record exposed duplicated
+  body storage; the approved slim projection measures 450,224 bytes and keeps
+  the full body in `searchableText`. Focused slim-projection tests pass 171/171.
+  The current local gate passes 25 files and 400 unit tests, 65 files and 321
+  component tests, lint, TypeScript, production build, formatting, and diff
+  checks.
+  Native Search verification passed on the explicitly authorized
+  `dev:woozy-spaniel-283` deployment: the 150,000-code-point Japanese row,
+  author repair, tail search, near-capacity record, pagination, reactivity, and
+  resource checks all passed. The temporary internal-only harness cleaned its
+  confined rows and was removed.
 
 ## Completed phases
 
@@ -151,9 +167,10 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   [`docs/PHASE_3A.md`](PHASE_3A.md)
 - Phase 3A cross-cutting decisions:
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
-- Track 2 final verification and Track 3 Task 3 are complete. Continue with
-  Track 3 Task 4, Capacity and Native Search Evidence. Track 1 then Track 4
-  follow in the approved order.
+- Track 2 final verification and Track 3 Task 3 are complete. Track 3 Task 4
+  passed local and explicitly authorized native development Search verification;
+  continue with its human approval and commit gate. Track 1 then Track 4 follow
+  in the approved order.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
   intentionally git-ignored).

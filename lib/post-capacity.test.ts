@@ -203,8 +203,8 @@ describe("post capacity", () => {
     const corpus = measurePostCorpus({
       sourcePostId: "post-1",
       title: "A long token: " + "x".repeat(1_000),
-      bodyText: body,
       authorName: "Author",
+      searchableText: `A long token: ${"x".repeat(1_000)}\n${body}\nAuthor`,
     });
 
     expect(corpus.serializedCorpusBytes).toBeGreaterThan(0);
@@ -215,8 +215,8 @@ describe("post capacity", () => {
           finalDocumentBytes: MAX_POST_FINAL_DOCUMENT_BYTES,
           corpus: {
             title: "Title",
-            bodyText: "Body",
             authorName: "Author",
+            searchableText: "Title\nBody\nAuthor",
           },
         },
       ),
@@ -236,8 +236,8 @@ describe("post capacity", () => {
         {
           corpus: {
             title: "x".repeat(MAX_POST_CORPUS_BYTES),
-            bodyText: "Body",
             authorName: "Author",
+            searchableText: "Body\nAuthor",
           },
         },
       ),
@@ -256,7 +256,6 @@ describe("post capacity", () => {
     const corpus = measurePostCorpus({
       sourcePostId: "post-representative",
       title,
-      bodyText,
       authorId: "author-representative",
       authorName,
       searchableText: `${title}\n${bodyText}\n${authorName}`,
@@ -264,6 +263,26 @@ describe("post capacity", () => {
 
     expect(corpus.serializedCorpusBytes).toBeLessThan(MAX_POST_CORPUS_BYTES);
     expect(corpus.serializedCorpusBytes).toBeGreaterThan(150_000);
+  });
+
+  it("keeps a 150,000-code-point Japanese body within the slim Search budget", async () => {
+    const { MAX_POST_CORPUS_BYTES, measurePostCorpus } =
+      await import("./post-capacity");
+    const bodyText = "界".repeat(150_000);
+    const title = "Japanese capacity boundary";
+    const authorName = "Ada Lovelace";
+    const corpus = measurePostCorpus({
+      sourcePostId: "post-japanese-boundary",
+      title,
+      authorId: "author-1",
+      authorName,
+      searchableText: `${title}\n${bodyText}\n${authorName}`,
+    });
+
+    expect(corpus.serializedCorpusBytes).toBeLessThanOrEqual(
+      MAX_POST_CORPUS_BYTES,
+    );
+    expect(corpus.serializedCorpusBytes).toBeGreaterThan(450_000);
   });
 
   it("reserves enough bytes for a 100-code-point JSON-escaped rename", async () => {
@@ -276,7 +295,6 @@ describe("post capacity", () => {
     const before = measurePostCorpus({
       sourcePostId: "post-rename",
       title,
-      bodyText,
       authorId: "author-1",
       authorName: "A",
       searchableText: searchable("A"),
@@ -284,7 +302,6 @@ describe("post capacity", () => {
     const after = measurePostCorpus({
       sourcePostId: "post-rename",
       title,
-      bodyText,
       authorId: "author-1",
       authorName: "\u0000".repeat(100),
       searchableText: searchable("\u0000".repeat(100)),

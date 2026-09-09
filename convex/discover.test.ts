@@ -21,6 +21,7 @@ import {
   getDiscoverSourceData,
   getTopicRow,
   getTopicStat,
+  replaceSearchableAuthorName,
   syncPublishedPostProjection,
   upsertDiscoverPost,
   upsertTopicRow,
@@ -371,11 +372,58 @@ describe("Discover summary and Search corpus boundaries", () => {
     await expect(
       t.run(async (ctx) => getDiscoverSearchBySourceId(ctx, postId)),
     ).resolves.toMatchObject({
-      bodyText: expect.stringContaining("TAIL_MARKER"),
+      searchableText: expect.stringContaining("TAIL_MARKER"),
     });
+    const searchRow = await t.run(async (ctx) =>
+      getDiscoverSearchBySourceId(ctx, postId),
+    );
+    expect(searchRow).not.toHaveProperty("bodyText");
   });
 
-  it("rejects an over-budget Search corpus without changing the public projection", async () => {
+  it("fits a complete 150,000-code-point Japanese body in the slim Search row", async () => {
+    const t = convexTest(schema, modules);
+    const bodyText = "界".repeat(150_000);
+    const postId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Japanese capacity boundary",
+        body: structuredBody(bodyText),
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 123,
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
+    const post = await t.run(async (ctx) => ctx.db.get("posts", postId));
+
+    const searchData = getDiscoverSearchData(post!, "Ada Lovelace");
+
+    expect(searchData).not.toHaveProperty("bodyText");
+    expect(searchData?.searchableText).toContain(bodyText);
+    expect(
+      new TextEncoder().encode(JSON.stringify(searchData)).byteLength,
+    ).toBeLessThanOrEqual(MAX_POST_CORPUS_BYTES);
+  });
+
+  it("replaces only the known author suffix in searchable text", () => {
+    const searchableText =
+      "A title mentioning Old Name\nBody text mentioning Old Name\nOld Name";
+
+    expect(
+      replaceSearchableAuthorName(searchableText, "Old Name", "New Name"),
+    ).toBe(
+      "A title mentioning Old Name\nBody text mentioning Old Name\nNew Name",
+    );
+    expect(() =>
+      replaceSearchableAuthorName(searchableText, "Wrong Name", "New Name"),
+    ).toThrow(/author suffix/i);
+  });
+
+  it("updates a valid corpus that previously exceeded the duplicated Search budget", async () => {
     const t = convexTest(schema, modules);
     const validBody = "😀".repeat(100_000);
     const postId = await t.run(async (ctx) => {
@@ -419,7 +467,6 @@ describe("Discover summary and Search corpus boundaries", () => {
       await ctx.db.insert("discoverPostSearch", {
         postId,
         title: "Previous title",
-        bodyText: "Previous complete body",
         authorId: "author-1",
         authorName: "Ada Lovelace",
         searchableText: "Previous title\nPrevious complete body\nAda Lovelace",
@@ -428,7 +475,7 @@ describe("Discover summary and Search corpus boundaries", () => {
 
     await expect(
       t.run(async (ctx) => syncPublishedPostProjection(ctx, postId)),
-    ).rejects.toThrow(/Search corpus/i);
+    ).resolves.toBeNull();
 
     await expect(
       t.run(async (ctx) =>
@@ -438,16 +485,15 @@ describe("Discover summary and Search corpus boundaries", () => {
           .unique(),
       ),
     ).resolves.toMatchObject({
-      title: "Previous title",
-      bodyText: "Previous compact body",
-      commentCount: 1,
-      likeCount: 2,
+      title: "Valid title",
+      commentCount: 0,
+      likeCount: 0,
     });
     await expect(
       t.run(async (ctx) => getDiscoverSearchBySourceId(ctx, postId)),
     ).resolves.toMatchObject({
-      title: "Previous title",
-      bodyText: "Previous complete body",
+      title: "Valid title",
+      searchableText: expect.stringContaining(validBody),
     });
   });
 
@@ -471,7 +517,6 @@ describe("Discover summary and Search corpus boundaries", () => {
       await ctx.db.insert("discoverPostSearch", {
         postId,
         title: "Valid title",
-        bodyText,
         authorId: "author-1",
         authorName: "A",
         searchableText: `Valid title\n${bodyText}\nA`,
@@ -503,7 +548,6 @@ describe("Discover summary and Search corpus boundaries", () => {
         JSON.stringify({
           sourcePostId: postId,
           title,
-          bodyText,
           authorId: "author-1",
           authorName,
           searchableText: `${title}\n${bodyText}\n${authorName}`,
@@ -513,7 +557,7 @@ describe("Discover summary and Search corpus boundaries", () => {
     const reservedLimit =
       MAX_POST_CORPUS_BYTES - MAX_POST_CORPUS_RENAME_RESERVE_BYTES;
     const bodyText = "😀".repeat(
-      Math.floor((reservedLimit - emptyCorpusBytes) / 8),
+      Math.floor((reservedLimit - emptyCorpusBytes) / 4),
     );
 
     expect(corpusBytes(bodyText, oldAuthorName)).toBeLessThanOrEqual(
@@ -539,7 +583,6 @@ describe("Discover summary and Search corpus boundaries", () => {
       await ctx.db.insert("discoverPostSearch", {
         postId,
         title,
-        bodyText,
         authorId: "author-1",
         authorName: oldAuthorName,
         searchableText: `${title}\n${bodyText}\n${oldAuthorName}`,
@@ -600,7 +643,6 @@ describe("Discover summary and Search corpus boundaries", () => {
       await ctx.db.insert("discoverPostSearch", {
         postId,
         title: "Valid title",
-        bodyText: "Body text",
         authorId: "author-1",
         authorName: "Old Name",
         searchableText: "Valid title\nBody text\nOld Name",
@@ -935,6 +977,98 @@ describe("Discover projection persistence helpers", () => {
     ).toBe(true);
     expect(
       searchRows.every((row) => !row.searchableText.includes("Old Name")),
+    ).toBe(true);
+  });
+
+  it("continues author repair after a malformed Search row", async () => {
+    vi.useFakeTimers();
+    const t = convexTest(schema, modules);
+    const postIds = await Promise.all([
+      insertPost(t, ["Technology"]),
+      insertPost(t, ["Design"]),
+      insertPost(t, ["Culture"]),
+    ]);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "author-1",
+        displayName: "Old Name",
+        bio: "",
+        followerCount: 0,
+        followingCount: 0,
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      for (const postId of postIds) {
+        await syncPublishedPostProjection(ctx, postId);
+      }
+      const malformed = await ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_postId", (q) => q.eq("postId", postIds[0]))
+        .unique();
+      expect(malformed).not.toBeNull();
+      await ctx.db.patch(malformed!._id, { searchableText: "malformed" });
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", "author-1"))
+        .unique();
+      expect(user).not.toBeNull();
+      await ctx.db.patch(user!._id, { displayName: "New Name" });
+    });
+
+    const first = await t.mutation(
+      internal.discoverProjection.repairAuthorName,
+      {
+        authorId: "author-1",
+        newAuthorName: "New Name",
+        paginationOpts: { numItems: 1, cursor: null },
+      },
+    );
+    expect(first).toEqual({ processed: 1, isDone: false });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const rows = await t.run(async (ctx) => ({
+      summaries: await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_authorId", (q) => q.eq("authorId", "author-1"))
+        .collect(),
+      search: await ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_authorId", (q) => q.eq("authorId", "author-1"))
+        .collect(),
+    }));
+    const malformedSearch = rows.search.find(
+      (row) => row.postId === postIds[0],
+    );
+    expect(malformedSearch).toMatchObject({
+      authorName: "Old Name",
+      searchableText: "malformed",
+    });
+    expect(
+      rows.search.map(({ postId, authorName, searchableText }) => ({
+        postId,
+        authorName,
+        searchableText,
+      })),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          postId: postIds[1],
+          authorName: "New Name",
+          searchableText: expect.stringMatching(/\nNew Name$/),
+        }),
+        expect.objectContaining({
+          postId: postIds[2],
+          authorName: "New Name",
+          searchableText: expect.stringMatching(/\nNew Name$/),
+        }),
+      ]),
+    );
+    expect(
+      rows.summaries
+        .filter((row) => row.postId !== postIds[0])
+        .every((row) => row.authorName === "New Name"),
     ).toBe(true);
   });
 
@@ -1507,7 +1641,6 @@ describe("Public Discover queries", () => {
         await ctx.db.insert("discoverPostSearch", {
           postId,
           title,
-          bodyText,
           authorId: authorName,
           authorName,
           searchableText: `${title}\n${bodyText}\n${authorName}`,
