@@ -1,6 +1,5 @@
 import {
   getCanonicalBodyText,
-  getCodePointCount,
   MAX_POST_BLOCKS,
   MAX_POST_CHILDREN_PER_BLOCK,
   MAX_POST_DEPTH,
@@ -200,7 +199,7 @@ function validateBlockProps(type: string, value: unknown): boolean {
 function validateBlocks(
   value: unknown,
   depth: number,
-  state: { blocks: number; inlineNodes: number; textLength: number },
+  state: { blocks: number; inlineNodes: number },
 ): value is PostBlock[] {
   if (!Array.isArray(value) || depth > MAX_RECURSION_DEPTH) return false;
 
@@ -221,21 +220,11 @@ function validateBlocks(
       if (Object.hasOwn(block, "content") || Object.hasOwn(block, "children")) {
         return false;
       }
-      if (isRecord(block.props) && typeof block.props.caption === "string") {
-        state.textLength += getCodePointCount(block.props.caption);
-      }
     } else if (type === "codeBlock") {
       if (typeof block.content !== "string") return false;
-      state.textLength += getCodePointCount(block.content);
     } else if (!validateInlineContent(block.content, state)) {
       return false;
-    } else {
-      state.textLength += getCodePointCount(
-        extractPlainText([{ content: block.content as PostInlineContent[] }]),
-      );
     }
-
-    if (state.textLength > MAX_POST_TEXT_LENGTH) return false;
 
     if (block.children !== undefined) {
       if (
@@ -283,12 +272,16 @@ export function getWordCount(
 }
 
 export function getCompactExcerpt(blocks: PostBlock[]): string {
-  const codePoints = Array.from(
-    getCanonicalBodyText(blocks, { includeImageCaptions: false }),
-  );
-  if (codePoints.length <= 280) return codePoints.join("");
-  const excerpt = codePoints.slice(0, 279).join("");
-  return `${excerpt}…`;
+  const codePoints: string[] = [];
+  for (const codePoint of getCanonicalBodyText(blocks, {
+    includeImageCaptions: false,
+  })) {
+    if (codePoints.length === 280) {
+      return `${codePoints.slice(0, 279).join("")}…`;
+    }
+    codePoints.push(codePoint);
+  }
+  return codePoints.join("");
 }
 
 /**
@@ -298,7 +291,7 @@ export function getCompactExcerpt(blocks: PostBlock[]): string {
  * @returns True if the value is a valid array of blocks
  */
 export function isValidBlockNoteDoc(blocks: unknown): blocks is PostBlock[] {
-  const state = { blocks: 0, inlineNodes: 0, textLength: 0 };
+  const state = { blocks: 0, inlineNodes: 0 };
   return (
     validateBlocks(blocks, 0, state) &&
     validatePostCapacity({ format: BLOCKNOTE_FORMAT, blocks }).ok
@@ -376,7 +369,6 @@ export function parsePostBody(
     !validateBlocks(value.blocks, 0, {
       blocks: 0,
       inlineNodes: 0,
-      textLength: 0,
     })
   ) {
     return { kind: "invalid" };

@@ -173,10 +173,11 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   order.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
-  intentionally git-ignored).
+  local and untracked, but intentionally visible to Git). The mandatory human
+  staging gate prevents these planning artifacts from being committed.
   Sections 1-7 and final Q64-Q65 clarifications are approved. Section 7 includes
   the minimal BlockNote interaction contract. The implementation roadmap and
-  four focused plans are now written under `superpowers/plans/`. Track 2 is the
+  four focused plans are now written under `docs/superpowers/plans/`. Track 2 is the
   required foundation, followed by Track 3, Track 1, and Track 4. Current
   database content is disposable test data: implementation must not add
   migrations, backfills, dual reads/writes, or compatibility fields. Runtime
@@ -193,8 +194,8 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   hard-reload recovery without a separately approved architecture. Task
   boundaries also require human review/commit gates and an explicit
   compaction/handoff resume record before work continues. The development-only
-  plans, spec, and visual helpers are ignored by Git and must not be staged or
-  tracked.
+  plans, spec, and visual helpers remain visible to Git as local untracked
+  files; the mandatory staging gate keeps them out of commits.
 
 ## Status maintenance
 

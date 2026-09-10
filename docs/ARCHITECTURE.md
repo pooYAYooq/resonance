@@ -257,10 +257,11 @@ resonance/
     ├── auth-server.ts          # Next.js server-side auth helpers
     ├── auth-client.ts          # Browser-side authClient (sign-in, sign-up, sign-out)
     ├── avatar.ts               # DiceBear fallback URL + initials helpers
-    ├── post-content.ts         # Dependency-free structured body contract. Canonical
-    │                           # blocknote@1 envelope types, parser, structural validator,
-    │                           # extractPlainText, and safety limits. Imported by Convex
-     │                           # (saveDraft/publishPost), Zod (postSchema), PostCard, metadata, and
+    ├── post-capacity.ts        # Shared Unicode measurements, structural and author-name limits,
+    │                           # source/final-document budgets, and Search-corpus capacity.
+    ├── post-content.ts         # Dependency-free blocknote@1 envelope types, parser,
+    │                           # structural validator, extraction, and compact excerpts.
+    │                           # Imported by Convex (saveDraft/publishPost), Zod (postSchema), PostCard, metadata, and
     │                           # PostBody. Never imports BlockNote packages.
     └── constants/
         ├── seo.ts              # SITE_NAME, getSiteUrl(), truncateForDescription()

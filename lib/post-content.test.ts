@@ -8,6 +8,7 @@ import {
   MAX_RECURSION_DEPTH,
   extractImageStorageIds,
   extractPlainText,
+  getCompactExcerpt,
   isValidBlockNoteDoc,
   parsePostBody,
 } from "./post-content";
@@ -274,9 +275,48 @@ describe("extractPlainText", () => {
 
     expect(getCompactExcerpt(shortBodyWithCaption)).toBe("Body only");
   });
+
+  it("stops reading code points after the compact excerpt boundary", async () => {
+    const originalIterator = String.prototype[Symbol.iterator];
+    let yieldedCodePoints = 0;
+    String.prototype[Symbol.iterator] = function* () {
+      const iterator = originalIterator.call(this);
+      while (true) {
+        const result = iterator.next();
+        if (result.done) return;
+        yieldedCodePoints += 1;
+        yield result.value;
+      }
+    };
+
+    try {
+      expect(
+        getCompactExcerpt([
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "x".repeat(10_000) }],
+          },
+        ]),
+      ).toBe(`${"x".repeat(279)}…`);
+      expect(yieldedCodePoints).toBeLessThanOrEqual(281);
+    } finally {
+      String.prototype[Symbol.iterator] = originalIterator;
+    }
+  });
 });
 
 describe("isValidBlockNoteDoc", () => {
+  it("uses canonical text length for collapsible code-block whitespace", () => {
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "codeBlock",
+          content: `word${" ".repeat(MAX_POST_TEXT_LENGTH + 1)}`,
+        },
+      ]),
+    ).toBe(true);
+  });
+
   it("accepts exactly 150,000 Unicode code points even when UTF-16 is longer", () => {
     expect(
       isValidBlockNoteDoc([

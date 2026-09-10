@@ -152,7 +152,7 @@ function getPublishedProjectionData(
   const searchableText = buildSearchableText(post.title, bodyText, authorName);
   const capacity = validatePostCapacity(parsedBody.document, {
     corpus: {
-      sourcePostId: post._id,
+      postId: post._id,
       title: post.title,
       authorId: post.authorId,
       authorName,
@@ -301,7 +301,7 @@ export const repairAuthorName = internalMutation({
         ...args.paginationOpts,
         maximumRowsRead: DISCOVER_BATCH_SIZE,
         maximumBytesRead: 1_048_576,
-    });
+      });
 
     for (const post of result.page) {
       let searchableText: string;
@@ -313,7 +313,7 @@ export const repairAuthorName = internalMutation({
         );
         assertSearchCorpusCapacity(
           {
-            sourcePostId: post.postId,
+            postId: post.postId,
             title: post.title,
             authorId: post.authorId,
             authorName,

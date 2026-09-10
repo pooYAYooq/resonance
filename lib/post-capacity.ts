@@ -48,9 +48,9 @@ export type PostContentMeasurements = {
 };
 
 export type PostCorpusInput = {
-  sourcePostId?: string;
+  postId: string;
   title: string;
-  authorId?: string;
+  authorId: string;
   authorName: string;
   searchableText: string;
 };

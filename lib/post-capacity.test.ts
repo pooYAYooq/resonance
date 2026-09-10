@@ -201,7 +201,7 @@ describe("post capacity", () => {
     } = await import("./post-capacity");
     const body = "Multilingual العربية 日本語 हिन्दी 😀";
     const corpus = measurePostCorpus({
-      sourcePostId: "post-1",
+      postId: "post-1",
       title: "A long token: " + "x".repeat(1_000),
       authorName: "Author",
       searchableText: `A long token: ${"x".repeat(1_000)}\n${body}\nAuthor`,
@@ -214,7 +214,9 @@ describe("post capacity", () => {
         {
           finalDocumentBytes: MAX_POST_FINAL_DOCUMENT_BYTES,
           corpus: {
+            postId: "post-1",
             title: "Title",
+            authorId: "author-1",
             authorName: "Author",
             searchableText: "Title\nBody\nAuthor",
           },
@@ -235,7 +237,9 @@ describe("post capacity", () => {
         { format: "blocknote@1", blocks: [{ type: "paragraph", content: [] }] },
         {
           corpus: {
+            postId: "post-1",
             title: "x".repeat(MAX_POST_CORPUS_BYTES),
+            authorId: "author-1",
             authorName: "Author",
             searchableText: "Body\nAuthor",
           },
@@ -254,7 +258,7 @@ describe("post capacity", () => {
     const title = "Multilingual long-form title";
     const authorName = "Author with a long-token handle";
     const corpus = measurePostCorpus({
-      sourcePostId: "post-representative",
+      postId: "post-representative",
       title,
       authorId: "author-representative",
       authorName,
@@ -265,6 +269,28 @@ describe("post capacity", () => {
     expect(corpus.serializedCorpusBytes).toBeGreaterThan(150_000);
   });
 
+  it("measures the exact persisted Search record field names", async () => {
+    const { measurePostCorpus } = await import("./post-capacity");
+    const input = {
+      postId: "post-1",
+      title: "Title",
+      authorId: "author-1",
+      authorName: "Author",
+      searchableText: "Title\nBody\nAuthor",
+    };
+    const persistedRecord = {
+      postId: "post-1",
+      title: "Title",
+      authorId: "author-1",
+      authorName: "Author",
+      searchableText: "Title\nBody\nAuthor",
+    };
+
+    expect(measurePostCorpus(input).serializedCorpusBytes).toBe(
+      getSerializedByteLength(persistedRecord),
+    );
+  });
+
   it("keeps a 150,000-code-point Japanese body within the slim Search budget", async () => {
     const { MAX_POST_CORPUS_BYTES, measurePostCorpus } =
       await import("./post-capacity");
@@ -272,7 +298,7 @@ describe("post capacity", () => {
     const title = "Japanese capacity boundary";
     const authorName = "Ada Lovelace";
     const corpus = measurePostCorpus({
-      sourcePostId: "post-japanese-boundary",
+      postId: "post-japanese-boundary",
       title,
       authorId: "author-1",
       authorName,
@@ -293,14 +319,14 @@ describe("post capacity", () => {
     const searchable = (authorName: string) =>
       `${title}\n${bodyText}\n${authorName}`;
     const before = measurePostCorpus({
-      sourcePostId: "post-rename",
+      postId: "post-rename",
       title,
       authorId: "author-1",
       authorName: "A",
       searchableText: searchable("A"),
     });
     const after = measurePostCorpus({
-      sourcePostId: "post-rename",
+      postId: "post-rename",
       title,
       authorId: "author-1",
       authorName: "\u0000".repeat(100),

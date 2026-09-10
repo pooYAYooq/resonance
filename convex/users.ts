@@ -30,6 +30,13 @@ function validateDisplayName(displayName: string): void {
   }
 }
 
+function normalizeProviderDisplayName(
+  providerName: string | null | undefined,
+): string | null {
+  const normalizedName = providerName?.trim();
+  return normalizedName ? truncatePostAuthorName(normalizedName) : null;
+}
+
 const userValidator = v.object({
   _id: v.id("users"),
   _creationTime: v.number(),
@@ -93,9 +100,8 @@ export const syncUser = mutation({
       // Better Auth returns `string | null | undefined` for optional fields;
       // we only overwrite when a new non-null value is present, otherwise
       // we preserve the existing record to avoid accidentally clearing data.
-      const displayName = authUser.name
-        ? truncatePostAuthorName(authUser.name)
-        : existing.displayName;
+      const displayName =
+        normalizeProviderDisplayName(authUser.name) ?? existing.displayName;
       validateDisplayName(displayName);
       await ctx.db.patch(existing._id, {
         displayName,
@@ -126,9 +132,8 @@ export const syncUser = mutation({
     // Create new user record
     // `?? undefined` coerces `null` → `undefined` so the value aligns with
     // `v.optional(v.string())`, which accepts `string | undefined` but not `null`.
-    const displayName = authUser.name
-      ? truncatePostAuthorName(authUser.name)
-      : "Anonymous";
+    const displayName =
+      normalizeProviderDisplayName(authUser.name) ?? "Anonymous";
     validateDisplayName(displayName);
     const userId = await ctx.db.insert("users", {
       userId: authUser._id,

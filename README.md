@@ -235,7 +235,8 @@ lib/
   constants/                  # Site-wide constants (seo, footer, canonical post tags)
   avatar.ts                   # DiceBear fallback + initials helpers
   utils.ts                    # cn() and other helpers
-  post-content.ts             # Dependency-free body contract, image validation, captions, and storage-ID extraction
+  post-capacity.ts            # Shared Unicode, structural, source/document, Search-corpus, and author-name limits
+  post-content.ts             # Dependency-free body parsing, image validation, excerpts, and storage-ID extraction
   discover.ts                 # Discover URL normalization and mode-switch links
   auth-client.ts              # Better Auth client setup
   auth-server.ts              # Server-side auth helpers

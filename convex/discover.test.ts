@@ -546,7 +546,7 @@ describe("Discover summary and Search corpus boundaries", () => {
     const corpusBytes = (bodyText: string, authorName: string) =>
       new TextEncoder().encode(
         JSON.stringify({
-          sourcePostId: postId,
+          postId,
           title,
           authorId: "author-1",
           authorName,
