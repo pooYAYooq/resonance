@@ -12,11 +12,11 @@ Phase 3A.0 — UX Correctness, Phase 3A.1 — Product Structure, and Phase 3A.2 
 Discover Foundations are shipped. Phase 3A.3 — Writing & Management is the sole
 next focus. The Phase 3A target direction and delivery map are canonicalized.
 Track 3 Tasks 1 and 2 are reviewed and committed as `72f382b`; Task 3 Atomic
-Lifecycle Wiring is committed as `a169b2e`. Task 4 implementation and native
-development verification are complete. The approved slim Search projection
-removes the duplicate complete-body field, and the 150,000-code-point Japanese
-fixture fits within the measured Search budget. Task 4 now awaits human
-approval and its commit gate. Slice 1 Task 1, the private
+Lifecycle Wiring is committed as `a169b2e`; Task 4 capacity and native Search
+evidence is committed as `60cf933` and reviewed with zero CodeRabbit findings.
+The approved slim Search projection removes the duplicate complete-body field,
+and the 150,000-code-point Japanese fixture fits within the measured Search
+budget. Track 3 is shipped. Slice 1 Task 1, the private
 liked-posts backend contract, is committed. Task 2, separate marketing and
 authenticated site shells plus the dependency-required Saved/Liked reader
 routes, is verified and committed as `784db9d`. Task 3, the workspace shell and
@@ -167,10 +167,10 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   [`docs/PHASE_3A.md`](PHASE_3A.md)
 - Phase 3A cross-cutting decisions:
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
-- Track 2 final verification and Track 3 Task 3 are complete. Track 3 Task 4
-  passed local and explicitly authorized native development Search verification;
-  continue with its human approval and commit gate. Track 1 then Track 4 follow
-  in the approved order.
+- Track 2 final verification and Track 3 are complete. Track 3 Task 4 passed
+  local and explicitly authorized native development Search verification and is
+  committed as `60cf933`. Continue with Track 1, then Track 4, in the approved
+  order.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
   intentionally git-ignored).
