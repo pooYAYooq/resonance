@@ -1,10 +1,23 @@
+import {
+  getCanonicalBodyText,
+  MAX_POST_BLOCKS,
+  MAX_POST_CHILDREN_PER_BLOCK,
+  MAX_POST_DEPTH,
+  MAX_POST_INLINE_NODES,
+  MAX_POST_TEXT_CODE_POINTS,
+  validatePostCapacity,
+} from "./post-capacity";
+
+export { getCanonicalBodyText, getCodePointCount } from "./post-capacity";
+
 export const BLOCKNOTE_FORMAT = "blocknote@1" as const;
 export const MIN_POST_TEXT_LENGTH = 10;
-export const MAX_POST_TEXT_LENGTH = 50_000;
-export const MAX_BLOCKS = 100;
-export const MAX_RECURSION_DEPTH = 8;
-export const MAX_CHILDREN_PER_BLOCK = 20;
-export const MAX_INLINE_NODES = 500;
+// Compatibility aliases for existing callers. Post capacity owns the values.
+export const MAX_POST_TEXT_LENGTH = MAX_POST_TEXT_CODE_POINTS;
+export const MAX_BLOCKS = MAX_POST_BLOCKS;
+export const MAX_RECURSION_DEPTH = MAX_POST_DEPTH;
+export const MAX_CHILDREN_PER_BLOCK = MAX_POST_CHILDREN_PER_BLOCK;
+export const MAX_INLINE_NODES = MAX_POST_INLINE_NODES;
 
 export type PostTextStyle = "bold" | "italic" | "underline" | "strike" | "code";
 
@@ -186,7 +199,7 @@ function validateBlockProps(type: string, value: unknown): boolean {
 function validateBlocks(
   value: unknown,
   depth: number,
-  state: { blocks: number; inlineNodes: number; textLength: number },
+  state: { blocks: number; inlineNodes: number },
 ): value is PostBlock[] {
   if (!Array.isArray(value) || depth > MAX_RECURSION_DEPTH) return false;
 
@@ -207,21 +220,11 @@ function validateBlocks(
       if (Object.hasOwn(block, "content") || Object.hasOwn(block, "children")) {
         return false;
       }
-      if (isRecord(block.props) && typeof block.props.caption === "string") {
-        state.textLength += block.props.caption.length;
-      }
     } else if (type === "codeBlock") {
       if (typeof block.content !== "string") return false;
-      state.textLength += block.content.length;
     } else if (!validateInlineContent(block.content, state)) {
       return false;
-    } else {
-      state.textLength += extractPlainText([
-        { content: block.content as PostInlineContent[] },
-      ]).length;
     }
-
-    if (state.textLength > MAX_POST_TEXT_LENGTH) return false;
 
     if (block.children !== undefined) {
       if (
@@ -244,54 +247,41 @@ function validateBlocks(
  * @returns Concatenated plain text with normalized whitespace
  */
 export function extractPlainText(blocks: PostBlock[]): string {
-  const parts: string[] = [];
-  let depth = 0;
+  return getCanonicalBodyText(blocks);
+}
 
-  const visitInline = (content: unknown): void => {
-    if (!Array.isArray(content)) return;
+export function getWordCount(
+  bodyText: string,
+  options: { locale?: string; segmenter?: Intl.Segmenter | undefined } = {},
+): number {
+  const segmenter =
+    options.segmenter === undefined && Object.hasOwn(options, "segmenter")
+      ? undefined
+      : (options.segmenter ??
+        (typeof Intl.Segmenter === "function"
+          ? new Intl.Segmenter(options.locale, { granularity: "word" })
+          : undefined));
 
-    for (const inline of content) {
-      if (!isRecord(inline)) continue;
-      if (inline.type === "link") {
-        visitInline(inline.content);
-      } else if (typeof inline.text === "string") {
-        parts.push(inline.text);
-      }
+  if (!segmenter) {
+    return bodyText.trim().split(/\s+/).filter(Boolean).length;
+  }
+
+  return Array.from(segmenter.segment(bodyText)).filter(
+    (segment) => segment.isWordLike,
+  ).length;
+}
+
+export function getCompactExcerpt(blocks: PostBlock[]): string {
+  const codePoints: string[] = [];
+  for (const codePoint of getCanonicalBodyText(blocks, {
+    includeImageCaptions: false,
+  })) {
+    if (codePoints.length === 280) {
+      return `${codePoints.slice(0, 279).join("")}…`;
     }
-  };
-
-  const visitBlocks = (value: unknown): void => {
-    if (!Array.isArray(value) || depth > MAX_RECURSION_DEPTH) return;
-
-    for (const block of value) {
-      if (!isRecord(block)) continue;
-      if (typeof block.content === "string") {
-        parts.push(block.content);
-      } else if (
-        block.type === "image" &&
-        isRecord(block.props) &&
-        typeof block.props.caption === "string"
-      ) {
-        parts.push(block.props.caption);
-      } else {
-        visitInline(block.content);
-      }
-
-      if (Array.isArray(block.children)) {
-        depth += 1;
-        visitBlocks(block.children);
-        depth -= 1;
-      }
-    }
-  };
-
-  visitBlocks(blocks);
-
-  return parts
-    .join("\n")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{2,}/g, "\n")
-    .trim();
+    codePoints.push(codePoint);
+  }
+  return codePoints.join("");
 }
 
 /**
@@ -301,8 +291,11 @@ export function extractPlainText(blocks: PostBlock[]): string {
  * @returns True if the value is a valid array of blocks
  */
 export function isValidBlockNoteDoc(blocks: unknown): blocks is PostBlock[] {
-  const state = { blocks: 0, inlineNodes: 0, textLength: 0 };
-  return validateBlocks(blocks, 0, state);
+  const state = { blocks: 0, inlineNodes: 0 };
+  return (
+    validateBlocks(blocks, 0, state) &&
+    validatePostCapacity({ format: BLOCKNOTE_FORMAT, blocks }).ok
+  );
 }
 
 /**
@@ -356,7 +349,10 @@ export function extractImageStorageIds(blocks: PostBlock[]): string[] {
  * @param body - The JSON string to parse
  * @returns Parsed document if valid, or invalid result
  */
-export function parsePostBody(body: string): ParsedPostBody {
+export function parsePostBody(
+  body: string,
+  options: { validateCapacity?: boolean } = {},
+): ParsedPostBody {
   let value: unknown;
 
   try {
@@ -369,7 +365,21 @@ export function parsePostBody(body: string): ParsedPostBody {
     return { kind: "invalid" };
   }
 
-  if (!isValidBlockNoteDoc(value.blocks)) {
+  if (
+    !validateBlocks(value.blocks, 0, {
+      blocks: 0,
+      inlineNodes: 0,
+    })
+  ) {
+    return { kind: "invalid" };
+  }
+  if (
+    options.validateCapacity !== false &&
+    !validatePostCapacity({
+      format: BLOCKNOTE_FORMAT,
+      blocks: value.blocks,
+    }).ok
+  ) {
     return { kind: "invalid" };
   }
 

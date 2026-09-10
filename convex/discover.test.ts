@@ -7,19 +7,26 @@ import { api, internal } from "./_generated/api";
 import { POST_TAGS } from "../lib/constants/post-tags";
 import { BLOCKNOTE_FORMAT } from "../lib/post-content";
 import {
+  MAX_POST_CORPUS_BYTES,
+  MAX_POST_CORPUS_RENAME_RESERVE_BYTES,
+} from "../lib/post-capacity";
+import {
   applyTopicStatDelta,
   buildSearchableText,
   diffPostTags,
   ensureTopicStat,
   getDiscoverPostBySourceId,
+  getDiscoverSearchBySourceId,
+  getDiscoverSearchData,
   getDiscoverSourceData,
   getTopicRow,
   getTopicStat,
+  replaceSearchableAuthorName,
   syncPublishedPostProjection,
   upsertDiscoverPost,
   upsertTopicRow,
 } from "./discoverProjection";
-import { DISCOVER_BATCH_SIZE } from "./discoverBackfill";
+import { DISCOVER_BATCH_SIZE } from "./discoverProjection";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
@@ -38,6 +45,13 @@ function structuredBody(text: string): string {
         content: [{ type: "text", text }],
       },
     ],
+  });
+}
+
+function structuredBodyFromBlocks(blocks: unknown[]): string {
+  return JSON.stringify({
+    format: BLOCKNOTE_FORMAT,
+    blocks,
   });
 }
 
@@ -82,7 +96,7 @@ async function getUpdateDiscoverPostEngagement(): Promise<
 }
 
 describe("Discover projection helpers", () => {
-  it("builds the published source row shape and searchable text", async () => {
+  it("builds separate compact summary and complete Search rows", async () => {
     const t = convexTest(schema, modules);
     const postId = await insertPost(t, ["Technology", "Design"]);
 
@@ -96,7 +110,6 @@ describe("Discover projection helpers", () => {
       postId,
       title: "Projection title",
       bodyText: "Plain body text",
-      searchableText: expect.stringContaining("Projection title"),
       authorId: "author-1",
       authorName: "Ada Lovelace",
       tags: ["Technology", "Design"],
@@ -104,8 +117,13 @@ describe("Discover projection helpers", () => {
       commentCount: 4,
       likeCount: 7,
     });
-    expect(sourceData?.searchableText).toContain("Plain body text");
-    expect(sourceData?.searchableText).toContain("Ada Lovelace");
+    const searchData = await t.run(async (ctx) => {
+      const post = await ctx.db.get("posts", postId);
+      expect(post).not.toBeNull();
+      return getDiscoverSearchData(post!, "Ada Lovelace");
+    });
+    expect(searchData?.searchableText).toContain("Plain body text");
+    expect(searchData?.searchableText).toContain("Ada Lovelace");
     expect(buildSearchableText("Title", "Body", "Author")).toContain("Body");
   });
 
@@ -269,6 +287,383 @@ describe("Discover projection helpers", () => {
   });
 });
 
+describe("Discover summary and Search corpus boundaries", () => {
+  it("returns compact body-only summaries while Search matches the complete body", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "author-1",
+        displayName: "Ada Lovelace",
+        bio: "",
+        followerCount: 0,
+        followingCount: 0,
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      return await ctx.db.insert("posts", {
+        title: "Long-form projection",
+        body: structuredBodyFromBlocks([
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Opening body text" }],
+          },
+          {
+            type: "image",
+            props: {
+              storageId: "storage-1",
+              altText: "A diagram",
+              caption: "This caption must not be exposed as the excerpt.",
+            },
+          },
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: `${"A long searchable body segment ".repeat(20)}TAIL_MARKER`,
+              },
+            ],
+          },
+        ]),
+        tags: ["Technology"],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 123,
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch("users", (await ctx.db.query("users").first())!._id, {
+        displayName: "Ada Lovelace",
+      });
+      await syncPublishedPostProjection(ctx, postId);
+    });
+
+    const latest = await t.query(api.discover.getDiscoverPosts, {
+      mode: "latest",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(latest.page).toHaveLength(1);
+    expect(latest.page[0].bodyText).toContain("Opening body text");
+    expect(latest.page[0].bodyText).not.toContain("caption");
+    expect(latest.page[0].bodyText).not.toContain("TAIL_MARKER");
+    expect(Array.from(latest.page[0].bodyText).length).toBeLessThanOrEqual(280);
+
+    const topics = await t.query(api.discover.getTopicPosts, {
+      tag: "Technology",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(topics.page).toHaveLength(1);
+    expect(topics.page[0].bodyText).not.toContain("TAIL_MARKER");
+
+    const search = await t.query(api.discover.getDiscoverPosts, {
+      mode: "search",
+      query: "TAIL_MARKER",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(search.page.map((post) => post._id)).toEqual([postId]);
+    expect(search.page[0].bodyText).not.toContain("TAIL_MARKER");
+    await expect(
+      t.run(async (ctx) => getDiscoverSearchBySourceId(ctx, postId)),
+    ).resolves.toMatchObject({
+      searchableText: expect.stringContaining("TAIL_MARKER"),
+    });
+    const searchRow = await t.run(async (ctx) =>
+      getDiscoverSearchBySourceId(ctx, postId),
+    );
+    expect(searchRow).not.toHaveProperty("bodyText");
+  });
+
+  it("fits a complete 150,000-code-point Japanese body in the slim Search row", async () => {
+    const t = convexTest(schema, modules);
+    const bodyText = "界".repeat(150_000);
+    const postId = await t.run(async (ctx) =>
+      ctx.db.insert("posts", {
+        title: "Japanese capacity boundary",
+        body: structuredBody(bodyText),
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 123,
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
+    const post = await t.run(async (ctx) => ctx.db.get("posts", postId));
+
+    const searchData = getDiscoverSearchData(post!, "Ada Lovelace");
+
+    expect(searchData).not.toHaveProperty("bodyText");
+    expect(searchData?.searchableText).toContain(bodyText);
+    expect(
+      new TextEncoder().encode(JSON.stringify(searchData)).byteLength,
+    ).toBeLessThanOrEqual(MAX_POST_CORPUS_BYTES);
+  });
+
+  it("replaces only the known author suffix in searchable text", () => {
+    const searchableText =
+      "A title mentioning Old Name\nBody text mentioning Old Name\nOld Name";
+
+    expect(
+      replaceSearchableAuthorName(searchableText, "Old Name", "New Name"),
+    ).toBe(
+      "A title mentioning Old Name\nBody text mentioning Old Name\nNew Name",
+    );
+    expect(() =>
+      replaceSearchableAuthorName(searchableText, "Wrong Name", "New Name"),
+    ).toThrow(/author suffix/i);
+  });
+
+  it("updates a valid corpus that previously exceeded the duplicated Search budget", async () => {
+    const t = convexTest(schema, modules);
+    const validBody = "😀".repeat(100_000);
+    const postId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "author-1",
+        displayName: "Ada Lovelace",
+        bio: "",
+        followerCount: 0,
+        followingCount: 0,
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      return await ctx.db.insert("posts", {
+        title: "Valid title",
+        body: structuredBody(validBody),
+        tags: ["Technology"],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 123,
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("discoverPosts", {
+        postId,
+        title: "Previous title",
+        bodyText: "Previous compact body",
+        authorId: "author-1",
+        authorName: "Ada Lovelace",
+        tags: ["Technology"],
+        publishedAt: 123,
+        commentCount: 1,
+        likeCount: 2,
+      });
+      await ctx.db.insert("discoverPostSearch", {
+        postId,
+        title: "Previous title",
+        authorId: "author-1",
+        authorName: "Ada Lovelace",
+        searchableText: "Previous title\nPrevious complete body\nAda Lovelace",
+      });
+    });
+
+    await expect(
+      t.run(async (ctx) => syncPublishedPostProjection(ctx, postId)),
+    ).resolves.toBeNull();
+
+    await expect(
+      t.run(async (ctx) =>
+        ctx.db
+          .query("discoverPosts")
+          .withIndex("by_postId", (q) => q.eq("postId", postId))
+          .unique(),
+      ),
+    ).resolves.toMatchObject({
+      title: "Valid title",
+      commentCount: 0,
+      likeCount: 0,
+    });
+    await expect(
+      t.run(async (ctx) => getDiscoverSearchBySourceId(ctx, postId)),
+    ).resolves.toMatchObject({
+      title: "Valid title",
+      searchableText: expect.stringContaining(validBody),
+    });
+  });
+
+  it("bounds author rename repair before touching Search rows", async () => {
+    const t = convexTest(schema, modules);
+    const bodyText = "😀".repeat(97_000);
+    const postId = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Valid title",
+        body: structuredBody(bodyText),
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 123,
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("discoverPostSearch", {
+        postId,
+        title: "Valid title",
+        authorId: "author-1",
+        authorName: "A",
+        searchableText: `Valid title\n${bodyText}\nA`,
+      });
+      return postId;
+    });
+
+    await expect(
+      t.mutation(internal.discoverProjection.repairAuthorName, {
+        authorId: "author-1",
+        newAuthorName: "A".repeat(100_000),
+        paginationOpts: { numItems: 50, cursor: null },
+      }),
+    ).rejects.toThrow(/Display name/i);
+
+    await expect(
+      t.run(async (ctx) => getDiscoverSearchBySourceId(ctx, postId)),
+    ).resolves.toMatchObject({ authorName: "A" });
+  });
+
+  it("repairs a corpus that safely consumes its rename reserve", async () => {
+    const t = convexTest(schema, modules);
+    const title = "Valid title";
+    const oldAuthorName = "A";
+    const newAuthorName = "\u0000".repeat(100);
+    const postId = await insertPost(t);
+    const corpusBytes = (bodyText: string, authorName: string) =>
+      new TextEncoder().encode(
+        JSON.stringify({
+          postId,
+          title,
+          authorId: "author-1",
+          authorName,
+          searchableText: `${title}\n${bodyText}\n${authorName}`,
+        }),
+      ).byteLength;
+    const emptyCorpusBytes = corpusBytes("", oldAuthorName);
+    const reservedLimit =
+      MAX_POST_CORPUS_BYTES - MAX_POST_CORPUS_RENAME_RESERVE_BYTES;
+    const bodyText = "😀".repeat(
+      Math.floor((reservedLimit - emptyCorpusBytes) / 4),
+    );
+
+    expect(corpusBytes(bodyText, oldAuthorName)).toBeLessThanOrEqual(
+      reservedLimit,
+    );
+    expect(corpusBytes(bodyText, newAuthorName)).toBeGreaterThan(reservedLimit);
+    expect(corpusBytes(bodyText, newAuthorName)).toBeLessThanOrEqual(
+      MAX_POST_CORPUS_BYTES,
+    );
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("discoverPosts", {
+        postId,
+        title,
+        bodyText: "Compact body",
+        authorId: "author-1",
+        authorName: oldAuthorName,
+        tags: [],
+        publishedAt: 123,
+        commentCount: 4,
+        likeCount: 7,
+      });
+      await ctx.db.insert("discoverPostSearch", {
+        postId,
+        title,
+        authorId: "author-1",
+        authorName: oldAuthorName,
+        searchableText: `${title}\n${bodyText}\n${oldAuthorName}`,
+      });
+    });
+
+    await expect(
+      t.mutation(internal.discoverProjection.repairAuthorName, {
+        authorId: "author-1",
+        newAuthorName,
+        paginationOpts: { numItems: 1, cursor: null },
+      }),
+    ).resolves.toEqual({ processed: 1, isDone: true });
+
+    const projections = await t.run(async (ctx) => ({
+      summary: await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique(),
+      search: await ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique(),
+    }));
+    expect(projections.summary?.authorName).toBe(newAuthorName);
+    expect(projections.search?.authorName).toBe(newAuthorName);
+    expect(projections.search?.searchableText.endsWith(newAuthorName)).toBe(
+      true,
+    );
+  });
+
+  it("validates the resolved author name on stale repair requests", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Valid title",
+        body: structuredBody("Body text"),
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 123,
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("users", {
+        userId: "author-1",
+        displayName: "😀".repeat(101),
+        bio: "",
+        followerCount: 0,
+        followingCount: 0,
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      await ctx.db.insert("discoverPostSearch", {
+        postId,
+        title: "Valid title",
+        authorId: "author-1",
+        authorName: "Old Name",
+        searchableText: "Valid title\nBody text\nOld Name",
+      });
+      return postId;
+    });
+
+    await expect(
+      t.mutation(internal.discoverProjection.repairAuthorName, {
+        authorId: "author-1",
+        newAuthorName: "Current Name",
+        paginationOpts: { numItems: 1, cursor: null },
+      }),
+    ).rejects.toThrow(/Display name/i);
+
+    await expect(
+      t.run(async (ctx) => getDiscoverSearchBySourceId(ctx, postId)),
+    ).resolves.toMatchObject({ authorName: "Old Name" });
+  });
+});
+
 describe("Discover projection persistence helpers", () => {
   it("updates only supplied engagement counts on an existing projection", async () => {
     const t = convexTest(schema, modules);
@@ -365,6 +760,7 @@ describe("Discover projection persistence helpers", () => {
 
     const result = await t.run(async (ctx) => ({
       discover: await getDiscoverPostBySourceId(ctx, postId),
+      search: await getDiscoverSearchBySourceId(ctx, postId),
       topics: await ctx.db
         .query("discoverPostTopics")
         .withIndex("by_postId", (q) => q.eq("postId", postId))
@@ -382,7 +778,7 @@ describe("Discover projection persistence helpers", () => {
       publishedAt: 123,
       tags: ["Technology", "Design"],
     });
-    expect(result.discover?.searchableText).toContain("Ada Lovelace");
+    expect(result.search?.searchableText).toContain("Ada Lovelace");
     expect(result.topics.map((topic) => topic.tag).sort()).toEqual([
       "Design",
       "Technology",
@@ -551,11 +947,14 @@ describe("Discover projection persistence helpers", () => {
       await ctx.db.patch(user!._id, { displayName: "New Name" });
     });
 
-    const first = await t.mutation(internal.discoverBackfill.repairAuthorName, {
-      authorId: "author-1",
-      newAuthorName: "New Name",
-      paginationOpts: { numItems: 1, cursor: null },
-    });
+    const first = await t.mutation(
+      internal.discoverProjection.repairAuthorName,
+      {
+        authorId: "author-1",
+        newAuthorName: "New Name",
+        paginationOpts: { numItems: 1, cursor: null },
+      },
+    );
     expect(first).toEqual({ processed: 1, isDone: false });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
@@ -565,14 +964,112 @@ describe("Discover projection persistence helpers", () => {
         .withIndex("by_authorId", (q) => q.eq("authorId", "author-1"))
         .collect(),
     );
+    const searchRows = await t.run(async (ctx) =>
+      ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_authorId", (q) => q.eq("authorId", "author-1"))
+        .collect(),
+    );
     expect(rows).toHaveLength(3);
     expect(rows.every((row) => row.authorName === "New Name")).toBe(true);
-    expect(rows.every((row) => row.searchableText.includes("New Name"))).toBe(
-      true,
+    expect(
+      searchRows.every((row) => row.searchableText.includes("New Name")),
+    ).toBe(true);
+    expect(
+      searchRows.every((row) => !row.searchableText.includes("Old Name")),
+    ).toBe(true);
+  });
+
+  it("continues author repair after a malformed Search row", async () => {
+    vi.useFakeTimers();
+    const t = convexTest(schema, modules);
+    const postIds = await Promise.all([
+      insertPost(t, ["Technology"]),
+      insertPost(t, ["Design"]),
+      insertPost(t, ["Culture"]),
+    ]);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "author-1",
+        displayName: "Old Name",
+        bio: "",
+        followerCount: 0,
+        followingCount: 0,
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      for (const postId of postIds) {
+        await syncPublishedPostProjection(ctx, postId);
+      }
+      const malformed = await ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_postId", (q) => q.eq("postId", postIds[0]))
+        .unique();
+      expect(malformed).not.toBeNull();
+      await ctx.db.patch(malformed!._id, { searchableText: "malformed" });
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", "author-1"))
+        .unique();
+      expect(user).not.toBeNull();
+      await ctx.db.patch(user!._id, { displayName: "New Name" });
+    });
+
+    const first = await t.mutation(
+      internal.discoverProjection.repairAuthorName,
+      {
+        authorId: "author-1",
+        newAuthorName: "New Name",
+        paginationOpts: { numItems: 1, cursor: null },
+      },
     );
-    expect(rows.every((row) => !row.searchableText.includes("Old Name"))).toBe(
-      true,
+    expect(first).toEqual({ processed: 1, isDone: false });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const rows = await t.run(async (ctx) => ({
+      summaries: await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_authorId", (q) => q.eq("authorId", "author-1"))
+        .collect(),
+      search: await ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_authorId", (q) => q.eq("authorId", "author-1"))
+        .collect(),
+    }));
+    const malformedSearch = rows.search.find(
+      (row) => row.postId === postIds[0],
     );
+    expect(malformedSearch).toMatchObject({
+      authorName: "Old Name",
+      searchableText: "malformed",
+    });
+    expect(
+      rows.search.map(({ postId, authorName, searchableText }) => ({
+        postId,
+        authorName,
+        searchableText,
+      })),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          postId: postIds[1],
+          authorName: "New Name",
+          searchableText: expect.stringMatching(/\nNew Name$/),
+        }),
+        expect.objectContaining({
+          postId: postIds[2],
+          authorName: "New Name",
+          searchableText: expect.stringMatching(/\nNew Name$/),
+        }),
+      ]),
+    );
+    expect(
+      rows.summaries
+        .filter((row) => row.postId !== postIds[0])
+        .every((row) => row.authorName === "New Name"),
+    ).toBe(true);
   });
 
   it("does not let an older repair continuation overwrite a newer profile name", async () => {
@@ -601,7 +1098,7 @@ describe("Discover projection persistence helpers", () => {
     });
 
     const oldRepair = await t.mutation(
-      internal.discoverBackfill.repairAuthorName,
+      internal.discoverProjection.repairAuthorName,
       {
         authorId: "author-1",
         newAuthorName: "Old Name",
@@ -620,7 +1117,7 @@ describe("Discover projection persistence helpers", () => {
     });
 
     const newRepair = await t.mutation(
-      internal.discoverBackfill.repairAuthorName,
+      internal.discoverProjection.repairAuthorName,
       {
         authorId: "author-1",
         newAuthorName: "Newest Name",
@@ -638,10 +1135,16 @@ describe("Discover projection persistence helpers", () => {
         .withIndex("by_authorId", (q) => q.eq("authorId", "author-1"))
         .collect(),
     );
+    const searchRows = await t.run(async (ctx) =>
+      ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_authorId", (q) => q.eq("authorId", "author-1"))
+        .collect(),
+    );
     expect(rows).toHaveLength(3);
     expect(rows.every((row) => row.authorName === "Newest Name")).toBe(true);
     expect(
-      rows.every((row) => row.searchableText.includes("Newest Name")),
+      searchRows.every((row) => row.searchableText.includes("Newest Name")),
     ).toBe(true);
   });
 
@@ -660,7 +1163,7 @@ describe("Discover projection persistence helpers", () => {
       const paginationOpts = { numItems, cursor: null };
 
       await expect(
-        t.mutation(internal.discoverBackfill.repairAuthorName, {
+        t.mutation(internal.discoverProjection.repairAuthorName, {
           authorId: "author-1",
           newAuthorName: "Name",
           paginationOpts,
@@ -700,7 +1203,6 @@ describe("Discover projection persistence helpers", () => {
         postId,
         title: "Updated title",
         bodyText: "Updated body",
-        searchableText: "Updated title Updated body Ada Lovelace",
         authorId: "author-1",
         authorName: "Ada Lovelace",
         tags: ["Technology"],
@@ -1061,7 +1563,6 @@ describe("Public Discover queries", () => {
         postId: oldestSource,
         title: "Oldest",
         bodyText: "Old body",
-        searchableText: "Oldest\nOld body\nAda",
         authorId: "author-1",
         authorName: "Ada Lovelace",
         tags: ["Technology"],
@@ -1073,7 +1574,6 @@ describe("Public Discover queries", () => {
         postId: newestSource,
         title: "Newest",
         bodyText: "New body",
-        searchableText: "Newest\nNew body\nGrace",
         authorId: "author-2",
         authorName: "Grace Hopper",
         tags: ["Science"],
@@ -1131,13 +1631,19 @@ describe("Public Discover queries", () => {
           postId,
           title,
           bodyText,
-          searchableText: `${title}\n${bodyText}\n${authorName}`,
           authorId: authorName,
           authorName,
           tags: [],
           publishedAt: 1,
           commentCount: 0,
           likeCount: 0,
+        });
+        await ctx.db.insert("discoverPostSearch", {
+          postId,
+          title,
+          authorId: authorName,
+          authorName,
+          searchableText: `${title}\n${bodyText}\n${authorName}`,
         });
       }
     });
@@ -1227,7 +1733,6 @@ describe("Public Discover queries", () => {
         postId: sourcePostId,
         title: "Existing topic post",
         bodyText: "Body",
-        searchableText: "Existing topic post\nBody\nAuthor",
         authorId: "author-1",
         authorName: "Author",
         tags: ["Technology"],

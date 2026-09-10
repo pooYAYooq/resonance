@@ -1,25 +1,59 @@
 /**
  * Unit tests for Convex user queries and mutations.
  *
- * Auth-path tests (e.g. `syncUser` with a mocked Better Auth session) are
- * omitted because convex-test does not support the Better Auth component
- * registration pattern required to mock `safeGetAuthUser`. These behaviors
- * are covered by manual testing and code inspection of `users.ts`.
- *
  * The tests here verify:
  * - Unauthenticated callers are rejected by `syncUser`.
+ * - Authentication sync normalizes provider display names.
  * - Queries return `null` for non-existent records.
  * - The schema and indexes are correctly wired.
  */
 
 /// <reference types="vite/client" />
 
+import { register } from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { api, components } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+
+async function createAuthIdentity(
+  t: ReturnType<typeof convexTest>,
+  name: string,
+) {
+  const now = Date.now();
+  return await t.run(async (ctx) => {
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name,
+          email: "auth-user@example.com",
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: `session-${user._id}`,
+            expiresAt: now + 60_000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+}
 
 describe("users functions", () => {
   it("syncUser rejects unauthenticated callers", async () => {
@@ -27,6 +61,23 @@ describe("users functions", () => {
     await expect(t.mutation(api.users.syncUser, {})).rejects.toThrow(
       "Unauthorized",
     );
+  });
+
+  it("stores Anonymous for a whitespace-only provider name", async () => {
+    const t = convexTest(schema, modules);
+    register(t);
+    const identity = await createAuthIdentity(t, "   ");
+
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+
+    await expect(
+      t.run(async (ctx) =>
+        ctx.db
+          .query("users")
+          .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+          .unique(),
+      ),
+    ).resolves.toMatchObject({ displayName: "Anonymous" });
   });
 
   it("getCurrentUser returns null when unauthenticated", async () => {

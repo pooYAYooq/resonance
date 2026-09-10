@@ -136,8 +136,7 @@ resonance/
 │   │                           # publish/edit synchronization updates Discover projections;
 │   │                           # deletion hides source/projection immediately and starts cleanup
 │   ├── discover.ts             # Public Latest, Search, Topics, and Topic-post queries
-│   ├── discoverProjection.ts   # Shared projection synchronization and indexed invariants
-│   ├── discoverBackfill.ts     # Bounded author-name repair continuation
+│   ├── discoverProjection.ts   # Shared compact/Search synchronization, repair, and indexed invariants
 │   ├── pendingUploads.ts       # Owner-bound inline upload sessions, finalization,
 │   │                           # failed-submit cleanup, and bounded expiry cleanup
 │   ├── sessionMediaClaims.ts   # Short-lived owner/session media protection,
@@ -258,10 +257,11 @@ resonance/
     ├── auth-server.ts          # Next.js server-side auth helpers
     ├── auth-client.ts          # Browser-side authClient (sign-in, sign-up, sign-out)
     ├── avatar.ts               # DiceBear fallback URL + initials helpers
-    ├── post-content.ts         # Dependency-free structured body contract. Canonical
-    │                           # blocknote@1 envelope types, parser, structural validator,
-    │                           # extractPlainText, and safety limits. Imported by Convex
-     │                           # (saveDraft/publishPost), Zod (postSchema), PostCard, metadata, and
+    ├── post-capacity.ts        # Shared Unicode measurements, structural and author-name limits,
+    │                           # source/final-document budgets, and Search-corpus capacity.
+    ├── post-content.ts         # Dependency-free blocknote@1 envelope types, parser,
+    │                           # structural validator, extraction, and compact excerpts.
+    │                           # Imported by Convex (saveDraft/publishPost), Zod (postSchema), PostCard, metadata, and
     │                           # PostBody. Never imports BlockNote packages.
     └── constants/
         ├── seo.ts              # SITE_NAME, getSiteUrl(), truncateForDescription()
@@ -425,18 +425,25 @@ name is not part of the URL. For example, `/blog` resolves to
 
 ### Discover Projections, Topics, and URL State
 
-`posts` remains the source of truth. Discover maintains three bounded read
-models: `discoverPosts` for Latest and full-text Search, `discoverPostTopics`
-for Topic listings, and `topicStats` for active canonical-topic counts.
-`discoverPosts` has `by_postId`, `by_authorId`, `by_publishedAt`, and a
+`posts` remains the source of truth. Discover maintains four bounded read
+models: compact `discoverPosts` summaries for Latest and result rendering,
+`discoverPostSearch` for the complete full-text corpus stored once in
+`searchableText` (with source ID, title, and author metadata, but no duplicate
+body field),
+`discoverPostTopics` for Topic listings, and `topicStats` for active
+canonical-topic counts. `discoverPosts` has `by_postId`, `by_authorId`, and
+`by_publishedAt`; `discoverPostSearch` has `by_postId`, `by_authorId`, and the
 full-text `search_searchableText` index. Topic rows use
 `by_tag_and_publishedAt`, `by_postId_and_tag`, and `by_postId`; counters use
 `topicStats.by_tag`. Indexed lookups enforce one post projection per source
 post, one Topic row per `(postId, tag)`, and one counter per canonical tag.
 
-Publish and published-edit mutations synchronize affected projection rows and
-counters transactionally. A bounded author rename continuation reuses the same
-idempotent helpers. Published deletion removes the
+Draft writes remain private and do not create Discover or Search rows. Publish
+and published-edit mutations preflight final-document and complete-corpus
+capacity before changing the source, then synchronize affected projection rows
+and counters transactionally. A bounded author rename continuation verifies
+and replaces only the known author suffix in `searchableText`. Published
+deletion removes the
 source and projection immediately, then drains upload claims, comments,
 comment likes, likes, bookmarks, views, notifications, and feed rows through
 durable bounded cursor continuations while correcting derived counters. Like
@@ -495,7 +502,7 @@ cards, metadata, and the Server Component renderer all share one contract.
   approved inline styles (`bold`, `italic`, `underline`, `strike`, `code`).
   Bounds total blocks,
   recursive depth, children per block, inline nodes, and derived text (capped
-  at 50,000 readable characters). Imports no packages. `parsePostBody` is
+  at 150,000 readable Unicode code points). Imports no packages. `parsePostBody` is
   read-safe (never throws on malformed stored data) and the
   write path uses the exact `format: "blocknote@1"` discriminator to reject
   invalid structured content for new posts instead of silently accepting it.
@@ -532,7 +539,7 @@ nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
   `JSON.stringify({ format: "blocknote@1", blocks })` inside the existing
   `posts.body: string`. `saveDraft` validates the exact structured envelope
   and derived text upper bound before insertion; `publishPost` enforces the
-  10–50,000 trimmed character rule and rejects malformed structured envelopes.
+  10–150,000 readable-code-point rule and rejects malformed structured envelopes.
   Image blocks have exact props
   (`storageId`, nonblank `altText`, optional `caption`) and no children/content.
   `saveDraft` verifies owner-bound, unexpired claims and binds each unique

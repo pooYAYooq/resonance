@@ -181,8 +181,7 @@ convex/
   posts.ts                    # Draft save/publish, published editing/deletion, published-only reads, uploads, claims, and URL hydration
   postLifecycle.ts             # Transactional post writes, deterministic preconditions, and projection synchronization
   discover.ts                 # Public Latest, Search, Topics, and Topic-post queries
-  discoverProjection.ts       # Indexed projection synchronization and invariants
-  discoverBackfill.ts         # Bounded author-name repair continuation
+  discoverProjection.ts       # Compact/Search projection synchronization, repair, and invariants
   pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
   sessionMediaClaims.ts       # Session-scoped media retention claims with expiry and lifecycle transitions
   writeAttempts.ts             # Author-bound idempotent write reservations, retained outcomes, reconciliation, and cleanup
@@ -236,7 +235,8 @@ lib/
   constants/                  # Site-wide constants (seo, footer, canonical post tags)
   avatar.ts                   # DiceBear fallback + initials helpers
   utils.ts                    # cn() and other helpers
-  post-content.ts             # Dependency-free body contract, image validation, captions, and storage-ID extraction
+  post-capacity.ts            # Shared Unicode, structural, source/document, Search-corpus, and author-name limits
+  post-content.ts             # Dependency-free body parsing, image validation, excerpts, and storage-ID extraction
   discover.ts                 # Discover URL normalization and mode-switch links
   auth-client.ts              # Better Auth client setup
   auth-server.ts              # Server-side auth helpers

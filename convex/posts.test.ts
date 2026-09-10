@@ -36,6 +36,58 @@ import type { Id } from "./_generated/dataModel";
 
 const modules = import.meta.glob("./**/*.ts");
 
+async function createPostTestUser(
+  t: ReturnType<typeof convexTest>,
+  email: string,
+) {
+  register(t);
+  const identity = await t.run(async (ctx) => {
+    const now = Date.now();
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Lifecycle owner",
+          email,
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: `lifecycle-${email}`,
+            expiresAt: now + 60_000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+  await t.withIdentity(identity).mutation(api.users.syncUser, {});
+  return identity;
+}
+
+function lifecycleBody(text = "A publishable lifecycle body.") {
+  return JSON.stringify({
+    format: BLOCKNOTE_FORMAT,
+    blocks: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text }],
+      },
+    ],
+  });
+}
+
 describe("posts functions", () => {
   it("uses one generic published-post contract for published and draft rows", async () => {
     const t = convexTest(schema, modules);
@@ -310,6 +362,7 @@ describe("posts functions", () => {
     expect(
       isValidPublishPostBody(bodyWithText("x".repeat(MAX_POST_TEXT_LENGTH))),
     ).toBe(true);
+    expect(isValidPublishPostBody(bodyWithText(" ".repeat(10)))).toBe(false);
   });
 
   it("rejects malformed structured create-post bodies", () => {
@@ -731,6 +784,7 @@ describe("posts functions", () => {
     const t = convexTest(schema, modules);
     register(t);
     vi.useFakeTimers();
+    vi.setSystemTime(100);
     const identity = await t.run(async (ctx) => {
       const now = Date.now();
       const user = await ctx.runMutation(components.betterAuth.adapter.create, {
@@ -799,7 +853,7 @@ describe("posts functions", () => {
         likeCount: 0,
         uniqueViewCount: 0,
         createdAt: 1,
-        updatedAt: 1,
+        updatedAt: 1_000,
       }),
     );
     const proposal = {
@@ -821,7 +875,7 @@ describe("posts functions", () => {
         clientRequestId: "publish-existing-1",
         operationKind: "publish",
         postId,
-        expectedUpdatedAt: 1,
+        expectedUpdatedAt: 1_000,
         proposal,
       });
     await t.withIdentity(identity).mutation(api.posts.publishPost, {
@@ -836,6 +890,15 @@ describe("posts functions", () => {
           .unique(),
       ),
     ).resolves.toMatchObject({ publishedPostCount: 1 });
+    const published = await t.run(async (ctx) =>
+      ctx.db
+        .query("posts")
+        .filter((q) => q.eq(q.field("title"), "Publish me"))
+        .unique(),
+    );
+    expect(published).not.toBeNull();
+    expect(published!.publishedAt).toBe(1_001);
+    expect(published!.updatedAt).toBe(1_001);
   });
 
   it("fails softly for unauthenticated draft reads", async () => {
@@ -1790,5 +1853,353 @@ describe("posts functions", () => {
 
     expect(result).not.toBeNull();
     expect(result?.likeCount).toBe(0);
+  });
+});
+
+describe("atomic discovery lifecycle", () => {
+  it("saves drafts without creating Discover or Search rows", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(t, "draft-lifecycle@example.com");
+    const proposal = {
+      title: "Draft only",
+      body: lifecycleBody(),
+      tags: ["Technology"],
+    };
+    const attempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "draft-lifecycle",
+        operationKind: "save-draft",
+        proposal,
+      });
+
+    const result = await t
+      .withIdentity(identity)
+      .mutation(api.posts.saveDraft, {
+        attemptId: attempt.attemptId,
+        proposal,
+      });
+
+    expect(result.kind).toBe("succeeded");
+    await expect(
+      t.run(async (ctx) => ({
+        posts: await ctx.db.query("posts").collect(),
+        summaries: await ctx.db.query("discoverPosts").collect(),
+        search: await ctx.db.query("discoverPostSearch").collect(),
+        topics: await ctx.db.query("discoverPostTopics").collect(),
+        topicStats: await ctx.db.query("topicStats").collect(),
+      })),
+    ).resolves.toMatchObject({
+      posts: [{ status: "draft" }],
+      summaries: [],
+      search: [],
+      topics: [],
+      topicStats: [],
+    });
+  });
+
+  it("creates source, compact, Search, and topic projections atomically on publication", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(
+      t,
+      "publish-lifecycle@example.com",
+    );
+    const proposal = {
+      title: "Published lifecycle",
+      body: lifecycleBody(
+        "This publication has enough content to pass validation.",
+      ),
+      tags: ["Technology", "Design"],
+    };
+    const attempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "publish-lifecycle",
+        operationKind: "publish",
+        proposal,
+      });
+
+    const result = await t
+      .withIdentity(identity)
+      .mutation(api.posts.publishPost, {
+        attemptId: attempt.attemptId,
+        proposal,
+      });
+
+    expect(result.kind).toBe("succeeded");
+    const state = await t.run(async (ctx) => ({
+      posts: await ctx.db.query("posts").collect(),
+      summaries: await ctx.db.query("discoverPosts").collect(),
+      search: await ctx.db.query("discoverPostSearch").collect(),
+      topics: await ctx.db.query("discoverPostTopics").collect(),
+      topicStats: await ctx.db.query("topicStats").collect(),
+    }));
+    expect(state.posts).toHaveLength(1);
+    expect(state.posts[0]).toMatchObject({
+      status: "published",
+      tags: proposal.tags,
+    });
+    expect(state.summaries).toHaveLength(1);
+    expect(state.search).toHaveLength(1);
+    expect(state.search[0].searchableText).toContain("This publication");
+    expect(state.topics.map((row) => row.tag).sort()).toEqual([
+      "Design",
+      "Technology",
+    ]);
+    expect(
+      state.topicStats
+        .map(({ tag, publishedCount }) => ({ tag, publishedCount }))
+        .sort((a, b) => a.tag.localeCompare(b.tag)),
+    ).toEqual([
+      { tag: "Design", publishedCount: 1 },
+      { tag: "Technology", publishedCount: 1 },
+    ]);
+  });
+
+  it("replaces all published projections and topic rows on update", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(
+      t,
+      "update-lifecycle@example.com",
+    );
+    const initialProposal = {
+      title: "Initial lifecycle",
+      body: lifecycleBody("The initial published body is long enough."),
+      tags: ["Technology"],
+    };
+    const initialAttempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "update-lifecycle-publish",
+        operationKind: "publish",
+        proposal: initialProposal,
+      });
+    const published = await t
+      .withIdentity(identity)
+      .mutation(api.posts.publishPost, {
+        attemptId: initialAttempt.attemptId,
+        proposal: initialProposal,
+      });
+    expect(published.kind).toBe("succeeded");
+    if (published.kind !== "succeeded") return;
+
+    const updatedProposal = {
+      title: "Updated lifecycle",
+      body: lifecycleBody("The replacement body contains the updated marker."),
+      tags: ["Design"],
+    };
+    const updateAttempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "update-lifecycle-update",
+        operationKind: "update-post",
+        postId: published.postId,
+        expectedUpdatedAt: published.updatedAt,
+        proposal: updatedProposal,
+      });
+    const updated = await t
+      .withIdentity(identity)
+      .mutation(api.posts.updatePublishedPost, {
+        attemptId: updateAttempt.attemptId,
+        proposal: updatedProposal,
+      });
+    expect(updated.kind).toBe("succeeded");
+
+    const state = await t.run(async (ctx) => ({
+      post: await ctx.db.get(published.postId),
+      summary: await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_postId", (q) => q.eq("postId", published.postId))
+        .unique(),
+      search: await ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_postId", (q) => q.eq("postId", published.postId))
+        .unique(),
+      topics: await ctx.db
+        .query("discoverPostTopics")
+        .withIndex("by_postId", (q) => q.eq("postId", published.postId))
+        .collect(),
+      topicStats: await ctx.db.query("topicStats").collect(),
+    }));
+    expect(state.post).toMatchObject({
+      title: updatedProposal.title,
+      tags: ["Design"],
+    });
+    expect(state.summary).toMatchObject({
+      title: updatedProposal.title,
+      tags: ["Design"],
+    });
+    expect(state.search).toMatchObject({ title: updatedProposal.title });
+    expect(state.search?.searchableText).toContain("updated marker");
+    expect(state.search?.searchableText).not.toContain(
+      "initial published body",
+    );
+    expect(state.topics.map((row) => row.tag)).toEqual(["Design"]);
+    expect(
+      state.topicStats
+        .map(({ tag, publishedCount }) => ({ tag, publishedCount }))
+        .sort((a, b) => a.tag.localeCompare(b.tag)),
+    ).toEqual([
+      { tag: "Design", publishedCount: 1 },
+      { tag: "Technology", publishedCount: 0 },
+    ]);
+  });
+
+  it("repairs both projections after an authenticated profile rename", async () => {
+    vi.useFakeTimers();
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(
+      t,
+      "rename-lifecycle@example.com",
+    );
+    const postId = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Rename lifecycle",
+        body: lifecycleBody("A published body for the rename lifecycle."),
+        tags: [],
+        authorId: identity.subject,
+        status: "published",
+        publishedAt: 1,
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("discoverPosts", {
+        postId,
+        title: "Rename lifecycle",
+        bodyText: "A published body for the rename lifecycle.",
+        authorId: identity.subject,
+        authorName: "Lifecycle owner",
+        tags: [],
+        publishedAt: 1,
+        commentCount: 0,
+        likeCount: 0,
+      });
+      await ctx.db.insert("discoverPostSearch", {
+        postId,
+        title: "Rename lifecycle",
+        authorId: identity.subject,
+        authorName: "Lifecycle owner",
+        searchableText:
+          "Rename lifecycle\nA published body for the rename lifecycle.\nLifecycle owner",
+      });
+      return postId;
+    });
+
+    await t.withIdentity(identity).mutation(api.users.updateProfile, {
+      displayName: "Renamed author",
+      bio: "Updated profile",
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const state = await t.run(async (ctx) => ({
+      user: await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+      summary: await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique(),
+      search: await ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique(),
+    }));
+    expect(state.user?.displayName).toBe("Renamed author");
+    expect(state.summary?.authorName).toBe("Renamed author");
+    expect(state.search?.authorName).toBe("Renamed author");
+    expect(state.search?.searchableText).toContain("Renamed author");
+    expect(state.search?.searchableText).not.toContain("Lifecycle owner");
+  });
+
+  it("updates all projections with a 150,000-code-point Japanese body", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(
+      t,
+      "capacity-lifecycle@example.com",
+    );
+    const initialProposal = {
+      title: "Stable lifecycle",
+      body: lifecycleBody(
+        "The old body remains public after a rejected update.",
+      ),
+      tags: ["Technology"],
+    };
+    const initialAttempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "capacity-lifecycle-publish",
+        operationKind: "publish",
+        proposal: initialProposal,
+      });
+    const published = await t
+      .withIdentity(identity)
+      .mutation(api.posts.publishPost, {
+        attemptId: initialAttempt.attemptId,
+        proposal: initialProposal,
+      });
+    expect(published.kind).toBe("succeeded");
+    if (published.kind !== "succeeded") return;
+
+    const boundaryBody = "界".repeat(150_000);
+    const boundaryProposal = {
+      title: "Japanese lifecycle boundary",
+      body: lifecycleBody(boundaryBody),
+      tags: ["Design"],
+    };
+    const updateAttempt = await t
+      .withIdentity(identity)
+      .mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "capacity-lifecycle-update",
+        operationKind: "update-post",
+        postId: published.postId,
+        expectedUpdatedAt: published.updatedAt,
+        proposal: boundaryProposal,
+      });
+    const updated = await t
+      .withIdentity(identity)
+      .mutation(api.posts.updatePublishedPost, {
+        attemptId: updateAttempt.attemptId,
+        proposal: boundaryProposal,
+      });
+
+    expect(updated).toMatchObject({ kind: "succeeded", status: "published" });
+    await expect(
+      t.run(async (ctx) => ({
+        post: await ctx.db.get(published.postId),
+        summary: await ctx.db
+          .query("discoverPosts")
+          .withIndex("by_postId", (q) => q.eq("postId", published.postId))
+          .unique(),
+        search: await ctx.db
+          .query("discoverPostSearch")
+          .withIndex("by_postId", (q) => q.eq("postId", published.postId))
+          .unique(),
+        topics: await ctx.db
+          .query("discoverPostTopics")
+          .withIndex("by_postId", (q) => q.eq("postId", published.postId))
+          .collect(),
+        topicStats: await ctx.db.query("topicStats").collect(),
+      })),
+    ).resolves.toMatchObject({
+      post: {
+        title: boundaryProposal.title,
+        body: boundaryProposal.body,
+        tags: boundaryProposal.tags,
+      },
+      summary: { title: boundaryProposal.title },
+      search: {
+        title: boundaryProposal.title,
+        searchableText: expect.stringContaining(boundaryBody),
+      },
+      topics: [expect.objectContaining({ tag: "Design" })],
+      topicStats: [
+        expect.objectContaining({ tag: "Technology", publishedCount: 0 }),
+        expect.objectContaining({ tag: "Design", publishedCount: 1 }),
+      ],
+    });
   });
 });

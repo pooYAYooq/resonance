@@ -15,7 +15,27 @@ import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import { internal } from "./_generated/api";
-import { DISCOVER_BATCH_SIZE } from "./discoverBackfill";
+import { DISCOVER_BATCH_SIZE } from "./discoverProjection";
+import { getCodePointCount } from "../lib/post-content";
+import {
+  MAX_POST_AUTHOR_NAME_CODE_POINTS,
+  truncatePostAuthorName,
+} from "../lib/post-capacity";
+
+function validateDisplayName(displayName: string): void {
+  if (getCodePointCount(displayName) > MAX_POST_AUTHOR_NAME_CODE_POINTS) {
+    throw new ConvexError(
+      `Display name must be ${MAX_POST_AUTHOR_NAME_CODE_POINTS} characters or fewer.`,
+    );
+  }
+}
+
+function normalizeProviderDisplayName(
+  providerName: string | null | undefined,
+): string | null {
+  const normalizedName = providerName?.trim();
+  return normalizedName ? truncatePostAuthorName(normalizedName) : null;
+}
 
 const userValidator = v.object({
   _id: v.id("users"),
@@ -80,7 +100,9 @@ export const syncUser = mutation({
       // Better Auth returns `string | null | undefined` for optional fields;
       // we only overwrite when a new non-null value is present, otherwise
       // we preserve the existing record to avoid accidentally clearing data.
-      const displayName = authUser.name || existing.displayName;
+      const displayName =
+        normalizeProviderDisplayName(authUser.name) ?? existing.displayName;
+      validateDisplayName(displayName);
       await ctx.db.patch(existing._id, {
         displayName,
         email: authUser.email != null ? authUser.email : existing.email,
@@ -95,7 +117,7 @@ export const syncUser = mutation({
           // Keep Discover's denormalized author fields aligned without blocking auth sync.
           await ctx.scheduler.runAfter(
             0,
-            internal.discoverBackfill.repairAuthorName,
+            internal.discoverProjection.repairAuthorName,
             {
               authorId: authUser._id,
               newAuthorName: displayName,
@@ -110,7 +132,9 @@ export const syncUser = mutation({
     // Create new user record
     // `?? undefined` coerces `null` → `undefined` so the value aligns with
     // `v.optional(v.string())`, which accepts `string | undefined` but not `null`.
-    const displayName = authUser.name || "Anonymous";
+    const displayName =
+      normalizeProviderDisplayName(authUser.name) ?? "Anonymous";
+    validateDisplayName(displayName);
     const userId = await ctx.db.insert("users", {
       userId: authUser._id,
       displayName,
@@ -132,7 +156,7 @@ export const syncUser = mutation({
       // Keep Discover's denormalized author fields aligned without blocking auth sync.
       await ctx.scheduler.runAfter(
         0,
-        internal.discoverBackfill.repairAuthorName,
+        internal.discoverProjection.repairAuthorName,
         {
           authorId: authUser._id,
           newAuthorName: displayName,
@@ -259,6 +283,7 @@ export const updateProfile = mutation({
       throw new ConvexError("User not found");
     }
 
+    validateDisplayName(displayName);
     await ctx.db.patch(existing._id, {
       displayName,
       bio: args.bio,
@@ -267,7 +292,7 @@ export const updateProfile = mutation({
       // The profile is the source event; repair denormalized Discover authors asynchronously.
       await ctx.scheduler.runAfter(
         0,
-        internal.discoverBackfill.repairAuthorName,
+        internal.discoverProjection.repairAuthorName,
         {
           authorId: authUser._id,
           newAuthorName: displayName,

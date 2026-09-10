@@ -10,8 +10,13 @@ Phase 3A.3 — Writing & Management — current
 
 Phase 3A.0 — UX Correctness, Phase 3A.1 — Product Structure, and Phase 3A.2 —
 Discover Foundations are shipped. Phase 3A.3 — Writing & Management is the sole
-next focus. The Phase 3A target
-direction and delivery map are canonicalized. Slice 1 Task 1, the private
+next focus. The Phase 3A target direction and delivery map are canonicalized.
+Track 3 Tasks 1 and 2 are reviewed and committed as `72f382b`; Task 3 Atomic
+Lifecycle Wiring is committed as `a169b2e`; Task 4 capacity and native Search
+evidence is committed as `60cf933` and reviewed with zero CodeRabbit findings.
+The approved slim Search projection removes the duplicate complete-body field,
+and the 150,000-code-point Japanese fixture fits within the measured Search
+budget. Track 3 is shipped. Slice 1 Task 1, the private
 liked-posts backend contract, is committed. Task 2, separate marketing and
 authenticated site shells plus the dependency-required Saved/Liked reader
 routes, is verified and committed as `784db9d`. Task 3, the workspace shell and
@@ -107,11 +112,33 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   finalization reclaims its session and unclaimed storage object. Existing
   deletion analytics and public return-validator corrections remain intact.
 - Track 2 final verification — `pnpm lint` passed; focused `pnpm test:ci --
-  convex/writeAttempts.test.ts convex/posts.test.ts
-  convex/sessionMediaClaims.test.ts convex/pendingUploads.test.ts
-  lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
+convex/writeAttempts.test.ts convex/posts.test.ts
+convex/sessionMediaClaims.test.ts convex/pendingUploads.test.ts
+lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   tests; `pnpm build` and `git diff --check` passed. The passing test run still
   emits the known Convex-test scheduled-function rollback warning.
+- Track 3 Tasks 1–2 — focused capacity/Discover tests passed: 82 tests; full
+  local Vitest passed: 25 files, 391 tests; component suite passed: 65 files,
+  321 tests; typecheck, lint, targeted formatting, build, and diff checks passed.
+  Capacity and projection changes were reviewed and committed as `72f382b`.
+- Track 3 Task 3 is committed. Post-commit review exposed a rename-reserve
+  boundary defect; its test-first correction passed human and CodeRabbit review
+  and was amended into the lifecycle commit. The lifecycle test command passes:
+  25 files, 397 tests; `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build`,
+  targeted formatting, and diff checks pass.
+- Track 3 Task 4 local baseline passed: 25 files and 397 unit tests, plus 65
+  files and 321 component tests. The representative fixture runner passed 2
+  tests. Its initial 900,238-byte Japanese Search record exposed duplicated
+  body storage; the approved slim projection measures 450,224 bytes and keeps
+  the full body in `searchableText`. Focused slim-projection tests pass 171/171.
+  The current local gate passes 25 files and 405 unit tests, 65 files and 321
+  component tests, lint, TypeScript, production build, formatting, and diff
+  checks.
+  Native Search verification passed on the explicitly authorized
+  `dev:woozy-spaniel-283` deployment: the 150,000-code-point Japanese row,
+  author repair, tail search, near-capacity record, pagination, reactivity, and
+  resource checks all passed. The temporary internal-only harness cleaned its
+  confined rows and was removed.
 
 ## Completed phases
 
@@ -140,15 +167,17 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   [`docs/PHASE_3A.md`](PHASE_3A.md)
 - Phase 3A cross-cutting decisions:
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
-- Track 2 final verification is complete. Continue with Phase 3A.3 — Writing &
-  Management, Track 3: Long-Form Content and Discovery. Track 1 then Track 4
-  follow in the approved order.
+- Track 2 final verification and Track 3 are complete. Track 3 Task 4 passed
+  local and explicitly authorized native development Search verification and is
+  committed as `60cf933`. Continue with Track 1, then Track 4, in the approved
+  order.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
-  intentionally git-ignored).
+  local and untracked, but intentionally visible to Git). The mandatory human
+  staging gate prevents these planning artifacts from being committed.
   Sections 1-7 and final Q64-Q65 clarifications are approved. Section 7 includes
   the minimal BlockNote interaction contract. The implementation roadmap and
-  four focused plans are now written under `superpowers/plans/`. Track 2 is the
+  four focused plans are now written under `docs/superpowers/plans/`. Track 2 is the
   required foundation, followed by Track 3, Track 1, and Track 4. Current
   database content is disposable test data: implementation must not add
   migrations, backfills, dual reads/writes, or compatibility fields. Runtime
@@ -165,8 +194,8 @@ convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
   hard-reload recovery without a separately approved architecture. Task
   boundaries also require human review/commit gates and an explicit
   compaction/handoff resume record before work continues. The development-only
-  plans, spec, and visual helpers are ignored by Git and must not be staged or
-  tracked.
+  plans, spec, and visual helpers remain visible to Git as local untracked
+  files; the mandatory staging gate keeps them out of commits.
 
 ## Status maintenance
 

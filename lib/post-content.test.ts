@@ -8,6 +8,7 @@ import {
   MAX_RECURSION_DEPTH,
   extractImageStorageIds,
   extractPlainText,
+  getCompactExcerpt,
   isValidBlockNoteDoc,
   parsePostBody,
 } from "./post-content";
@@ -108,6 +109,23 @@ describe("post content types", () => {
 });
 
 describe("extractPlainText", () => {
+  it("exposes canonical body extraction for normalized body text", async () => {
+    const postContent = await import("./post-content");
+    const getCanonicalBodyText = (postContent as Record<string, unknown>)[
+      "getCanonicalBodyText"
+    ];
+
+    expect(typeof getCanonicalBodyText).toBe("function");
+    if (typeof getCanonicalBodyText !== "function") return;
+
+    expect(
+      getCanonicalBodyText([
+        { type: "paragraph", content: [{ type: "text", text: "first" }] },
+        { type: "paragraph", content: [{ type: "text", text: "second" }] },
+      ]),
+    ).toBe("first\nsecond");
+  });
+
   it("extract plain text from structured post", () => {
     expect(extractPlainText(structured.blocks)).toContain("Heading");
     expect(extractPlainText(structured.blocks)).toContain("link");
@@ -182,9 +200,139 @@ describe("extractPlainText", () => {
     expect(text).toBe("A readable caption");
     expect(text).not.toContain("descriptive alt text");
   });
+
+  it("counts words with locale-aware segmentation and deterministic whitespace fallback", async () => {
+    const postContent = await import("./post-content");
+    const getWordCount = (postContent as Record<string, unknown>)[
+      "getWordCount"
+    ];
+
+    expect(typeof getWordCount).toBe("function");
+    if (typeof getWordCount !== "function") return;
+
+    expect(getWordCount("Hello, world! 你好世界")).toBe(4);
+    expect(getWordCount("  one\t two\nthree ", { segmenter: undefined })).toBe(
+      3,
+    );
+  });
+
+  it("creates a body-only 280-code-point excerpt with an ellipsis only when truncated", async () => {
+    const postContent = await import("./post-content");
+    const getCompactExcerpt = (postContent as Record<string, unknown>)[
+      "getCompactExcerpt"
+    ];
+
+    expect(typeof getCompactExcerpt).toBe("function");
+    if (typeof getCompactExcerpt !== "function") return;
+
+    const blocks: PostBlock[] = [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "link",
+            href: "javascript:alert(1)",
+            content: [{ type: "text", text: `${"x".repeat(279)}😀more` }],
+          },
+        ],
+      },
+      {
+        type: "image",
+        props: {
+          storageId: "image-1",
+          altText: "Hidden alt",
+          caption: "Caption",
+        },
+      },
+    ];
+
+    expect(getCompactExcerpt(blocks)).toBe(`${"x".repeat(279)}…`);
+    expect(
+      getCompactExcerpt([
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "e".repeat(280) }],
+        },
+      ]),
+    ).toBe("e".repeat(280));
+    expect(
+      getCompactExcerpt([
+        { type: "paragraph", content: [{ type: "text", text: "short" }] },
+      ]),
+    ).toBe("short");
+
+    const shortBodyWithCaption: PostBlock[] = [
+      { type: "paragraph", content: [{ type: "text", text: "Body only" }] },
+      {
+        type: "image",
+        props: {
+          storageId: "image-2",
+          altText: "Not part of the body",
+          caption: "Caption must stay out",
+        },
+      },
+    ];
+
+    expect(getCompactExcerpt(shortBodyWithCaption)).toBe("Body only");
+  });
+
+  it("stops reading code points after the compact excerpt boundary", async () => {
+    const originalIterator = String.prototype[Symbol.iterator];
+    let yieldedCodePoints = 0;
+    String.prototype[Symbol.iterator] = function* () {
+      const iterator = originalIterator.call(this);
+      while (true) {
+        const result = iterator.next();
+        if (result.done) return;
+        yieldedCodePoints += 1;
+        yield result.value;
+      }
+    };
+
+    try {
+      expect(
+        getCompactExcerpt([
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "x".repeat(10_000) }],
+          },
+        ]),
+      ).toBe(`${"x".repeat(279)}…`);
+      expect(yieldedCodePoints).toBeLessThanOrEqual(281);
+    } finally {
+      String.prototype[Symbol.iterator] = originalIterator;
+    }
+  });
 });
 
 describe("isValidBlockNoteDoc", () => {
+  it("uses canonical text length for collapsible code-block whitespace", () => {
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "codeBlock",
+          content: `word${" ".repeat(MAX_POST_TEXT_LENGTH + 1)}`,
+        },
+      ]),
+    ).toBe(true);
+  });
+
+  it("accepts exactly 150,000 Unicode code points even when UTF-16 is longer", () => {
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: `${"a".repeat(149_999)}😀`,
+            },
+          ],
+        },
+      ]),
+    ).toBe(true);
+  });
+
   it("accepts every supported block type", () => {
     expect(
       isValidBlockNoteDoc([

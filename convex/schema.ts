@@ -233,15 +233,11 @@ export default defineSchema({
     ])
     .index("by_postId", ["postId"]),
 
-  /**
-   * One published-post read-model row per source post for Discover search and
-   * Latest ordering. `postId` is the application-enforced unique source key.
-   */
+  /** One compact published-post summary per source post for Discover listings. */
   discoverPosts: defineTable({
     postId: v.id("posts"),
     title: v.string(),
     bodyText: v.string(),
-    searchableText: v.string(),
     authorId: v.string(),
     authorName: v.string(),
     tags: v.array(v.string()),
@@ -252,7 +248,18 @@ export default defineSchema({
   })
     .index("by_postId", ["postId"])
     .index("by_authorId", ["authorId"])
-    .index("by_publishedAt", ["publishedAt"])
+    .index("by_publishedAt", ["publishedAt"]),
+
+  /** One complete searchable corpus row per published source post. */
+  discoverPostSearch: defineTable({
+    postId: v.id("posts"),
+    title: v.string(),
+    authorId: v.string(),
+    authorName: v.string(),
+    searchableText: v.string(),
+  })
+    .index("by_postId", ["postId"])
+    .index("by_authorId", ["authorId"])
     .searchIndex("search_searchableText", {
       searchField: "searchableText",
     }),

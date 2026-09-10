@@ -109,13 +109,19 @@ describe("published post deletion", () => {
         postId,
         title: "Delete me",
         bodyText: "Body",
-        searchableText: "Delete me Body",
         authorId: identity.subject,
         authorName: "Post owner",
         tags: ["Technology"],
         publishedAt: 1,
         commentCount: 1,
         likeCount: 1,
+      });
+      await ctx.db.insert("discoverPostSearch", {
+        postId,
+        title: "Delete me",
+        authorId: identity.subject,
+        authorName: "Post owner",
+        searchableText: "Delete me\nBody\nPost owner",
       });
       await ctx.db.insert("discoverPostTopics", {
         postId,
@@ -197,6 +203,22 @@ describe("published post deletion", () => {
       t.run(async (ctx) =>
         ctx.db
           .query("discoverPosts")
+          .withIndex("by_postId", (q) => q.eq("postId", ids.postId))
+          .take(1),
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      t.run(async (ctx) =>
+        ctx.db
+          .query("discoverPostTopics")
+          .withIndex("by_postId", (q) => q.eq("postId", ids.postId))
+          .take(1),
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      t.run(async (ctx) =>
+        ctx.db
+          .query("discoverPostSearch")
           .withIndex("by_postId", (q) => q.eq("postId", ids.postId))
           .take(1),
       ),
@@ -787,7 +809,6 @@ describe("published post deletion", () => {
         postId,
         title: "Duplicate topics",
         bodyText: "Body",
-        searchableText: "Duplicate topics Body",
         authorId: identity.subject,
         authorName: "Post owner",
         tags: ["Technology"],
@@ -938,7 +959,6 @@ describe("published post deletion", () => {
         postId,
         title: "Missing stat",
         bodyText: "Body",
-        searchableText: "Missing stat Body",
         authorId: identity.subject,
         authorName: "Post owner",
         tags: ["Technology"],

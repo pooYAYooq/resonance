@@ -63,8 +63,8 @@ implementation order.
 | Track   | Delivery focus                                | Status     |
 | ------- | --------------------------------------------- | ---------- |
 | Track 2 | Persistence, Retry, Session, and Media Safety | ✅ Shipped |
-| Track 3 | Long-Form Content and Discovery               | 🔵 Next On |
-| Track 1 | Authoring Workspace and BlockNote Experience  | 🟡 Later   |
+| Track 3 | Long-Form Content and Discovery               | ✅ Shipped |
+| Track 1 | Authoring Workspace and BlockNote Experience  | 🔵 Next On |
 | Track 4 | Management, Navigation, and Accessibility     | 🟡 Later   |
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
