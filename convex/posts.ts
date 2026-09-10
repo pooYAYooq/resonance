@@ -132,7 +132,7 @@ export function isValidPublishPostBody(body: string): boolean {
   if (!isValidDraftPostBody(body)) return false;
   const document = getStructuredPostBody(body);
   if (!document) return false;
-  const textLength = Array.from(extractPlainText(document.blocks)).length;
+  const textLength = Array.from(extractPlainText(document.blocks).trim()).length;
   return textLength >= MIN_POST_TEXT_LENGTH;
 }
 

@@ -203,6 +203,7 @@ describe("post capacity", () => {
     const corpus = measurePostCorpus({
       postId: "post-1",
       title: "A long token: " + "x".repeat(1_000),
+      authorId: "author-1",
       authorName: "Author",
       searchableText: `A long token: ${"x".repeat(1_000)}\n${body}\nAuthor`,
     });

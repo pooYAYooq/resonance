@@ -325,7 +325,8 @@ function validatePublicationProposal(proposal: WriteProposal) {
   if (
     !document ||
     proposal.title.trim().length === 0 ||
-    Array.from(extractPlainText(document.blocks)).length < MIN_POST_TEXT_LENGTH
+    Array.from(extractPlainText(document.blocks).trim()).length <
+      MIN_POST_TEXT_LENGTH
   ) {
     deterministicFailure("invalid-proposal", "Invalid content");
   }
@@ -532,9 +533,7 @@ export async function executePublish(
   const attachedStorageIds = attachedClaims.flatMap((claim) =>
     claim.storageId === undefined ? [] : [claim.storageId],
   );
-  const updatedAt = draft
-    ? Math.max(now, draft.updatedAt, draft.publishedAt ?? 0) + 1
-    : now;
+  const updatedAt = now;
   const projectionCandidate = {
     ...(draft ?? {
       // Reserve more ID bytes than a Convex post ID uses during preflight.

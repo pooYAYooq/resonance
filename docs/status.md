@@ -131,7 +131,7 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   tests. Its initial 900,238-byte Japanese Search record exposed duplicated
   body storage; the approved slim projection measures 450,224 bytes and keeps
   the full body in `searchableText`. Focused slim-projection tests pass 171/171.
-  The current local gate passes 25 files and 400 unit tests, 65 files and 321
+  The current local gate passes 25 files and 405 unit tests, 65 files and 321
   component tests, lint, TypeScript, production build, formatting, and diff
   checks.
   Native Search verification passed on the explicitly authorized

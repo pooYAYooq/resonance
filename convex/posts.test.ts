@@ -362,6 +362,7 @@ describe("posts functions", () => {
     expect(
       isValidPublishPostBody(bodyWithText("x".repeat(MAX_POST_TEXT_LENGTH))),
     ).toBe(true);
+    expect(isValidPublishPostBody(bodyWithText(" ".repeat(10)))).toBe(false);
   });
 
   it("rejects malformed structured create-post bodies", () => {
@@ -888,6 +889,14 @@ describe("posts functions", () => {
           .unique(),
       ),
     ).resolves.toMatchObject({ publishedPostCount: 1 });
+    const published = await t.run(async (ctx) =>
+      ctx.db
+        .query("posts")
+        .filter((q) => q.eq(q.field("title"), "Publish me"))
+        .unique(),
+    );
+    expect(published).not.toBeNull();
+    expect(published!.updatedAt).toBe(published!.publishedAt);
   });
 
   it("fails softly for unauthenticated draft reads", async () => {
