@@ -897,7 +897,7 @@ describe("posts functions", () => {
         .unique(),
     );
     expect(published).not.toBeNull();
-    expect(published!.publishedAt).toBe(100);
+    expect(published!.publishedAt).toBe(1_001);
     expect(published!.updatedAt).toBe(1_001);
   });
 

@@ -533,9 +533,10 @@ export async function executePublish(
   const attachedStorageIds = attachedClaims.flatMap((claim) =>
     claim.storageId === undefined ? [] : [claim.storageId],
   );
-  const updatedAt = draft
+  const publishedAt = draft
     ? Math.max(now, draft.updatedAt, draft.publishedAt ?? 0) + 1
     : now;
+  const updatedAt = publishedAt;
   const projectionCandidate = {
     ...(draft ?? {
       // Reserve more ID bytes than a Convex post ID uses during preflight.
@@ -549,7 +550,7 @@ export async function executePublish(
     imageStorageId: args.proposal.imageStorageId,
     authorId: userId,
     status: "published" as const,
-    publishedAt: now,
+    publishedAt,
   };
   await validateProjectionCapacity(ctx, projectionCandidate, userId);
   assertFinalPostDocumentCapacity(
@@ -558,7 +559,7 @@ export async function executePublish(
     "published",
     updatedAt,
     draft ?? undefined,
-    now,
+    publishedAt,
   );
   const postId =
     draft?._id ??
@@ -569,7 +570,7 @@ export async function executePublish(
       imageStorageId: args.proposal.imageStorageId,
       authorId: userId,
       status: "published",
-      publishedAt: now,
+      publishedAt,
       commentCount: 0,
       likeCount: 0,
       uniqueViewCount: 0,
@@ -594,7 +595,7 @@ export async function executePublish(
       tags: args.proposal.tags,
       imageStorageId: args.proposal.imageStorageId,
       status: "published",
-      publishedAt: now,
+      publishedAt,
       updatedAt,
     });
     await scheduleDraftCleanup(
