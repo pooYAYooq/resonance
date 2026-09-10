@@ -784,6 +784,7 @@ describe("posts functions", () => {
     const t = convexTest(schema, modules);
     register(t);
     vi.useFakeTimers();
+    vi.setSystemTime(100);
     const identity = await t.run(async (ctx) => {
       const now = Date.now();
       const user = await ctx.runMutation(components.betterAuth.adapter.create, {
@@ -852,7 +853,7 @@ describe("posts functions", () => {
         likeCount: 0,
         uniqueViewCount: 0,
         createdAt: 1,
-        updatedAt: 1,
+        updatedAt: 1_000,
       }),
     );
     const proposal = {
@@ -874,7 +875,7 @@ describe("posts functions", () => {
         clientRequestId: "publish-existing-1",
         operationKind: "publish",
         postId,
-        expectedUpdatedAt: 1,
+        expectedUpdatedAt: 1_000,
         proposal,
       });
     await t.withIdentity(identity).mutation(api.posts.publishPost, {
@@ -896,7 +897,8 @@ describe("posts functions", () => {
         .unique(),
     );
     expect(published).not.toBeNull();
-    expect(published!.updatedAt).toBe(published!.publishedAt);
+    expect(published!.publishedAt).toBe(100);
+    expect(published!.updatedAt).toBe(1_001);
   });
 
   it("fails softly for unauthenticated draft reads", async () => {

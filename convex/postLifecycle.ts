@@ -533,7 +533,9 @@ export async function executePublish(
   const attachedStorageIds = attachedClaims.flatMap((claim) =>
     claim.storageId === undefined ? [] : [claim.storageId],
   );
-  const updatedAt = now;
+  const updatedAt = draft
+    ? Math.max(now, draft.updatedAt, draft.publishedAt ?? 0) + 1
+    : now;
   const projectionCandidate = {
     ...(draft ?? {
       // Reserve more ID bytes than a Convex post ID uses during preflight.
