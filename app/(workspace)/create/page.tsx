@@ -194,7 +194,12 @@ function CreateEditor() {
   );
 
   useEffect(() => {
-    if (!requestedTarget) return;
+    if (!requestedTarget) {
+      if (sessionState.pendingTarget) {
+        dispatchSession({ type: "rejectTarget" });
+      }
+      return;
+    }
 
     const activeSessionKey = `${sessionState.editorMode}:${
       sessionState.targetId ?? "new"
@@ -449,7 +454,13 @@ function CreateEditor() {
       ? acceptedTargetError.message
       : undefined;
   const transitionNotice =
-    targetError || sessionState.pendingTarget || targetTransition ? (
+    requestedEditorMode.mode === "invalid" && sessionState.dirty ? (
+      <UnavailableState
+        message="This editor request is unavailable."
+        recoveryLabel="Back to Dashboard"
+        onRecover={() => router.push("/dashboard")}
+      />
+    ) : targetError || sessionState.pendingTarget || targetTransition ? (
       <TargetTransitionNotice
         error={targetError}
         loading={Boolean(sessionState.pendingTarget)}

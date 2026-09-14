@@ -512,6 +512,51 @@ describe("CreateRoute", () => {
     expect(await screen.findByDisplayValue("Post two")).toBeInTheDocument();
   });
 
+  it("clears a pending target when navigation becomes invalid", async () => {
+    const user = userEvent.setup();
+    const postOne = {
+      _id: "post-1",
+      title: "Post one",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 101,
+    };
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue(postOne);
+
+    const view = render(<CreateRoute />);
+    const titleInput = await screen.findByDisplayValue("Post one");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Unsaved post one");
+
+    editPostIdParam.value = "post-2";
+    getPublishedPostForEditingMock.mockImplementation(
+      ({ postId }: { postId: string }) =>
+        postId === "post-1" ? postOne : undefined,
+    );
+    view.rerender(<CreateRoute />);
+    await user.click(
+      screen.getByRole("button", { name: "Load requested document" }),
+    );
+    expect(
+      screen.getByText("Loading the requested document…"),
+    ).toBeInTheDocument();
+
+    draftIdParam.value = "draft-1";
+    editPostIdParam.value = "post-1";
+    view.rerender(<CreateRoute />);
+
+    expect(
+      await screen.findByText("This editor request is unavailable."),
+    ).toBeVisible();
+    expect(screen.getByDisplayValue("Unsaved post one")).toBeInTheDocument();
+    expect(screen.queryByText("Loading the requested document…")).toBeNull();
+  });
+
   it("never shows a discard prompt when changing clean targets", async () => {
     editPostIdParam.value = "post-1";
     getPublishedPostForEditingMock.mockReturnValue({
