@@ -514,6 +514,7 @@ function CreateEditor() {
   }
 
   function onSubmit(values: PostFormOutput, mode: SubmitMode) {
+    if (sessionState.pendingTarget) return;
     if (editorMode.mode === "published-edit") mode = "publish";
     if (mode === "publish") {
       const publishValues = publishPostSchema.safeParse(values);
@@ -836,7 +837,7 @@ function CreateEditor() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={isPending}
+                disabled={isPending || Boolean(sessionState.pendingTarget)}
                 onClick={() => {
                   void form.handleSubmit((values) =>
                     onSubmit(values, "draft"),
@@ -849,7 +850,7 @@ function CreateEditor() {
             {capabilities.canUpdate && (
               <Button
                 type="button"
-                disabled={isPending}
+                disabled={isPending || Boolean(sessionState.pendingTarget)}
                 onClick={() => {
                   void form.handleSubmit((values) =>
                     onSubmit(values, "publish"),
@@ -862,7 +863,7 @@ function CreateEditor() {
             {capabilities.canPublish && (
               <Button
                 type="button"
-                disabled={isPending}
+                disabled={isPending || Boolean(sessionState.pendingTarget)}
                 onClick={() => {
                   void form.handleSubmit((values) =>
                     onSubmit(values, "publish"),

@@ -557,6 +557,45 @@ describe("CreateRoute", () => {
     expect(screen.queryByText("Loading the requested document…")).toBeNull();
   });
 
+  it("blocks submission while a requested target is loading", async () => {
+    const user = userEvent.setup();
+    const postOne = {
+      _id: "post-1",
+      title: "Post one",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 101,
+    };
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue(postOne);
+
+    const view = render(<CreateRoute />);
+    const titleInput = await screen.findByDisplayValue("Post one");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Unsaved post one");
+
+    editPostIdParam.value = "post-2";
+    getPublishedPostForEditingMock.mockImplementation(
+      ({ postId }: { postId: string }) =>
+        postId === "post-1" ? postOne : undefined,
+    );
+    view.rerender(<CreateRoute />);
+    await user.click(
+      screen.getByRole("button", { name: "Load requested document" }),
+    );
+
+    const submitButton = screen.getByRole("button", {
+      name: "Update Published Post",
+    });
+    expect(submitButton).toBeDisabled();
+    expect(reserveAttemptMock).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
   it("never shows a discard prompt when changing clean targets", async () => {
     editPostIdParam.value = "post-1";
     getPublishedPostForEditingMock.mockReturnValue({
@@ -746,7 +785,8 @@ describe("CreateRoute", () => {
       json: async () => ({ storageId: "storage-cover" }),
     });
     const view = render(<CreateRoute />);
-    const imageInput = screen.getByLabelText("Image (optional)");
+    const imageInput =
+      screen.getByLabelText<HTMLInputElement>("Image (optional)");
     const firstCover = new File(["first"], "first.png", {
       type: "image/png",
     });
