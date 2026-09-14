@@ -148,9 +148,8 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   Recovery-control activation is covered for unavailable published, draft, and
   invalid-target states. Review-surface and write-flow requirements remain
   deferred to their planned tasks.
-- Track 1 Task 2 — Session Reducer, Hydration, and Dirty Baselines is active on
-  `feature/writing-session-state`, branched from the refreshed hub at merged
-  main commit `481e74b`. Dependency inspection confirmed owner-bound attempt
+- Track 1 Task 2 — Session Reducer, Hydration, and Dirty Baselines is delivered
+  in PR #69 by commit `db8df7d`. Dependency inspection confirmed owner-bound attempt
   reservation/replay in `convex/writeAttempts.ts`, session-media claim lifecycle
   in `convex/sessionMediaClaims.ts`, and canonical proposal/equality helpers in
   `lib/write-contract.ts`. The required red baseline was recorded before
@@ -173,8 +172,8 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   repository-wide format check remains red on 44
   pre-existing unrelated files; all changed files pass targeted Prettier.
   The approved Task 2 commit includes CodeRabbit's valid minor clean-target
-  prompt correction and fresh verification. Step 6 now requires only
-  post-commit re-review.
+  prompt correction and fresh verification. Post-commit CodeRabbit review
+  reported zero findings.
 
 ## Completed phases
 
@@ -205,8 +204,9 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
 - Track 2 final verification and Track 3 are complete. Track 3 Task 4 passed
   local and explicitly authorized native development Search verification and is
-  committed as `60cf933`. Track 1 Task 1 is merged in PR #68; continue with
-  the active Track 1 Task 2 branch `feature/writing-session-state`.
+  committed as `60cf933`. Track 1 Tasks 1 and 2 are delivered in PRs #68 and
+  #69; continue with Track 1 Task 3, the curated BlockNote interaction
+  contract.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
   local and untracked, but intentionally visible to Git). The mandatory human
