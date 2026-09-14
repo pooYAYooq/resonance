@@ -5,13 +5,6 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Field,
   FieldDescription,
   FieldError,
@@ -32,6 +25,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 import { getEditorCapabilities, resolveEditorMode } from "./editorMode";
+import DocumentStudio from "./_components/DocumentStudio";
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
   ssr: false,
@@ -131,13 +125,6 @@ function CreateEditor() {
   });
 
   useEffect(() => {
-    if (editorMode.mode === "invalid") {
-      toast.error("Invalid editor request.");
-      router.replace("/dashboard");
-    }
-  }, [editorMode.mode, router]);
-
-  useEffect(() => {
     if (editorMode.mode === "new") {
       queueMicrotask(() => {
         form.reset({
@@ -164,31 +151,11 @@ function CreateEditor() {
       return;
     }
     if (target === null) {
-      toast.error(
-        editorMode.mode === "draft"
-          ? "That draft is unavailable."
-          : "That published post is unavailable.",
-      );
-      router.replace(
-        editorMode.mode === "draft"
-          ? "/dashboard/drafts"
-          : "/dashboard/published",
-      );
       return;
     }
 
     const parsed = parsePostBody(target.body);
     if (parsed.kind !== "structured") {
-      toast.error(
-        editorMode.mode === "draft"
-          ? "That draft is unavailable."
-          : "That published post is unavailable.",
-      );
-      router.replace(
-        editorMode.mode === "draft"
-          ? "/dashboard/drafts"
-          : "/dashboard/published",
-      );
       return;
     }
 
@@ -212,20 +179,74 @@ function CreateEditor() {
   }, [editorMode.mode, form, hydratedDraft, hydratedPublishedPost, router]);
 
   if (editorMode.mode === "invalid") {
-    return null;
+    return (
+      <DocumentStudio
+        mode="invalid"
+        state="unavailable"
+        status={
+          <UnavailableState
+            message="This editor request is unavailable."
+            recoveryLabel="Back to Dashboard"
+            onRecover={() => router.push("/dashboard")}
+          />
+        }
+      />
+    );
   }
 
-  if (
-    (editorMode.mode === "draft" &&
-      (hydratedDraft === undefined || hydratedDraft === null)) ||
-    (editorMode.mode === "published-edit" &&
-      (hydratedPublishedPost === undefined || hydratedPublishedPost === null))
-  ) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+  const target =
+    editorMode.mode === "draft"
+      ? hydratedDraft
+      : editorMode.mode === "published-edit"
+        ? hydratedPublishedPost
+        : undefined;
+  const recovery =
+    editorMode.mode === "draft"
+      ? {
+          message: "That draft is unavailable.",
+          label: "Back to Drafts",
+          path: "/dashboard/drafts",
+        }
+      : {
+          message: "That published post is unavailable.",
+          label: "Back to My Posts",
+          path: "/dashboard/published",
+        };
+
+  if (editorMode.mode !== "new") {
+    if (target === undefined) {
+      return (
+        <DocumentStudio
+          mode={editorMode.mode}
+          state="loading"
+          status={
+            <>
+              <Loader2
+                className="size-8 animate-spin text-muted-foreground"
+                aria-label="Loading document"
+              />
+              <span className="sr-only">Loading document</span>
+            </>
+          }
+        />
+      );
+    }
+
+    if (target === null || parsePostBody(target.body).kind !== "structured") {
+      return (
+        <DocumentStudio
+          mode={editorMode.mode}
+          state="unavailable"
+          status={
+            <UnavailableState
+              message={recovery.message}
+              recoveryLabel={recovery.label}
+              onRecover={() => router.push(recovery.path)}
+            />
+          }
+        />
+      );
+    }
   }
 
   function onSubmit(values: PostFormOutput, mode: SubmitMode) {
@@ -407,171 +428,175 @@ function CreateEditor() {
   }
 
   return (
-    <div className="py-12 flex flex-col items-center gap-6">
-      <div className="text-center py-12 max-w-xl">
-        <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl leading-tight">
-          {editorMode.mode === "published-edit"
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+      }}
+    >
+      <DocumentStudio
+        mode={editorMode.mode}
+        heading={
+          editorMode.mode === "published-edit"
             ? "Edit Published Post"
-            : "New Post"}
-        </h1>
-
-        <p className="text-xl leading-relaxed">
-          Give your ideas a home. Draft a deep dive, share a quick update, or
-          capture a fleeting thought to share with your community.
-        </p>
-      </div>
-      <Card className="w-full max-w-xl  mx-auto shadow-md">
-        <CardHeader>
-          <CardTitle>
-            {editorMode.mode === "published-edit"
-              ? "Update Blog Article"
-              : "Create Blog Article"}
-          </CardTitle>
-          <CardDescription>
-            {editorMode.mode === "published-edit"
-              ? "Update your published blog article"
-              : "Create a new blog article"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-            }}
-          >
-            <FieldGroup className="gap-y-4">
-              <Controller
-                name="title"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field>
-                    <FieldLabel>Blog Title</FieldLabel>
-                    <FieldDescription>
-                      This becomes the title of your published post.
-                    </FieldDescription>
-                    <Input
-                      aria-invalid={fieldState.invalid}
-                      placeholder="Give your thought a name"
-                      {...field}
-                    />
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
+            : "New Post"
+        }
+        description="Give your ideas a home. Draft a deep dive, share a quick update, or capture a fleeting thought to share with your community."
+        title={
+          <Controller
+            name="title"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field>
+                <FieldLabel>Blog Title</FieldLabel>
+                <FieldDescription>
+                  This becomes the title of your published post.
+                </FieldDescription>
+                <Input
+                  aria-invalid={fieldState.invalid}
+                  placeholder="Give your thought a name"
+                  {...field}
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
                 )}
-              />
-              <Controller
-                name="content"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel id="blog-content-label">
-                      Blog Content
-                    </FieldLabel>
-                    <PostBodyEditor
-                      key={`${editorMode.mode}:${editorMode.id ?? "new"}`}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      invalid={fieldState.invalid}
-                      labelledBy="blog-content-label"
-                      initialContent={initialContent}
-                      resolvedImageUrls={resolvedImageUrls}
-                      onUploadSessionCreated={(sessionId, storageId) =>
-                        inlineSessions.current.set(sessionId, storageId)
-                      }
-                    />
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
+              </Field>
+            )}
+          />
+        }
+        body={
+          <Controller
+            name="content"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel id="blog-content-label">Blog Content</FieldLabel>
+                <PostBodyEditor
+                  key={`${editorMode.mode}:${editorMode.id ?? "new"}`}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  invalid={fieldState.invalid}
+                  labelledBy="blog-content-label"
+                  initialContent={initialContent}
+                  resolvedImageUrls={resolvedImageUrls}
+                  onUploadSessionCreated={(sessionId, storageId) =>
+                    inlineSessions.current.set(sessionId, storageId)
+                  }
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
                 )}
-              />
-              <Controller
-                name="image"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field>
-                    <FieldLabel htmlFor="image">Image (optional)</FieldLabel>
-                    <Input
-                      id="image"
-                      type="file"
-                      accept="image/*"
-                      aria-invalid={fieldState.invalid}
-                      placeholder="Choose an image to upload"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        field.onChange(file);
-                      }}
-                    />
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-              <Controller
-                name="tags"
-                control={form.control}
-                render={({ field }) => (
-                  <PostTagSelector
-                    value={field.value ?? []}
-                    onChange={field.onChange}
+              </Field>
+            )}
+          />
+        }
+        details={
+          <FieldGroup className="gap-y-4">
+            <Controller
+              name="image"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field>
+                  <FieldLabel htmlFor="image">Image (optional)</FieldLabel>
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    aria-invalid={fieldState.invalid}
+                    placeholder="Choose an image to upload"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      field.onChange(file);
+                    }}
                   />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+            <Controller
+              name="tags"
+              control={form.control}
+              render={({ field }) => (
+                <PostTagSelector
+                  value={field.value ?? []}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+          </FieldGroup>
+        }
+        actions={
+          <>
+            {capabilities.canSaveDraft && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isPending}
+                onClick={() => {
+                  void form.handleSubmit((values) =>
+                    onSubmit(values, "draft"),
+                  )();
+                }}
+              >
+                Save Draft
+              </Button>
+            )}
+            {capabilities.canUpdate && (
+              <Button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  void form.handleSubmit((values) =>
+                    onSubmit(values, "publish"),
+                  )();
+                }}
+              >
+                {isPending ? "Updating..." : "Update Published Post"}
+              </Button>
+            )}
+            {capabilities.canPublish && (
+              <Button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  void form.handleSubmit((values) =>
+                    onSubmit(values, "publish"),
+                  )();
+                }}
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="animate-spin size-4" />
+                    <span className="ml-2">Saving...</span>
+                  </>
+                ) : (
+                  <span>Publish</span>
                 )}
-              />
-              <div className="flex gap-2">
-                {capabilities.canSaveDraft && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isPending}
-                    onClick={() => {
-                      void form.handleSubmit((values) =>
-                        onSubmit(values, "draft"),
-                      )();
-                    }}
-                  >
-                    Save Draft
-                  </Button>
-                )}
-                {capabilities.canUpdate && (
-                  <Button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => {
-                      void form.handleSubmit((values) =>
-                        onSubmit(values, "publish"),
-                      )();
-                    }}
-                  >
-                    {isPending ? "Updating..." : "Update Published Post"}
-                  </Button>
-                )}
-                {capabilities.canPublish && (
-                  <Button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => {
-                      void form.handleSubmit((values) =>
-                        onSubmit(values, "publish"),
-                      )();
-                    }}
-                  >
-                    {isPending ? (
-                      <>
-                        <Loader2 className="animate-spin size-4" />
-                        <span className="ml-2">Saving...</span>
-                      </>
-                    ) : (
-                      <span>Publish</span>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+              </Button>
+            )}
+          </>
+        }
+      />
+    </form>
+  );
+}
+
+function UnavailableState({
+  message,
+  recoveryLabel,
+  onRecover,
+}: {
+  message: string;
+  recoveryLabel: string;
+  onRecover: () => void;
+}) {
+  return (
+    <div className="flex max-w-md flex-col items-center gap-4 text-center">
+      <p className="text-lg font-medium">{message}</p>
+      <Button type="button" onClick={onRecover}>
+        {recoveryLabel}
+      </Button>
     </div>
   );
 }

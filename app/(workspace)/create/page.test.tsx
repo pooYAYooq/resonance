@@ -271,6 +271,17 @@ describe("CreateRoute", () => {
     await waitFor(() => expect(pushMock).not.toHaveBeenCalled());
   });
 
+  it("renders the new post route inside the Document Studio shell", () => {
+    render(<CreateRoute />);
+
+    expect(screen.getByTestId("document-studio")).toHaveAttribute(
+      "data-editor-mode",
+      "new",
+    );
+    expect(screen.getAllByText("Post details")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Save Draft" })).toBeVisible();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -383,41 +394,61 @@ describe("CreateRoute", () => {
     expect(screen.getByLabelText("Technology")).not.toBeChecked();
   });
 
-  it("redirects an unavailable published edit to published dashboard", async () => {
+  it("renders an owner-safe recovery state for an unavailable published edit", async () => {
+    const user = userEvent.setup();
     editPostIdParam.value = "missing-post";
     getPublishedPostForEditingMock.mockReturnValue(null);
 
     render(<CreateRoute />);
 
-    await waitFor(() =>
-      expect(pushMock).toHaveBeenCalledWith("/dashboard/published"),
-    );
-    expect(toastErrorMock).toHaveBeenCalledWith(
-      "That published post is unavailable.",
-    );
+    expect(
+      await screen.findByText("That published post is unavailable."),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Back to My Posts" }),
+    ).toBeVisible();
+    expect(pushMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Back to My Posts" }));
+    expect(pushMock).toHaveBeenCalledWith("/dashboard/published");
   });
 
-  it("redirects an invalid dual-target request to the dashboard", async () => {
+  it("renders an owner-safe recovery state for an invalid dual-target request", async () => {
+    const user = userEvent.setup();
     draftIdParam.value = "draft-1";
     editPostIdParam.value = "post-1";
 
     render(<CreateRoute />);
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/dashboard"));
-    expect(toastErrorMock).toHaveBeenCalledWith("Invalid editor request.");
+    expect(
+      await screen.findByText("This editor request is unavailable."),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Back to Dashboard" }),
+    ).toBeVisible();
+    expect(pushMock).not.toHaveBeenCalled();
     expect(getDraftByIdMock).not.toHaveBeenCalled();
     expect(getPublishedPostForEditingMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Back to Dashboard" }));
+    expect(pushMock).toHaveBeenCalledWith("/dashboard");
   });
 
-  it("redirects an unavailable draft to the dashboard drafts route", async () => {
+  it("renders an owner-safe recovery state for an unavailable draft", async () => {
+    const user = userEvent.setup();
     draftIdParam.value = "missing-draft";
     getDraftByIdMock.mockReturnValue(null);
 
     render(<CreateRoute />);
 
-    await waitFor(() =>
-      expect(pushMock).toHaveBeenCalledWith("/dashboard/drafts"),
-    );
+    expect(await screen.findByText("That draft is unavailable.")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Back to Drafts" }),
+    ).toBeVisible();
+    expect(pushMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Back to Drafts" }));
+    expect(pushMock).toHaveBeenCalledWith("/dashboard/drafts");
   });
 
   it("shows validation error for empty title", async () => {
