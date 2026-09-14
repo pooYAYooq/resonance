@@ -36,7 +36,16 @@ export function resolveEditorMode(params: {
  * @returns Object indicating which actions are permitted in this mode
  */
 export function getEditorCapabilities(mode: EditorMode): EditorCapabilities {
-  return mode === "published-edit"
-    ? { canSaveDraft: false, canPublish: false, canUpdate: true }
-    : { canSaveDraft: true, canPublish: true, canUpdate: false };
+  const capabilities: Record<EditorMode, EditorCapabilities> = {
+    new: { canSaveDraft: true, canPublish: true, canUpdate: false },
+    draft: { canSaveDraft: true, canPublish: true, canUpdate: false },
+    "published-edit": {
+      canSaveDraft: false,
+      canPublish: false,
+      canUpdate: true,
+    },
+    invalid: { canSaveDraft: false, canPublish: false, canUpdate: false },
+  };
+
+  return capabilities[mode];
 }

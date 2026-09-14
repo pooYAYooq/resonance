@@ -139,6 +139,14 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   author repair, tail search, near-capacity record, pagination, reactivity, and
   resource checks all passed. The temporary internal-only harness cleaned its
   confined rows and was removed.
+- Track 1 Task 1 — Document Studio shell and mode-capability implementation is
+  complete through Steps 1–5 on `feature/document-studio-shell`. Fresh
+  `pnpm test:component -- 'app/(workspace)/create'` passed: 66 files, 330
+  tests; `pnpm lint`, targeted Prettier, narrow-layout composition checks, and
+  `git diff --check` passed. Recovery-control activation is covered for
+  unavailable published, draft, and invalid-target states. The approved commit
+  and post-commit review are complete; Review-surface and write-flow
+  requirements remain deferred to their planned tasks.
 
 ## Completed phases
 
@@ -169,8 +177,8 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
 - Track 2 final verification and Track 3 are complete. Track 3 Task 4 passed
   local and explicitly authorized native development Search verification and is
-  committed as `60cf933`. Continue with Track 1, then Track 4, in the approved
-  order.
+  committed as `60cf933`. Track 1 Task 1 is complete; continue with Track 1
+  Task 2 after this branch is reviewed and integrated.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
   local and untracked, but intentionally visible to Git). The mandatory human

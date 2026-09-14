@@ -35,4 +35,12 @@ describe("getEditorCapabilities", () => {
       ),
     ).toEqual(capabilities);
   });
+
+  it("does not expose document actions for an invalid request", () => {
+    expect(getEditorCapabilities("invalid")).toEqual({
+      canSaveDraft: false,
+      canPublish: false,
+      canUpdate: false,
+    });
+  });
 });
