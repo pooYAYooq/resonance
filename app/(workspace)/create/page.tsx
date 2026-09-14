@@ -181,6 +181,7 @@ function CreateEditor() {
     ],
   );
   const hydratedSessionKey = useRef<string | undefined>(undefined);
+  const activeSessionKeyRef = useRef<string | undefined>(undefined);
   const requestedTarget = useMemo(
     () =>
       requestedEditorMode.mode === "invalid"
@@ -433,6 +434,7 @@ function CreateEditor() {
         };
 
   const activeSessionKey = `${editorMode.mode}:${editorMode.id ?? "new"}`;
+  activeSessionKeyRef.current = activeSessionKey;
   const requestedSessionKey = requestedTarget
     ? `${requestedTarget.editorMode}:${requestedTarget.id ?? "new"}`
     : undefined;
@@ -515,6 +517,9 @@ function CreateEditor() {
     }
 
     const submittedImage = values.image;
+    const operationSessionKey = `${sessionState.editorMode}:${
+      sessionState.targetId ?? "new"
+    }`;
     startTransition(async () => {
       const submitSessions = new Map(inlineSessions.current);
       let draftSaved = false;
@@ -595,9 +600,6 @@ function CreateEditor() {
           }),
           proposal,
         });
-        const operationSessionKey = `${sessionState.editorMode}:${
-          sessionState.targetId ?? "new"
-        }`;
         dispatchSession({
           type: "beginOperation",
           operation: operationKind,
@@ -628,7 +630,13 @@ function CreateEditor() {
           tags: [...values.tags],
           ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
         };
-        if (submittedImage && form.getValues("image") === submittedImage) {
+        const isCurrentSession =
+          activeSessionKeyRef.current === operationSessionKey;
+        if (
+          isCurrentSession &&
+          submittedImage &&
+          form.getValues("image") === submittedImage
+        ) {
           form.resetField("image", { defaultValue: undefined });
         }
         dispatchSession({
@@ -641,10 +649,12 @@ function CreateEditor() {
             expectedUpdatedAt: result.updatedAt,
           },
         });
-        draftSaved = mode === "draft";
-        if (result.status === "draft") {
-          setDraftId(result.postId);
-          setCoverStorageId(savedCoverStorageId);
+        if (isCurrentSession) {
+          draftSaved = mode === "draft";
+          if (result.status === "draft") {
+            setDraftId(result.postId);
+            setCoverStorageId(savedCoverStorageId);
+          }
         }
         mutationSucceeded = true;
 
@@ -663,6 +673,7 @@ function CreateEditor() {
             inlineSessions.current.delete(sessionId);
           }
         }
+        if (!isCurrentSession) return;
         if (editorMode.mode === "published-edit") {
           toast.success("Post updated successfully!");
           router.push("/dashboard/published");
