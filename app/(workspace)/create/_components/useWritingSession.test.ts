@@ -179,6 +179,67 @@ describe("writingSessionReducer", () => {
     expect(state.operation).toEqual({ status: "idle" });
   });
 
+  it("ignores a completion from another attempt or session", () => {
+    let state = createInitialWritingSessionState("published-edit", "post-1");
+    state = reduce(state, { type: "setProposal", proposal: changedProposal });
+    state = reduce(state, {
+      type: "beginOperation",
+      operation: "update-post",
+      attemptId: "attempt-1",
+      sessionKey: "published-edit:post-1",
+    });
+    const replacedState = state;
+
+    state = reduce(state, {
+      type: "finishOperation",
+      attemptId: "attempt-2",
+      sessionKey: "published-edit:post-2",
+      outcome: {
+        kind: "succeeded",
+        proposal: changedProposal,
+        expectedUpdatedAt: 12,
+      },
+    });
+
+    expect(state).toEqual(replacedState);
+  });
+
+  it("blocks target adoption while persistence is in flight", () => {
+    let state = createInitialWritingSessionState("draft");
+    state = reduce(state, {
+      type: "beginOperation",
+      operation: "save-draft",
+      attemptId: "attempt-1",
+      sessionKey: "draft:new",
+    });
+
+    expect(
+      reduce(state, {
+        type: "requestTarget",
+        target: { editorMode: "published-edit", id: "post-2" },
+      }),
+    ).toEqual(state);
+    expect(
+      reduce(state, {
+        type: "acceptTarget",
+        target: { editorMode: "published-edit", id: "post-2" },
+      }),
+    ).toEqual(state);
+  });
+
+  it("does not attach a reservation to a different active session", () => {
+    const state = createInitialWritingSessionState("published-edit", "post-2");
+
+    expect(
+      reduce(state, {
+        type: "beginOperation",
+        operation: "update-post",
+        attemptId: "attempt-1",
+        sessionKey: "published-edit:post-1",
+      }),
+    ).toEqual(state);
+  });
+
   it("preserves the dirty proposal after failed and uncertain outcomes", () => {
     let state = createInitialWritingSessionState("draft");
     state = reduce(state, {

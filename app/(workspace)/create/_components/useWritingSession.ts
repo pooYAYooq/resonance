@@ -15,6 +15,7 @@ export type WritingSessionOperation =
   | {
       kind: OperationKind;
       attemptId: string;
+      sessionKey?: string;
       status: "in-flight" | "uncertain";
       message?: string;
     };
@@ -80,9 +81,12 @@ export type WritingSessionAction =
       type: "beginOperation";
       operation: OperationKind;
       attemptId: string;
+      sessionKey?: string;
     }
   | {
       type: "finishOperation";
+      attemptId?: string;
+      sessionKey?: string;
       outcome:
         | {
             kind: "succeeded";
@@ -176,20 +180,26 @@ export function writingSessionReducer(
 ): WritingSessionState {
   switch (action.type) {
     case "setEditorMode":
-      return state.dirty
+      return state.dirty || state.operation.status === "in-flight"
         ? state
         : createInitialWritingSessionState(action.editorMode, action.targetId);
 
     case "requestTarget":
-      return state.dirty ? state : adoptTarget(action.target);
-
-    case "confirmTarget":
-      return state.dirty
-        ? { ...state, pendingTarget: action.target }
+      return state.dirty || state.operation.status === "in-flight"
+        ? state
         : adoptTarget(action.target);
 
+    case "confirmTarget":
+      return state.operation.status === "in-flight"
+        ? state
+        : state.dirty
+          ? { ...state, pendingTarget: action.target }
+          : adoptTarget(action.target);
+
     case "acceptTarget":
-      return adoptTarget(action.target);
+      return state.operation.status === "in-flight"
+        ? state
+        : adoptTarget(action.target);
 
     case "rejectTarget":
       return { ...state, pendingTarget: undefined };
@@ -232,16 +242,32 @@ export function writingSessionReducer(
       return { ...state, presentation: "edit" };
 
     case "beginOperation":
+      if (
+        action.sessionKey &&
+        action.sessionKey !== `${state.editorMode}:${state.targetId ?? "new"}`
+      ) {
+        return state;
+      }
       return {
         ...state,
         operation: {
           kind: action.operation,
           attemptId: action.attemptId,
           status: "in-flight",
+          ...(action.sessionKey && { sessionKey: action.sessionKey }),
         },
       };
 
     case "finishOperation":
+      if (
+        action.attemptId &&
+        (state.operation.status !== "in-flight" ||
+          state.operation.attemptId !== action.attemptId ||
+          (action.sessionKey &&
+            state.operation.sessionKey !== action.sessionKey))
+      ) {
+        return state;
+      }
       if (action.outcome.kind === "succeeded") {
         return adoptBaseline(
           state,

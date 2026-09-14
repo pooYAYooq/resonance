@@ -452,7 +452,7 @@ function CreateEditor() {
         error={targetError}
         loading={Boolean(sessionState.pendingTarget)}
         onConfirm={
-          targetTransition
+          targetTransition && sessionState.operation.status !== "in-flight"
             ? () =>
                 dispatchSession({
                   type: "confirmTarget",
@@ -595,6 +595,15 @@ function CreateEditor() {
           }),
           proposal,
         });
+        const operationSessionKey = `${sessionState.editorMode}:${
+          sessionState.targetId ?? "new"
+        }`;
+        dispatchSession({
+          type: "beginOperation",
+          operation: operationKind,
+          attemptId: reservation.attemptId,
+          sessionKey: operationSessionKey,
+        });
         const result =
           editorMode.mode === "published-edit"
             ? await updatePublishedPost({
@@ -624,6 +633,8 @@ function CreateEditor() {
         }
         dispatchSession({
           type: "finishOperation",
+          attemptId: reservation.attemptId,
+          sessionKey: operationSessionKey,
           outcome: {
             kind: "succeeded",
             proposal: persistedProposal,
