@@ -70,10 +70,71 @@ describe("PostBodyEditor", () => {
       />,
     );
 
-    expect(replaceBlocks).toHaveBeenCalledWith(
-      populatedContent.blocks,
-      [],
-    );
+    expect(replaceBlocks).toHaveBeenCalledWith(populatedContent.blocks, []);
     expect(editor.document).toEqual([]);
+  });
+
+  it("does not replace a dirty local document with reactive server content", () => {
+    const localContent = {
+      format: "blocknote@1" as const,
+      blocks: [{ type: "paragraph", content: "Local content" }],
+    };
+    const refreshedServerContent = {
+      format: "blocknote@1" as const,
+      blocks: [{ type: "paragraph", content: "Server refresh" }],
+    };
+
+    const { rerender } = render(
+      <PostBodyEditor
+        initialContent={localContent}
+        isDirty
+        onChange={() => {}}
+        onBlur={() => {}}
+      />,
+    );
+    setDocument(localContent.blocks);
+    replaceBlocks.mockClear();
+
+    rerender(
+      <PostBodyEditor
+        initialContent={refreshedServerContent}
+        isDirty
+        onChange={() => {}}
+        onBlur={() => {}}
+      />,
+    );
+
+    expect(replaceBlocks).not.toHaveBeenCalled();
+    expect(editor.document).toEqual(localContent.blocks);
+  });
+
+  it("does not rehydrate the same payload when dirty state clears", () => {
+    const savedContent = {
+      format: "blocknote@1" as const,
+      blocks: [{ type: "paragraph", content: "Saved content" }],
+    };
+
+    const { rerender } = render(
+      <PostBodyEditor
+        initialContent={savedContent}
+        isDirty
+        onChange={() => {}}
+        onBlur={() => {}}
+      />,
+    );
+    setDocument(savedContent.blocks);
+    replaceBlocks.mockClear();
+
+    rerender(
+      <PostBodyEditor
+        initialContent={savedContent}
+        isDirty={false}
+        onChange={() => {}}
+        onBlur={() => {}}
+      />,
+    );
+
+    expect(replaceBlocks).not.toHaveBeenCalled();
+    expect(editor.document).toEqual(savedContent.blocks);
   });
 });

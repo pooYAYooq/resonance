@@ -140,13 +140,40 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   resource checks all passed. The temporary internal-only harness cleaned its
   confined rows and was removed.
 - Track 1 Task 1 — Document Studio shell and mode-capability implementation is
-  complete through Steps 1–5 on `feature/document-studio-shell`. Fresh
-  `pnpm test:component -- 'app/(workspace)/create'` passed: 66 files, 330
-  tests; `pnpm lint`, targeted Prettier, narrow-layout composition checks, and
-  `git diff --check` passed. Recovery-control activation is covered for
-  unavailable published, draft, and invalid-target states. The approved commit
-  and post-commit review are complete; Review-surface and write-flow
-  requirements remain deferred to their planned tasks.
+  complete through Steps 1–5 and merged in PR #68. Commit `c5338e6` delivered
+  the shell and mode contract; `pnpm test:component -- 'app/(workspace)/create'`
+  passed: 66 files, 330 tests; `pnpm test:ci`
+  passed: 25 files, 406 tests; `pnpm lint`, targeted Prettier, narrow-layout
+  composition checks, `git diff --check`, and `pnpm build` passed.
+  Recovery-control activation is covered for unavailable published, draft, and
+  invalid-target states. Review-surface and write-flow requirements remain
+  deferred to their planned tasks.
+- Track 1 Task 2 — Session Reducer, Hydration, and Dirty Baselines is delivered
+  in PR #69 by commit `db8df7d`. Dependency inspection confirmed owner-bound attempt
+  reservation/replay in `convex/writeAttempts.ts`, session-media claim lifecycle
+  in `convex/sessionMediaClaims.ts`, and canonical proposal/equality helpers in
+  `lib/write-contract.ts`. The required red baseline was recorded before
+  implementation: the missing reducer import and dirty-refresh route/editor
+  assertions failed. Steps 1–5 are now implemented and verified: the reducer
+  owns canonical proposal/baseline, version, operation, media, auth-lock, and
+  Review transitions; target hydration is one-time and dirty-safe; and the
+  editor skips reactive replacement while dirty. Focused route/editor tests
+  pass (31 tests), the reducer suite passes (10 tests; full edge run 416 tests),
+  and the full component suite passes (66 files, 340 tests). Coverage now
+  proves consecutive saves advance the version token, unuploaded cover
+  selection makes the session dirty without entering the canonical proposal,
+  and deliberate target replacement waits for explicit confirmation and fetch
+  completion. Failed target replacement now clears only the pending target so
+  a later valid target can load, and a successful cover save clears its
+  ephemeral form selection before adopting the clean baseline. The
+  target-transition regression also proves a dirty post-1 session cannot
+  submit to post-2. `pnpm lint`, targeted Prettier, and `git diff --check` pass
+  after the correction, and `pnpm build` passes after the correction. The
+  repository-wide format check remains red on 44
+  pre-existing unrelated files; all changed files pass targeted Prettier.
+  The approved Task 2 commit includes CodeRabbit's valid minor clean-target
+  prompt correction and fresh verification. Post-commit CodeRabbit review
+  reported zero findings.
 
 ## Completed phases
 
@@ -177,8 +204,9 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
 - Track 2 final verification and Track 3 are complete. Track 3 Task 4 passed
   local and explicitly authorized native development Search verification and is
-  committed as `60cf933`. Track 1 Task 1 is complete; continue with Track 1
-  Task 2 after this branch is reviewed and integrated.
+  committed as `60cf933`. Track 1 Tasks 1 and 2 are delivered in PRs #68 and
+  #69; continue with Track 1 Task 3, the curated BlockNote interaction
+  contract.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
   local and untracked, but intentionally visible to Git). The mandatory human

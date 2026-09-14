@@ -68,8 +68,8 @@ implementation order.
 | Track 4 | Management, Navigation, and Accessibility     | 🟡 Later   |
 
 Track 1 progress: Task 1 delivered the Document Studio shell and explicit
-editor modes. Task 2 session and hydration state is the next Track 1 delivery
-unit.
+editor modes, and Task 2 delivered the session and hydration state. Task 3's
+curated BlockNote interaction contract is the next Track 1 delivery unit.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
