@@ -683,6 +683,65 @@ describe("CreateRoute", () => {
     ).toBeNull();
   });
 
+  it("preserves a newer cover selection made while saving", async () => {
+    const user = userEvent.setup();
+    let resolveSave!: (value: {
+      postId: string;
+      updatedAt: number;
+      status: "draft";
+    }) => void;
+    saveDraftMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ storageId: "storage-cover" }),
+    });
+    const view = render(<CreateRoute />);
+    const imageInput = screen.getByLabelText("Image (optional)");
+    const firstCover = new File(["first"], "first.png", {
+      type: "image/png",
+    });
+    const laterCover = new File(["later"], "later.png", {
+      type: "image/png",
+    });
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Covered draft",
+    );
+    await user.upload(imageInput, firstCover);
+    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
+
+    await user.upload(imageInput, laterCover);
+    resolveSave({ postId: "draft-1", updatedAt: 2, status: "draft" });
+
+    await waitFor(() => expect(imageInput.files?.[0]?.name).toBe("later.png"));
+    expect(imageInput.files?.[0]).toBe(laterCover);
+
+    editPostIdParam.value = "post-2";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-2",
+      title: "Post two",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 200,
+      updatedAt: 201,
+    });
+    view.rerender(<CreateRoute />);
+    expect(
+      await screen.findByRole("button", { name: "Load requested document" }),
+    ).toBeInTheDocument();
+    view.unmount();
+  });
+
   it("clears published edit state when returning to a new post", async () => {
     editPostIdParam.value = "post-1";
     getPublishedPostForEditingMock.mockReturnValue({

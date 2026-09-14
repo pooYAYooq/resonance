@@ -514,6 +514,7 @@ function CreateEditor() {
       }
     }
 
+    const submittedImage = values.image;
     startTransition(async () => {
       const submitSessions = new Map(inlineSessions.current);
       let draftSaved = false;
@@ -618,7 +619,7 @@ function CreateEditor() {
           tags: [...values.tags],
           ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
         };
-        if (values.image) {
+        if (submittedImage && form.getValues("image") === submittedImage) {
           form.resetField("image", { defaultValue: undefined });
         }
         dispatchSession({
