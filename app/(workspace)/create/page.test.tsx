@@ -177,9 +177,9 @@ vi.mock("convex/react", () => ({
   },
   useQuery: (apiRef: unknown, args: unknown) => {
     if (args === "skip") return undefined;
-    if (apiRef === "getDraftById") return getDraftByIdMock();
+    if (apiRef === "getDraftById") return getDraftByIdMock(args);
     if (apiRef === "getPublishedPostForEditing") {
-      return getPublishedPostForEditingMock();
+      return getPublishedPostForEditingMock(args);
     }
     return undefined;
   },
@@ -307,6 +307,79 @@ describe("CreateRoute", () => {
     expect(screen.getByText(JSON.stringify(validEnvelope))).toBeInTheDocument();
   });
 
+  it("preserves a dirty draft when reactive server data refreshes", async () => {
+    const user = userEvent.setup();
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Resumed title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 123,
+    });
+
+    const view = render(<CreateRoute />);
+    const titleInput = await screen.findByDisplayValue("Resumed title");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Local title");
+
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Server refresh",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 124,
+    });
+    view.rerender(<CreateRoute />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Local title")).toBeInTheDocument();
+    });
+    expect(screen.queryByDisplayValue("Server refresh")).toBeNull();
+  });
+
+  it("hydrates a target only once instead of replacing a clean session on refresh", async () => {
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Initial title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 123,
+    });
+
+    const view = render(<CreateRoute />);
+    expect(
+      await screen.findByDisplayValue("Initial title"),
+    ).toBeInTheDocument();
+
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Reactive title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: "https://cover.example/refreshed.png",
+      inlineImages: [],
+      updatedAt: 124,
+    });
+    view.rerender(<CreateRoute />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Initial title")).toBeInTheDocument();
+    });
+    expect(screen.queryByDisplayValue("Reactive title")).toBeNull();
+  });
+
   it("hydrates published editing and uses the update submit path", async () => {
     editPostIdParam.value = "post-1";
     getPublishedPostForEditingMock.mockReturnValue({
@@ -346,6 +419,268 @@ describe("CreateRoute", () => {
     expect(publishPostMock).not.toHaveBeenCalled();
     expect(toastSuccessMock).toHaveBeenCalledWith("Post updated successfully!");
     expect(pushMock).toHaveBeenCalledWith("/dashboard/published");
+  });
+
+  it("keeps the active published target when the URL changes while dirty", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Post one",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 101,
+    });
+
+    const view = render(<CreateRoute />);
+    const titleInput = await screen.findByDisplayValue("Post one");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Unsaved post one");
+
+    editPostIdParam.value = "post-2";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-2",
+      title: "Post two",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 200,
+      updatedAt: 201,
+    });
+    view.rerender(<CreateRoute />);
+
+    expect(screen.getByDisplayValue("Unsaved post one")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Post two")).toBeNull();
+
+    await user.click(
+      screen.getByRole("button", { name: "Update Published Post" }),
+    );
+    await waitFor(() => {
+      expect(reserveAttemptMock).toHaveBeenCalledWith(
+        expect.objectContaining({ postId: "post-1" }),
+      );
+    });
+    expect(reserveAttemptMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ postId: "post-2" }),
+    );
+  });
+
+  it("loads a requested target only after explicit confirmation", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Post one",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 101,
+    });
+
+    const view = render(<CreateRoute />);
+    const titleInput = await screen.findByDisplayValue("Post one");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Unsaved post one");
+
+    editPostIdParam.value = "post-2";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-2",
+      title: "Post two",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 200,
+      updatedAt: 201,
+    });
+    view.rerender(<CreateRoute />);
+
+    expect(screen.getByDisplayValue("Unsaved post one")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Load requested document" }),
+    );
+    expect(await screen.findByDisplayValue("Post two")).toBeInTheDocument();
+  });
+
+  it("never shows a discard prompt when changing clean targets", async () => {
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Post one",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 101,
+    });
+
+    const view = render(<CreateRoute />);
+    expect(await screen.findByDisplayValue("Post one")).toBeInTheDocument();
+
+    let promptAppeared = false;
+    const recordPrompt = (records: MutationRecord[]) => {
+      promptAppeared ||= records.some((record) =>
+        [...record.addedNodes].some((node) =>
+          node.textContent?.includes("Load requested document"),
+        ),
+      );
+    };
+    const observer = new MutationObserver(recordPrompt);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    editPostIdParam.value = "post-2";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-2",
+      title: "Post two",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 200,
+      updatedAt: 201,
+    });
+    view.rerender(<CreateRoute />);
+
+    expect(await screen.findByDisplayValue("Post two")).toBeInTheDocument();
+    recordPrompt(observer.takeRecords());
+    observer.disconnect();
+    expect(promptAppeared).toBe(false);
+  });
+
+  it("can load a valid target after a confirmed target is unavailable", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    const postOne = {
+      _id: "post-1",
+      title: "Post one",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 101,
+    };
+    getPublishedPostForEditingMock.mockImplementation(
+      ({ postId }: { postId: string }) =>
+        postId === "post-1" ? postOne : null,
+    );
+
+    const view = render(<CreateRoute />);
+    const titleInput = await screen.findByDisplayValue("Post one");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Unsaved post one");
+
+    editPostIdParam.value = "post-2";
+    view.rerender(<CreateRoute />);
+    await user.click(
+      screen.getByRole("button", { name: "Load requested document" }),
+    );
+    expect(
+      await screen.findByText("The requested document is unavailable."),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Unsaved post one")).toBeInTheDocument();
+
+    editPostIdParam.value = "post-3";
+    const postThree = {
+      _id: "post-3",
+      title: "Post three",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 300,
+      updatedAt: 301,
+    };
+    getPublishedPostForEditingMock.mockImplementation(
+      ({ postId }: { postId: string }) =>
+        postId === "post-3" ? postThree : postOne,
+    );
+    view.rerender(<CreateRoute />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Load requested document" }),
+    );
+    expect(await screen.findByDisplayValue("Post three")).toBeInTheDocument();
+  });
+
+  it("treats an unuploaded cover selection as dirty session media", async () => {
+    const user = userEvent.setup();
+    const view = render(<CreateRoute />);
+    await user.upload(
+      screen.getByLabelText("Image (optional)"),
+      new File(["cover"], "cover.png", { type: "image/png" }),
+    );
+
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Post one",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 101,
+    });
+    view.rerender(<CreateRoute />);
+
+    expect(
+      screen.getByRole("button", { name: "Load requested document" }),
+    ).toBeInTheDocument();
+  });
+
+  it("adopts a new target after successfully saving a selected cover", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ storageId: "storage-cover" }),
+    });
+    const view = render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Covered draft",
+    );
+    await user.upload(
+      screen.getByLabelText("Image (optional)"),
+      new File(["cover"], "cover.png", { type: "image/png" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
+
+    editPostIdParam.value = "post-2";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-2",
+      title: "Post two",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 200,
+      updatedAt: 201,
+    });
+    view.rerender(<CreateRoute />);
+
+    expect(await screen.findByDisplayValue("Post two")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Load requested document" }),
+    ).toBeNull();
   });
 
   it("clears published edit state when returning to a new post", async () => {
@@ -496,6 +831,45 @@ describe("CreateRoute", () => {
     });
     expect(publishPostMock).not.toHaveBeenCalled();
     expect(toastSuccessMock).toHaveBeenCalledWith("Draft saved successfully!");
+  });
+
+  it("uses the latest saved version token for a consecutive draft save", async () => {
+    const user = userEvent.setup();
+    reserveAttemptMock
+      .mockResolvedValueOnce({ attemptId: "attempt-1", expiresAt: 2_000 })
+      .mockResolvedValueOnce({ attemptId: "attempt-2", expiresAt: 3_000 });
+    saveDraftMock
+      .mockResolvedValueOnce({
+        postId: "draft-1",
+        updatedAt: 10,
+        status: "draft",
+      })
+      .mockResolvedValueOnce({
+        postId: "draft-1",
+        updatedAt: 11,
+        status: "draft",
+      });
+
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Two saves",
+    );
+
+    const saveButton = screen.getByRole("button", { name: "Save Draft" });
+    await user.click(saveButton);
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
+
+    await user.click(saveButton);
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(2));
+
+    expect(reserveAttemptMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        postId: "draft-1",
+        expectedUpdatedAt: 10,
+      }),
+    );
   });
 
   it("does not submit when Enter is pressed in the title", async () => {

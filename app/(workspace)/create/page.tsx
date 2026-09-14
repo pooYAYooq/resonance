@@ -15,17 +15,29 @@ import { Input } from "@/components/ui/input";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument } from "@/lib/post-content";
 import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
+import type { CanonicalProposal } from "@/lib/write-contract";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useTransition, useEffect, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import {
+  Suspense,
+  useTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 import { getEditorCapabilities, resolveEditorMode } from "./editorMode";
 import DocumentStudio from "./_components/DocumentStudio";
+import {
+  useWritingSession,
+  type WritingSessionTarget,
+} from "./_components/useWritingSession";
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
   ssr: false,
@@ -70,10 +82,11 @@ export default function CreateRoute() {
 function CreateEditor() {
   const [isPending, startTransition] = useTransition();
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
-  const [persistedUpdatedAt, setPersistedUpdatedAt] = useState<
-    number | undefined
-  >();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
+  const [acceptedTargetError, setAcceptedTargetError] = useState<{
+    targetKey: string;
+    message: string;
+  }>();
   const [initialContent, setInitialContent] = useState<BlockNoteDocument>();
   const [resolvedImageUrls, setResolvedImageUrls] = useState<
     Record<string, string | null>
@@ -82,23 +95,12 @@ function CreateEditor() {
   const searchParams = useSearchParams();
   const requestedDraftId = searchParams.get("draftId");
   const requestedEditPostId = searchParams.get("editPostId");
-  const editorMode = resolveEditorMode({
+  const requestedEditorMode = resolveEditorMode({
     draftId: requestedDraftId ?? undefined,
     editPostId: requestedEditPostId ?? undefined,
   });
-  const capabilities = getEditorCapabilities(editorMode.mode);
-  const hydratedDraft = useQuery(
-    api.posts.getDraftById,
-    editorMode.mode === "draft" && requestedDraftId
-      ? { draftId: requestedDraftId as Id<"posts"> }
-      : "skip",
-  );
-  const hydratedPublishedPost = useQuery(
-    api.posts.getPublishedPostForEditing,
-    editorMode.mode === "published-edit" && requestedEditPostId
-      ? { postId: requestedEditPostId as Id<"posts"> }
-      : "skip",
-  );
+  const requestedTargetId =
+    requestedEditorMode.mode === "invalid" ? undefined : requestedEditorMode.id;
   const createPendingUpload = useMutation(
     api.pendingUploads.createPendingUpload,
   );
@@ -124,21 +126,202 @@ function CreateEditor() {
     },
   });
 
+  const [sessionState, dispatchSession] = useWritingSession(
+    requestedEditorMode.mode === "invalid" ? "new" : requestedEditorMode.mode,
+    requestedTargetId,
+  );
+  const editorMode = {
+    mode: sessionState.editorMode,
+    id: sessionState.targetId,
+  };
+  const activeTarget: WritingSessionTarget = {
+    editorMode: editorMode.mode,
+    id: editorMode.id,
+  };
+  const capabilities = getEditorCapabilities(editorMode.mode);
+  const hydratedDraft = useQuery(
+    api.posts.getDraftById,
+    activeTarget.editorMode === "draft" && activeTarget.id
+      ? { draftId: activeTarget.id as Id<"posts"> }
+      : "skip",
+  );
+  const hydratedPublishedPost = useQuery(
+    api.posts.getPublishedPostForEditing,
+    activeTarget.editorMode === "published-edit" && activeTarget.id
+      ? { postId: activeTarget.id as Id<"posts"> }
+      : "skip",
+  );
+  const pendingDraft = useQuery(
+    api.posts.getDraftById,
+    sessionState.pendingTarget?.editorMode === "draft" &&
+      sessionState.pendingTarget.id
+      ? { draftId: sessionState.pendingTarget.id as Id<"posts"> }
+      : "skip",
+  );
+  const pendingPublishedPost = useQuery(
+    api.posts.getPublishedPostForEditing,
+    sessionState.pendingTarget?.editorMode === "published-edit" &&
+      sessionState.pendingTarget.id
+      ? { postId: sessionState.pendingTarget.id as Id<"posts"> }
+      : "skip",
+  );
+  const watchedValues = useWatch({ control: form.control });
+  const proposal = useMemo<CanonicalProposal>(
+    () => ({
+      title: watchedValues.title ?? "",
+      body: JSON.stringify(watchedValues.content ?? emptyDocument),
+      tags: [...(watchedValues.tags ?? [])],
+      ...(coverStorageId && { imageStorageId: coverStorageId }),
+    }),
+    [
+      coverStorageId,
+      watchedValues.content,
+      watchedValues.tags,
+      watchedValues.title,
+    ],
+  );
+  const hydratedSessionKey = useRef<string | undefined>(undefined);
+  const requestedTarget = useMemo(
+    () =>
+      requestedEditorMode.mode === "invalid"
+        ? undefined
+        : {
+            editorMode: requestedEditorMode.mode,
+            id: requestedTargetId,
+          },
+    [requestedEditorMode.mode, requestedTargetId],
+  );
+
   useEffect(() => {
-    if (editorMode.mode === "new") {
-      queueMicrotask(() => {
+    if (!requestedTarget) return;
+
+    const activeSessionKey = `${sessionState.editorMode}:${
+      sessionState.targetId ?? "new"
+    }`;
+    const pendingTarget = sessionState.pendingTarget;
+    const pendingSessionKey = pendingTarget
+      ? `${pendingTarget.editorMode}:${pendingTarget.id ?? "new"}`
+      : undefined;
+
+    if (pendingTarget && pendingSessionKey !== activeSessionKey) {
+      if (pendingTarget.editorMode === "new") {
         form.reset({
           title: "",
           content: emptyDocument,
           tags: [],
           image: undefined,
         });
+        dispatchSession({ type: "acceptTarget", target: pendingTarget });
+        dispatchSession({
+          type: "loadLatest",
+          proposal: {
+            title: "",
+            body: JSON.stringify(emptyDocument),
+            tags: [],
+          },
+        });
+        setAcceptedTargetError(undefined);
         setDraftId(undefined);
-        setPersistedUpdatedAt(undefined);
         setCoverStorageId(undefined);
         setInitialContent(emptyDocument);
         setResolvedImageUrls({});
+        hydratedSessionKey.current = pendingSessionKey;
+        return;
+      }
+
+      const pendingData =
+        pendingTarget.editorMode === "draft"
+          ? pendingDraft
+          : pendingPublishedPost;
+      if (pendingData === undefined) return;
+      if (pendingData === null) {
+        dispatchSession({ type: "rejectTarget" });
+        setAcceptedTargetError({
+          targetKey: pendingSessionKey!,
+          message: "The requested document is unavailable.",
+        });
+        return;
+      }
+
+      const parsed = parsePostBody(pendingData.body);
+      if (parsed.kind !== "structured") {
+        dispatchSession({ type: "rejectTarget" });
+        setAcceptedTargetError({
+          targetKey: pendingSessionKey!,
+          message: "The requested document is unavailable.",
+        });
+        return;
+      }
+
+      const latestProposal: CanonicalProposal = {
+        title: pendingData.title,
+        body: JSON.stringify(parsed.document),
+        tags: [...pendingData.tags],
+        ...(pendingData.imageStorageId && {
+          imageStorageId: pendingData.imageStorageId,
+        }),
+      };
+      form.reset({
+        title: pendingData.title,
+        content: parsed.document,
+        tags: pendingData.tags as PostFormInput["tags"],
+        image: undefined,
       });
+      dispatchSession({ type: "acceptTarget", target: pendingTarget });
+      dispatchSession({
+        type: "loadLatest",
+        proposal: latestProposal,
+        expectedUpdatedAt: pendingData.updatedAt,
+      });
+      setAcceptedTargetError(undefined);
+      if (pendingTarget.editorMode === "draft") setDraftId(pendingData._id);
+      setCoverStorageId(pendingData.imageStorageId ?? undefined);
+      setInitialContent(parsed.document);
+      setResolvedImageUrls(
+        Object.fromEntries(
+          pendingData.inlineImages.map(({ storageId, url }) => [
+            storageId,
+            url,
+          ]),
+        ),
+      );
+      hydratedSessionKey.current = pendingSessionKey;
+      return;
+    }
+
+    const requestedSessionKey = `${requestedTarget.editorMode}:${
+      requestedTarget.id ?? "new"
+    }`;
+    if (requestedSessionKey !== activeSessionKey) {
+      dispatchSession({ type: "requestTarget", target: requestedTarget });
+      if (!sessionState.dirty) hydratedSessionKey.current = undefined;
+      return;
+    }
+
+    const sessionKey = activeSessionKey;
+    if (hydratedSessionKey.current === sessionKey) return;
+    if (sessionState.dirty) return;
+
+    if (editorMode.mode === "new") {
+      form.reset({
+        title: "",
+        content: emptyDocument,
+        tags: [],
+        image: undefined,
+      });
+      dispatchSession({
+        type: "establishBaseline",
+        proposal: {
+          title: "",
+          body: JSON.stringify(emptyDocument),
+          tags: [],
+        },
+      });
+      setDraftId(undefined);
+      setCoverStorageId(undefined);
+      setInitialContent(emptyDocument);
+      setResolvedImageUrls({});
+      hydratedSessionKey.current = sessionKey;
       return;
     }
 
@@ -159,26 +342,62 @@ function CreateEditor() {
       return;
     }
 
-    queueMicrotask(() => {
-      form.reset({
-        title: target.title,
-        content: parsed.document,
-        tags: target.tags as PostFormInput["tags"],
-        image: undefined,
-      });
-      if (editorMode.mode === "draft") setDraftId(target._id);
-      setPersistedUpdatedAt(target.updatedAt);
-      setCoverStorageId(target.imageStorageId ?? undefined);
-      setInitialContent(parsed.document);
-      setResolvedImageUrls(
-        Object.fromEntries(
-          target.inlineImages.map(({ storageId, url }) => [storageId, url]),
-        ),
-      );
+    form.reset({
+      title: target.title,
+      content: parsed.document,
+      tags: target.tags as PostFormInput["tags"],
+      image: undefined,
     });
-  }, [editorMode.mode, form, hydratedDraft, hydratedPublishedPost, router]);
+    dispatchSession({
+      type: "establishBaseline",
+      proposal: {
+        title: target.title,
+        body: JSON.stringify(parsed.document),
+        tags: target.tags,
+        ...(target.imageStorageId && { imageStorageId: target.imageStorageId }),
+      },
+      expectedUpdatedAt: target.updatedAt,
+    });
+    if (editorMode.mode === "draft") setDraftId(target._id);
+    setCoverStorageId(target.imageStorageId ?? undefined);
+    setInitialContent(parsed.document);
+    setResolvedImageUrls(
+      Object.fromEntries(
+        target.inlineImages.map(({ storageId, url }) => [storageId, url]),
+      ),
+    );
+    hydratedSessionKey.current = sessionKey;
+  }, [
+    editorMode.mode,
+    form,
+    hydratedDraft,
+    hydratedPublishedPost,
+    pendingDraft,
+    pendingPublishedPost,
+    router,
+    sessionState.dirty,
+    sessionState.editorMode,
+    sessionState.pendingTarget,
+    sessionState.targetId,
+    dispatchSession,
+    requestedTarget,
+  ]);
 
-  if (editorMode.mode === "invalid") {
+  useEffect(() => {
+    if (!sessionState.baseline) return;
+    dispatchSession({ type: "setProposal", proposal });
+  }, [dispatchSession, proposal, sessionState.baseline]);
+
+  useEffect(() => {
+    const coverSelected = Boolean(watchedValues.image);
+    if (sessionState.media.coverSelected === coverSelected) return;
+    dispatchSession({
+      type: "setMedia",
+      media: { ...sessionState.media, coverSelected },
+    });
+  }, [dispatchSession, sessionState.media, watchedValues.image]);
+
+  if (requestedEditorMode.mode === "invalid" && !sessionState.dirty) {
     return (
       <DocumentStudio
         mode="invalid"
@@ -213,11 +432,43 @@ function CreateEditor() {
           path: "/dashboard/published",
         };
 
+  const activeSessionKey = `${editorMode.mode}:${editorMode.id ?? "new"}`;
+  const requestedSessionKey = requestedTarget
+    ? `${requestedTarget.editorMode}:${requestedTarget.id ?? "new"}`
+    : undefined;
+  const targetTransition =
+    sessionState.dirty &&
+    requestedTarget &&
+    requestedSessionKey !== activeSessionKey
+      ? requestedTarget
+      : undefined;
+  const targetError =
+    acceptedTargetError && acceptedTargetError.targetKey === requestedSessionKey
+      ? acceptedTargetError.message
+      : undefined;
+  const transitionNotice =
+    targetError || sessionState.pendingTarget || targetTransition ? (
+      <TargetTransitionNotice
+        error={targetError}
+        loading={Boolean(sessionState.pendingTarget)}
+        onConfirm={
+          targetTransition
+            ? () =>
+                dispatchSession({
+                  type: "confirmTarget",
+                  target: targetTransition,
+                })
+            : undefined
+        }
+      />
+    ) : undefined;
+
   if (editorMode.mode !== "new") {
     if (target === undefined) {
       return (
         <DocumentStudio
           mode={editorMode.mode}
+          notice={transitionNotice}
           state="loading"
           status={
             <>
@@ -332,14 +583,14 @@ function CreateEditor() {
               : "save-draft";
         const operationTarget =
           editorMode.mode === "published-edit"
-            ? (editorMode.id as Id<"posts">)
+            ? (sessionState.targetId as Id<"posts">)
             : draftId;
         const reservation = await reserveAttempt({
           clientRequestId: crypto.randomUUID(),
           operationKind,
           ...(operationTarget && { postId: operationTarget }),
-          ...(persistedUpdatedAt !== undefined && {
-            expectedUpdatedAt: persistedUpdatedAt,
+          ...(sessionState.expectedUpdatedAt !== undefined && {
+            expectedUpdatedAt: sessionState.expectedUpdatedAt,
           }),
           proposal,
         });
@@ -361,8 +612,24 @@ function CreateEditor() {
         if (result.kind === "failed") {
           throw new Error(result.message);
         }
+        const persistedProposal: CanonicalProposal = {
+          title: values.title,
+          body: JSON.stringify(values.content),
+          tags: [...values.tags],
+          ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
+        };
+        if (values.image) {
+          form.resetField("image", { defaultValue: undefined });
+        }
+        dispatchSession({
+          type: "finishOperation",
+          outcome: {
+            kind: "succeeded",
+            proposal: persistedProposal,
+            expectedUpdatedAt: result.updatedAt,
+          },
+        });
         draftSaved = mode === "draft";
-        setPersistedUpdatedAt(result.updatedAt);
         if (result.status === "draft") {
           setDraftId(result.postId);
           setCoverStorageId(savedCoverStorageId);
@@ -435,6 +702,7 @@ function CreateEditor() {
     >
       <DocumentStudio
         mode={editorMode.mode}
+        notice={transitionNotice}
         heading={
           editorMode.mode === "published-edit"
             ? "Edit Published Post"
@@ -475,6 +743,7 @@ function CreateEditor() {
                   onChange={field.onChange}
                   onBlur={field.onBlur}
                   invalid={fieldState.invalid}
+                  isDirty={sessionState.dirty}
                   labelledBy="blog-content-label"
                   initialContent={initialContent}
                   resolvedImageUrls={resolvedImageUrls}
@@ -596,6 +865,43 @@ function UnavailableState({
       <p className="text-lg font-medium">{message}</p>
       <Button type="button" onClick={onRecover}>
         {recoveryLabel}
+      </Button>
+    </div>
+  );
+}
+
+function TargetTransitionNotice({
+  error,
+  loading,
+  onConfirm,
+}: {
+  error?: string;
+  loading: boolean;
+  onConfirm?: () => void;
+}) {
+  if (error) {
+    return (
+      <div className="rounded-md border border-destructive/50 bg-destructive/5 p-4 text-sm">
+        {error}
+      </div>
+    );
+  }
+  if (loading) {
+    return (
+      <div className="rounded-md border bg-muted/30 p-4 text-sm" role="status">
+        Loading the requested document…
+      </div>
+    );
+  }
+  if (!onConfirm) return null;
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-amber-500/50 bg-amber-500/5 p-4 text-sm">
+      <p>
+        You have unsaved changes. Load the requested document and discard this
+        session?
+      </p>
+      <Button type="button" variant="outline" onClick={onConfirm}>
+        Load requested document
       </Button>
     </div>
   );

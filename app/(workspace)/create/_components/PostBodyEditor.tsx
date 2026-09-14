@@ -298,6 +298,7 @@ export type PostBodyEditorProps = {
   onChange: (value: BlockNoteDocument) => void;
   onBlur: () => void;
   invalid?: boolean;
+  isDirty?: boolean;
   labelledBy?: string;
   initialContent?: BlockNoteDocument;
   resolvedImageUrls?: Record<string, string | null>;
@@ -361,6 +362,7 @@ export default function PostBodyEditor({
   onChange,
   onBlur,
   invalid = false,
+  isDirty = false,
   labelledBy,
   initialContent,
   resolvedImageUrls = {},
@@ -453,10 +455,10 @@ export default function PostBodyEditor({
   });
 
   useEffect(() => {
-    if (!initialContent) return;
+    if (!initialContent || isDirty) return;
     const blocks = getInitialEditorContent(initialContent);
     void editor.replaceBlocks(editor.document, (blocks ?? []) as never);
-  }, [editor, initialContent]);
+  }, [editor, initialContent, isDirty]);
 
   return (
     <div

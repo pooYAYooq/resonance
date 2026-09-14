@@ -12,6 +12,7 @@ type DocumentStudioProps = {
   mode: EditorMode;
   state?: DocumentStudioState;
   status?: ReactNode;
+  notice?: ReactNode;
   heading?: ReactNode;
   description?: ReactNode;
   title?: ReactNode;
@@ -31,6 +32,7 @@ export default function DocumentStudio({
   mode,
   state = "ready",
   status,
+  notice,
   heading,
   description,
   title,
@@ -73,6 +75,8 @@ export default function DocumentStudio({
                 {actions}
               </div>
             </header>
+
+            {notice}
 
             <div
               className="mx-auto flex w-full max-w-3xl flex-col gap-6"
