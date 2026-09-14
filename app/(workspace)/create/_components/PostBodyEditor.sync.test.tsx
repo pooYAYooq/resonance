@@ -107,4 +107,34 @@ describe("PostBodyEditor", () => {
     expect(replaceBlocks).not.toHaveBeenCalled();
     expect(editor.document).toEqual(localContent.blocks);
   });
+
+  it("does not rehydrate the same payload when dirty state clears", () => {
+    const savedContent = {
+      format: "blocknote@1" as const,
+      blocks: [{ type: "paragraph", content: "Saved content" }],
+    };
+
+    const { rerender } = render(
+      <PostBodyEditor
+        initialContent={savedContent}
+        isDirty
+        onChange={() => {}}
+        onBlur={() => {}}
+      />,
+    );
+    setDocument(savedContent.blocks);
+    replaceBlocks.mockClear();
+
+    rerender(
+      <PostBodyEditor
+        initialContent={savedContent}
+        isDirty={false}
+        onChange={() => {}}
+        onBlur={() => {}}
+      />,
+    );
+
+    expect(replaceBlocks).not.toHaveBeenCalled();
+    expect(editor.document).toEqual(savedContent.blocks);
+  });
 });

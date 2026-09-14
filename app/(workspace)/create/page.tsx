@@ -639,6 +639,7 @@ function CreateEditor() {
         ) {
           form.resetField("image", { defaultValue: undefined });
         }
+        if (isCurrentSession) setInitialContent(values.content);
         dispatchSession({
           type: "finishOperation",
           attemptId: reservation.attemptId,

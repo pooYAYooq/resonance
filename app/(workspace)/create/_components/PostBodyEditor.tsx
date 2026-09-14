@@ -453,11 +453,19 @@ export default function PostBodyEditor({
     resolveFileUrl: async (storageId) =>
       objectUrls.current.get(storageId) ?? resolvedImageUrls[storageId] ?? "",
   });
+  const appliedInitialContentKey = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    if (!initialContent || isDirty) return;
+    if (!initialContent) return;
+    const hydrationKey = JSON.stringify(initialContent);
+    if (appliedInitialContentKey.current === hydrationKey) return;
+    if (isDirty) {
+      appliedInitialContentKey.current = hydrationKey;
+      return;
+    }
     const blocks = getInitialEditorContent(initialContent);
     void editor.replaceBlocks(editor.document, (blocks ?? []) as never);
+    appliedInitialContentKey.current = hydrationKey;
   }, [editor, initialContent, isDirty]);
 
   return (
