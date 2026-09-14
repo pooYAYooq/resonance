@@ -540,6 +540,8 @@ function CreateEditor() {
         storageId: Id<"_storage">;
       }[] = [];
       let mutationSucceeded = false;
+      let operationAttemptId: string | undefined;
+      let operationSessionKeySettled = false;
       try {
         let storageId: Id<"_storage"> | undefined;
 
@@ -618,6 +620,7 @@ function CreateEditor() {
           attemptId: reservation.attemptId,
           sessionKey: operationSessionKey,
         });
+        operationAttemptId = reservation.attemptId;
         const result =
           editorMode.mode === "published-edit"
             ? await updatePublishedPost({
@@ -634,6 +637,13 @@ function CreateEditor() {
                   proposal,
                 });
         if (result.kind === "failed") {
+          dispatchSession({
+            type: "finishOperation",
+            attemptId: reservation.attemptId,
+            sessionKey: operationSessionKey,
+            outcome: { kind: "failed", message: result.message },
+          });
+          operationSessionKeySettled = true;
           throw new Error(result.message);
         }
         const persistedProposal: CanonicalProposal = {
@@ -662,6 +672,7 @@ function CreateEditor() {
             expectedUpdatedAt: result.updatedAt,
           },
         });
+        operationSessionKeySettled = true;
         if (isCurrentSession) {
           draftSaved = mode === "draft";
           if (result.status === "draft") {
@@ -698,6 +709,18 @@ function CreateEditor() {
         }
       } catch (error) {
         console.error("Save post failed", error);
+        if (operationAttemptId && !operationSessionKeySettled) {
+          dispatchSession({
+            type: "finishOperation",
+            attemptId: operationAttemptId,
+            sessionKey: operationSessionKey,
+            outcome: {
+              kind: "indeterminate",
+              message: "The save result could not be confirmed.",
+            },
+          });
+          operationSessionKeySettled = true;
+        }
         if (
           !mutationSucceeded &&
           (editorMode.mode === "published-edit" ||
