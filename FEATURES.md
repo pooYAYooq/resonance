@@ -67,6 +67,10 @@ implementation order.
 | Track 1 | Authoring Workspace and BlockNote Experience  | 🔵 Next On |
 | Track 4 | Management, Navigation, and Accessibility     | 🟡 Later   |
 
+Track 1 progress: Task 1 delivered the Document Studio shell and explicit
+editor modes. Task 2 session and hydration state is the next Track 1 delivery
+unit.
+
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
 (`AuthSync` fires `syncUser` as fire-and-forget).
