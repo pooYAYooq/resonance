@@ -13,6 +13,7 @@ out
 convex/_generated
 next-env.d.ts
 *.tsbuildinfo
+lib/shiki/code-highlighter.generated.ts
 
 # shadcn UI primitives (managed by shadcn CLI)
 components/ui/**

@@ -183,6 +183,14 @@
   --tracking-widest: calc(var(--tracking-normal) + 0.1em);
 }
 
+.shiki-token {
+  color: var(--shiki-light);
+}
+
+.dark .shiki-token {
+  color: var(--shiki-dark);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
