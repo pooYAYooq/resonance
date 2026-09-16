@@ -42,6 +42,7 @@ export function useInlineImageUpload({
     api.pendingUploads.finalizePendingUpload,
   );
   const objectUrls = useRef(new Map<string, string>());
+  const disposed = useRef(false);
   const onUploadSessionCreatedRef = useRef(onUploadSessionCreated);
 
   useEffect(() => {
@@ -49,8 +50,10 @@ export function useInlineImageUpload({
   }, [onUploadSessionCreated]);
 
   useEffect(() => {
+    disposed.current = false;
     const urls = objectUrls.current;
     return () => {
+      disposed.current = true;
       for (const url of urls.values()) {
         URL.revokeObjectURL(url);
       }
@@ -92,7 +95,12 @@ export function useInlineImageUpload({
       }
 
       onUploadSessionCreatedRef.current?.(session.sessionId, result.storageId);
-      objectUrls.current.set(result.storageId, URL.createObjectURL(file));
+      const objectUrl = URL.createObjectURL(file);
+      if (disposed.current) {
+        URL.revokeObjectURL(objectUrl);
+      } else {
+        objectUrls.current.set(result.storageId, objectUrl);
+      }
       return result.storageId;
     } catch (error) {
       try {
