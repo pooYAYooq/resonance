@@ -178,6 +178,18 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   `lib/post-content.ts` now rejects persisted heading level 1, matching the
   curated editor schema. The test-first regression passed after the validator
   change; no Git staging or commit has occurred.
+- Track 1 Task 3 completion-plan Task 2 is implemented on the active branch:
+  inline-image upload creation, direct upload, finalization retry, failure
+  cleanup, object-URL caching, and URL fallback now live in
+  `lib/use-inline-image-upload.ts`; `PostBodyEditor` consumes the helper.
+  The helper suite passes 3 tests and the focused editor suites pass 36 tests.
+  Lint, TypeScript, targeted Prettier, and `git diff --check` pass. The
+  iterator mock in `lib/post-content.test.ts` now returns `undefined` at
+  completion, matching the TypeScript standard-library contract.
+- The persisted heading-level gate is reflected in `components/web/PostBody`
+  and its tests: canonical levels 2 and 3 render as `h2` and `h3`, while the
+  invalid level-1 fixture was updated to level 2. The requested component suites pass
+  (68 files, 373 tests), with no staging or commit performed.
 - Code-block highlighting Task 5 verification (2026-09-15) is recorded for
   human review and does not mark Track 1 Task 3 complete. The requested focused
   invocations exited 0 (the Vitest configuration discovered the full suites:

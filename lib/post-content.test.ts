@@ -302,7 +302,7 @@ describe("extractPlainText", () => {
       const iterator = originalIterator.call(this);
       while (true) {
         const result = iterator.next();
-        if (result.done) return;
+        if (result.done) return undefined;
         yieldedCodePoints += 1;
         yield result.value;
       }

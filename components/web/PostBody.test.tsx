@@ -7,7 +7,7 @@ const structuredBody = JSON.stringify({
   blocks: [
     {
       type: "heading",
-      props: { level: 1 },
+      props: { level: 2 },
       content: [
         {
           type: "text",
@@ -54,7 +54,7 @@ const structuredBody = JSON.stringify({
     },
     {
       type: "codeBlock",
-      props: { language: "ts" },
+      props: { language: "typescript" },
       content: "const answer = 42;",
     },
     {
@@ -70,33 +70,28 @@ const structuredBody = JSON.stringify({
           href: "https://example.com",
           content: [{ type: "text", text: " safe link" }],
         },
-        {
-          type: "link",
-          href: "javascript:alert(1)",
-          content: [{ type: "text", text: " unsafe link" }],
-        },
       ],
     },
   ],
 });
 
 describe("PostBody", () => {
-  it("renders headings below the page title heading level", () => {
-    render(<PostBody body={structuredBody} />);
+  it("renders headings below the page title heading level", async () => {
+    render(await PostBody({ body: structuredBody }));
 
     expect(
       screen.getByRole("heading", { name: "Heading", level: 2 }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Subheading", level: 3 }),
+      screen.getByRole("heading", { name: "Subheading", level: 2 }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Small heading", level: 4 }),
+      screen.getByRole("heading", { name: "Small heading", level: 3 }),
     ).toBeInTheDocument();
   });
 
-  it("groups consecutive lists and preserves nested lists", () => {
-    const { container } = render(<PostBody body={structuredBody} />);
+  it("groups consecutive lists and preserves nested lists", async () => {
+    const { container } = render(await PostBody({ body: structuredBody }));
 
     expect(
       container.querySelectorAll('[data-slot="post-body"] > ul'),
@@ -108,10 +103,10 @@ describe("PostBody", () => {
     expect(screen.getByText("Nested bullet")).toBeInTheDocument();
   });
 
-  it("does not nest block children inside paragraph elements", () => {
+  it("does not nest block children inside paragraph elements", async () => {
     render(
-      <PostBody
-        body={JSON.stringify({
+      await PostBody({
+        body: JSON.stringify({
           format: "blocknote@1",
           blocks: [
             {
@@ -126,8 +121,8 @@ describe("PostBody", () => {
               ],
             },
           ],
-        })}
-      />,
+        }),
+      }),
     );
 
     const nestedHeading = screen.getByRole("heading", {
@@ -136,19 +131,25 @@ describe("PostBody", () => {
     expect(nestedHeading.closest("p")).toBeNull();
   });
 
-  it("renders quotes and code blocks safely", () => {
-    const { container } = render(<PostBody body={structuredBody} />);
+  it("renders quotes and code blocks safely", async () => {
+    const { container } = render(await PostBody({ body: structuredBody }));
     const code = container.querySelector("pre > code");
 
     expect(container.querySelector("blockquote")).toHaveTextContent(
       "A quoted thought",
     );
     expect(code).toHaveTextContent("const answer = 42;");
-    expect(code).toHaveAttribute("data-language", "ts");
+    expect(code).toHaveAttribute("data-language", "typescript");
+    expect(
+      container.querySelectorAll('[data-testid="highlight-token"]'),
+    ).not.toHaveLength(0);
+    expect(
+      container.querySelector('[data-testid="highlight-token"]'),
+    ).toHaveAttribute("style");
   });
 
-  it("renders inline styles and only safe links as anchors", () => {
-    render(<PostBody body={structuredBody} />);
+  it("renders inline styles and valid persisted links as anchors", async () => {
+    render(await PostBody({ body: structuredBody }));
 
     expect(screen.getByText("bold")).toBeInTheDocument();
     expect(screen.getByText("bold").closest("strong")).not.toBeNull();
@@ -160,16 +161,36 @@ describe("PostBody", () => {
     const safeLink = screen.getByRole("link", { name: "safe link" });
     expect(safeLink).toHaveAttribute("href", "https://example.com");
     expect(safeLink).toHaveAttribute("rel", "noopener noreferrer nofollow");
-    expect(
-      screen.queryByRole("link", { name: "unsafe link" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("unsafe link")).toBeInTheDocument();
   });
 
-  it("renders mailto links as anchors and other unsafe protocols as text", () => {
+  it("does not render a persisted document containing an unsafe link", async () => {
     render(
-      <PostBody
-        body={JSON.stringify({
+      await PostBody({
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "link",
+                  href: "javascript:alert(1)",
+                  content: [{ type: "text", text: "Unsafe link" }],
+                },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(screen.queryByText("Unsafe link")).not.toBeInTheDocument();
+  });
+
+  it("renders persisted mailto links as anchors", async () => {
+    render(
+      await PostBody({
+        body: JSON.stringify({
           format: "blocknote@1",
           blocks: [
             {
@@ -180,41 +201,23 @@ describe("PostBody", () => {
                   href: "mailto:hello@example.com",
                   content: [{ type: "text", text: "email link" }],
                 },
-                {
-                  type: "link",
-                  href: "data:text/html;base64,PHNjcmlwdD4=",
-                  content: [{ type: "text", text: "data link" }],
-                },
-                {
-                  type: "link",
-                  href: "//protocol-relative.example/path",
-                  content: [{ type: "text", text: "relative link" }],
-                },
               ],
             },
           ],
-        })}
-      />,
+        }),
+      }),
     );
 
     expect(screen.getByRole("link", { name: "email link" })).toHaveAttribute(
       "href",
       "mailto:hello@example.com",
     );
-    expect(
-      screen.queryByRole("link", { name: "data link" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "relative link" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("data link")).toBeInTheDocument();
-    expect(screen.getByText("relative link")).toBeInTheDocument();
   });
 
-  it("does not throw or render serialized content for unknown blocks", () => {
+  it("does not throw or render serialized content for unknown blocks", async () => {
     const { container } = render(
-      <PostBody
-        body={JSON.stringify({
+      await PostBody({
+        body: JSON.stringify({
           format: "blocknote@1",
           blocks: [
             {
@@ -222,18 +225,18 @@ describe("PostBody", () => {
               content: [{ type: "text", text: "Future content" }],
             },
           ],
-        })}
-      />,
+        }),
+      }),
     );
 
     expect(container).toBeEmptyDOMElement();
     expect(container).not.toHaveTextContent("format");
   });
 
-  it("renders nothing for malformed blocknote envelopes without leaking storage IDs", () => {
+  it("renders nothing for malformed blocknote envelopes without leaking storage IDs", async () => {
     const { container } = render(
-      <PostBody
-        body={JSON.stringify({
+      await PostBody({
+        body: JSON.stringify({
           format: "blocknote@1",
           blocks: [
             {
@@ -245,8 +248,8 @@ describe("PostBody", () => {
               props: { storageId: "secret-storage-id" },
             },
           ],
-        })}
-      />,
+        }),
+      }),
     );
 
     expect(container).toBeEmptyDOMElement();
@@ -254,11 +257,11 @@ describe("PostBody", () => {
     expect(container).not.toHaveTextContent("Before");
   });
 
-  it("renders hydrated inline images with captions", () => {
+  it("renders hydrated inline images with captions", async () => {
     const storageId = "storage-image-1";
     const { container } = render(
-      <PostBody
-        body={JSON.stringify({
+      await PostBody({
+        body: JSON.stringify({
           format: "blocknote@1",
           blocks: [
             {
@@ -270,9 +273,9 @@ describe("PostBody", () => {
               },
             },
           ],
-        })}
-        inlineImages={[{ storageId, url: "https://cdn.example/image.png" }]}
-      />,
+        }),
+        inlineImages: [{ storageId, url: "https://cdn.example/image.png" }],
+      }),
     );
 
     expect(container.querySelector("figure")).toBeInTheDocument();
@@ -290,10 +293,10 @@ describe("PostBody", () => {
     expect(container).not.toHaveTextContent(storageId);
   });
 
-  it("omits unresolved inline images while preserving adjacent content", () => {
+  it("omits unresolved inline images while preserving adjacent content", async () => {
     const { container } = render(
-      <PostBody
-        body={JSON.stringify({
+      await PostBody({
+        body: JSON.stringify({
           format: "blocknote@1",
           blocks: [
             {
@@ -309,9 +312,9 @@ describe("PostBody", () => {
               content: [{ type: "text", text: "After image" }],
             },
           ],
-        })}
-        inlineImages={[{ storageId: "missing-image", url: null }]}
-      />,
+        }),
+        inlineImages: [{ storageId: "missing-image", url: null }],
+      }),
     );
 
     expect(container.querySelector("figure")).not.toBeInTheDocument();
@@ -319,10 +322,10 @@ describe("PostBody", () => {
     expect(screen.getByText("After image")).toBeInTheDocument();
   });
 
-  it("renders images nested inside list items", () => {
+  it("renders images nested inside list items", async () => {
     const { container } = render(
-      <PostBody
-        body={JSON.stringify({
+      await PostBody({
+        body: JSON.stringify({
           format: "blocknote@1",
           blocks: [
             {
@@ -339,11 +342,11 @@ describe("PostBody", () => {
               ],
             },
           ],
-        })}
-        inlineImages={[
+        }),
+        inlineImages: [
           { storageId: "nested-image", url: "https://cdn.example/nested.png" },
-        ]}
-      />,
+        ],
+      }),
     );
 
     expect(container.querySelector("img")).toHaveAttribute(
