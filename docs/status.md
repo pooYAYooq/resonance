@@ -169,49 +169,44 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   target-transition regression also proves a dirty post-1 session cannot
   submit to post-2. `pnpm lint`, targeted Prettier, and `git diff --check` pass
   after the correction, and `pnpm build` passes after the correction. The
-  repository-wide format check remains red on 44
+  repository-wide format check remains red on 45
   pre-existing unrelated files; all changed files pass targeted Prettier.
   The approved Task 2 commit includes CodeRabbit's valid minor clean-target
   prompt correction and fresh verification. Post-commit CodeRabbit review
   reported zero findings.
-- Track 1 Task 3 completion-plan Task 1 is verified on the active branch:
-  `lib/post-content.ts` now rejects persisted heading level 1, matching the
-  curated editor schema. The test-first regression passed after the validator
-  change; no Git staging or commit has occurred.
-- Track 1 Task 3 completion-plan Task 2 is implemented on the active branch:
-  inline-image upload creation, direct upload, finalization retry, failure
-  cleanup, object-URL caching, and URL fallback now live in
-  `lib/use-inline-image-upload.ts`; `PostBodyEditor` consumes the helper.
-  The helper suite passes 3 tests and the focused editor suites pass 36 tests.
-  Lint, TypeScript, targeted Prettier, and `git diff --check` pass. The
-  iterator mock in `lib/post-content.test.ts` now returns `undefined` at
-  completion, matching the TypeScript standard-library contract.
-- The persisted heading-level gate is reflected in `components/web/PostBody`
-  and its tests: canonical levels 2 and 3 render as `h2` and `h3`, while the
-  invalid level-1 fixture was updated to level 2. The requested component suites pass
-  (68 files, 373 tests), with no staging or commit performed.
-- Track 1 Task 3 completion-plan Task 3 is verified on the active branch:
-  mounted BlockNote interaction coverage now exercises paragraph splitting,
-  paragraph merging, Arrow/Home/End handling, native undo, and slash-menu
-  focus/selection behavior. The focused interaction suite passes 11 tests.
-  Because jsdom cannot expose ProseMirror caret offsets reliably, the caret
-  assertions verify editor focus and selection containment; browser behavior
-  remains the authoritative check for exact caret movement.
-- Code-block highlighting Task 5 verification (2026-09-15) is recorded for
-  human review and does not mark Track 1 Task 3 complete. The requested focused
-  invocations exited 0 (the Vitest configuration discovered the full suites:
-  28 files/438 edge tests and 68 files/372 component tests); the full
-  `pnpm test:ci` and `pnpm test:component` repeats passed with the same totals,
-  and `pnpm lint` plus `git diff --check` passed. The repository gate remains
-  incomplete: the initial `pnpm build` emitted only its compilation start with
-  no terminal result, and its immediate retry exited 1 on stale `.next/lock`;
-  `pnpm format:check` exited 1 on the known 44-file pre-existing formatting
-  baseline. Browser acceptance was not independently run: the sandbox server
-  attempt failed with `listen EPERM` on port 3000, the host-level retry found
-  that port already in use while it was unreachable from this workspace, and
-  Windows browser automation rejected the WSL sandbox path. See
-  `.superpowers/sdd/2026-09-15-code-block-highlighting/task-5-report.md` for
-  exact commands, output results, and manual checks still required.
+- Track 1 Task 3 — Curated BlockNote interaction contract is implemented in
+  commits `36b5396`, `74d6fcf`, `e2c5e52`, `79b04b6`, and `325e64f`. The
+  shipped editor keeps the curated block and inline-style set, native history,
+  selection-preserving link validation, sanitized Markdown/rich-text paste,
+  focus-safe block actions, and sole-block deletion replacement. Code-block
+  language selection and dual-theme Shiki highlighting ship in the same scope.
+  Inline-image upload lifecycle remains extracted for Task 4's
+  `MediaAuthoring` ownership rather than duplicated in the editor.
+  Fresh automated checks pass `pnpm test:ci` (28 files, 443 tests),
+  `pnpm test:component` (69 files, 385 tests), `pnpm lint`, TypeScript,
+  targeted Prettier, and `git diff --check`. `pnpm build` passes; the earlier
+  Google-font fetch failure was transient environment noise. The pre-existing
+  45-file repository format
+  baseline remains known debt (the current check reports 43 files after
+  excluding local `docs/superpowers/` artifacts) and is not treated as fixed.
+
+### Browser acceptance observations
+
+Manual browser run completed 2026-09-17. The slash-menu keyboard journey, link
+create/edit/reject/cancel flows, Markdown and rich-text paste,
+duplicate/move/turn/delete caret placement, native Undo/Redo, code-block
+language selection, light/dark highlighting, and side-handle drag all passed.
+
+Two findings are deferred to a later block-support stage and recorded in
+`NOTES.local.md` (local, untracked):
+
+- Pasting Markdown with heading levels outside the curated 2/3 set (for example
+  H1 or H4) fails publishing with "Content must be a valid BlockNote document
+  within the supported capacity limits." The paste path does not clamp heading
+  levels; `normalizeBlock` copies the pasted level verbatim.
+- Pasted Table-of-Contents anchor links (`#heading`) render as plain text
+  because the safe-link allowlist permits only http/https/mailto and reader
+  headings have no `id`.
 
 ## Completed phases
 
@@ -243,39 +238,12 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
 - Track 2 final verification and Track 3 are complete. Track 3 Task 4 passed
   local and explicitly authorized native development Search verification and is
   committed as `60cf933`. Track 1 Tasks 1 and 2 are delivered in PRs #68 and
-  #69; Task 3, the curated BlockNote interaction contract, is active on
-  `feature/curated-blocknote-interactions`. Task 3 is limited to editor
-  interactions; Task 4 owns image-drop media claims, lifecycle state, and
-  `MediaAuthoring` forwarding to avoid duplicate media logic. Task 3 remains
-  in implementation after review identified unsupported default side-menu
-  controls, missing visible Undo/Redo, and incomplete real-interaction,
-  focus-restoration, and paste/drop coverage. **Fresh-turn handoff (2026-09-15):**
-  preserve the current unstaged changes; do not stage, commit, or seek Task 3
-  approval. The partial work changes `PostBodyEditor.tsx`, its unit/sync tests,
-  adds `PostBodyEditor.interactions.test.tsx`, adds shared `lib/safe-link.ts`,
-  and tightens `lib/post-content.ts` validation. The bounded implementation now
-  has explicit curated toolbar children, a selection-preserving validating link
-  controller, native Markdown plain-text paste, and safe persisted links.
-  A 2026-09-15 regression prevents deleting the sole selected block, which
-  would otherwise restore a cursor to the removed block. Focused component
-  tests passed with 67 files and 360 tests. Browser acceptance remains required
-  for the high-contrast visual treatment now applied to the keyboard-selected
-  slash item (shortcut badges are intentionally omitted) and a stable responsive
-  menu width sized for the longest option, including an inline Floating UI width
-  constraint, as well as the native interaction checks below.
-  The curated Create Link trigger now uses BlockNote's toolbar-button and
-  portal-popover primitives so it aligns with native controls and its form is
-  not clipped by the floating toolbar.
-  Code-block language selection and Shiki highlighting are implemented. This
-  pre-deployment project requires an explicit canonical language and rejects
-  omitted or unsupported values consistently. `/code block` remains creation-only while conversion controls omit it to prevent lossy
-  prose conversion; browser and production-build acceptance remain open.
-  Before approval, verify slash-menu ArrowDown, Enter, and Escape individually;
-  safe-link create/edit/cancel/rejection popovers; native history shortcuts;
-  move/turn/delete caret placement; Markdown and rich-text paste; and side-handle
-  drag behavior. The mounted interaction tests do not yet cover every one of
-  those native browser paths. No divider is in scope. Step 6 remains pending
-  human approval before staging.
+  #69; Task 3 is implemented on `feature/curated-blocknote-interactions` and
+  includes the curated editor interaction contract plus code-block highlighting.
+  Task 3 remains limited to editor interactions; Task 4 owns image-drop media
+  claims, lifecycle state, and `MediaAuthoring` forwarding to avoid duplicate
+  media logic. The next resume point is the manual browser-acceptance section
+  above, followed by the human staging gate. No divider is in scope.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
   local and untracked, but intentionally visible to Git). The mandatory human
