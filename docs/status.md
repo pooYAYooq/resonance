@@ -190,6 +190,13 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   and its tests: canonical levels 2 and 3 render as `h2` and `h3`, while the
   invalid level-1 fixture was updated to level 2. The requested component suites pass
   (68 files, 373 tests), with no staging or commit performed.
+- Track 1 Task 3 completion-plan Task 3 is verified on the active branch:
+  mounted BlockNote interaction coverage now exercises paragraph splitting,
+  paragraph merging, Arrow/Home/End handling, native undo, and slash-menu
+  focus/selection behavior. The focused interaction suite passes 11 tests.
+  Because jsdom cannot expose ProseMirror caret offsets reliably, the caret
+  assertions verify editor focus and selection containment; browser behavior
+  remains the authoritative check for exact caret movement.
 - Code-block highlighting Task 5 verification (2026-09-15) is recorded for
   human review and does not mark Track 1 Task 3 complete. The requested focused
   invocations exited 0 (the Vitest configuration discovered the full suites:
