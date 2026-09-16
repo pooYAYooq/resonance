@@ -79,9 +79,12 @@ describe("highlightCode", () => {
 
   it("uses one multi-theme tokenization pass", async () => {
     let tokenizationCalls = 0;
+    const codeToTokensBase = vi.fn(() => [
+      [{ content: "legacy", color: "#000000" }],
+    ]);
     const { highlightCode } = await importAdapterWithHighlighter(async () => ({
       loadLanguage: async () => undefined,
-      codeToTokensBase: () => [[{ content: "legacy", color: "#000000" }]],
+      codeToTokensBase,
       codeToTokensWithThemes: (_code, options) => {
         tokenizationCalls += 1;
         expect(options).toEqual({
@@ -117,6 +120,7 @@ describe("highlightCode", () => {
       ],
     ]);
     expect(tokenizationCalls).toBe(1);
+    expect(codeToTokensBase).not.toHaveBeenCalled();
   });
 
   it("returns null for plain text and unsupported languages", async () => {
@@ -139,19 +143,6 @@ describe("highlightCode", () => {
       loadLanguage: async () => undefined,
       codeToTokensWithThemes: () => {
         throw new Error("Shiki failed to tokenize");
-      },
-    }));
-
-    await expect(
-      highlightCode("const answer = 42", "typescript"),
-    ).resolves.toBeNull();
-  });
-
-  it("returns null when themed Shiki tokenization rejects", async () => {
-    const { highlightCode } = await importAdapterWithHighlighter(async () => ({
-      loadLanguage: async () => undefined,
-      codeToTokensWithThemes: () => {
-        throw new Error("Shiki theme tokenization failed");
       },
     }));
 

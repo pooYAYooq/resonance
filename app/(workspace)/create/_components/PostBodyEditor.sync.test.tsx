@@ -322,7 +322,7 @@ describe("PostBodyEditor", () => {
     expect(removeBlocks).toHaveBeenCalledWith([block]);
   });
 
-  it("does not delete the only selected block and target its removed cursor", () => {
+  it("replaces the only selected block with an empty paragraph", () => {
     const block = {
       id: "only-paragraph",
       type: "paragraph",
@@ -339,8 +339,15 @@ describe("PostBodyEditor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete block" }));
 
+    expect(updateBlock).toHaveBeenCalledWith(block, {
+      type: "paragraph",
+      props: {},
+      content: "",
+      children: [],
+    });
     expect(removeBlocks).not.toHaveBeenCalled();
-    expect(editor.setTextCursorPosition).not.toHaveBeenCalled();
+    expect(editor.setTextCursorPosition).toHaveBeenCalledWith(block, "end");
+    expect(editor.focus).toHaveBeenCalled();
   });
 
   it("exposes a narrow focus handle for validation orchestration", () => {
@@ -390,6 +397,39 @@ describe("PostBodyEditor", () => {
     expect(
       editor._tiptapEditor.commands.setTextSelection,
     ).not.toHaveBeenCalled();
+  });
+
+  it("creates a safe link and preserves selection when the form is cancelled", () => {
+    vi.clearAllMocks();
+
+    render(<PostBodyEditor onChange={() => {}} onBlur={() => {}} />);
+
+    // BlockNote's native selection toolbar cannot be opened from a real
+    // contenteditable selection in jsdom, so the controller is covered at
+    // this mounted sync level and the native popover remains browser-tested.
+    fireEvent.click(screen.getByRole("button", { name: "Create link" }));
+    fireEvent.change(screen.getByLabelText("Link URL"), {
+      target: { value: "https://example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply link" }));
+
+    expect(editor.createLink).toHaveBeenCalledWith(
+      "https://example.com",
+      "Selected text",
+    );
+
+    vi.clearAllMocks();
+    fireEvent.click(screen.getByRole("button", { name: "Create link" }));
+    fireEvent.change(screen.getByLabelText("Link URL"), {
+      target: { value: "https://cancelled.example" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel link" }));
+
+    expect(editor.createLink).not.toHaveBeenCalled();
+    expect(editor._tiptapEditor.commands.setTextSelection).toHaveBeenCalledWith(
+      { from: 1, to: 2 },
+    );
+    expect(editor.focus).toHaveBeenCalled();
   });
 
   it("edits, removes, and cancels links through the validated controller", () => {

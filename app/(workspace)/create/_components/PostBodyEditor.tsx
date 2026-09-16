@@ -732,6 +732,14 @@ function CuratedBlockActions() {
           const adjacentBlock =
             editor.getNextBlock(block) ?? editor.getPrevBlock(block);
           if (!adjacentBlock) {
+            editor.updateBlock(block, {
+              type: "paragraph",
+              props: {},
+              content: "",
+              children: [],
+            });
+            editor.setTextCursorPosition(block, "end");
+            editor.focus();
             return;
           }
           completeAction(() => editor.removeBlocks([block]), adjacentBlock);
