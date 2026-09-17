@@ -27,6 +27,21 @@ const structuredBody = JSON.stringify({
       content: [{ type: "text", text: "Small heading" }],
     },
     {
+      type: "heading",
+      props: { level: 4 },
+      content: [{ type: "text", text: "Heading 4" }],
+    },
+    {
+      type: "heading",
+      props: { level: 5 },
+      content: [{ type: "text", text: "Heading 5" }],
+    },
+    {
+      type: "heading",
+      props: { level: 6 },
+      content: [{ type: "text", text: "Heading 6" }],
+    },
+    {
       type: "bulletListItem",
       content: [{ type: "text", text: "First bullet" }],
       children: [
@@ -87,6 +102,15 @@ describe("PostBody", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Small heading", level: 3 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Heading 4", level: 4 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Heading 5", level: 5 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Heading 6", level: 6 }),
     ).toBeInTheDocument();
   });
 

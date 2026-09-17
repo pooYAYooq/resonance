@@ -9,6 +9,12 @@ import {
   defaultBlockSpecs,
   defaultStyleSpecs,
 } from "@blocknote/core";
+import type {
+  BlockNoteEditor,
+  BlockSchema,
+  InlineContentSchema,
+  StyleSchema,
+} from "@blocknote/core";
 import {
   HistoryExtension,
   ShowSelectionExtension,
@@ -70,7 +76,7 @@ export const editorSchema = BlockNoteSchema.create({
           ...headingPropSchema,
           level: {
             default: 2,
-            values: [2, 3] as const,
+            values: [2, 3, 4, 5, 6] as const,
           },
         },
       },
@@ -107,6 +113,9 @@ const APPROVED_SLASH_MENU_KEYS = new Set([
   "paragraph",
   "heading_2",
   "heading_3",
+  "heading_4",
+  "heading_5",
+  "heading_6",
   "quote",
   "bullet_list",
   "numbered_list",
@@ -127,10 +136,22 @@ export function getCuratedSlashMenuItems<T>(items: T[]): T[] {
         ),
       ) as T;
       const key = (item as { key?: unknown }).key;
-      if (key === "heading_2" || key === "heading_3") {
+      if (
+        key === "heading_2" ||
+        key === "heading_3" ||
+        key === "heading_4" ||
+        key === "heading_5" ||
+        key === "heading_6"
+      ) {
+        const level = Number(key.slice("heading_".length));
         return {
           ...withoutShortcut,
-          title: key === "heading_2" ? "Section heading" : "Subheading",
+          title:
+            level === 2
+              ? "Section heading"
+              : level === 3
+                ? "Subheading"
+                : `Heading ${level}`,
         } as T;
       }
       return withoutShortcut as T;
@@ -157,24 +178,25 @@ export function getCuratedBlockTypeSelectItems<T>(items: T[]): T[] {
       if (APPROVED_BLOCK_TYPES.has(value.type)) return true;
       return (
         value.type === "heading" &&
-        (value.props?.level === 2 || value.props?.level === 3) &&
+        typeof value.props?.level === "number" &&
+        value.props.level >= 2 &&
+        value.props.level <= 6 &&
         value.props?.isToggleable !== true
       );
     })
     .map((item) => {
       const value = item as { type?: unknown; props?: { level?: unknown } };
-      if (value.type === "heading" && value.props?.level === 2) {
+      if (value.type === "heading" && typeof value.props?.level === "number") {
+        const level = value.props.level;
         return {
           ...(item as object),
-          name: "Section heading",
-          props: { level: 2 },
-        } as T;
-      }
-      if (value.type === "heading" && value.props?.level === 3) {
-        return {
-          ...(item as object),
-          name: "Subheading",
-          props: { level: 3 },
+          name:
+            level === 2
+              ? "Section heading"
+              : level === 3
+                ? "Subheading"
+                : `Heading ${level}`,
+          props: { level },
         } as T;
       }
       return item;
@@ -198,6 +220,18 @@ const TURN_INTO_BLOCKS = {
   "heading-3": {
     label: "Subheading",
     update: { type: "heading", props: { level: 3 } },
+  },
+  "heading-4": {
+    label: "Heading 4",
+    update: { type: "heading", props: { level: 4 } },
+  },
+  "heading-5": {
+    label: "Heading 5",
+    update: { type: "heading", props: { level: 5 } },
+  },
+  "heading-6": {
+    label: "Heading 6",
+    update: { type: "heading", props: { level: 6 } },
   },
   quote: { label: "Quote", update: { type: "quote" } },
   bullet: { label: "Bulleted list", update: { type: "bulletListItem" } },
@@ -226,6 +260,54 @@ export function getCuratedPasteOptions() {
     prioritizeMarkdownOverHTML: false,
     plainTextAsMarkdown: true,
   };
+}
+
+export function normalizeHeadingLevel(value: unknown): 2 | 3 | 4 | 5 | 6 {
+  if (typeof value !== "number" || !Number.isInteger(value)) return 2;
+  if (value < 2) return 2;
+  if (value > 6) return 6;
+  return value as 2 | 3 | 4 | 5 | 6;
+}
+
+type EditorHeadingBlock = {
+  id: string;
+  type: string;
+  props: Record<string, unknown>;
+  children: EditorHeadingBlock[];
+};
+
+function normalizeEditorHeadingLevels<
+  BSchema extends BlockSchema,
+  ISchema extends InlineContentSchema,
+  SSchema extends StyleSchema,
+>(editor: BlockNoteEditor<BSchema, ISchema, SSchema>): void {
+  const updates: Array<{ id: string; props: Record<string, unknown> }> = [];
+
+  const visit = (blocks: EditorHeadingBlock[]) => {
+    for (const block of blocks) {
+      if (block.type === "heading") {
+        const level = normalizeHeadingLevel(block.props.level);
+        if (block.props.level !== level) {
+          updates.push({
+            id: block.id,
+            props: { ...block.props, level },
+          });
+        }
+      }
+      visit(block.children);
+    }
+  };
+
+  visit(editor.document as unknown as EditorHeadingBlock[]);
+  if (updates.length === 0) return;
+
+  editor.transact((transaction) => {
+    // The correction is an invariant repair, not a second user-editable step.
+    transaction.setMeta("addToHistory", false);
+    for (const update of updates) {
+      editor.updateBlock(update.id, { props: update.props } as never);
+    }
+  });
 }
 
 export type EditorBlock = {
@@ -568,8 +650,8 @@ export function normalizeBlock(block: EditorBlock): PostBlock {
 
   const normalized: PostBlock = { type: block.type };
 
-  if (block.type === "heading" && typeof block.props.level === "number") {
-    normalized.props = { level: block.props.level };
+  if (block.type === "heading") {
+    normalized.props = { level: normalizeHeadingLevel(block.props.level) };
   }
   if (block.type === "codeBlock") {
     normalized.props = {
@@ -824,8 +906,11 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
       schema: editorSchema,
       initialContent: getInitialEditorContent(initialContent) as never,
       links: { isValidLink: isSafeAuthorLink },
-      pasteHandler: ({ defaultPasteHandler }) =>
-        defaultPasteHandler(getCuratedPasteOptions()),
+      pasteHandler: ({ defaultPasteHandler, editor }) => {
+        const handled = defaultPasteHandler(getCuratedPasteOptions()) ?? false;
+        if (handled) normalizeEditorHeadingLevels(editor);
+        return handled;
+      },
       uploadFile,
       resolveFileUrl,
     });
@@ -863,6 +948,7 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
           aria-invalid={invalid}
           aria-labelledby={labelledBy}
           onChange={() => {
+            normalizeEditorHeadingLevels(editor);
             onChange({
               format: "blocknote@1",
               blocks: editor.document.map((block) =>

@@ -620,8 +620,8 @@ describe("isValidBlockNoteDoc", () => {
     expect(extractImageStorageIds(blocks)).toEqual([" storage-1 "]);
   });
 
-  it("accepts only heading levels 2 and 3", () => {
-    for (const level of [2, 3]) {
+  it("accepts heading levels 2 through 6", () => {
+    for (const level of [2, 3, 4, 5, 6]) {
       expect(
         isValidBlockNoteDoc([
           {
@@ -633,7 +633,7 @@ describe("isValidBlockNoteDoc", () => {
       ).toBe(true);
     }
 
-    for (const level of [0, 1, 4, -1, "2", null]) {
+    for (const level of [0, 1, 7, 8, -1, "2", null]) {
       expect(
         isValidBlockNoteDoc([
           {
@@ -646,19 +646,21 @@ describe("isValidBlockNoteDoc", () => {
     }
   });
 
-  it("rejects heading level 1 because the editor schema only allows 2 and 3", () => {
-    const levelOneHeading = JSON.stringify({
-      format: BLOCKNOTE_FORMAT,
-      blocks: [
-        {
-          type: "heading",
-          props: { level: 1 },
-          content: [{ type: "text", text: "Top heading" }],
-        },
-      ],
-    });
+  it("rejects heading levels outside the H2 through H6 contract", () => {
+    for (const level of [1, 7]) {
+      const outOfRangeHeading = JSON.stringify({
+        format: BLOCKNOTE_FORMAT,
+        blocks: [
+          {
+            type: "heading",
+            props: { level },
+            content: [{ type: "text", text: "Out of range" }],
+          },
+        ],
+      });
 
-    expect(parsePostBody(levelOneHeading)).toEqual({ kind: "invalid" });
+      expect(parsePostBody(outOfRangeHeading)).toEqual({ kind: "invalid" });
+    }
   });
 
   it("accepts only the approved inline styles", () => {

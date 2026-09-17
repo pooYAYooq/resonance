@@ -166,7 +166,7 @@ async function renderBlock(
       );
     case "heading": {
       const level = block.props?.level;
-      const Heading = level === 2 ? "h2" : "h3";
+      const Heading = `h${level}` as "h2" | "h3" | "h4" | "h5" | "h6";
       return (
         <Fragment key={key}>
           <Heading className="font-semibold tracking-tight">{content}</Heading>

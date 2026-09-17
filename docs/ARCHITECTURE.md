@@ -56,7 +56,7 @@ resonance/
 │   │   │   └── _components/
 │   │   │       └── PostBodyEditor.tsx # Browser-only BlockNote editor adapter for
 │   │   │                              # React Hook Form. Curated schema (paragraph,
-│   │   │                              # section heading/subheading (H2/H3), quote,
+│   │   │                              # headings (H2-H6), quote,
 │   │   │                              # lists, code block, and block-level images).
 │   │   │                              # Never
 │   │   │                              # imported by server bundles; loads BlockNote CSS.
@@ -504,8 +504,9 @@ cards, metadata, and the Server Component renderer all share one contract.
   `blocknote@1` envelope (`{ format, blocks }`), `PostBlock` /
   `PostInlineContent` types, `parsePostBody`, `isValidBlockNoteDoc`, and
   `extractPlainText`. The editor and reader share paragraphs, section headings
-  (H2), subheadings (H3), quotes, bullet and numbered list items, and code
-  blocks. The curated contract accepts only H2/H3 headings. It accepts only the
+  (H2), subheadings (H3), and H4-H6 headings, along with quotes, bullet and
+  numbered list items, and code blocks. The curated contract accepts H2-H6
+  headings; H1 remains reserved for the page title. It accepts only the
   approved inline styles (`bold`, `italic`, `underline`, `strike`, `code`).
   Bounds total blocks,
   recursive depth, children per block, inline nodes, and derived text (capped
@@ -519,15 +520,16 @@ cards, metadata, and the Server Component renderer all share one contract.
   `next/dynamic({ ssr: false })` from `app/(workspace)/create/page.tsx`. Builds the
   curated editor schema (excluded blocks are absent from the slash menu and
   toolbar, not merely ignored), exposes friendly Section heading/Subheading
-  labels for semantic H2/H3 blocks, emits the canonical envelope object to
-  React Hook Form on every change, and loads BlockNote's CSS. Never imported
+  labels for H2/H3 blocks and generic Heading 4-6 labels for H4-H6 blocks,
+  emits the canonical envelope object to React Hook Form on every change, and
+  loads BlockNote's CSS. Never imported
   by Server Components, Convex, or `lib/post-content.ts`.
 
 - **`components/web/PostBody.tsx`** — the pure Server Component renderer used
   on `/blog/[postId]`. No `"use client"`, no `dangerouslySetInnerHTML`, no
   sanitizer dependency. Calls `parsePostBody`, maps supported blocks to
-  explicit elements/classes (headings render as `h2`/`h3` so the page title
-  remains the only `h1`), groups only consecutive list items of the
+  explicit elements/classes (headings render as matching `h2` through `h6` so
+  the page title remains the only `h1`), groups only consecutive list items of the
   same kind, recurses through nested children, and renders inline styles
   semantically. Links use the shared `lib/safe-link.ts` protocol validator and
   render as anchors with `rel="noopener noreferrer nofollow"` only when the

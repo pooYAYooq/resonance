@@ -166,7 +166,11 @@ function validateBlockProps(type: string, value: unknown): boolean {
 
   if (type === "heading") {
     return (
-      hasOnlyKeys(value, ["level"]) && (value.level === 2 || value.level === 3)
+      hasOnlyKeys(value, ["level"]) &&
+      typeof value.level === "number" &&
+      Number.isInteger(value.level) &&
+      value.level >= 2 &&
+      value.level <= 6
     );
   }
 

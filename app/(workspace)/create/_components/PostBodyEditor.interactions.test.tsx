@@ -2,6 +2,8 @@ import { BlockNoteEditor } from "@blocknote/core";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { draftPostSchema } from "@/schemas/blog";
+import { parsePostBody, type BlockNoteDocument } from "@/lib/post-content";
 import PostBodyEditor, {
   editorSchema,
   getCuratedPasteOptions,
@@ -180,6 +182,84 @@ describe("PostBodyEditor native interaction contract", () => {
       }),
     ).not.toThrow();
     expect(document.activeElement).toBe(editor);
+  });
+
+  it("normalizes pasted Markdown headings to the H2 through H6 contract", async () => {
+    const user = userEvent.setup();
+    let emitted: BlockNoteDocument | undefined;
+    const { container } = render(
+      <PostBodyEditor
+        onChange={(value) => {
+          emitted = value;
+        }}
+        onBlur={() => {}}
+      />,
+    );
+    const editor = container.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    );
+    expect(editor).not.toBeNull();
+
+    await user.click(editor!);
+    fireEvent.paste(editor!, {
+      clipboardData: {
+        types: ["text/plain"],
+        getData: () => "# H1\n\n#### H4",
+      },
+    });
+
+    await waitFor(() => expect(emitted).toBeDefined());
+    const document = emitted as BlockNoteDocument;
+    const headingLevels = document.blocks
+      .filter((block) => block.type === "heading")
+      .map((block) => block.props?.level);
+
+    expect(headingLevels).toEqual([2, 4]);
+    expect(parsePostBody(JSON.stringify(document)).kind).toBe("structured");
+    expect(
+      draftPostSchema.safeParse({
+        title: "Markdown headings",
+        content: document,
+        tags: [],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("undoes the paste and heading correction as one editor action", async () => {
+    const user = userEvent.setup();
+    let emitted: BlockNoteDocument | undefined;
+    const { container } = render(
+      <PostBodyEditor
+        onChange={(value) => {
+          emitted = value;
+        }}
+        onBlur={() => {}}
+      />,
+    );
+    const editor = container.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    );
+    expect(editor).not.toBeNull();
+
+    await user.click(editor!);
+    fireEvent.paste(editor!, {
+      clipboardData: {
+        types: ["text/plain"],
+        getData: () => "# H1\n\n#### H4",
+      },
+    });
+    await waitFor(() =>
+      expect(emitted?.blocks.some((block) => block.type === "heading")).toBe(
+        true,
+      ),
+    );
+
+    await user.keyboard("{Control>}z{/Control}");
+
+    await waitFor(() => {
+      expect(emitted?.blocks).toHaveLength(1);
+      expect(emitted?.blocks[0]?.type).toBe("paragraph");
+    });
   });
 
   it("moves slash-menu selection with ArrowDown without leaving the editor", async () => {

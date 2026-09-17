@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BlockNoteEditor } from "@blocknote/core";
+import { getDefaultReactSlashMenuItems } from "@blocknote/react";
 import {
   CODE_LANGUAGES,
   blockNoteSupportedLanguages,
@@ -28,6 +29,9 @@ describe("PostBodyEditor configuration", () => {
       { key: "heading", title: "Heading 1" },
       { key: "heading_2", title: "Heading 2", badge: "Ctrl-Alt-2" },
       { key: "heading_3", title: "Heading 3", badge: "Ctrl-Alt-3" },
+      { key: "heading_4", title: "Heading 4", badge: "Ctrl-Alt-4" },
+      { key: "heading_5", title: "Heading 5", badge: "Ctrl-Alt-5" },
+      { key: "heading_6", title: "Heading 6", badge: "Ctrl-Alt-6" },
       { key: "toggle_heading", title: "Toggle Heading 1" },
       { key: "emoji", title: "Emoji" },
       { key: "paragraph", title: "Paragraph" },
@@ -38,9 +42,30 @@ describe("PostBodyEditor configuration", () => {
     expect(getCuratedSlashMenuItems(items)).toEqual([
       { key: "heading_2", title: "Section heading" },
       { key: "heading_3", title: "Subheading" },
+      { key: "heading_4", title: "Heading 4" },
+      { key: "heading_5", title: "Heading 5" },
+      { key: "heading_6", title: "Heading 6" },
       { key: "paragraph", title: "Paragraph" },
       { key: "code_block", title: "Code Block" },
       { key: "image", title: "Image" },
+    ]);
+  });
+
+  it("exposes heading levels 4 through 6 from BlockNote's default slash menu", () => {
+    const editor = BlockNoteEditor.create({ schema: editorSchema });
+    const items = getDefaultReactSlashMenuItems(editor);
+    const headings = getCuratedSlashMenuItems(items).filter((item) =>
+      String((item as { key?: unknown }).key).startsWith("heading_"),
+    );
+
+    expect(
+      headings.map((item) => (item as unknown as { key: string }).key),
+    ).toEqual([
+      "heading_2",
+      "heading_3",
+      "heading_4",
+      "heading_5",
+      "heading_6",
     ]);
   });
 
@@ -59,6 +84,21 @@ describe("PostBodyEditor configuration", () => {
         props: { level: 3, isToggleable: false },
       },
       {
+        name: "Heading 4",
+        type: "heading",
+        props: { level: 4, isToggleable: false },
+      },
+      {
+        name: "Heading 5",
+        type: "heading",
+        props: { level: 5, isToggleable: false },
+      },
+      {
+        name: "Heading 6",
+        type: "heading",
+        props: { level: 6, isToggleable: false },
+      },
+      {
         name: "Toggle Heading 2",
         type: "heading",
         props: { level: 2, isToggleable: true },
@@ -75,6 +115,9 @@ describe("PostBodyEditor configuration", () => {
       { name: "Paragraph", type: "paragraph" },
       { name: "Section heading", type: "heading", props: { level: 2 } },
       { name: "Subheading", type: "heading", props: { level: 3 } },
+      { name: "Heading 4", type: "heading", props: { level: 4 } },
+      { name: "Heading 5", type: "heading", props: { level: 5 } },
+      { name: "Heading 6", type: "heading", props: { level: 6 } },
       { name: "Quote", type: "quote" },
       { name: "Bullet List", type: "bulletListItem" },
       { name: "Numbered List", type: "numberedListItem" },
@@ -145,6 +188,58 @@ describe("PostBodyEditor configuration", () => {
     });
   });
 
+  it.each([
+    [1, 2],
+    [2, 2],
+    [4, 4],
+    [6, 6],
+    [7, 6],
+    ["4", 2],
+    [undefined, 2],
+  ])("normalizes heading level %s to %s", (level, expected) => {
+    expect(
+      normalizeBlock({
+        type: "heading",
+        props: { level },
+        content: [{ type: "text", text: "heading" }],
+        children: [],
+      }),
+    ).toEqual({
+      type: "heading",
+      props: { level: expected },
+      content: [{ type: "text", text: "heading" }],
+    });
+  });
+
+  it("normalizes heading levels inside nested children", () => {
+    expect(
+      normalizeBlock({
+        type: "bulletListItem",
+        props: {},
+        content: [{ type: "text", text: "item" }],
+        children: [
+          {
+            type: "heading",
+            props: { level: 1 },
+            content: [{ type: "text", text: "nested one" }],
+            children: [],
+          },
+          {
+            type: "heading",
+            props: { level: 7 },
+            content: [{ type: "text", text: "nested seven" }],
+            children: [],
+          },
+        ],
+      }),
+    ).toMatchObject({
+      children: [
+        { type: "heading", props: { level: 2 } },
+        { type: "heading", props: { level: 6 } },
+      ],
+    });
+  });
+
   it("includes the curated image block and strips transient image props", () => {
     expect(editorSchema.blockSpecs.image).toBeDefined();
     expect(
@@ -207,10 +302,10 @@ describe("PostBodyEditor configuration", () => {
     });
   });
 
-  it("does not expose toggle headings in the heading schema", () => {
+  it("exposes only non-toggleable headings from H2 through H6", () => {
     const propSchema = editorSchema.blockSpecs.heading.config.propSchema;
 
-    expect(propSchema.level.values).toEqual([2, 3]);
+    expect(propSchema.level.values).toEqual([2, 3, 4, 5, 6]);
     expect(propSchema.level.default).toBe(2);
     expect("isToggleable" in propSchema).toBe(false);
   });
@@ -274,6 +369,18 @@ describe("PostBodyEditor configuration", () => {
     expect(getTurnIntoBlockUpdate("heading-3")).toEqual({
       type: "heading",
       props: { level: 3 },
+    });
+    expect(getTurnIntoBlockUpdate("heading-4")).toEqual({
+      type: "heading",
+      props: { level: 4 },
+    });
+    expect(getTurnIntoBlockUpdate("heading-5")).toEqual({
+      type: "heading",
+      props: { level: 5 },
+    });
+    expect(getTurnIntoBlockUpdate("heading-6")).toEqual({
+      type: "heading",
+      props: { level: 6 },
     });
     expect(getTurnIntoBlockUpdate("quote")).toEqual({ type: "quote" });
     expect(getTurnIntoBlockUpdate("code")).toBeUndefined();
