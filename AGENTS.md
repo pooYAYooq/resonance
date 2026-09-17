@@ -24,16 +24,16 @@ Convex agent skills for common tasks can be installed by running
 
 ## Commands
 
-| Intent               | Command                                                                                               |
-| -------------------- | ----------------------------------------------------------------------------------------------------- |
-| Dev server           | `pnpm dev`                                                                                            |
-| Lint                 | `pnpm lint` (ESLint via `eslint.config.mjs`)                                                          |
-| Format               | `pnpm format` (Prettier), `pnpm format:check`                                                         |
-| Typecheck            | `pnpm build` runs `next build` (includes TS type-checking via Next plugin)                            |
-| Tests (edge-runtime) | `pnpm test:ci` — vitest, edge-runtime, `app/**/*.test.ts`, `lib/**/*.test.ts`, `convex/**/*.test.ts`  |
-| Component tests      | `pnpm test:component` — vitest with jsdom, `app/**/*.test.tsx`, auto-cleanup via `vitest.ui.setup.ts` |
-| Single test file     | `pnpm test -- <path>` (vitest in watch mode)                                                          |
-| Build                | `pnpm build`                                                                                          |
+| Intent               | Command                                                                                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dev server           | `pnpm dev`                                                                                                                                                 |
+| Lint                 | `pnpm lint` (ESLint via `eslint.config.mjs`)                                                                                                               |
+| Format               | `pnpm format` (Prettier), `pnpm format:check`                                                                                                              |
+| Typecheck            | `pnpm build` runs `next build` (includes TS type-checking via Next plugin)                                                                                 |
+| Tests (edge-runtime) | `pnpm test:ci` — vitest, edge-runtime, `app/**/*.test.ts`, `lib/**/*.test.ts`, `convex/**/*.test.ts`                                                       |
+| Component tests      | `pnpm test:component` — vitest with jsdom, `app/**/*.test.tsx`, `components/**/*.test.tsx`, and `lib/**/*.test.tsx`; auto-cleanup via `vitest.ui.setup.ts` |
+| Single test file     | `pnpm test -- <path>` (vitest in watch mode)                                                                                                               |
+| Build                | `pnpm build`                                                                                                                                               |
 
 ## Routing
 

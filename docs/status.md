@@ -149,7 +149,7 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   invalid-target states. Review-surface and write-flow requirements remain
   deferred to their planned tasks.
 - Track 1 Task 2 — Session Reducer, Hydration, and Dirty Baselines is delivered
-  in PR #69 by commit `db8df7d`. Dependency inspection confirmed owner-bound attempt
+  in PR #69 and merged to `main` by commit `b30cd62`. Dependency inspection confirmed owner-bound attempt
   reservation/replay in `convex/writeAttempts.ts`, session-media claim lifecycle
   in `convex/sessionMediaClaims.ts`, and canonical proposal/equality helpers in
   `lib/write-contract.ts`. The required red baseline was recorded before
@@ -169,11 +169,48 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   target-transition regression also proves a dirty post-1 session cannot
   submit to post-2. `pnpm lint`, targeted Prettier, and `git diff --check` pass
   after the correction, and `pnpm build` passes after the correction. The
-  repository-wide format check remains red on 44
+  repository-wide format check remains red on 45
   pre-existing unrelated files; all changed files pass targeted Prettier.
   The approved Task 2 commit includes CodeRabbit's valid minor clean-target
   prompt correction and fresh verification. Post-commit CodeRabbit review
-  reported zero findings.
+  Pushed commit `94663ca` to PR #70’s branch:
+
+`feature/curated-blocknote-interactions` reported zero findings.
+
+- Track 1 Task 3 — Curated BlockNote interaction contract is implemented in
+  commits `36b5396`, `74d6fcf`, `e2c5e52`, `79b04b6`, and `325e64f`, plus
+  review follow-ups `c076642`, `cda053d`, `8d84f94`, `e682e32`, and `94663ca`.
+  The shipped editor keeps the curated block and inline-style set, native history,
+  selection-preserving link validation, sanitized Markdown/rich-text paste,
+  focus-safe block actions, and sole-block deletion replacement. Code-block
+  language selection and dual-theme Shiki highlighting ship in the same scope.
+  Inline-image upload lifecycle remains extracted for Task 4's
+  `MediaAuthoring` ownership rather than duplicated in the editor.
+  Fresh automated checks pass `pnpm test:ci` (28 files, 443 tests),
+  `pnpm test:component` (69 files, 398 tests), `pnpm lint`, TypeScript,
+  targeted Prettier, and `git diff --check`. `pnpm build` passes; the earlier
+  Google-font fetch failure was transient environment noise. The pre-existing
+  45-file repository format
+  baseline remains known debt (the current check reports 43 files after
+  excluding local `docs/superpowers/` artifacts) and is not treated as fixed.
+
+### Browser acceptance observations
+
+Manual browser run completed 2026-09-17. The slash-menu keyboard journey, link
+create/edit/reject/cancel flows, Markdown and rich-text paste,
+duplicate/move/turn/delete caret placement, native Undo/Redo, code-block
+language selection, light/dark highlighting, and side-handle drag all passed.
+
+Two findings are deferred to a later block-support stage and recorded in
+`NOTES.local.md` (local, untracked):
+
+- Pasting Markdown with heading levels outside the curated 2/3 set (for example
+  H1 or H4) fails publishing with "Content must be a valid BlockNote document
+  within the supported capacity limits." The paste path does not clamp heading
+  levels; `normalizeBlock` copies the pasted level verbatim.
+- Pasted Table-of-Contents anchor links (`#heading`) render as plain text
+  because the safe-link allowlist permits only http/https/mailto and reader
+  headings have no `id`.
 
 ## Completed phases
 
@@ -205,8 +242,12 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
 - Track 2 final verification and Track 3 are complete. Track 3 Task 4 passed
   local and explicitly authorized native development Search verification and is
   committed as `60cf933`. Track 1 Tasks 1 and 2 are delivered in PRs #68 and
-  #69; continue with Track 1 Task 3, the curated BlockNote interaction
-  contract.
+  #69; Task 3 is implemented on `feature/curated-blocknote-interactions` and
+  includes the curated editor interaction contract plus code-block highlighting.
+  Task 3 remains limited to editor interactions; Task 4 owns image-drop media
+  claims, lifecycle state, and `MediaAuthoring` forwarding to avoid duplicate
+  media logic. The next resume point is the manual browser-acceptance section
+  above, followed by the human staging gate. No divider is in scope.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
   local and untracked, but intentionally visible to Git). The mandatory human

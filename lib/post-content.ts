@@ -7,6 +7,8 @@ import {
   MAX_POST_TEXT_CODE_POINTS,
   validatePostCapacity,
 } from "./post-capacity";
+import { isSafeAuthorLink } from "./safe-link";
+import { isCodeLanguage } from "./code-languages";
 
 export { getCanonicalBodyText, getCodePointCount } from "./post-capacity";
 
@@ -141,7 +143,9 @@ function validateInlineContent(
       continue;
     }
 
-    if (typeof inline.href !== "string") return false;
+    if (typeof inline.href !== "string" || !isSafeAuthorLink(inline.href)) {
+      return false;
+    }
     if (inline.text !== undefined) return false;
     if (!validateInlineContent(inline.content, state)) return false;
   }
@@ -157,20 +161,24 @@ function validateInlineContent(
  * @returns True if the props are valid for the block type
  */
 function validateBlockProps(type: string, value: unknown): boolean {
-  if (value === undefined) return type !== "image";
+  if (value === undefined) return type !== "image" && type !== "codeBlock";
   if (!isRecord(value)) return false;
 
   if (type === "heading") {
     return (
       hasOnlyKeys(value, ["level"]) &&
-      (value.level === 1 || value.level === 2 || value.level === 3)
+      typeof value.level === "number" &&
+      Number.isInteger(value.level) &&
+      value.level >= 2 &&
+      value.level <= 6
     );
   }
 
   if (type === "codeBlock") {
     return (
       hasOnlyKeys(value, ["language"]) &&
-      (value.language === undefined || typeof value.language === "string")
+      Object.hasOwn(value, "language") &&
+      isCodeLanguage(value.language)
     );
   }
 

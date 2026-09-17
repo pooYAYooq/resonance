@@ -131,7 +131,7 @@ app/
     create/
       page.tsx                # New, draft, and published-edit form modes
       _components/
-        PostBodyEditor.tsx    # Browser-only BlockNote adapter with image upload/finalization (ssr:false)
+        PostBodyEditor.tsx    # Browser-only curated BlockNote adapter (ssr:false); uses the shared upload hook
     dashboard/
       layout.tsx              # Metadata-only child layout
       page.tsx                # Dashboard root with drafts and published-post previews
@@ -211,6 +211,7 @@ components/
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
     PostBody.tsx              # Pure Server Component renderer for structured post bodies
+    HighlightedCode.tsx       # Server-rendered Shiki token spans with plain-text fallback
     TagPill.tsx               # Linked pill for /blog?tag= filters
     PostTagSelector.tsx       # Controlled five-tag checkbox selector
     LikeButton.tsx
@@ -237,6 +238,10 @@ lib/
   utils.ts                    # cn() and other helpers
   post-capacity.ts            # Shared Unicode, structural, source/document, Search-corpus, and author-name limits
   post-content.ts             # Dependency-free body parsing, image validation, excerpts, and storage-ID extraction
+  code-languages.ts           # Canonical code-block IDs, labels, aliases, and Shiki grammars
+  safe-link.ts                # Shared http/https/mailto author-link validator
+  use-inline-image-upload.ts  # Owner-bound inline-image upload and preview lifecycle hook
+  shiki/                      # Generated editor grammars and server-side highlighting adapter
   discover.ts                 # Discover URL normalization and mode-switch links
   auth-client.ts              # Better Auth client setup
   auth-server.ts              # Server-side auth helpers

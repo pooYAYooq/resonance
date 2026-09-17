@@ -4,7 +4,9 @@ import type {
   PostTextStyle,
 } from "@/lib/post-content";
 import { parsePostBody } from "@/lib/post-content";
+import { isSafeAuthorLink } from "@/lib/safe-link";
 import { Fragment, type ReactNode } from "react";
+import { HighlightedCode } from "./HighlightedCode";
 
 export type ResolvedInlineImage = {
   storageId: string;
@@ -15,16 +17,6 @@ type PostBodyProps = {
   body: string;
   inlineImages?: ResolvedInlineImage[];
 };
-
-const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
-
-function isSafeLink(href: string): boolean {
-  try {
-    return SAFE_LINK_PROTOCOLS.has(new URL(href).protocol);
-  } catch {
-    return false;
-  }
-}
 
 function renderInlineContent(
   content: PostInlineContent[] | undefined,
@@ -41,7 +33,11 @@ function renderInlineContent(
 
     let node: ReactNode = children;
 
-    if (inline.type === "link" && inline.href && isSafeLink(inline.href)) {
+    if (
+      inline.type === "link" &&
+      inline.href &&
+      isSafeAuthorLink(inline.href)
+    ) {
       node = (
         <a
           href={inline.href}
@@ -69,7 +65,11 @@ function renderInlineContent(
       }
     }
 
-    if (inline.type !== "link" || !inline.href || !isSafeLink(inline.href)) {
+    if (
+      inline.type !== "link" ||
+      !inline.href ||
+      !isSafeAuthorLink(inline.href)
+    ) {
       return <span key={key}>{node}</span>;
     }
 
@@ -83,22 +83,33 @@ function renderBlockContent(block: PostBlock, key: string): ReactNode {
   return renderInlineContent(block.content, key);
 }
 
-function renderNestedBlocks(
+async function renderNestedBlocks(
   block: PostBlock,
   key: string,
   inlineImages: Map<string, string>,
-): ReactNode {
+): Promise<ReactNode> {
   if (!block.children?.length) return null;
-  return renderBlocks(block.children, `${key}-children`, inlineImages);
+  return await renderBlocks(block.children, `${key}-children`, inlineImages);
 }
 
-function renderList(
+async function renderList(
   blocks: PostBlock[],
   type: "bulletListItem" | "numberedListItem",
   key: string,
   inlineImages: Map<string, string>,
-): ReactNode {
+): Promise<ReactNode> {
   const List = type === "bulletListItem" ? "ul" : "ol";
+  const items = await Promise.all(
+    blocks.map(async (block, index) => {
+      const itemKey = `${key}-item-${index}`;
+      return (
+        <li key={itemKey}>
+          {renderBlockContent(block, itemKey)}
+          {await renderNestedBlocks(block, itemKey, inlineImages)}
+        </li>
+      );
+    }),
+  );
 
   return (
     <List
@@ -109,24 +120,16 @@ function renderList(
           : "list-decimal space-y-2 pl-6"
       }
     >
-      {blocks.map((block, index) => {
-        const itemKey = `${key}-item-${index}`;
-        return (
-          <li key={itemKey}>
-            {renderBlockContent(block, itemKey)}
-            {renderNestedBlocks(block, itemKey, inlineImages)}
-          </li>
-        );
-      })}
+      {items}
     </List>
   );
 }
 
-function renderBlock(
+async function renderBlock(
   block: PostBlock,
   key: string,
   inlineImages: Map<string, string>,
-): ReactNode {
+): Promise<ReactNode> {
   if (block.type === "image") {
     const storageId = block.props?.storageId;
     const altText = block.props?.altText;
@@ -151,7 +154,7 @@ function renderBlock(
   }
 
   const content = renderBlockContent(block, key);
-  const nestedBlocks = renderNestedBlocks(block, key, inlineImages);
+  const nestedBlocks = await renderNestedBlocks(block, key, inlineImages);
 
   switch (block.type) {
     case "paragraph":
@@ -163,7 +166,7 @@ function renderBlock(
       );
     case "heading": {
       const level = block.props?.level;
-      const Heading = level === 1 ? "h2" : level === 2 ? "h3" : "h4";
+      const Heading = `h${level}` as "h2" | "h3" | "h4" | "h5" | "h6";
       return (
         <Fragment key={key}>
           <Heading className="font-semibold tracking-tight">{content}</Heading>
@@ -182,27 +185,24 @@ function renderBlock(
         </blockquote>
       );
     case "codeBlock": {
-      const language = block.props?.language;
-      return (
-        <pre key={key} className="overflow-x-auto rounded-md bg-muted p-4">
-          <code
-            data-language={typeof language === "string" ? language : undefined}
-          >
-            {content}
-          </code>
-        </pre>
-      );
+      if (typeof block.content !== "string") return null;
+
+      const highlightedCode = await HighlightedCode({
+        code: block.content,
+        language: block.props?.language,
+      });
+      return <Fragment key={key}>{highlightedCode}</Fragment>;
     }
     default:
       return null;
   }
 }
 
-function renderBlocks(
+async function renderBlocks(
   blocks: PostBlock[],
   keyPrefix: string,
   inlineImages: Map<string, string>,
-): ReactNode[] {
+): Promise<ReactNode[]> {
   const nodes: ReactNode[] = [];
 
   for (let index = 0; index < blocks.length; index += 1) {
@@ -219,18 +219,25 @@ function renderBlocks(
 
       index -= 1;
       nodes.push(
-        renderList(list, type, `${keyPrefix}-list-${index}`, inlineImages),
+        await renderList(
+          list,
+          type,
+          `${keyPrefix}-list-${index}`,
+          inlineImages,
+        ),
       );
       continue;
     }
 
-    nodes.push(renderBlock(block, `${keyPrefix}-block-${index}`, inlineImages));
+    nodes.push(
+      await renderBlock(block, `${keyPrefix}-block-${index}`, inlineImages),
+    );
   }
 
   return nodes;
 }
 
-export function PostBody({ body, inlineImages = [] }: PostBodyProps) {
+export async function PostBody({ body, inlineImages = [] }: PostBodyProps) {
   const parsed = parsePostBody(body);
 
   if (parsed.kind !== "structured") return null;
@@ -243,7 +250,7 @@ export function PostBody({ body, inlineImages = [] }: PostBodyProps) {
 
   return (
     <div data-slot="post-body" className="space-y-5 text-lg">
-      {renderBlocks(parsed.document.blocks, "post", resolvedImages)}
+      {await renderBlocks(parsed.document.blocks, "post", resolvedImages)}
     </div>
   );
 }

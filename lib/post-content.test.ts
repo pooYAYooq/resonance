@@ -43,7 +43,11 @@ const structured = {
       ],
     },
     { type: "quote", content: [{ type: "text", text: "quote" }] },
-    { type: "codeBlock", props: { language: "ts" }, content: "const x = 1;" },
+    {
+      type: "codeBlock",
+      props: { language: "typescript" },
+      content: "const x = 1;",
+    },
   ],
 } satisfies BlockNoteDocument;
 
@@ -89,6 +93,21 @@ describe("parsePostBody", () => {
         JSON.stringify({ format: BLOCKNOTE_FORMAT, blocks: "not an array" }),
       ),
     ).toEqual({ kind: "invalid" });
+  });
+
+  it("rejects unsupported code languages", () => {
+    const unsupportedLanguageBody = JSON.stringify({
+      format: BLOCKNOTE_FORMAT,
+      blocks: [
+        {
+          type: "codeBlock",
+          props: { language: "unsupported-language" },
+          content: "const value = 1;",
+        },
+      ],
+    });
+
+    expect(parsePostBody(unsupportedLanguageBody)).toEqual({ kind: "invalid" });
   });
 });
 
@@ -283,7 +302,7 @@ describe("extractPlainText", () => {
       const iterator = originalIterator.call(this);
       while (true) {
         const result = iterator.next();
-        if (result.done) return;
+        if (result.done) return undefined;
         yieldedCodePoints += 1;
         yield result.value;
       }
@@ -306,11 +325,56 @@ describe("extractPlainText", () => {
 });
 
 describe("isValidBlockNoteDoc", () => {
+  it.each(["kotlin", "ts", "rs", "", "Rust", 42])(
+    "rejects non-canonical persisted code language %s",
+    (language) => {
+      expect(
+        isValidBlockNoteDoc([
+          { type: "codeBlock", props: { language }, content: "x" },
+        ]),
+      ).toBe(false);
+    },
+  );
+
+  it.each(["rust", "text"])(
+    "accepts canonical persisted code language %s",
+    (language) => {
+      expect(
+        isValidBlockNoteDoc([
+          { type: "codeBlock", props: { language }, content: "x" },
+        ]),
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    { label: "missing props", block: { type: "codeBlock", content: "x" } },
+    {
+      label: "undefined props",
+      block: { type: "codeBlock", props: undefined, content: "x" },
+    },
+    {
+      label: "empty props",
+      block: { type: "codeBlock", props: {}, content: "x" },
+    },
+    {
+      label: "an explicitly undefined language",
+      block: {
+        type: "codeBlock",
+        props: { language: undefined },
+        content: "x",
+      },
+    },
+  ])("rejects code blocks with $label", ({ block }) => {
+    expect(isValidBlockNoteDoc([block])).toBe(false);
+  });
+
   it("uses canonical text length for collapsible code-block whitespace", () => {
     expect(
       isValidBlockNoteDoc([
         {
           type: "codeBlock",
+          props: { language: "text" },
           content: `word${" ".repeat(MAX_POST_TEXT_LENGTH + 1)}`,
         },
       ]),
@@ -353,7 +417,7 @@ describe("isValidBlockNoteDoc", () => {
         },
         {
           type: "codeBlock",
-          props: { language: "ts" },
+          props: { language: "typescript" },
           content: "const value = 1;",
         },
         {
@@ -416,7 +480,7 @@ describe("isValidBlockNoteDoc", () => {
       isValidBlockNoteDoc([
         {
           type: "codeBlock",
-          props: { language: "ts", theme: "dark" },
+          props: { language: "typescript", theme: "dark" },
           content: "code",
         },
       ]),
@@ -454,6 +518,23 @@ describe("isValidBlockNoteDoc", () => {
 
     expect(
       isValidBlockNoteDoc([{ type: "paragraph", content: "not an array" }]),
+    ).toBe(false);
+  });
+
+  it("rejects persisted javascript links even when their inline content is valid", () => {
+    expect(
+      isValidBlockNoteDoc([
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "link",
+              href: "javascript:alert(1)",
+              content: [{ type: "text", text: "Unsafe link" }],
+            },
+          ],
+        },
+      ]),
     ).toBe(false);
   });
 
@@ -539,8 +620,8 @@ describe("isValidBlockNoteDoc", () => {
     expect(extractImageStorageIds(blocks)).toEqual([" storage-1 "]);
   });
 
-  it("accepts heading levels 1 through 3 only", () => {
-    for (const level of [1, 2, 3]) {
+  it("accepts heading levels 2 through 6", () => {
+    for (const level of [2, 3, 4, 5, 6]) {
       expect(
         isValidBlockNoteDoc([
           {
@@ -552,7 +633,7 @@ describe("isValidBlockNoteDoc", () => {
       ).toBe(true);
     }
 
-    for (const level of [0, 4, -1, "2", null]) {
+    for (const level of [0, 1, 7, 8, -1, "2", null]) {
       expect(
         isValidBlockNoteDoc([
           {
@@ -562,6 +643,23 @@ describe("isValidBlockNoteDoc", () => {
           },
         ]),
       ).toBe(false);
+    }
+  });
+
+  it("rejects heading levels outside the H2 through H6 contract", () => {
+    for (const level of [1, 7]) {
+      const outOfRangeHeading = JSON.stringify({
+        format: BLOCKNOTE_FORMAT,
+        blocks: [
+          {
+            type: "heading",
+            props: { level },
+            content: [{ type: "text", text: "Out of range" }],
+          },
+        ],
+      });
+
+      expect(parsePostBody(outOfRangeHeading)).toEqual({ kind: "invalid" });
     }
   });
 

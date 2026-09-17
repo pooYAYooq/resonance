@@ -183,6 +183,45 @@
   --tracking-widest: calc(var(--tracking-normal) + 0.1em);
 }
 
+/* Keep the keyboard-selected slash item unmistakable in both themes. */
+.bn-suggestion-menu {
+  width: min(24rem, calc(100vw - 2rem)) !important;
+  min-width: min(24rem, calc(100vw - 2rem)) !important;
+}
+
+.bn-suggestion-menu [role="option"][aria-selected="true"] {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border: 2px solid var(--ring);
+  box-shadow: 0 0 0 1px var(--primary-foreground);
+  font-weight: 600;
+  outline-offset: -2px;
+}
+
+.bn-side-menu [draggable="true"] {
+  cursor: grab !important;
+}
+
+.bn-side-menu [draggable="true"]:active {
+  cursor: grabbing !important;
+}
+
+.bn-suggestion-menu
+  [role="option"][aria-selected="true"]
+  > [data-position="left"]
+  svg,
+.bn-suggestion-menu [role="option"][aria-selected="true"] > .flex-1 {
+  color: var(--primary-foreground) !important;
+}
+
+.shiki-token {
+  color: var(--shiki-light);
+}
+
+.dark .shiki-token {
+  color: var(--shiki-dark);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

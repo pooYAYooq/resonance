@@ -67,9 +67,11 @@ implementation order.
 | Track 1 | Authoring Workspace and BlockNote Experience  | 🔵 Next On |
 | Track 4 | Management, Navigation, and Accessibility     | 🟡 Later   |
 
-Track 1 progress: Task 1 delivered the Document Studio shell and explicit
-editor modes, and Task 2 delivered the session and hydration state. Task 3's
-curated BlockNote interaction contract is the next Track 1 delivery unit.
+Track 1 progress: Tasks 1 and 2 delivered the Document Studio shell, explicit
+editor modes, and writing-session hydration state. Task 3 is shipped with the
+curated BlockNote interaction contract and code-block language selection plus
+Shiki highlighting. Task 4's media authoring and image-drop lifecycle is the
+next Track 1 delivery unit.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
