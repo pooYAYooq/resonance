@@ -1,7 +1,15 @@
 import { BlockNoteEditor } from "@blocknote/core";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { draftPostSchema } from "@/schemas/blog";
 import { parsePostBody, type BlockNoteDocument } from "@/lib/post-content";
 import PostBodyEditor, {
@@ -11,6 +19,14 @@ import PostBodyEditor, {
   normalizeBlock,
   type EditorBlock,
 } from "./PostBodyEditor";
+
+const { themeState } = vi.hoisted(() => ({
+  themeState: { resolvedTheme: "light" as "light" | "dark" },
+}));
+
+vi.mock("next-themes", () => ({
+  useTheme: () => themeState,
+}));
 
 vi.mock("convex/react", () => ({
   useMutation: () => vi.fn(),
@@ -80,6 +96,10 @@ beforeAll(() => {
   });
 });
 
+beforeEach(() => {
+  themeState.resolvedTheme = "light";
+});
+
 afterAll(() => {
   boundingRectSpy.mockRestore();
   clientRectsSpy.mockRestore();
@@ -131,6 +151,43 @@ describe("PostBodyEditor native interaction contract", () => {
     expect(container.querySelector('[contenteditable="true"]')).not.toBeNull();
     expect(container.querySelector('[aria-label*="Color" i]')).toBeNull();
     expect(container.querySelector('[aria-label*="Align" i]')).toBeNull();
+  });
+
+  it("uses the resolved app theme for the editor and native controls", () => {
+    themeState.resolvedTheme = "dark";
+    const { container, rerender } = render(
+      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
+    );
+    const editorRoot = container.querySelector<HTMLElement>(".bn-root");
+
+    expect(editorRoot).toHaveAttribute("data-color-scheme", "dark");
+    expect(editorRoot).toHaveStyle({ colorScheme: "dark" });
+
+    themeState.resolvedTheme = "light";
+    rerender(<PostBodyEditor onChange={() => {}} onBlur={() => {}} />);
+
+    expect(editorRoot).toHaveAttribute("data-color-scheme", "light");
+    expect(editorRoot).toHaveStyle({ colorScheme: "light" });
+  });
+
+  it("uses the accessible app-muted color for the editor placeholder", () => {
+    const { container } = render(
+      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
+    );
+    const editorRoot = container.querySelector<HTMLElement>(".bn-root");
+
+    expect(editorRoot?.style.getPropertyValue("--bn-colors-side-menu")).toBe(
+      "var(--muted-foreground)",
+    );
+  });
+
+  it("keeps disabled history actions readable without opacity dimming", () => {
+    render(<PostBodyEditor onChange={() => {}} onBlur={() => {}} />);
+    const redo = screen.getByRole("button", { name: "Redo" });
+
+    expect(redo).toBeDisabled();
+    expect(redo).toHaveClass("disabled:text-muted-foreground");
+    expect(redo).not.toHaveClass("disabled:opacity-50");
   });
 
   it("uses BlockNote's native Markdown paste policy while preferring HTML", () => {
