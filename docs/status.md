@@ -172,10 +172,7 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   repository-wide format check remains red on 45
   pre-existing unrelated files; all changed files pass targeted Prettier.
   The approved Task 2 commit includes CodeRabbit's valid minor clean-target
-  prompt correction and fresh verification. Post-commit CodeRabbit review
-  Pushed commit `94663ca` to PR #70’s branch:
-
-`feature/curated-blocknote-interactions` reported zero findings.
+  prompt correction and fresh verification.
 
 - Track 1 Task 3 — Curated BlockNote interaction contract is implemented in
   commits `36b5396`, `74d6fcf`, `e2c5e52`, `79b04b6`, and `325e64f`, plus
@@ -186,8 +183,12 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   language selection and dual-theme Shiki highlighting ship in the same scope.
   Inline-image upload lifecycle remains extracted for Task 4's
   `MediaAuthoring` ownership rather than duplicated in the editor.
-  Fresh automated checks pass `pnpm test:ci` (28 files, 443 tests),
-  `pnpm test:component` (69 files, 398 tests), `pnpm lint`, TypeScript,
+  PR #70 merged to `main` as `906f0d3`. A follow-up contrast and accessibility
+  correction now makes the BlockNote surface follow the resolved application
+  theme, keeps the Turn into control readable in light mode, and avoids
+  opacity-dimming disabled history controls. Fresh automated checks pass
+  `pnpm test:ci` (28 files, 443 tests), `pnpm test:component` (69 files,
+  401 tests), `pnpm lint`, TypeScript,
   targeted Prettier, and `git diff --check`. `pnpm build` passes; the earlier
   Google-font fetch failure was transient environment noise. The pre-existing
   45-file repository format
@@ -201,13 +202,9 @@ create/edit/reject/cancel flows, Markdown and rich-text paste,
 duplicate/move/turn/delete caret placement, native Undo/Redo, code-block
 language selection, light/dark highlighting, and side-handle drag all passed.
 
-Two findings are deferred to a later block-support stage and recorded in
+One finding is deferred to a later block-support stage and recorded in
 `NOTES.local.md` (local, untracked):
 
-- Pasting Markdown with heading levels outside the curated 2/3 set (for example
-  H1 or H4) fails publishing with "Content must be a valid BlockNote document
-  within the supported capacity limits." The paste path does not clamp heading
-  levels; `normalizeBlock` copies the pasted level verbatim.
 - Pasted Table-of-Contents anchor links (`#heading`) render as plain text
   because the safe-link allowlist permits only http/https/mailto and reader
   headings have no `id`.
@@ -242,12 +239,13 @@ Two findings are deferred to a later block-support stage and recorded in
 - Track 2 final verification and Track 3 are complete. Track 3 Task 4 passed
   local and explicitly authorized native development Search verification and is
   committed as `60cf933`. Track 1 Tasks 1 and 2 are delivered in PRs #68 and
-  #69; Task 3 is implemented on `feature/curated-blocknote-interactions` and
-  includes the curated editor interaction contract plus code-block highlighting.
-  Task 3 remains limited to editor interactions; Task 4 owns image-drop media
-  claims, lifecycle state, and `MediaAuthoring` forwarding to avoid duplicate
-  media logic. The next resume point is the manual browser-acceptance section
-  above, followed by the human staging gate. No divider is in scope.
+  #69; Task 3 merged in PR #70 and includes the curated editor interaction
+  contract, code-block highlighting, and the subsequent contrast/accessibility
+  correction on `fix/create-page-contrast`. Task 3 remains limited to editor
+  interactions; Task 4 owns image-drop media claims, lifecycle state, and
+  `MediaAuthoring` forwarding to avoid duplicate media logic. The next resume
+  point is completing and reviewing the contrast-fix branch, then preparing
+  Track 1 Task 4. No divider is in scope.
 - Design-only specification:
   Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
   local and untracked, but intentionally visible to Git). The mandatory human

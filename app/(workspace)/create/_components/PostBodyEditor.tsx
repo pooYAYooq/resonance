@@ -38,8 +38,10 @@ import {
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import { Link2 } from "lucide-react";
+import { useTheme } from "next-themes";
 import {
   forwardRef,
+  type CSSProperties,
   type FormEvent,
   useEffect,
   useImperativeHandle,
@@ -797,7 +799,7 @@ function CuratedBlockActions() {
       </label>
       <select
         id={`turn-into-${block.id}`}
-        className="rounded border border-input bg-background px-2 py-1 text-sm"
+        className="rounded border border-input bg-background px-2 py-1 text-sm text-foreground"
         defaultValue=""
         onChange={(event) => {
           const update = getTurnIntoBlockUpdate(event.currentTarget.value);
@@ -864,7 +866,7 @@ function NativeHistoryControls() {
     <div className="mb-2 flex gap-2" aria-label="Editor history" role="toolbar">
       <button
         type="button"
-        className="rounded px-2 py-1 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded px-2 py-1 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
         disabled={!canUndo}
         onClick={() => {
           editor.undo();
@@ -876,7 +878,7 @@ function NativeHistoryControls() {
       </button>
       <button
         type="button"
-        className="rounded px-2 py-1 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded px-2 py-1 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
         disabled={!canRedo}
         onClick={() => {
           editor.redo();
@@ -912,6 +914,8 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
     },
     ref,
   ) {
+    const { resolvedTheme } = useTheme();
+    const editorTheme = resolvedTheme === "dark" ? "dark" : "light";
     const { uploadFile, resolveFileUrl } = useInlineImageUpload({
       resolvedImageUrls,
       onUploadSessionCreated,
@@ -960,6 +964,13 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
       >
         <BlockNoteView
           editor={editor}
+          theme={editorTheme}
+          style={
+            {
+              colorScheme: editorTheme,
+              "--bn-colors-side-menu": "var(--muted-foreground)",
+            } as CSSProperties
+          }
           aria-invalid={invalid}
           aria-labelledby={labelledBy}
           onChange={() => {
