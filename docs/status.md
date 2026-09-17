@@ -173,17 +173,21 @@ lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
   pre-existing unrelated files; all changed files pass targeted Prettier.
   The approved Task 2 commit includes CodeRabbit's valid minor clean-target
   prompt correction and fresh verification. Post-commit CodeRabbit review
-  reported zero findings.
+  Pushed commit `94663ca` to PR #70’s branch:
+
+`feature/curated-blocknote-interactions` reported zero findings.
+
 - Track 1 Task 3 — Curated BlockNote interaction contract is implemented in
-  commits `36b5396`, `74d6fcf`, `e2c5e52`, `79b04b6`, and `325e64f`. The
-  shipped editor keeps the curated block and inline-style set, native history,
+  commits `36b5396`, `74d6fcf`, `e2c5e52`, `79b04b6`, and `325e64f`, plus
+  review follow-ups `c076642`, `cda053d`, `8d84f94`, `e682e32`, and `94663ca`.
+  The shipped editor keeps the curated block and inline-style set, native history,
   selection-preserving link validation, sanitized Markdown/rich-text paste,
   focus-safe block actions, and sole-block deletion replacement. Code-block
   language selection and dual-theme Shiki highlighting ship in the same scope.
   Inline-image upload lifecycle remains extracted for Task 4's
   `MediaAuthoring` ownership rather than duplicated in the editor.
   Fresh automated checks pass `pnpm test:ci` (28 files, 443 tests),
-  `pnpm test:component` (69 files, 385 tests), `pnpm lint`, TypeScript,
+  `pnpm test:component` (69 files, 398 tests), `pnpm lint`, TypeScript,
   targeted Prettier, and `git diff --check`. `pnpm build` passes; the earlier
   Google-font fetch failure was transient environment noise. The pre-existing
   45-file repository format
