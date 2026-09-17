@@ -72,6 +72,7 @@ const {
       canExec: vi.fn((command) => command !== redoCommand),
       getExtension: vi.fn(() => ({ redoCommand, undoCommand })),
       getNextBlock: vi.fn(),
+      getParentBlock: vi.fn(),
       getPrevBlock: vi.fn(),
       insertBlocks,
       moveBlocksDown,
@@ -387,6 +388,37 @@ describe("PostBodyEditor", () => {
     });
     expect(removeBlocks).not.toHaveBeenCalled();
     expect(editor.setTextCursorPosition).toHaveBeenCalledWith(block, "end");
+    expect(editor.focus).toHaveBeenCalled();
+  });
+
+  it("removes a sole nested child and restores its parent", () => {
+    const parent = {
+      id: "parent-list-item",
+      type: "bulletListItem",
+      props: {},
+      content: "Parent item",
+      children: [],
+    };
+    const block = {
+      id: "nested-paragraph",
+      type: "paragraph",
+      props: {},
+      content: "Nested block",
+      children: [],
+    };
+    setSelectedBlocks([block]);
+    vi.clearAllMocks();
+    editor.getNextBlock.mockReturnValue(undefined);
+    editor.getPrevBlock.mockReturnValue(undefined);
+    editor.getParentBlock.mockReturnValue(parent);
+
+    render(<PostBodyEditor onChange={() => {}} onBlur={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete block" }));
+
+    expect(removeBlocks).toHaveBeenCalledWith([block]);
+    expect(updateBlock).not.toHaveBeenCalled();
+    expect(editor.setTextCursorPosition).toHaveBeenCalledWith(parent, "end");
     expect(editor.focus).toHaveBeenCalled();
   });
 

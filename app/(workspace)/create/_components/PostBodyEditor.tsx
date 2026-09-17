@@ -823,6 +823,11 @@ function CuratedBlockActions() {
         onClick={() => {
           const adjacentBlock =
             editor.getNextBlock(block) ?? editor.getPrevBlock(block);
+          const parentBlock = editor.getParentBlock(block);
+          if (!adjacentBlock && parentBlock) {
+            completeAction(() => editor.removeBlocks([block]), parentBlock);
+            return;
+          }
           if (!adjacentBlock) {
             editor.updateBlock(block, {
               type: "paragraph",
