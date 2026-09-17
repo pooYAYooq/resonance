@@ -35,6 +35,7 @@ describe("DocumentStudio", () => {
     expect(screen.getByRole("textbox", { name: "Blog title" })).toBeVisible();
     expect(screen.getByTestId("body-canvas")).toBeVisible();
     expect(screen.getAllByText("Post details")).toHaveLength(1);
+    expect(studio.querySelector("details")).toHaveAttribute("open");
     expect(screen.getByRole("button", { name: "Save Draft" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Review" })).toBeVisible();
     expect(studio.className).not.toContain("rounded-lg");

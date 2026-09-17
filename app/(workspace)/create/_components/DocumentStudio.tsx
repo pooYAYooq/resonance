@@ -86,7 +86,7 @@ export default function DocumentStudio({
               {body}
             </div>
 
-            <details className="mx-auto w-full max-w-3xl border-t pt-5">
+            <details open className="mx-auto w-full max-w-3xl border-t pt-5">
               <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
                 Post details
               </summary>
