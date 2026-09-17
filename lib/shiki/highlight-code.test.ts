@@ -38,7 +38,7 @@ afterEach(() => {
 });
 
 describe("highlightCode", () => {
-  it("uses the dark theme for the live editor code block", async () => {
+  it("keeps the reader highlighter lazy while initializing the editor highlighter", async () => {
     const highlighterOptions: Array<{ themes: string[] }> = [];
     const { createEditorCodeHighlighter } = await importAdapterWithHighlighter(
       async (options?: { themes: string[] }) => {
@@ -46,19 +46,31 @@ describe("highlightCode", () => {
         return {
           loadLanguage: async () => undefined,
           codeToTokensBase: () => [],
+          codeToTokensWithThemes: () => [],
         };
       },
     );
 
     createEditorCodeHighlighter();
 
-    expect(highlighterOptions[0]).toEqual({
+    expect(highlighterOptions).toEqual([
+      {
+        themes: ["github-dark"],
+        langs: [],
+      },
+    ]);
+
+    await expect(
+      (await import("./highlight-code")).highlightCode(
+        "const answer = 42",
+        "typescript",
+      ),
+    ).resolves.toEqual([]);
+
+    expect(highlighterOptions).toContainEqual({
       themes: ["github-dark", "github-light"],
       langs: [],
     });
-    expect(highlighterOptions).toContainEqual(
-      expect.objectContaining({ themes: ["github-dark"] }),
-    );
   });
 
   it("returns dual-theme TypeScript tokens", async () => {

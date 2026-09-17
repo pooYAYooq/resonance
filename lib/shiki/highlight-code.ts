@@ -1,11 +1,18 @@
 import { normalizeCodeLanguage } from "../code-languages";
 import { createHighlighter } from "./code-highlighter.generated";
 
-const codeHighlighterPromise = createHighlighter({
-  // BlockNote's live parser uses the first loaded theme for inline decorations.
-  themes: ["github-dark", "github-light"],
-  langs: [],
-});
+let readerCodeHighlighterPromise:
+  | ReturnType<typeof createHighlighter>
+  | undefined;
+
+function getReaderCodeHighlighter() {
+  readerCodeHighlighterPromise ??= createHighlighter({
+    // BlockNote's live parser uses the first loaded theme for inline decorations.
+    themes: ["github-dark", "github-light"],
+    langs: [],
+  });
+  return readerCodeHighlighterPromise;
+}
 
 let editorCodeHighlighterPromise:
   | ReturnType<typeof createHighlighter>
@@ -35,7 +42,7 @@ export async function highlightCode(
   if (normalizedLanguage === "text") return null;
 
   try {
-    const highlighter = await codeHighlighterPromise;
+    const highlighter = await getReaderCodeHighlighter();
     await highlighter.loadLanguage(normalizedLanguage);
 
     const themedTokens = highlighter.codeToTokensWithThemes(code, {
