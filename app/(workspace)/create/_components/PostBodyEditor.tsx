@@ -317,6 +317,16 @@ export type EditorBlock = {
   children: EditorBlock[];
 };
 
+type DuplicableBlock = EditorBlock & { id?: string };
+
+function stripBlockIds(block: DuplicableBlock): DuplicableBlock {
+  return {
+    ...block,
+    id: undefined,
+    children: block.children.map(stripBlockIds),
+  };
+}
+
 function normalizeCodeContent(value: unknown): string {
   if (typeof value === "string") return value;
   if (!Array.isArray(value)) return "";
@@ -752,7 +762,7 @@ function CuratedBlockActions() {
         className="rounded px-2 py-1 text-sm hover:bg-muted"
         onMouseDown={preserveSelection}
         onClick={() => {
-          const duplicate = { ...block, id: undefined };
+          const duplicate = stripBlockIds(block as DuplicableBlock);
           const [inserted] = editor.insertBlocks(
             [duplicate] as never,
             block,

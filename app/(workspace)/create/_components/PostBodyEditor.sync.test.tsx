@@ -280,7 +280,23 @@ describe("PostBodyEditor", () => {
       type: "paragraph",
       props: {},
       content: "Draft paragraph",
-      children: [],
+      children: [
+        {
+          id: "nested-paragraph-1",
+          type: "paragraph",
+          props: {},
+          content: "Nested paragraph",
+          children: [
+            {
+              id: "deep-nested-paragraph-1",
+              type: "paragraph",
+              props: {},
+              content: "Deep nested paragraph",
+              children: [],
+            },
+          ],
+        },
+      ],
     };
     setSelectedBlocks([block]);
     editor.getNextBlock.mockReturnValue({
@@ -296,7 +312,31 @@ describe("PostBodyEditor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Duplicate block" }));
     expect(insertBlocks).toHaveBeenCalledWith(
-      [expect.objectContaining({ id: undefined, content: "Draft paragraph" })],
+      [
+        {
+          id: undefined,
+          type: "paragraph",
+          props: {},
+          content: "Draft paragraph",
+          children: [
+            {
+              id: undefined,
+              type: "paragraph",
+              props: {},
+              content: "Nested paragraph",
+              children: [
+                {
+                  id: undefined,
+                  type: "paragraph",
+                  props: {},
+                  content: "Deep nested paragraph",
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
       block,
       "after",
     );
