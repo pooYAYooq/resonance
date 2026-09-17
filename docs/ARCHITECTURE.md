@@ -217,6 +217,7 @@ resonance/
 │       │                        # Maps supported BlockNote blocks to explicit elements; unsafe link
 │       │                        # protocols (non http/https/mailto) render as text. Used only on
 │       │                        # /blog/[postId]; cards and metadata use extractPlainText instead.
+│       ├── HighlightedCode.tsx  # Server-rendered Shiki token spans with plain-text fallback.
 │       ├── TagPill.tsx          # Shared linked tag pill.
 │       ├── PostTagSelector.tsx  # Controlled checkbox group, capped at five selections.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
@@ -263,6 +264,12 @@ resonance/
     │                           # structural validator, extraction, and compact excerpts.
     │                           # Imported by Convex (saveDraft/publishPost), Zod (postSchema), PostCard, metadata, and
     │                           # PostBody. Never imports BlockNote packages.
+    ├── code-languages.ts       # Canonical code-block IDs, labels, aliases, and Shiki grammars.
+    ├── safe-link.ts            # Shared http/https/mailto author-link validator.
+    ├── use-inline-image-upload.ts # Owner-bound inline-image upload and preview lifecycle hook.
+    ├── shiki/
+    │   ├── code-highlighter.generated.ts # Generated editor grammars and themes.
+    │   └── highlight-code.ts   # Server-side dual-theme token rendering adapter.
     └── constants/
         ├── seo.ts              # SITE_NAME, getSiteUrl(), truncateForDescription()
         ├── footer.ts            # Footer site name, nav links, social links
@@ -496,9 +503,9 @@ cards, metadata, and the Server Component renderer all share one contract.
 - **`lib/post-content.ts`** — the canonical boundary. Defines the
   `blocknote@1` envelope (`{ format, blocks }`), `PostBlock` /
   `PostInlineContent` types, `parsePostBody`, `isValidBlockNoteDoc`, and
-  `extractPlainText`. The editor authors paragraphs, section headings (H2),
-  subheadings (H3), quotes, bullet and numbered list items, and code blocks;
-  the reader also accepts level-1 heading blocks. It accepts only the
+  `extractPlainText`. The editor and reader share paragraphs, section headings
+  (H2), subheadings (H3), quotes, bullet and numbered list items, and code
+  blocks. The curated contract accepts only H2/H3 headings. It accepts only the
   approved inline styles (`bold`, `italic`, `underline`, `strike`, `code`).
   Bounds total blocks,
   recursive depth, children per block, inline nodes, and derived text (capped
@@ -519,21 +526,29 @@ cards, metadata, and the Server Component renderer all share one contract.
 - **`components/web/PostBody.tsx`** — the pure Server Component renderer used
   on `/blog/[postId]`. No `"use client"`, no `dangerouslySetInnerHTML`, no
   sanitizer dependency. Calls `parsePostBody`, maps supported blocks to
-  explicit elements/classes (headings render as `h2`/`h3`/`h4` so the page
-  title remains the only `h1`), groups only consecutive list items of the
+  explicit elements/classes (headings render as `h2`/`h3` so the page title
+  remains the only `h1`), groups only consecutive list items of the
   same kind, recurses through nested children, and renders inline styles
-  semantically. Links render as anchors with `rel="noopener noreferrer
-nofollow"` only when the protocol is `http:`, `https:`, or `mailto:`;
+  semantically. Links use the shared `lib/safe-link.ts` protocol validator and
+  render as anchors with `rel="noopener noreferrer nofollow"` only when the
+  protocol is `http:`, `https:`, or `mailto:`;
   unsafe protocols render as plain text. Unknown blocks fall back to readable
   child text or render nothing without throwing.
 
-- **Inline image upload lifecycle** — each authenticated upload gets an
-  owner-bound `pendingUploads` row. The editor creates a session, uploads
-  directly to Convex Storage, finalizes the returned storage ID, and keeps a
-  session-local object URL only for the current preview. Failed submissions
-  clean up only their unconsumed sessions; a 15-minute cron removes expired
-  rows and finalized files. Published claims are retained as consumed
+- **Inline image upload lifecycle** — `lib/use-inline-image-upload.ts` owns the
+  client lifecycle while Convex owns the server-side session and claims. Each
+  authenticated upload gets an owner-bound `pendingUploads` row. The hook
+  uploads directly to Convex Storage, finalizes the returned storage ID, and
+  keeps a session-local object URL only for the current preview. Failed
+  submissions clean up only their unconsumed sessions; a 15-minute cron removes
+  expired rows and finalized files. Published claims are retained as consumed
   markers so a storage ID cannot be finalized or published again.
+
+- **Code-block highlighting** — `lib/code-languages.ts` is the canonical
+  language map used by the editor and reader. The checked-in generated
+  `lib/shiki/` module provides the supported grammars and GitHub light/dark
+  themes. `components/web/HighlightedCode.tsx` renders server-side Shiki
+  tokens as React spans with a plain-text fallback; it never injects HTML.
 
 - **`posts.body` storage** — unchanged Convex schema. New bodies persist as
   `JSON.stringify({ format: "blocknote@1", blocks })` inside the existing
