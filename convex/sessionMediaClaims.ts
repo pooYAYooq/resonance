@@ -98,16 +98,19 @@ export async function hasActiveSessionMediaClaim(
   // Bounded, non-paginated read. This helper is called from handlers that
   // already own the function's single paginated query (pending uploads and
   // post-deletion cleanup), so it must never call `.paginate()`.
+  //
+  // Terminal claims (released or consumed) are stored with `expiresAt: 0`, so
+  // the index range only contains live, unexpired claims. That makes this
+  // existence check exhaustive even when a storage object has many historical
+  // claims; a newest-first scan could hide an older active claim.
   const claims = await ctx.db
     .query("sessionMediaClaims")
-    .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-    .order("desc")
+    .withIndex("by_storageId_and_expiresAt", (q) =>
+      q.eq("storageId", storageId).gt("expiresAt", now),
+    )
     .take(MAX_SESSION_MEDIA_BATCH);
   return claims.some(
-    (claim) =>
-      claim.releasedAt === undefined &&
-      claim.consumedAt === undefined &&
-      claim.expiresAt > now,
+    (claim) => claim.releasedAt === undefined && claim.consumedAt === undefined,
   );
 }
 
@@ -120,17 +123,18 @@ export async function consumeSessionMediaClaims(
   const uniqueStorageIds = [...new Set(storageIds)];
   for (const storageId of uniqueStorageIds) {
     // Bounded, non-paginated read: this helper can run inside handlers that
-    // already own the function's single `.paginate()`.
+    // already own the function's single `.paginate()`. The `expiresAt > 0`
+    // range excludes terminal claims, so all remaining live claims are
+    // consumed rather than hidden behind newer terminal rows.
     const claims = await ctx.db
       .query("sessionMediaClaims")
-      .withIndex("by_userId_and_storageId", (q) =>
-        q.eq("userId", userId).eq("storageId", storageId),
+      .withIndex("by_userId_and_storageId_and_expiresAt", (q) =>
+        q.eq("userId", userId).eq("storageId", storageId).gt("expiresAt", 0),
       )
-      .order("desc")
       .take(MAX_SESSION_MEDIA_BATCH);
     for (const claim of claims) {
       if (claim.releasedAt === undefined && claim.consumedAt === undefined) {
-        await ctx.db.patch(claim._id, { consumedAt });
+        await ctx.db.patch(claim._id, { consumedAt, expiresAt: 0 });
       }
     }
   }
@@ -247,7 +251,7 @@ export const release = mutation({
         claim.releasedAt === undefined &&
         claim.consumedAt === undefined
       ) {
-        await ctx.db.patch(claim._id, { releasedAt });
+        await ctx.db.patch(claim._id, { releasedAt, expiresAt: 0 });
         released += 1;
       }
     }

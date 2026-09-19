@@ -577,6 +577,80 @@ describe("session media claims", () => {
       result.find((entry) => entry.storageId === foreignStorageId)?.url,
     ).toBeNull();
   });
+  it("finds an older active claim behind many newer terminal claims", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "behind@example.com");
+    const storageId = await createPendingAsset(t, identity.subject);
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("sessionMediaClaims", {
+        userId: identity.subject,
+        sessionId: "old-session",
+        storageId,
+        createdAt: 1,
+        renewedAt: 1,
+        expiresAt: now + 60_000,
+      });
+      for (let index = 0; index < 101; index += 1) {
+        await ctx.db.insert("sessionMediaClaims", {
+          userId: identity.subject,
+          sessionId: `terminal-${index}`,
+          storageId,
+          createdAt: 1_000 + index,
+          renewedAt: 1_000 + index,
+          expiresAt: 0,
+          releasedAt: 1_000 + index,
+        });
+      }
+    });
+
+    expect(
+      await t.run((ctx) => hasActiveSessionMediaClaim(ctx, storageId)),
+    ).toBe(true);
+
+    await t.run((ctx) =>
+      consumeSessionMediaClaims(ctx, identity.subject, [storageId]),
+    );
+
+    expect(
+      await t.run((ctx) => hasActiveSessionMediaClaim(ctx, storageId)),
+    ).toBe(false);
+  });
+
+  it("does not treat terminal claims as active protection", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "terminal@example.com",
+    );
+    const storageId = await createPendingAsset(t, identity.subject);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("sessionMediaClaims", {
+        userId: identity.subject,
+        sessionId: "consumed",
+        storageId,
+        createdAt: 1,
+        renewedAt: 1,
+        expiresAt: 0,
+        consumedAt: 2,
+      });
+      await ctx.db.insert("sessionMediaClaims", {
+        userId: identity.subject,
+        sessionId: "released",
+        storageId,
+        createdAt: 3,
+        renewedAt: 3,
+        expiresAt: 0,
+        releasedAt: 4,
+      });
+    });
+
+    expect(
+      await t.run((ctx) => hasActiveSessionMediaClaim(ctx, storageId)),
+    ).toBe(false);
+  });
 });
 
 describe("session media claim cleanup helpers", () => {

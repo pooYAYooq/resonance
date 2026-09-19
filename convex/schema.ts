@@ -377,7 +377,13 @@ export default defineSchema({
       "storageId",
     ])
     .index("by_userId_and_storageId", ["userId", "storageId"])
+    .index("by_userId_and_storageId_and_expiresAt", [
+      "userId",
+      "storageId",
+      "expiresAt",
+    ])
     .index("by_storageId", ["storageId"])
+    .index("by_storageId_and_expiresAt", ["storageId", "expiresAt"])
     .index("by_expiresAt", ["expiresAt"]),
 
   /** Lease guarding the scheduled pending-upload cleanup chain. */
