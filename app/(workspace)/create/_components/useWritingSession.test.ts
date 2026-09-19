@@ -312,6 +312,16 @@ describe("writingSessionReducer", () => {
     expect(state.dirty).toBe(true);
   });
 
+  it("appends failed media without dropping earlier failures", () => {
+    let state = createInitialWritingSessionState("new");
+    state = reduce(state, { type: "appendFailedMedia", storageId: "a" });
+    state = reduce(state, { type: "appendFailedMedia", storageId: "b" });
+    state = reduce(state, { type: "appendFailedMedia", storageId: "a" });
+
+    expect(state.media.failed).toEqual(["a", "b"]);
+    expect(state.dirty).toBe(true);
+  });
+
   it("locks without discarding the proposal and deliberately replaces it on Load latest", () => {
     let state = createInitialWritingSessionState("draft");
     state = reduce(state, { type: "setProposal", proposal: changedProposal });

@@ -102,6 +102,10 @@ export type WritingSessionAction =
       media: WritingSessionMedia;
     }
   | {
+      type: "appendFailedMedia";
+      storageId: string;
+    }
+  | {
       type: "loadLatest";
       proposal: CanonicalProposal;
       expectedUpdatedAt?: number;
@@ -297,6 +301,19 @@ export function writingSessionReducer(
         media: action.media,
         dirty: isDirty(state.proposal, state.baseline, action.media),
       };
+
+    case "appendFailedMedia": {
+      if (state.media.failed.includes(action.storageId)) return state;
+      const media = {
+        ...state.media,
+        failed: [...state.media.failed, action.storageId],
+      };
+      return {
+        ...state,
+        media,
+        dirty: isDirty(state.proposal, state.baseline, media),
+      };
+    }
 
     case "loadLatest":
       return adoptBaseline(

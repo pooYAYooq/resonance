@@ -152,6 +152,7 @@ const {
   getPublishedPostForEditingMock,
   updatePublishedPostMock,
   reserveAttemptMock,
+  convexQueryMock,
   draftIdParam,
   editPostIdParam,
   useConvexAuthState,
@@ -173,6 +174,7 @@ const {
   getPublishedPostForEditingMock: vi.fn(),
   updatePublishedPostMock: vi.fn(),
   reserveAttemptMock: vi.fn(),
+  convexQueryMock: vi.fn(),
   draftIdParam: { value: undefined as string | undefined },
   editPostIdParam: { value: undefined as string | undefined },
   useConvexAuthState: vi.fn(),
@@ -223,6 +225,7 @@ vi.mock("convex/react", () => ({
     return undefined;
   },
   useConvexAuth: () => useConvexAuthState(),
+  useConvex: () => ({ query: convexQueryMock }),
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
@@ -246,6 +249,7 @@ vi.mock("@/convex/_generated/api", () => ({
       claim: "claimSessionMedia",
       renew: "renewSessionMedia",
       release: "releaseSessionMedia",
+      getOwnedMediaUrls: "getOwnedMediaUrls",
     },
   },
 }));
@@ -271,6 +275,8 @@ describe("CreateRoute", () => {
     getPublishedPostForEditingMock.mockReset();
     updatePublishedPostMock.mockReset();
     reserveAttemptMock.mockReset();
+    convexQueryMock.mockReset();
+    convexQueryMock.mockResolvedValue([]);
     draftIdParam.value = undefined;
     editPostIdParam.value = undefined;
     useConvexAuthState.mockReturnValue({
@@ -416,6 +422,62 @@ describe("CreateRoute", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it("resolves storage media restored from a recovery snapshot", async () => {
+    saveDraftRecovery(
+      "new:new",
+      {
+        title: "Recovered media",
+        body: JSON.stringify(inlineEnvelope),
+        tags: [],
+      },
+      Date.now(),
+    );
+    convexQueryMock.mockResolvedValue([
+      {
+        storageId: "storage-inline-1",
+        url: "https://cdn.example.com/recovered.png",
+      },
+    ]);
+
+    render(<CreateRoute />);
+
+    expect(
+      await screen.findByDisplayValue("Recovered media"),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/recovered\.png/)).toBeInTheDocument(),
+    );
+    expect(convexQueryMock).toHaveBeenCalledWith("getOwnedMediaUrls", {
+      storageIds: ["storage-inline-1"],
+    });
+  });
+
+  it("marks recovered media unavailable when the server cannot resolve it", async () => {
+    saveDraftRecovery(
+      "new:new",
+      {
+        title: "Recovered media",
+        body: JSON.stringify(inlineEnvelope),
+        tags: [],
+      },
+      Date.now(),
+    );
+    convexQueryMock.mockResolvedValue([
+      { storageId: "storage-inline-1", url: null },
+    ]);
+
+    render(<CreateRoute />);
+
+    expect(
+      await screen.findByDisplayValue("Recovered media"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "This media is no longer available. Re-upload or remove it.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("enters Review and returns to editing with content preserved", async () => {

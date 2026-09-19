@@ -1,7 +1,9 @@
 import {
   internalMutation,
   mutation,
+  query,
   type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
@@ -26,7 +28,7 @@ function assertBatchSize(storageIds: readonly Id<"_storage">[]) {
 }
 
 async function hasOwnedPendingAsset(
-  ctx: MutationCtx,
+  ctx: Pick<QueryCtx, "db">,
   userId: string,
   storageId: Id<"_storage">,
   now: number,
@@ -54,7 +56,7 @@ async function hasOwnedPendingAsset(
 }
 
 async function ownedPostReferencesStorage(
-  ctx: MutationCtx,
+  ctx: Pick<QueryCtx, "db">,
   userId: string,
   postId: Id<"posts">,
   storageId: Id<"_storage">,
@@ -275,5 +277,36 @@ export const cleanupExpired = internalMutation({
       );
     }
     return null;
+  },
+});
+
+/**
+ * Resolves storage-backed media the caller still owns, so media restored from a
+ * local recovery snapshot can render again. Ids the caller does not own, or
+ * whose pending asset is gone, resolve to `null` so the client marks them
+ * unavailable instead of leaving them stuck "finalizing".
+ */
+export const getOwnedMediaUrls = query({
+  args: { storageIds: v.array(v.id("_storage")) },
+  returns: v.array(
+    v.object({
+      storageId: v.id("_storage"),
+      url: v.union(v.string(), v.null()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    assertBatchSize(args.storageIds);
+    const unique = [...new Set(args.storageIds)];
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return unique.map((storageId) => ({ storageId, url: null }));
+    const now = Date.now();
+    return await Promise.all(
+      unique.map(async (storageId) => {
+        if (!(await hasOwnedPendingAsset(ctx, user._id, storageId, now))) {
+          return { storageId, url: null };
+        }
+        return { storageId, url: await ctx.storage.getUrl(storageId) };
+      }),
+    );
   },
 });

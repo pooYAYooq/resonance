@@ -16,7 +16,7 @@ import {
 } from "@/lib/write-contract";
 import { clearDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "convex/react";
+import { useConvex, useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -55,6 +55,9 @@ const emptyDocument: BlockNoteDocument = {
   blocks: [],
 };
 
+// Matches the server's per-query batch cap in `getOwnedMediaUrls`.
+const RESOLVE_MEDIA_BATCH = 100;
+
 type PostFormInput = z.input<typeof draftPostSchema>;
 type PostFormOutput = z.output<typeof draftPostSchema>;
 type SubmitMode = "draft" | "publish";
@@ -82,15 +85,23 @@ function collectInlineMedia(
         const storageId = (source as { id: string }).id;
         const url = resolvedImageUrls[storageId];
         const props = block.props ?? {};
+        const claimFailed = failed.has(storageId);
+        const unavailable = url === null;
         assets.push({
           id: storageId,
           kind: "inline",
-          status: failed.has(storageId)
-            ? "failed"
-            : url
-              ? "resolved"
-              : "finalizing",
-          ...(failed.has(storageId) && { error: "Media claim failed" }),
+          status:
+            claimFailed || unavailable
+              ? "failed"
+              : url
+                ? "resolved"
+                : "finalizing",
+          ...(claimFailed && { error: "Media claim failed" }),
+          ...(unavailable &&
+            !claimFailed && {
+              error:
+                "This media is no longer available. Re-upload or remove it.",
+            }),
           ...(url && { url }),
           fileName: typeof props.name === "string" ? props.name : "",
         });
@@ -139,6 +150,52 @@ function readRecoveredDraft(sessionKey: string): {
 }
 
 /**
+ * Resolves storage-backed media in a restored recovery document back to URLs.
+ * A refresh drops the client's object URLs, so the server is asked which ids
+ * the caller still owns. Unresolved ids become `null`, which `collectInlineMedia`
+ * maps to a failed asset so Review shows recovery guidance instead of being
+ * stuck "finalizing" forever.
+ */
+async function resolveRecoveredMediaUrls(
+  convex: ReturnType<typeof useConvex>,
+  document: BlockNoteDocument,
+  base: Record<string, string | null>,
+): Promise<Record<string, string | null>> {
+  const storageIds = extractImageStorageIds(
+    document.blocks as Parameters<typeof extractImageStorageIds>[0],
+  );
+  if (storageIds.length === 0) return base;
+
+  // Default every requested id to null until the server resolves it, so a
+  // failed or partial query still marks the asset unavailable rather than
+  // leaving it "finalizing" and blocking Review forever.
+  const urls: Record<string, string | null> = { ...base };
+  for (const storageId of storageIds) {
+    urls[storageId] = null;
+  }
+
+  try {
+    for (
+      let start = 0;
+      start < storageIds.length;
+      start += RESOLVE_MEDIA_BATCH
+    ) {
+      const batch = storageIds.slice(start, start + RESOLVE_MEDIA_BATCH);
+      const resolved = await convex.query(
+        api.sessionMediaClaims.getOwnedMediaUrls,
+        { storageIds: batch as Id<"_storage">[] },
+      );
+      for (const { storageId, url } of resolved) {
+        urls[storageId] = url;
+      }
+    }
+  } catch {
+    // Keep the null defaults for anything the server could not resolve.
+  }
+  return urls;
+}
+
+/**
  * Renders the authenticated blog post creation page.
  *
  * Redirects unauthenticated users to the login page and displays a loading state while authentication is unresolved.
@@ -160,6 +217,7 @@ export default function CreateRoute() {
 }
 
 function CreateEditor() {
+  const convex = useConvex();
   const [isPending, startTransition] = useTransition();
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
@@ -450,8 +508,13 @@ function CreateEditor() {
         );
         setCoverImageUrl(undefined);
         setInitialContent(recovered.document);
-        setResolvedImageUrls({});
-        setRecoveryNonce((nonce) => nonce + 1);
+        void resolveRecoveredMediaUrls(convex, recovered.document, {}).then(
+          (urls) => {
+            if (hydratedSessionKey.current !== sessionKey) return;
+            setResolvedImageUrls(urls);
+            setRecoveryNonce((nonce) => nonce + 1);
+          },
+        );
       } else {
         form.reset({
           title: "",
@@ -516,8 +579,15 @@ function CreateEditor() {
       );
       setCoverImageUrl(undefined);
       setInitialContent(recovered.document);
-      setResolvedImageUrls(serverImages);
-      setRecoveryNonce((nonce) => nonce + 1);
+      void resolveRecoveredMediaUrls(
+        convex,
+        recovered.document,
+        serverImages,
+      ).then((urls) => {
+        if (hydratedSessionKey.current !== sessionKey) return;
+        setResolvedImageUrls(urls);
+        setRecoveryNonce((nonce) => nonce + 1);
+      });
     } else {
       form.reset({
         title: target.title,
@@ -533,6 +603,7 @@ function CreateEditor() {
     if (editorMode.mode === "draft") setDraftId(target._id);
     hydratedSessionKey.current = sessionKey;
   }, [
+    convex,
     editorMode.mode,
     form,
     hydratedDraft,
@@ -1121,11 +1192,8 @@ function CreateEditor() {
                           }),
                         ).catch(() => {
                           dispatchSession({
-                            type: "setMedia",
-                            media: {
-                              ...sessionState.media,
-                              failed: [...sessionState.media.failed, storageId],
-                            },
+                            type: "appendFailedMedia",
+                            storageId,
                           });
                         });
                       }}

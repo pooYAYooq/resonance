@@ -557,6 +557,26 @@ describe("session media claims", () => {
     });
     expect(consumedCount).toBe(101);
   });
+
+  it("resolves owned pending media and reports foreign ids as null", async () => {
+    const t = convexTest(schema, modules);
+    const owner = await createAuthenticatedTestUser(t, "resolve@example.com");
+    const ownedStorageId = await createPendingAsset(t, owner.subject);
+    const foreignStorageId = await createPendingAsset(t, "different-user");
+
+    const result = await t
+      .withIdentity(owner)
+      .query(api.sessionMediaClaims.getOwnedMediaUrls, {
+        storageIds: [ownedStorageId, foreignStorageId],
+      });
+
+    expect(
+      result.find((entry) => entry.storageId === ownedStorageId)?.url,
+    ).toBeTypeOf("string");
+    expect(
+      result.find((entry) => entry.storageId === foreignStorageId)?.url,
+    ).toBeNull();
+  });
 });
 
 describe("session media claim cleanup helpers", () => {
