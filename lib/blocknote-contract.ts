@@ -230,7 +230,8 @@ function normalizeMediaProps(value: unknown, type: string) {
     if (value.previewWidth !== undefined) {
       if (
         typeof value.previewWidth !== "number" ||
-        !Number.isFinite(value.previewWidth)
+        !Number.isFinite(value.previewWidth) ||
+        value.previewWidth <= 0
       ) {
         return null;
       }
@@ -262,7 +263,11 @@ function normalizeStyles(value: unknown) {
 
 function normalizeInlineContent(
   value: unknown,
+  depth = 0,
 ): CanonicalInlineContent[] | null {
+  // Bound nested link content so untrusted inline markup cannot overflow the
+  // stack before capacity validation runs.
+  if (depth > MAX_POST_DEPTH) return null;
   if (!Array.isArray(value)) return null;
   const result: CanonicalInlineContent[] = [];
   for (const item of value) {
@@ -285,7 +290,7 @@ function normalizeInlineContent(
     }
     if (typeof item.href !== "string" || !isSafeAuthorLink(item.href))
       return null;
-    const content = normalizeInlineContent(item.content);
+    const content = normalizeInlineContent(item.content, depth + 1);
     if (!content) return null;
     result.push({ type: "link", href: item.href, content });
   }

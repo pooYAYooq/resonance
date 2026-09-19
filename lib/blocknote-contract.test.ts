@@ -217,4 +217,39 @@ describe("blocknote contract", () => {
       normalizeBlockNoteDocument({ format: "blocknote@1", blocks }),
     ).toBeNull();
   });
+
+  it("rejects deeply nested inline link content without overflowing", () => {
+    let inline: Record<string, unknown> = { type: "text", text: "x" };
+    for (let index = 0; index < 5_000; index += 1) {
+      inline = { type: "link", href: "https://example.com", content: [inline] };
+    }
+    const document = {
+      format: "blocknote@1",
+      blocks: [{ type: "paragraph", props: {}, content: [inline] }],
+    };
+
+    expect(() => normalizeBlockNoteDocument(document)).not.toThrow();
+    expect(normalizeBlockNoteDocument(document)).toBeNull();
+  });
+
+  it("rejects a non-positive media preview width", () => {
+    const document = {
+      format: "blocknote@1",
+      blocks: [
+        {
+          type: "image",
+          props: {
+            url: "https://cdn.example.com/pic.png",
+            name: "pic.png",
+            caption: "",
+            backgroundColor: "default",
+            textAlignment: "left",
+            previewWidth: 0,
+          },
+        },
+      ],
+    };
+
+    expect(normalizeBlockNoteDocument(document)).toBeNull();
+  });
 });
