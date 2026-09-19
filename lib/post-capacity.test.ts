@@ -157,6 +157,33 @@ describe("post capacity", () => {
     expect(measurements.urlCodePoints).toBeGreaterThan(0);
   });
 
+  it("counts audio and video captions toward readable text and caption limits", async () => {
+    const capacity = await import("./post-capacity");
+    const audioDocument = {
+      format: "blocknote@1",
+      blocks: [
+        {
+          type: "audio",
+          props: {
+            source: { kind: "url", url: "https://cdn.example.com/audio.mp3" },
+            name: "audio.mp3",
+            caption: "Audio caption text",
+            backgroundColor: "default",
+            showPreview: true,
+          },
+        },
+      ],
+    } as unknown as BlockNoteDocument;
+
+    expect(capacity.getCanonicalBodyText(audioDocument.blocks)).toContain(
+      "Audio caption text",
+    );
+
+    const measurements = capacity.measurePostContent(audioDocument);
+    expect(measurements.captionCodePoints).toBeGreaterThan(0);
+    expect(measurements.textCodePoints).toBeGreaterThan(0);
+  });
+
   it("returns typed errors for exact and one-over text, URL, and source-byte limits", async () => {
     const capacity = await import("./post-capacity");
     const validatePostCapacity = (capacity as Record<string, unknown>)[

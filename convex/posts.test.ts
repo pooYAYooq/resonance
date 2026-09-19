@@ -395,6 +395,26 @@ describe("posts functions", () => {
     expect(isValidPublishPostBody(tableBody)).toBe(true);
   });
 
+  it("accepts a body whose only readable text is an audio caption", () => {
+    const audioBody = JSON.stringify({
+      format: BLOCKNOTE_FORMAT,
+      blocks: [
+        {
+          type: "audio",
+          props: {
+            source: { kind: "url", url: "https://cdn.example.com/audio.mp3" },
+            name: "audio.mp3",
+            caption: "Audio caption text long enough.",
+            backgroundColor: "default",
+            showPreview: true,
+          },
+        },
+      ],
+    });
+
+    expect(isValidPublishPostBody(audioBody)).toBe(true);
+  });
+
   it("accepts structured bodies at the exact readable-text boundaries", () => {
     const bodyWithText = (text: string) =>
       JSON.stringify({

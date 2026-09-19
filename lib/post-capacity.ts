@@ -138,7 +138,9 @@ export function getCanonicalBodyText(
         parts.push(block.content);
       } else if (
         includeImageCaptions &&
-        block.type === "image" &&
+        (block.type === "image" ||
+          block.type === "audio" ||
+          block.type === "video") &&
         isRecord(block.props) &&
         typeof block.props.caption === "string"
       ) {
@@ -241,6 +243,12 @@ function measureBlocks(
     measurements.blockCount += 1;
     if (block.type === "image") {
       measurements.imageReferenceCount += 1;
+    }
+    if (
+      block.type === "image" ||
+      block.type === "audio" ||
+      block.type === "video"
+    ) {
       const props = block.props;
       const altTextCodePoints = getCodePointCount(
         typeof props?.altText === "string" ? props.altText : "",
