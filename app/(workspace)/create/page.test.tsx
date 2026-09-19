@@ -1117,6 +1117,48 @@ describe("CreateRoute", () => {
     ).toBeInTheDocument();
   });
 
+  it("clears a discarded cover selection so later navigation does not prompt", async () => {
+    const user = userEvent.setup();
+    const publishedPost = (id: string, title: string, updatedAt: number) => ({
+      _id: id,
+      title,
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: updatedAt - 1,
+      updatedAt,
+    });
+
+    const view = render(<CreateRoute />);
+    await user.upload(
+      screen.getByLabelText("Image (optional)"),
+      new File(["cover"], "cover.png", { type: "image/png" }),
+    );
+
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue(
+      publishedPost("post-1", "Post one", 101),
+    );
+    view.rerender(<CreateRoute />);
+    await user.click(
+      screen.getByRole("button", { name: "Load requested document" }),
+    );
+    await screen.findByDisplayValue("Post one");
+
+    editPostIdParam.value = "post-2";
+    getPublishedPostForEditingMock.mockReturnValue(
+      publishedPost("post-2", "Post two", 201),
+    );
+    view.rerender(<CreateRoute />);
+
+    expect(await screen.findByDisplayValue("Post two")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Load requested document" }),
+    ).toBeNull();
+  });
+
   it("adopts a new target after successfully saving a selected cover", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue({

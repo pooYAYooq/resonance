@@ -449,6 +449,18 @@ function CreateEditor() {
       ? `${pendingTarget.editorMode}:${pendingTarget.id ?? "new"}`
       : undefined;
 
+    // A hydrated or adopted target replaces the active session's cover state, so
+    // drop any residual selected cover file. Otherwise the transition guard
+    // keeps prompting about a cover that no longer belongs to the form.
+    const resetCoverSelectionRefs = () => {
+      selectedCoverRef.current = undefined;
+      clearedCoverSelection.current = undefined;
+      if (coverObjectUrlRef.current) {
+        URL.revokeObjectURL(coverObjectUrlRef.current);
+        coverObjectUrlRef.current = undefined;
+      }
+    };
+
     if (pendingTarget && pendingSessionKey !== activeSessionKey) {
       if (pendingTarget.editorMode === "new") {
         form.reset({
@@ -468,6 +480,7 @@ function CreateEditor() {
         });
         setAcceptedTargetError(undefined);
         setDraftId(undefined);
+        resetCoverSelectionRefs();
         setCoverStorageId(undefined);
         setCoverImageUrl(undefined);
         setInitialContent(emptyDocument);
@@ -522,6 +535,7 @@ function CreateEditor() {
       });
       setAcceptedTargetError(undefined);
       if (pendingTarget.editorMode === "draft") setDraftId(pendingData._id);
+      resetCoverSelectionRefs();
       setCoverStorageId(pendingData.imageStorageId ?? undefined);
       setCoverImageUrl(pendingData.imageUrl ?? undefined);
       setInitialContent(parsed.document);
@@ -549,6 +563,7 @@ function CreateEditor() {
     const sessionKey = activeSessionKey;
     if (hydratedSessionKey.current === sessionKey) return;
     if (sessionState.dirty) return;
+    resetCoverSelectionRefs();
 
     if (editorMode.mode === "new") {
       dispatchSession({
