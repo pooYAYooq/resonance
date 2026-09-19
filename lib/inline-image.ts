@@ -22,10 +22,29 @@ export function isAllowedInlineImageType(
   );
 }
 
+export const ALLOWED_BLOCKNOTE_AUDIO_TYPES = [
+  "audio/aac",
+  "audio/flac",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+] as const;
+
+export const ALLOWED_BLOCKNOTE_VIDEO_TYPES = [
+  "video/mp4",
+  "video/ogg",
+  "video/quicktime",
+  "video/webm",
+] as const;
+
 /**
  * BlockNote's standard media blocks share the same session-aware upload path.
- * Keep the policy finite: common author media and portable documents are
- * accepted, while executable or active document formats never reach storage.
+ * Keep the policy finite to media the enabled blocks can actually render
+ * (image, audio, video) and to formats browsers support. Documents such as PDF
+ * or plain text, and non-renderable media containers, have no block and would
+ * only produce an unrenderable upload, so they are rejected.
  */
 export function isAllowedBlockNoteFile(
   contentType: string | undefined,
@@ -33,10 +52,9 @@ export function isAllowedBlockNoteFile(
   if (!contentType) return false;
   return (
     isAllowedInlineImageType(contentType) ||
-    contentType.startsWith("audio/") ||
-    contentType.startsWith("video/") ||
-    contentType === "application/pdf" ||
-    contentType === "text/plain" ||
-    contentType === "text/csv"
+    (ALLOWED_BLOCKNOTE_AUDIO_TYPES as readonly string[]).includes(
+      contentType,
+    ) ||
+    (ALLOWED_BLOCKNOTE_VIDEO_TYPES as readonly string[]).includes(contentType)
   );
 }
