@@ -103,6 +103,43 @@ describe("PostBody", () => {
     );
   });
 
+  it("applies block-level color tokens to block containers", async () => {
+    const { container } = render(
+      await PostBody({
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "paragraph",
+              props: {
+                backgroundColor: "blue",
+                textColor: "red",
+                textAlignment: "left",
+              },
+              content: [{ type: "text", text: "Colored block", styles: {} }],
+            },
+            {
+              type: "heading",
+              props: {
+                level: 2,
+                backgroundColor: "yellow",
+                textColor: "green",
+              },
+              content: [{ type: "text", text: "Colored heading", styles: {} }],
+            },
+          ],
+        }),
+      }),
+    );
+
+    const paragraph = container.querySelector("p");
+    expect(paragraph).toHaveAttribute("data-text-color", "red");
+    expect(paragraph).toHaveAttribute("data-background-color", "blue");
+    const heading = container.querySelector("h2");
+    expect(heading).toHaveAttribute("data-text-color", "green");
+    expect(heading).toHaveAttribute("data-background-color", "yellow");
+  });
+
   it("does not render unsafe remote media", async () => {
     const unsafe = JSON.stringify({
       format: "blocknote@1",

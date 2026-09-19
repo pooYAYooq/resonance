@@ -48,4 +48,29 @@ describe("PostBodyPreview", () => {
     const { container } = render(<PostBodyPreview body="{ not json" />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("applies block-level color tokens to block containers", () => {
+    const { container } = render(
+      <PostBodyPreview
+        body={JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "paragraph",
+              props: {
+                backgroundColor: "pink",
+                textColor: "purple",
+                textAlignment: "left",
+              },
+              content: [{ type: "text", text: "Colored", styles: {} }],
+            },
+          ],
+        })}
+      />,
+    );
+
+    const paragraph = container.querySelector("p");
+    expect(paragraph).toHaveAttribute("data-text-color", "purple");
+    expect(paragraph).toHaveAttribute("data-background-color", "pink");
+  });
 });

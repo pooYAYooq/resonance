@@ -5,6 +5,7 @@ import { parsePostBody } from "@/lib/post-content";
 import { DEFAULT_HEADING_LEVEL } from "@/lib/heading";
 import { HighlightedCodeClient } from "./HighlightedCodeClient";
 import {
+  getBlockColorAttributes,
   getHeadingClassName,
   getInlineText,
   getMediaUrl,
@@ -39,7 +40,11 @@ function renderMedia(
 
   if (block.type === "image") {
     return (
-      <figure key={key} className={alignment}>
+      <figure
+        key={key}
+        className={alignment}
+        {...getBlockColorAttributes(block.props)}
+      >
         {/* Resolved storage URLs and validated HTTP(S) URLs are safe attributes. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={url} alt={name} />
@@ -53,7 +58,7 @@ function renderMedia(
   }
   if (block.type === "audio") {
     return (
-      <figure key={key}>
+      <figure key={key} {...getBlockColorAttributes(block.props)}>
         <audio controls src={url} />
         {caption ? (
           <figcaption className="mt-2 text-sm text-muted-foreground">
@@ -65,7 +70,11 @@ function renderMedia(
   }
   if (block.type === "video") {
     return (
-      <figure key={key} className={alignment}>
+      <figure
+        key={key}
+        className={alignment}
+        {...getBlockColorAttributes(block.props)}
+      >
         <video controls src={url} />
         {caption ? (
           <figcaption className="mt-2 text-sm text-muted-foreground">
@@ -105,7 +114,11 @@ function renderList(
       }
     >
       {blocks.map((block, index) => (
-        <li key={`${key}-${index}`} className={getTextAlignment(block.props)}>
+        <li
+          key={`${key}-${index}`}
+          className={getTextAlignment(block.props)}
+          {...getBlockColorAttributes(block.props)}
+        >
           {renderContent(block, `${key}-${index}`)}
           {renderChildren(block, `${key}-${index}`, resolved)}
         </li>
@@ -132,6 +145,7 @@ function renderTable(block: PostBlock, key: string): ReactNode {
             <tr key={`${key}-row-${rowIndex}`}>
               {row.cells?.map((cell, cellIndex) => (
                 <td
+                  {...getBlockColorAttributes(cell.props)}
                   key={`${key}-cell-${rowIndex}-${cellIndex}`}
                   colSpan={
                     typeof cell.props?.colspan === "number"
@@ -193,6 +207,7 @@ function renderBlock(
     return (
       <Fragment key={key}>
         <Heading
+          {...getBlockColorAttributes(block.props)}
           className={`${getHeadingClassName(level)} ${getTextAlignment(block.props)}`}
         >
           {content}
@@ -204,6 +219,7 @@ function renderBlock(
   if (block.type === "quote") {
     return (
       <blockquote
+        {...getBlockColorAttributes(block.props)}
         key={key}
         className="border-l-2 border-border pl-4 italic text-muted-foreground"
       >
@@ -215,6 +231,7 @@ function renderBlock(
   if (block.type === "checkListItem") {
     return (
       <label
+        {...getBlockColorAttributes(block.props)}
         key={key}
         className={`flex gap-2 ${getTextAlignment(block.props)}`}
       >
@@ -235,7 +252,7 @@ function renderBlock(
   }
   if (block.type === "toggleListItem") {
     return (
-      <details key={key}>
+      <details key={key} {...getBlockColorAttributes(block.props)}>
         <summary className={getTextAlignment(block.props)}>{content}</summary>
         {children}
       </details>
@@ -244,6 +261,7 @@ function renderBlock(
   return (
     <Fragment key={key}>
       <p
+        {...getBlockColorAttributes(block.props)}
         className={`leading-relaxed text-foreground/90 ${getTextAlignment(block.props)}`}
       >
         {content}

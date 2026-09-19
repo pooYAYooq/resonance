@@ -20,7 +20,10 @@ const headingSizeClass = {
 
 export function getHeadingClassName(level: unknown): string {
   const resolved =
-    typeof level === "number" && level >= 2 && level <= 6
+    typeof level === "number" &&
+    Number.isInteger(level) &&
+    level >= 2 &&
+    level <= 6
       ? (level as keyof typeof headingSizeClass)
       : (DEFAULT_HEADING_LEVEL as keyof typeof headingSizeClass);
   return `${headingSizeClass[resolved]} font-semibold tracking-tight`;
@@ -28,9 +31,36 @@ export function getHeadingClassName(level: unknown): string {
 
 export function getTextAlignment(props: Record<string, unknown> | undefined) {
   const value = props?.textAlignment;
-  return typeof value === "string" && value in alignmentClass
+  return typeof value === "string" && Object.hasOwn(alignmentClass, value)
     ? alignmentClass[value as keyof typeof alignmentClass]
     : alignmentClass.left;
+}
+
+/**
+ * Block-level color tokens the authoring handle menu persists, as data
+ * attributes the reader stylesheet targets (matching inline style rendering).
+ * The `default` token means no color and is omitted.
+ */
+export function getBlockColorAttributes(
+  props: Record<string, unknown> | undefined,
+): {
+  "data-text-color"?: string;
+  "data-background-color"?: string;
+} {
+  const attributes: {
+    "data-text-color"?: string;
+    "data-background-color"?: string;
+  } = {};
+  if (typeof props?.textColor === "string" && props.textColor !== "default") {
+    attributes["data-text-color"] = props.textColor;
+  }
+  if (
+    typeof props?.backgroundColor === "string" &&
+    props.backgroundColor !== "default"
+  ) {
+    attributes["data-background-color"] = props.backgroundColor;
+  }
+  return attributes;
 }
 
 export function renderInlineContent(
