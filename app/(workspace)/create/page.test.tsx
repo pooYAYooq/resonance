@@ -579,6 +579,54 @@ describe("CreateRoute", () => {
     expect(screen.getByText(JSON.stringify(validEnvelope))).toBeInTheDocument();
   });
 
+  it("does not restore a recovery snapshot older than the server draft", async () => {
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Server newer",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 500,
+    });
+    saveDraftRecovery(
+      "draft:draft-1",
+      { title: "Local stale", body: JSON.stringify(validEnvelope), tags: [] },
+      100,
+    );
+
+    render(<CreateRoute />);
+
+    expect(await screen.findByDisplayValue("Server newer")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Local stale")).toBeNull();
+    expect(readDraftRecovery("draft:draft-1")).toBeNull();
+  });
+
+  it("restores a recovery snapshot newer than the server draft", async () => {
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Server older",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 100,
+    });
+    saveDraftRecovery(
+      "draft:draft-1",
+      { title: "Local newer", body: JSON.stringify(validEnvelope), tags: [] },
+      500,
+    );
+
+    render(<CreateRoute />);
+
+    expect(await screen.findByDisplayValue("Local newer")).toBeInTheDocument();
+  });
+
   it("preserves a dirty draft when reactive server data refreshes", async () => {
     const user = userEvent.setup();
     draftIdParam.value = "draft-1";

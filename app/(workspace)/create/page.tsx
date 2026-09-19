@@ -137,6 +137,7 @@ function isEffectivelyEmptyProposal(proposal: CanonicalProposal): boolean {
 function readRecoveredDraft(sessionKey: string): {
   document: BlockNoteDocument;
   proposal: CanonicalProposal;
+  savedAt: number;
 } | null {
   const snapshot = readDraftRecovery(sessionKey);
   if (!snapshot) return null;
@@ -146,7 +147,11 @@ function readRecoveredDraft(sessionKey: string): {
   }
   const document = parseCanonicalDocument(snapshot.proposal.body);
   if (!document) return null;
-  return { document, proposal: snapshot.proposal };
+  return {
+    document,
+    proposal: snapshot.proposal,
+    savedAt: snapshot.savedAt,
+  };
 }
 
 /**
@@ -563,11 +568,24 @@ function CreateEditor() {
       target.inlineImages.map(({ storageId, url }) => [storageId, url]),
     );
     const recovered = readRecoveredDraft(sessionKey);
-    if (
-      recovered &&
-      getProposalEqualityKey(recovered.proposal) !==
-        getProposalEqualityKey(serverProposal)
-    ) {
+    const serverUpdatedAt =
+      typeof target.updatedAt === "number" ? target.updatedAt : 0;
+    const matchesServer =
+      recovered !== null &&
+      getProposalEqualityKey(recovered.proposal) ===
+        getProposalEqualityKey(serverProposal);
+    // Restore only genuinely newer local work. A snapshot that matches the
+    // server, or predates the server's latest save, is stale and must not
+    // overwrite edits another client already persisted.
+    const useRecovered =
+      recovered !== null &&
+      !matchesServer &&
+      recovered.savedAt > serverUpdatedAt;
+    if (recovered && !useRecovered) {
+      clearDraftRecovery(sessionKey);
+    }
+
+    if (recovered && useRecovered) {
       form.reset({
         title: recovered.proposal.title,
         content: recovered.document,
