@@ -1,6 +1,7 @@
 import { normalizeCodeLanguage } from "./code-languages";
-import { isSafeAuthorLink } from "./safe-link";
 import { normalizeHeadingLevels } from "./heading";
+import { MAX_POST_BLOCKS, MAX_POST_DEPTH } from "./post-capacity";
+import { isSafeAuthorLink } from "./safe-link";
 
 export const BLOCKNOTE_FORMAT = "blocknote@1" as const;
 
@@ -391,7 +392,16 @@ function normalizeTableContent(value: unknown): CanonicalTableContent | null {
   };
 }
 
-function normalizeBlock(value: unknown): CanonicalBlock | null {
+function normalizeBlock(
+  value: unknown,
+  depth: number,
+  state: { count: number },
+): CanonicalBlock | null {
+  // Reject before recursing so an untrusted, deeply nested body cannot overflow
+  // the stack before `validatePostCapacity` runs.
+  if (depth > MAX_POST_DEPTH) return null;
+  state.count += 1;
+  if (state.count > MAX_POST_BLOCKS) return null;
   if (
     !isRecord(value) ||
     typeof value.type !== "string" ||
@@ -470,7 +480,7 @@ function normalizeBlock(value: unknown): CanonicalBlock | null {
     if (!Array.isArray(value.children)) return null;
     children = [];
     for (const child of value.children) {
-      const normalizedChild = normalizeBlock(child);
+      const normalizedChild = normalizeBlock(child, depth + 1, state);
       if (!normalizedChild) return null;
       children.push(normalizedChild);
     }
@@ -490,12 +500,14 @@ export function normalizeBlockNoteDocument(
     !isRecord(value) ||
     value.format !== BLOCKNOTE_FORMAT ||
     !Array.isArray(value.blocks) ||
+    value.blocks.length > MAX_POST_BLOCKS ||
     !hasOnlyKeys(value, ["format", "blocks"])
   )
     return null;
   const blocks: CanonicalBlock[] = [];
+  const state = { count: 0 };
   for (const block of value.blocks) {
-    const normalized = normalizeBlock(block);
+    const normalized = normalizeBlock(block, 1, state);
     if (!normalized) return null;
     blocks.push(normalized);
   }

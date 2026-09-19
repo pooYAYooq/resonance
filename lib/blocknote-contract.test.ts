@@ -3,6 +3,7 @@ import {
   extractStorageMediaIds,
   normalizeBlockNoteDocument,
 } from "./blocknote-contract";
+import { MAX_POST_BLOCKS } from "./post-capacity";
 
 describe("blocknote contract", () => {
   it("normalizes heading levels recursively and rejects toggle heading props", () => {
@@ -182,5 +183,38 @@ describe("blocknote contract", () => {
       (document?.blocks[0].content as { columnWidths?: unknown[] })
         ?.columnWidths,
     ).toEqual([null, null, 240]);
+  });
+
+  it("rejects deeply nested documents without overflowing the stack", () => {
+    const leaf: Record<string, unknown> = {
+      type: "paragraph",
+      props: {},
+      content: [],
+    };
+    let nested = leaf;
+    for (let index = 0; index < 50_000; index += 1) {
+      nested = {
+        type: "paragraph",
+        props: {},
+        content: [],
+        children: [nested],
+      };
+    }
+
+    const document = { format: "blocknote@1", blocks: [nested] };
+    expect(() => normalizeBlockNoteDocument(document)).not.toThrow();
+    expect(normalizeBlockNoteDocument(document)).toBeNull();
+  });
+
+  it("rejects a document with more top-level blocks than the limit", () => {
+    const blocks = Array.from({ length: MAX_POST_BLOCKS + 1 }, () => ({
+      type: "paragraph",
+      props: {},
+      content: [],
+    }));
+
+    expect(
+      normalizeBlockNoteDocument({ format: "blocknote@1", blocks }),
+    ).toBeNull();
   });
 });
