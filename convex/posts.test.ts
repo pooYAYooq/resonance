@@ -358,6 +358,43 @@ describe("posts functions", () => {
     ).toBe(false);
   });
 
+  it("accepts a table-only body when the cells carry enough text", () => {
+    const tableBody = JSON.stringify({
+      format: BLOCKNOTE_FORMAT,
+      blocks: [
+        {
+          type: "table",
+          props: { textColor: "default" },
+          content: {
+            type: "tableContent",
+            columnWidths: [null],
+            rows: [
+              {
+                cells: [
+                  {
+                    type: "tableCell",
+                    content: [
+                      { type: "text", text: "Table only content here." },
+                    ],
+                    props: {
+                      colspan: 1,
+                      rowspan: 1,
+                      backgroundColor: "default",
+                      textColor: "default",
+                      textAlignment: "left",
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    expect(isValidPublishPostBody(tableBody)).toBe(true);
+  });
+
   it("accepts structured bodies at the exact readable-text boundaries", () => {
     const bodyWithText = (text: string) =>
       JSON.stringify({

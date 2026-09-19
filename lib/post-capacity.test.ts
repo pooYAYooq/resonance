@@ -108,6 +108,55 @@ describe("post capacity", () => {
     });
   });
 
+  it("counts table cell text and inline nodes toward capacity", async () => {
+    const capacity = await import("./post-capacity");
+    const tableDocument = {
+      format: "blocknote@1",
+      blocks: [
+        {
+          type: "table",
+          props: { textColor: "default" },
+          content: {
+            type: "tableContent",
+            columnWidths: [null],
+            rows: [
+              {
+                cells: [
+                  {
+                    type: "tableCell",
+                    content: [
+                      {
+                        type: "link",
+                        href: "https://example.com",
+                        content: [{ type: "text", text: "cell text" }],
+                      },
+                    ],
+                    props: {
+                      colspan: 1,
+                      rowspan: 1,
+                      backgroundColor: "default",
+                      textColor: "default",
+                      textAlignment: "left",
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    } as unknown as BlockNoteDocument;
+
+    expect(capacity.getCanonicalBodyText(tableDocument.blocks)).toContain(
+      "cell text",
+    );
+
+    const measurements = capacity.measurePostContent(tableDocument);
+    expect(measurements.textCodePoints).toBeGreaterThan(0);
+    expect(measurements.inlineNodeCount).toBeGreaterThan(0);
+    expect(measurements.urlCodePoints).toBeGreaterThan(0);
+  });
+
   it("returns typed errors for exact and one-over text, URL, and source-byte limits", async () => {
     const capacity = await import("./post-capacity");
     const validatePostCapacity = (capacity as Record<string, unknown>)[
