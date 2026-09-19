@@ -30,6 +30,8 @@ export default function ReviewSurface({
   onSubmit,
 }: ReviewSurfaceProps) {
   const submitLabel = mode === "published-edit" ? "Update Post" : "Publish";
+  const pendingLabel =
+    mode === "published-edit" ? "Updating..." : "Publishing...";
 
   return (
     <section
@@ -72,7 +74,7 @@ export default function ReviewSurface({
           disabled={pending || Boolean(blockerMessage)}
           onClick={onSubmit}
         >
-          {pending ? "Publishing..." : submitLabel}
+          {pending ? pendingLabel : submitLabel}
         </Button>
       </div>
     </section>

@@ -86,6 +86,12 @@ describe("ReviewSurface", () => {
     ).toBeDisabled();
   });
 
+  it("labels the pending update action for published edits", () => {
+    renderSurface({ mode: "published-edit", pending: true });
+
+    expect(screen.getByRole("button", { name: "Updating..." })).toBeDisabled();
+  });
+
   it("surfaces a blocker and disables publishing", () => {
     renderSurface({ blockerMessage: "Media is still uploading." });
 
