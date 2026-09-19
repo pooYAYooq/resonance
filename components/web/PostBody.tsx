@@ -8,9 +8,9 @@ import {
   getHeadingClassName,
   getHeadingTagName,
   getInlineText,
-  getMediaUrl,
   getTextAlignment,
   renderInlineContent,
+  renderMedia,
   renderTable,
 } from "./post-body-shared";
 
@@ -25,67 +25,6 @@ function renderContent(block: PostBlock, key: string): ReactNode {
   return typeof block.content === "string"
     ? block.content
     : renderInlineContent(block.content, key);
-}
-
-async function renderMedia(
-  block: PostBlock,
-  key: string,
-  resolved: Map<string, string>,
-): Promise<ReactNode> {
-  const url = getMediaUrl(block, resolved);
-  if (!url) return null;
-  const name = typeof block.props?.name === "string" ? block.props.name : "";
-  const caption =
-    typeof block.props?.caption === "string" ? block.props.caption : "";
-  const alignment = getTextAlignment(block.props);
-
-  if (block.type === "image") {
-    return (
-      <figure
-        key={key}
-        className={alignment}
-        {...getBlockColorAttributes(block.props)}
-      >
-        {/* Resolved storage URLs and validated HTTP(S) URLs are safe attributes. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={name} />
-        {caption ? (
-          <figcaption className="mt-2 text-sm text-muted-foreground">
-            {caption}
-          </figcaption>
-        ) : null}
-      </figure>
-    );
-  }
-  if (block.type === "audio") {
-    return (
-      <figure key={key} {...getBlockColorAttributes(block.props)}>
-        <audio controls src={url} />
-        {caption ? (
-          <figcaption className="mt-2 text-sm text-muted-foreground">
-            {caption}
-          </figcaption>
-        ) : null}
-      </figure>
-    );
-  }
-  if (block.type === "video") {
-    return (
-      <figure
-        key={key}
-        className={alignment}
-        {...getBlockColorAttributes(block.props)}
-      >
-        <video controls src={url} />
-        {caption ? (
-          <figcaption className="mt-2 text-sm text-muted-foreground">
-            {caption}
-          </figcaption>
-        ) : null}
-      </figure>
-    );
-  }
-  return null;
 }
 
 async function renderChildren(

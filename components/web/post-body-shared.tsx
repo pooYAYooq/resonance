@@ -237,3 +237,102 @@ export function renderTable(block: PostBlock, key: string): ReactNode {
     </div>
   );
 }
+
+/**
+ * Shared media renderer for the public reader and the Review preview. Honors
+ * the persisted `showPreview` flag (falling back to a safe named link) and the
+ * bounded `previewWidth` for image and video, so author choices survive into
+ * publication. Image/media URLs are validated by the canonical contract and
+ * only reach here as storage-resolved or safe HTTP(S) URLs.
+ */
+export function renderMedia(
+  block: PostBlock,
+  key: string,
+  resolved: Map<string, string>,
+): ReactNode {
+  const url = getMediaUrl(block, resolved);
+  if (!url) return null;
+  const props = block.props ?? {};
+  const name = typeof props.name === "string" ? props.name : "";
+  const caption = typeof props.caption === "string" ? props.caption : "";
+  const alignment = getTextAlignment(props);
+  const showPreview = props.showPreview !== false;
+  const previewWidth =
+    typeof props.previewWidth === "number" &&
+    Number.isFinite(props.previewWidth)
+      ? props.previewWidth
+      : undefined;
+  const widthStyle =
+    previewWidth !== undefined
+      ? { width: `${previewWidth}px`, maxWidth: "100%" }
+      : undefined;
+  const figcaption = caption ? (
+    <figcaption className="mt-2 text-sm text-muted-foreground">
+      {caption}
+    </figcaption>
+  ) : null;
+
+  if (!showPreview) {
+    return (
+      <figure
+        key={key}
+        className={alignment}
+        {...getBlockColorAttributes(props)}
+      >
+        <a
+          href={url}
+          rel="noopener noreferrer nofollow"
+          className="underline underline-offset-2 hover:text-primary"
+        >
+          {name || caption || url}
+        </a>
+        {figcaption}
+      </figure>
+    );
+  }
+
+  if (block.type === "image") {
+    return (
+      <figure
+        key={key}
+        className={alignment}
+        {...getBlockColorAttributes(props)}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={name}
+          style={widthStyle}
+          className={widthStyle ? "h-auto" : undefined}
+        />
+        {figcaption}
+      </figure>
+    );
+  }
+  if (block.type === "audio") {
+    return (
+      <figure key={key} {...getBlockColorAttributes(props)}>
+        <audio controls src={url} />
+        {figcaption}
+      </figure>
+    );
+  }
+  if (block.type === "video") {
+    return (
+      <figure
+        key={key}
+        className={alignment}
+        {...getBlockColorAttributes(props)}
+      >
+        <video
+          controls
+          src={url}
+          style={widthStyle}
+          className={widthStyle ? "h-auto" : undefined}
+        />
+        {figcaption}
+      </figure>
+    );
+  }
+  return null;
+}

@@ -114,4 +114,39 @@ describe("PostBodyPreview", () => {
     expect(container.querySelectorAll("thead th")).toHaveLength(2);
     expect(container.querySelector("tbody th")).toHaveAttribute("scope", "row");
   });
+
+  it("honors media showPreview and previewWidth", () => {
+    const body = (props: Record<string, unknown>) =>
+      JSON.stringify({
+        format: "blocknote@1",
+        blocks: [
+          {
+            type: "image",
+            props: {
+              source: { kind: "url", url: "https://cdn.example.com/pic.png" },
+              name: "pic.png",
+              caption: "",
+              backgroundColor: "default",
+              textAlignment: "left",
+              ...props,
+            },
+          },
+        ],
+      });
+
+    const linked = render(
+      <PostBodyPreview body={body({ showPreview: false })} />,
+    );
+    expect(linked.container.querySelector("img")).toBeNull();
+    expect(linked.container.querySelector("a")).toHaveAttribute(
+      "href",
+      "https://cdn.example.com/pic.png",
+    );
+
+    const sized = render(
+      <PostBodyPreview body={body({ previewWidth: 160 })} />,
+    );
+    const img = sized.container.querySelector("img") as HTMLElement | null;
+    expect(img?.style.width).toBe("160px");
+  });
 });

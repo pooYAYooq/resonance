@@ -191,6 +191,46 @@ describe("PostBody", () => {
     expect(bodyRow?.querySelectorAll("td")).toHaveLength(1);
   });
 
+  it("honors media showPreview and previewWidth", async () => {
+    const image = (props: Record<string, unknown>) => ({
+      type: "image",
+      props: {
+        source: { kind: "url", url: "https://cdn.example.com/pic.png" },
+        name: "pic.png",
+        caption: "Cap",
+        backgroundColor: "default",
+        textAlignment: "left",
+        ...props,
+      },
+    });
+
+    const linked = render(
+      await PostBody({
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [image({ showPreview: false })],
+        }),
+      }),
+    );
+    expect(linked.container.querySelector("img")).toBeNull();
+    expect(linked.container.querySelector("a")).toHaveAttribute(
+      "href",
+      "https://cdn.example.com/pic.png",
+    );
+
+    const sized = render(
+      await PostBody({
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [image({ previewWidth: 240 })],
+        }),
+      }),
+    );
+    const img = sized.container.querySelector("img") as HTMLElement | null;
+    expect(img?.style.width).toBe("240px");
+    expect(img?.style.maxWidth).toBe("100%");
+  });
+
   it("does not render unsafe remote media", async () => {
     const unsafe = JSON.stringify({
       format: "blocknote@1",
