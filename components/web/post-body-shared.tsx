@@ -29,6 +29,20 @@ export function getHeadingClassName(level: unknown): string {
   return `${headingSizeClass[resolved]} font-semibold tracking-tight`;
 }
 
+/** Normalized `h2`-`h6` tag name; invalid levels fall back to the default. */
+export function getHeadingTagName(
+  level: unknown,
+): "h2" | "h3" | "h4" | "h5" | "h6" {
+  const resolved =
+    typeof level === "number" &&
+    Number.isInteger(level) &&
+    level >= 2 &&
+    level <= 6
+      ? level
+      : DEFAULT_HEADING_LEVEL;
+  return `h${resolved}` as "h2" | "h3" | "h4" | "h5" | "h6";
+}
+
 export function getTextAlignment(props: Record<string, unknown> | undefined) {
   const value = props?.textAlignment;
   return typeof value === "string" && Object.hasOwn(alignmentClass, value)
@@ -133,4 +147,93 @@ export function getMediaUrl(
   return value.kind === "url" && typeof value.url === "string"
     ? value.url
     : undefined;
+}
+
+type TableCellLike = {
+  content?: PostInlineContent[];
+  props?: Record<string, unknown>;
+};
+
+type TableContentLike = {
+  columnWidths?: unknown;
+  headerRows?: unknown;
+  headerCols?: unknown;
+  rows?: unknown;
+};
+
+/**
+ * Shared table renderer for the public reader and the Review preview, so both
+ * keep identical column widths and header semantics. Header rows become
+ * `thead` with column-scoped `th`; a configured header column marks the first
+ * cell of each body row as a row-scoped `th`.
+ */
+export function renderTable(block: PostBlock, key: string): ReactNode {
+  const table = block.content as unknown as TableContentLike | null;
+  if (
+    typeof table !== "object" ||
+    table === null ||
+    !Array.isArray(table.rows)
+  ) {
+    return null;
+  }
+  const columnWidths = Array.isArray(table.columnWidths)
+    ? table.columnWidths
+    : [];
+  const headerRows =
+    typeof table.headerRows === "number" ? table.headerRows : 0;
+  const headerCols =
+    typeof table.headerCols === "number" ? table.headerCols : 0;
+
+  const rows = table.rows.map((row, rowIndex) => {
+    const cells = (row as { cells?: TableCellLike[] } | undefined)?.cells;
+    return (
+      <tr key={`${key}-row-${rowIndex}`}>
+        {(cells ?? []).map((cell, cellIndex) => {
+          const isHeaderRow = rowIndex < headerRows;
+          const isHeader = isHeaderRow || cellIndex < headerCols;
+          const cellKey = `${key}-${rowIndex}-${cellIndex}`;
+          const Cell = (isHeader ? "th" : "td") as "th" | "td";
+          return (
+            <Cell
+              key={cellKey}
+              {...(isHeader ? { scope: isHeaderRow ? "col" : "row" } : {})}
+              colSpan={
+                typeof cell.props?.colspan === "number" ? cell.props.colspan : 1
+              }
+              rowSpan={
+                typeof cell.props?.rowspan === "number" ? cell.props.rowspan : 1
+              }
+              className={getTextAlignment(cell.props)}
+              {...getBlockColorAttributes(cell.props)}
+            >
+              {renderInlineContent(cell.content, cellKey)}
+            </Cell>
+          );
+        })}
+      </tr>
+    );
+  });
+
+  return (
+    <div key={key} className="overflow-x-auto">
+      <table>
+        {columnWidths.length > 0 ? (
+          <colgroup>
+            {columnWidths.map((width, index) => (
+              <col
+                key={`${key}-col-${index}`}
+                style={
+                  typeof width === "number"
+                    ? { width: `${width}px` }
+                    : undefined
+                }
+              />
+            ))}
+          </colgroup>
+        ) : null}
+        {headerRows > 0 ? <thead>{rows.slice(0, headerRows)}</thead> : null}
+        <tbody>{rows.slice(headerRows)}</tbody>
+      </table>
+    </div>
+  );
 }

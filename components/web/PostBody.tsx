@@ -1,16 +1,17 @@
 import type { ReactNode } from "react";
 import { Fragment } from "react";
-import type { PostBlock, PostInlineContent } from "@/lib/post-content";
+import type { PostBlock } from "@/lib/post-content";
 import { parsePostBody } from "@/lib/post-content";
-import { DEFAULT_HEADING_LEVEL } from "@/lib/heading";
 import { HighlightedCode } from "./HighlightedCode";
 import {
   getBlockColorAttributes,
   getHeadingClassName,
+  getHeadingTagName,
   getInlineText,
   getMediaUrl,
   getTextAlignment,
   renderInlineContent,
+  renderTable,
 } from "./post-body-shared";
 
 export type ResolvedInlineImage = { storageId: string; url: string | null };
@@ -129,52 +130,6 @@ async function renderList(
   );
 }
 
-async function renderTable(block: PostBlock, key: string) {
-  const table = block.content as unknown as {
-    rows?: Array<{
-      cells?: Array<{
-        content?: PostInlineContent[];
-        props?: Record<string, unknown>;
-      }>;
-    }>;
-  };
-  if (!Array.isArray(table.rows)) return null;
-  return (
-    <div key={key} className="overflow-x-auto">
-      <table>
-        <tbody>
-          {table.rows.map((row, rowIndex) => (
-            <tr key={`${key}-row-${rowIndex}`}>
-              {row.cells?.map((cell, cellIndex) => (
-                <td
-                  {...getBlockColorAttributes(cell.props)}
-                  key={`${key}-cell-${rowIndex}-${cellIndex}`}
-                  colSpan={
-                    typeof cell.props?.colspan === "number"
-                      ? cell.props.colspan
-                      : 1
-                  }
-                  rowSpan={
-                    typeof cell.props?.rowspan === "number"
-                      ? cell.props.rowspan
-                      : 1
-                  }
-                  className={getTextAlignment(cell.props)}
-                >
-                  {renderInlineContent(
-                    cell.content,
-                    `${key}-${rowIndex}-${cellIndex}`,
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 async function renderBlock(
   block: PostBlock,
   key: string,
@@ -200,13 +155,7 @@ async function renderBlock(
   const children = await renderChildren(block, key, resolved);
   if (block.type === "heading") {
     const level = block.props?.level;
-    const Heading =
-      `h${typeof level === "number" ? level : DEFAULT_HEADING_LEVEL}` as unknown as
-        | "h2"
-        | "h3"
-        | "h4"
-        | "h5"
-        | "h6";
+    const Heading = getHeadingTagName(level);
     return (
       <Fragment key={key}>
         <Heading

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getBlockColorAttributes,
   getHeadingClassName,
+  getHeadingTagName,
   getTextAlignment,
 } from "./post-body-shared";
 
@@ -11,6 +12,13 @@ describe("post body shared helpers", () => {
     expect(getHeadingClassName(2)).toContain("text-3xl");
     expect(getHeadingClassName(6)).toContain("text-base");
     expect(getHeadingClassName(7)).toContain("text-3xl");
+  });
+
+  it("normalizes heading tags and rejects invalid levels", () => {
+    expect(getHeadingTagName(2)).toBe("h2");
+    expect(getHeadingTagName(4.5)).toBe("h2");
+    expect(getHeadingTagName(7)).toBe("h2");
+    expect(getHeadingTagName(undefined)).toBe("h2");
   });
 
   it("ignores inherited keys for text alignment", () => {

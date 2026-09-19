@@ -140,6 +140,57 @@ describe("PostBody", () => {
     expect(heading).toHaveAttribute("data-background-color", "yellow");
   });
 
+  it("preserves table column widths and header semantics", async () => {
+    const cell = (text: string) => ({
+      type: "tableCell",
+      content: [{ type: "text", text, styles: {} }],
+      props: {
+        colspan: 1,
+        rowspan: 1,
+        backgroundColor: "default",
+        textColor: "default",
+        textAlignment: "left",
+      },
+    });
+    const { container } = render(
+      await PostBody({
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "table",
+              props: { textColor: "default" },
+              content: {
+                type: "tableContent",
+                columnWidths: [120, null],
+                headerRows: 1,
+                headerCols: 1,
+                rows: [
+                  { cells: [cell("H1"), cell("H2")] },
+                  { cells: [cell("R1C1"), cell("R1C2")] },
+                ],
+              },
+            },
+          ],
+        }),
+      }),
+    );
+
+    const cols = container.querySelectorAll("colgroup col");
+    expect(cols).toHaveLength(2);
+    expect((cols[0] as HTMLElement).style.width).toBe("120px");
+
+    const headerCells = container.querySelectorAll("thead th");
+    expect(headerCells).toHaveLength(2);
+    for (const headerCell of headerCells) {
+      expect(headerCell).toHaveAttribute("scope", "col");
+    }
+
+    const bodyRow = container.querySelector("tbody tr");
+    expect(bodyRow?.querySelector("th")).toHaveAttribute("scope", "row");
+    expect(bodyRow?.querySelectorAll("td")).toHaveLength(1);
+  });
+
   it("does not render unsafe remote media", async () => {
     const unsafe = JSON.stringify({
       format: "blocknote@1",

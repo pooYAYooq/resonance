@@ -73,4 +73,45 @@ describe("PostBodyPreview", () => {
     expect(paragraph).toHaveAttribute("data-text-color", "purple");
     expect(paragraph).toHaveAttribute("data-background-color", "pink");
   });
+
+  it("preserves table column widths and header semantics", () => {
+    const cell = (text: string) => ({
+      type: "tableCell",
+      content: [{ type: "text", text }],
+      props: {
+        colspan: 1,
+        rowspan: 1,
+        backgroundColor: "default",
+        textColor: "default",
+        textAlignment: "left",
+      },
+    });
+    const { container } = render(
+      <PostBodyPreview
+        body={JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "table",
+              props: { textColor: "default" },
+              content: {
+                type: "tableContent",
+                columnWidths: [80, null],
+                headerRows: 1,
+                headerCols: 1,
+                rows: [
+                  { cells: [cell("H1"), cell("H2")] },
+                  { cells: [cell("R1C1"), cell("R1C2")] },
+                ],
+              },
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(container.querySelectorAll("colgroup col")).toHaveLength(2);
+    expect(container.querySelectorAll("thead th")).toHaveLength(2);
+    expect(container.querySelector("tbody th")).toHaveAttribute("scope", "row");
+  });
 });
