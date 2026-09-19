@@ -98,10 +98,12 @@ export function useBlockNoteFileUpload({
 
       const objectUrl = URL.createObjectURL(file);
       if (disposed.current) {
+        // The hook unmounted mid-upload; revoke and skip the callback so a
+        // stale, revoked URL is never registered as the media's preview.
         URL.revokeObjectURL(objectUrl);
-      } else {
-        objectUrls.current.set(result.storageId, objectUrl);
+        return result.storageId;
       }
+      objectUrls.current.set(result.storageId, objectUrl);
       onUploadSessionCreatedRef.current?.(
         session.sessionId,
         result.storageId,
