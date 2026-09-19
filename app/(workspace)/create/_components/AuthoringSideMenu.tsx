@@ -9,7 +9,7 @@ import {
   useExtension,
   useExtensionState,
 } from "@blocknote/react";
-import { BlockHandleMenu } from "./BlockHandleMenu";
+import { BlockHandleMenu, type BlockHandleEditor } from "./BlockHandleMenu";
 
 export function AuthoringDragHandle() {
   const editor = useBlockNoteEditor();
@@ -23,7 +23,7 @@ export function AuthoringDragHandle() {
 
   return (
     <BlockHandleMenu
-      editor={editor}
+      editor={editor as unknown as BlockHandleEditor}
       block={block as unknown as Block}
       sideMenu={sideMenu}
     />

@@ -1,4 +1,6 @@
-import type { Block, BlockNoteEditor } from "@blocknote/core";
+"use client";
+
+import type { Block } from "@blocknote/core";
 import { GripVertical, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,27 @@ export type BlockHandleSideMenu = {
 };
 
 /**
+ * Structural slice of the editor the handle menu needs. Typing the prop this
+ * way keeps `BlockHandleMenu` renderable from a `"use client"` entry file
+ * without exposing the non-serializable `BlockNoteEditor` class in its props.
+ */
+export type BlockHandleEditor = {
+  getBlock: (blockId: string) => Block | undefined;
+  getSelection: () => { blocks?: Block[] } | undefined;
+  removeBlocks: (blocks: Block[]) => void;
+  updateBlock: (
+    block: Block,
+    update: { props: Record<string, unknown> },
+  ) => void;
+};
+
+export type BlockHandleMenuProps = {
+  editor: BlockHandleEditor;
+  block: Block;
+  sideMenu: BlockHandleSideMenu;
+};
+
+/**
  * The block handle menu. BlockNote's shadcn side menu wraps a draggable handle
  * in a Base UI menu trigger that opens on mousedown, so pressing to drag opens
  * the menu instead of starting a drag. This adapter keeps the same drag and
@@ -36,11 +59,7 @@ export function BlockHandleMenu({
   editor,
   block,
   sideMenu,
-}: {
-  editor: BlockNoteEditor;
-  block: Block;
-  sideMenu: BlockHandleSideMenu;
-}) {
+}: BlockHandleMenuProps) {
   const [open, setOpen] = useState(false);
   const blockProps = block.props as Record<string, unknown>;
   const supportsBackground = "backgroundColor" in blockProps;
