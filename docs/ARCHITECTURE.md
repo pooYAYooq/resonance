@@ -49,17 +49,15 @@ resonance/
 │   ├── (workspace)/            # Authenticated author workspace, no global Navbar or Footer
 │   │   ├── layout.tsx          # WorkspaceShell auth boundary and workspace-only chrome
 │   │   ├── create/
-│   │   │   ├── page.tsx        # New, draft, and published-edit form modes.
+│   │   │   ├── page.tsx        # New, draft, and published-edit writing modes.
 │   │   │   │                   # Loads the BlockNote editor via next/dynamic
 │   │   │   │                   # ({ ssr: false }) and serializes the envelope
 │   │   │   │                   # exactly once on submit; published edits update in place.
 │   │   │   └── _components/
-│   │   │       └── PostBodyEditor.tsx # Browser-only BlockNote editor adapter for
-│   │   │                              # React Hook Form. Curated schema (paragraph,
-│   │   │                              # headings (H2-H6), quote,
-│   │   │                              # lists, code block, and block-level images).
-│   │   │                              # Never
-│   │   │                              # imported by server bundles; loads BlockNote CSS.
+│   │   │       └── PostBodyEditor.tsx # Browser-only standard BlockNote adapter
+│   │   │                              # with native menus, file controls, safe links,
+│   │   │                              # uploads, code highlighting, and React Hook Form.
+│   │   │                              # Never imported by server bundles.
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx      # Metadata-only child layout under WorkspaceShell.
 │   │   │   ├── page.tsx        # Dashboard root with independent drafts and published-post previews.
@@ -260,13 +258,15 @@ resonance/
     ├── avatar.ts               # DiceBear fallback URL + initials helpers
     ├── post-capacity.ts        # Shared Unicode measurements, structural and author-name limits,
     │                           # source/final-document budgets, and Search-corpus capacity.
+    ├── blocknote-contract.ts   # Finite default-block projection, media gate, and storage extraction.
+    ├── heading.ts              # Shared H2-H6 normalization; H1 belongs to the page title.
     ├── post-content.ts         # Dependency-free blocknote@1 envelope types, parser,
     │                           # structural validator, extraction, and compact excerpts.
     │                           # Imported by Convex (saveDraft/publishPost), Zod (postSchema), PostCard, metadata, and
     │                           # PostBody. Never imports BlockNote packages.
     ├── code-languages.ts       # Canonical code-block IDs, labels, aliases, and Shiki grammars.
     ├── safe-link.ts            # Shared http/https/mailto author-link validator.
-    ├── use-inline-image-upload.ts # Owner-bound inline-image upload and preview lifecycle hook.
+    ├── use-inline-image-upload.ts # Owner-bound BlockNote file upload and preview lifecycle hook.
     ├── shiki/
     │   ├── code-highlighter.generated.ts # Generated editor grammars and themes.
     │   └── highlight-code.ts   # Server-side dual-theme token rendering adapter.
@@ -495,50 +495,73 @@ queries read the bounded projection access paths described above.
 
 ### Post Body Authoring and Rendering
 
-Posts are authored with a curated BlockNote editor and stored as a versioned
-structured document. The
-constraint is enforced by a single dependency-free module so Convex, Zod,
-cards, metadata, and the Server Component renderer all share one contract.
+Posts are authored with the installed standard BlockNote interface and stored
+as a versioned structured document. A dependency-free canonical contract keeps
+Convex, Zod, cards, metadata, and the Server Component renderer aligned.
 
-- **`lib/post-content.ts`** — the canonical boundary. Defines the
-  `blocknote@1` envelope (`{ format, blocks }`), `PostBlock` /
-  `PostInlineContent` types, `parsePostBody`, `isValidBlockNoteDoc`, and
-  `extractPlainText`. The editor and reader share paragraphs, section headings
-  (H2), subheadings (H3), and H4-H6 headings, along with quotes, bullet and
-  numbered list items, and code blocks. The curated contract accepts H2-H6
-  headings; H1 remains reserved for the page title. It accepts only the
-  approved inline styles (`bold`, `italic`, `underline`, `strike`, `code`).
-  Bounds total blocks,
-  recursive depth, children per block, inline nodes, and derived text (capped
-  at 150,000 readable Unicode code points). Imports no packages. `parsePostBody` is
-  read-safe (never throws on malformed stored data) and the
-  write path uses the exact `format: "blocknote@1"` discriminator to reject
-  invalid structured content for new posts instead of silently accepting it.
+The editor serializes each live block through `serializeEditorDocument`, which
+strips editor-only identity (such as the BlockNote block `id`) before the
+canonical projection, and accepts BlockNote's native unset table column widths
+as `null`. Every enabled control must survive serialization, server validation,
+and reader rendering; a round-trip conformance test drives one of each default
+block through that path and fails if any block is discarded or rejected.
+
+Body headings use H2 through H6; the separate page title is the only H1.
+
+Unsaved authoring work is kept in a per-session `localStorage` snapshot
+(`lib/draft-recovery.ts`, driven by `useDraftRecovery`). It is written while the
+session is dirty (debounced, flushed on `pagehide`) and loaded back into the
+form and editor during hydration with no prompt. The snapshot is cleared when
+the session turns clean, so removed content never resurrects; effectively-empty
+snapshots are ignored. Recovery is best effort and never blocks editing when
+storage is unavailable.
+`lib/heading.ts` supplies the shared recursive normalization used by paste,
+hydration, serialization, and the canonical contract: H1 becomes H2, levels
+above 6 become H6, and missing or non-integer levels become H2. Valid levels
+are preserved, including skipped levels. Toggle headings are disabled; toggle
+lists remain available. Slash entries and native formatting-toolbar choices
+match the heading schema, whose default is H2. A paste repair creates no extra
+undo entry. Seven Markdown hashes remain plain text under native Markdown rules.
+The server binds write attempts to the original proposal before normalizing
+and storing the canonical body. The reader renders matching h2-h6 elements.
+No stored-data migration is included for disposable development content.
+
+- **`lib/blocknote-contract.ts`** defines the finite `blocknote@1` projection
+  for BlockNote's default text, list, checklist, toggle, code, divider, table,
+  image, audio, and video blocks. It validates safe links, presentation
+  tokens, tables, and storage or HTTP(S) media sources. `lib/post-content.ts`
+  exposes that contract to Convex, Zod, cards, metadata, and reader rendering,
+  including safe parsing, plain-text extraction, and capacity limits.
 
 - **`app/(workspace)/create/_components/PostBodyEditor.tsx`** — the browser-only
   BlockNote editor adapter, a `"use client"` component loaded through
-  `next/dynamic({ ssr: false })` from `app/(workspace)/create/page.tsx`. Builds the
-  curated editor schema (excluded blocks are absent from the slash menu and
-  toolbar, not merely ignored), exposes friendly Section heading/Subheading
-  labels for H2/H3 blocks and generic Heading 4-6 labels for H4-H6 blocks,
-  emits the canonical envelope object to React Hook Form on every change, and
-  loads BlockNote's CSS. Never imported
+  `next/dynamic({ ssr: false })` from `app/(workspace)/create/page.tsx`. Uses
+  BlockNote's standard Shadcn menus, keyboard behavior, formatting toolbar,
+  and native media controls. The block side menu is replaced by a Resonance
+  adapter (`AuthoringSideMenu.tsx`) because the Shadcn/Base UI drag handle opens
+  its menu on mousedown, which made pointer-dragging unusable; the adapter keeps
+  the native drag behavior and opens a click-only menu. Resonance also supplies
+  safe links, storage upload and resolution, a persistent icon-based Undo/Redo
+  control over the native history extension, Shiki code highlighting, hydration,
+  and the canonical document projection. Its upload hook resolves every media
+  URL BlockNote asks for: storage bytes through an object or server URL, and safe
+  remote HTTP(S) Embed URLs pass through unchanged. It is never imported
   by Server Components, Convex, or `lib/post-content.ts`.
 
 - **`components/web/PostBody.tsx`** — the pure Server Component renderer used
   on `/blog/[postId]`. No `"use client"`, no `dangerouslySetInnerHTML`, no
   sanitizer dependency. Calls `parsePostBody`, maps supported blocks to
-  explicit elements/classes (headings render as matching `h2` through `h6` so
-  the page title remains the only `h1`), groups only consecutive list items of the
-  same kind, recurses through nested children, and renders inline styles
+  explicit semantic elements, including headings, lists, checklists, toggles,
+  dividers, tables, audio, video, and code. It groups consecutive list
+  items, recurses through nested children, and renders inline styles
   semantically. Links use the shared `lib/safe-link.ts` protocol validator and
   render as anchors with `rel="noopener noreferrer nofollow"` only when the
   protocol is `http:`, `https:`, or `mailto:`;
   unsafe protocols render as plain text. Unknown blocks fall back to readable
   child text or render nothing without throwing.
 
-- **Inline image upload lifecycle** — `lib/use-inline-image-upload.ts` owns the
-  client lifecycle while Convex owns the server-side session and claims. Each
+- **BlockNote file upload lifecycle** — `lib/use-inline-image-upload.ts` owns
+  the client lifecycle while Convex owns the server-side session and claims. Each
   authenticated upload gets an owner-bound `pendingUploads` row. The hook
   uploads directly to Convex Storage, finalizes the returned storage ID, and
   keeps a session-local object URL only for the current preview. Failed

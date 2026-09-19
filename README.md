@@ -129,9 +129,11 @@ app/
   (workspace)/                # Authenticated workspace routes (no global Navbar or Footer)
     layout.tsx                # WorkspaceShell auth boundary and workspace-only chrome
     create/
-      page.tsx                # New, draft, and published-edit form modes
+      page.tsx                # New, draft, and published-edit writing modes
       _components/
-        PostBodyEditor.tsx    # Browser-only curated BlockNote adapter (ssr:false); uses the shared upload hook
+        PostBodyEditor.tsx    # Browser-only standard BlockNote adapter (ssr:false); uses the shared upload hook
+        AuthoringSideMenu.tsx # Drag-safe block side menu; click-only handle menu over a Radix popover
+        useDraftRecovery.ts   # Silent localStorage authoring snapshot: debounced write, pagehide flush, clear on save
     dashboard/
       layout.tsx              # Metadata-only child layout
       page.tsx                # Dashboard root with drafts and published-post previews
@@ -237,10 +239,13 @@ lib/
   avatar.ts                   # DiceBear fallback + initials helpers
   utils.ts                    # cn() and other helpers
   post-capacity.ts            # Shared Unicode, structural, source/document, Search-corpus, and author-name limits
-  post-content.ts             # Dependency-free body parsing, image validation, excerpts, and storage-ID extraction
+  post-content.ts             # Dependency-free blocknote@1 envelope parsing, excerpts, and storage-ID extraction
+  blocknote-contract.ts       # Finite canonical projection and validation of BlockNote default blocks
+  heading.ts                  # Shared H2-H6 body-heading normalization; title owns H1
   code-languages.ts           # Canonical code-block IDs, labels, aliases, and Shiki grammars
   safe-link.ts                # Shared http/https/mailto author-link validator
-  use-inline-image-upload.ts  # Owner-bound inline-image upload and preview lifecycle hook
+  draft-recovery.ts           # Versioned localStorage snapshot for unsaved authoring work
+  use-inline-image-upload.ts  # Owner-bound BlockNote file upload and preview lifecycle hook
   shiki/                      # Generated editor grammars and server-side highlighting adapter
   discover.ts                 # Discover URL normalization and mode-switch links
   auth-client.ts              # Better Auth client setup
