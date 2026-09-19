@@ -133,6 +133,10 @@ app/
       _components/
         PostBodyEditor.tsx    # Browser-only standard BlockNote adapter (ssr:false); uses the shared upload hook
         AuthoringSideMenu.tsx # Drag-safe block side menu; click-only handle menu over a Radix popover
+        BlockHandleMenu.tsx   # Handle menu body; kept off the "use client" entry file
+        MediaAuthoring.tsx    # Details-level media status, retry, cover selection, and thumbnails
+        ReviewSurface.tsx     # Frozen read-only review preview with Back and Publish/Update
+        reviewReadiness.ts    # Media gate: blocks Review while inline media is unresolved
         useDraftRecovery.ts   # Silent localStorage authoring snapshot: debounced write, pagehide flush, clear on save
     dashboard/
       layout.tsx              # Metadata-only child layout
@@ -213,7 +217,10 @@ components/
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
     PostBody.tsx              # Pure Server Component renderer for structured post bodies
+    PostBodyPreview.tsx       # Synchronous client preview renderer used by Review
     HighlightedCode.tsx       # Server-rendered Shiki token spans with plain-text fallback
+    HighlightedCodeClient.tsx # Client Shiki highlighting for the Review preview
+    post-body-shared.tsx      # Pure inline/alignment/media helpers shared by both renderers
     TagPill.tsx               # Linked pill for /blog?tag= filters
     PostTagSelector.tsx       # Controlled five-tag checkbox selector
     LikeButton.tsx

@@ -43,42 +43,69 @@ effectively-empty snapshots are ignored, so removed content does not resurrect.
 There is no `beforeunload` warning. Browser-confirmed by the author. An
 always-available in-page Discard/Cancel button remains deferred.
 
-## Baseline status (working tree, uncommitted)
+The Review slice is implemented and browser-tested. The browser run confirmed the
+frozen preview, the media gate, and Publish/Update, and surfaced authoring issues
+now tracked as a follow-up backlog (below): editor title sizing, media-state
+wording and affordances, layout consistency, reader typography, and the reader
+page's author identity and engagement controls.
 
-- Automated gate green: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build`,
-  targeted Prettier, and `git diff --check` pass.
-- `pnpm test:ci` — 32 files, 434 tests. `pnpm test:component` — 72 files, 380
+## Baseline status (committed on this branch)
+
+- Three new commits on `feature/media-authoring` (the branch is four ahead of
+  `origin/main` in total) are **not pushed**: the local-notes ignore, the
+  standard-BlockNote authoring and review flow, and the docs reconciliation.
+- Automated gate green at commit time: `pnpm lint`, `pnpm exec tsc --noEmit`,
+  `pnpm build`, targeted Prettier, and `git diff --check`.
+- `pnpm test:ci` — 33 files, 440 tests. `pnpm test:component` — 74 files, 391
   tests.
 - Manual browser acceptance: headings, paste with single undo, table/lists/code,
-  publish/reader, layout, remote embeds, visible Undo/Redo, and silent authoring
-  recovery have been accepted by the author.
-- Nothing is staged, committed, or pushed. Per `AGENTS.md`, staging, committing,
-  pushing, and opening a PR each require separate explicit human approval, and
-  `docs/superpowers/**` must stay unstaged.
+  publish/reader, layout, remote embeds, visible Undo/Redo, and silent recovery
+  are accepted. Review is browser-tested with follow-ups open.
+- Nothing is pushed and no PR is open. Per `AGENTS.md`, pushing and opening a PR
+  each require separate explicit human approval; `docs/superpowers/**` stays
+  untracked.
 - Repository-wide `pnpm format:check` still reports the known pre-existing
   baseline of unrelated files; every file changed by this work passes targeted
   Prettier.
 
+## Open authoring follow-ups (browser audit)
+
+The Review browser pass produced a 29-item audit. The code-rooted,
+high-confidence items:
+
+- Editor title renders at body size: the shared `Input` base ships `md:text-sm`,
+  which overrides the title's `sm:text-5xl` at desktop widths.
+- Broken inline image in the published-edit editor; the code block loses syntax
+  highlighting there while New Post and Review highlight it.
+- Review exposes editable Post details and unresolved media state ("Ready to
+  upload") beside Publish; media rows do not identify cover versus inline and
+  offer no per-row remove/replace; "Ready"/"Finalizing" wording is unclear.
+- Unstyled cover file input; tiny media thumbnails with weak affordances.
+- Undo/Redo controls sit at the bottom of the editor canvas.
+- Reader: first publish dropped the cover and possibly the code block; heading,
+  body, and caption sizes are inconsistent; links are not visually distinct;
+  content is too narrow on wide screens; the post page has no author identity.
+- Design system: unstyled tag checkbox grid, dark-mode contrast and focus,
+  weak action hierarchy, small reaction/bookmark/comment controls, a stray
+  sidebar collapse glyph.
+
 ## Next focus
 
-Track 1 writing-flow remainder (Taskwarrior `project:resonance +track1`):
+Close the follow-up backlog above in small focused batches; those issues are the
+gap between the implemented Review slice and its full acceptance.
 
 1. `d822fe0a` — `MediaAuthoring.tsx`: media authoring and Review readiness.
-   Done: `MediaAuthoring` owns upload status/retry/cover/alt-text, and Review
-   entry is blocked while inline media is unresolved (`getReviewBlocker`).
-2. `00a0c6fa` — `ReviewSurface.tsx`: save → Review → publish and update flows.
-   Code-complete: header Review entry validates and gates on media; the frozen
-   canonical proposal renders through `PostBodyPreview`; Publish/Update reuse the
-   existing submit path; the editor stays mounted but hidden/inert during Review.
-   Browser acceptance is pending.
+   Done in code; wording and per-row affordances remain in the backlog.
+2. `00a0c6fa` — `ReviewSurface.tsx`: Review, publish, and update flows. Implemented
+   and browser-tested; close the follow-ups before calling it complete.
 3. `cc147179` — `authoring-journeys.md`: capture the authoring browser journey
-   evidence. Pending; produced by the acceptance pass in 2.
+   evidence once the fixes land.
 
 After Track 1 and Track 4, the Phase 3A.3 release tasks apply (`roadmap.md`
 acceptance matrix, `FEATURES.md` sync, `package.json` release checks, human review
 checklist, PR, worktree cleanup). Track 4 (management, deletion, exit guards,
-accessibility evidence) is separate. The current working-tree baseline is still
-uncommitted and its human staging gate (plan Task 6 Step 5) is open.
+accessibility evidence) is separate. The branch is ready to rename, push, and
+open as a PR on approval.
 
 ## Authoritative direction
 

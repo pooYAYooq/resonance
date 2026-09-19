@@ -54,10 +54,16 @@ resonance/
 │   │   │   │                   # ({ ssr: false }) and serializes the envelope
 │   │   │   │                   # exactly once on submit; published edits update in place.
 │   │   │   └── _components/
-│   │   │       └── PostBodyEditor.tsx # Browser-only standard BlockNote adapter
-│   │   │                              # with native menus, file controls, safe links,
-│   │   │                              # uploads, code highlighting, and React Hook Form.
-│   │   │                              # Never imported by server bundles.
+│   │   │       ├── PostBodyEditor.tsx   # Browser-only standard BlockNote adapter
+│   │   │       │                        # with native menus, file controls, safe links,
+│   │   │       │                        # uploads, code highlighting, and React Hook Form.
+│   │   │       │                        # Never imported by server bundles.
+│   │   │       ├── AuthoringSideMenu.tsx # Drag-safe block side menu (custom)
+│   │   │       ├── BlockHandleMenu.tsx   # Click-opened handle menu; kept off the client entry
+│   │   │       ├── MediaAuthoring.tsx    # Details-level media status/retry/cover/alt-text
+│   │   │       ├── ReviewSurface.tsx     # Frozen read-only preview + Publish/Update
+│   │   │       ├── reviewReadiness.ts    # Blocks Review while inline media is unresolved
+│   │   │       └── useDraftRecovery.ts   # Silent localStorage authoring snapshot
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx      # Metadata-only child layout under WorkspaceShell.
 │   │   │   ├── page.tsx        # Dashboard root with independent drafts and published-post previews.
@@ -216,6 +222,9 @@ resonance/
 │       │                        # protocols (non http/https/mailto) render as text. Used only on
 │       │                        # /blog/[postId]; cards and metadata use extractPlainText instead.
 │       ├── HighlightedCode.tsx  # Server-rendered Shiki token spans with plain-text fallback.
+│       ├── PostBodyPreview.tsx  # Synchronous client preview renderer used by Review.
+│       ├── HighlightedCodeClient.tsx # Client Shiki highlighting for the Review preview.
+│       ├── post-body-shared.tsx # Pure inline/alignment/media helpers shared by both renderers.
 │       ├── TagPill.tsx          # Shared linked tag pill.
 │       ├── PostTagSelector.tsx  # Controlled checkbox group, capped at five selections.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
@@ -525,6 +534,17 @@ undo entry. Seven Markdown hashes remain plain text under native Markdown rules.
 The server binds write attempts to the original proposal before normalizing
 and storing the canonical body. The reader renders matching h2-h6 elements.
 No stored-data migration is included for disposable development content.
+
+Publication goes through an explicit Review step. Header entry validates the
+publication schema and is blocked while inline media is unresolved
+(`reviewReadiness.ts`); a selected-but-unuploaded cover does not block, because
+submit uploads it. Review renders the frozen canonical proposal through
+`PostBodyPreview.tsx`, a synchronous client renderer that shares
+`post-body-shared.tsx` with the server renderer and highlights code through
+`HighlightedCodeClient.tsx`. The editor stays mounted but `hidden`/`inert` so
+its instance, history, and selection survive; Publish/Update reuse the existing
+attempt and save paths. `MediaAuthoring.tsx` reports media status, retry, cover
+selection, and a preview thumbnail.
 
 - **`lib/blocknote-contract.ts`** defines the finite `blocknote@1` projection
   for BlockNote's default text, list, checklist, toggle, code, divider, table,

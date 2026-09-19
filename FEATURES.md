@@ -81,7 +81,10 @@ so a refresh or navigation no longer loses content. Publication now goes through
 an explicit Review step: the frozen canonical post renders in a read-only
 surface, Publish/Update reuse the existing save path, and Review is blocked while
 inline media is unresolved. The author has accepted the editor, embeds, history
-controls, and recovery in the browser; Review browser acceptance is pending.
+controls, and recovery in the browser. Review is browser-tested; a follow-up
+backlog (editor title sizing, media-state wording and affordances, layout
+consistency, reader typography, and reader author identity) is open before the
+slice is called complete.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
