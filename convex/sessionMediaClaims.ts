@@ -1,7 +1,9 @@
 import {
   internalMutation,
   mutation,
+  query,
   type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
@@ -26,36 +28,35 @@ function assertBatchSize(storageIds: readonly Id<"_storage">[]) {
 }
 
 async function hasOwnedPendingAsset(
-  ctx: MutationCtx,
+  ctx: Pick<QueryCtx, "db">,
   userId: string,
   storageId: Id<"_storage">,
   now: number,
 ): Promise<boolean> {
-  let cursor: string | null = null;
-  while (true) {
-    const page = await ctx.db
-      .query("pendingUploads")
-      .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-      .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
-    for (const claim of page.page) {
-      if (claim.userId !== userId) continue;
-      if (claim.consumedAt === undefined && claim.expiresAt > now) {
-        return true;
-      }
-      if (
-        claim.postId !== undefined &&
-        (await ownedPostReferencesStorage(ctx, userId, claim.postId, storageId))
-      ) {
-        return true;
-      }
+  // Bounded read, never paginated: Convex allows a single `.paginate()` per
+  // function, and this helper runs inside paginated cleanup handlers.
+  const claims = await ctx.db
+    .query("pendingUploads")
+    .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+    .order("desc")
+    .take(MAX_SESSION_MEDIA_BATCH);
+  for (const claim of claims) {
+    if (claim.userId !== userId) continue;
+    if (claim.consumedAt === undefined && claim.expiresAt > now) {
+      return true;
     }
-    if (page.isDone) return false;
-    cursor = page.continueCursor;
+    if (
+      claim.postId !== undefined &&
+      (await ownedPostReferencesStorage(ctx, userId, claim.postId, storageId))
+    ) {
+      return true;
+    }
   }
+  return false;
 }
 
 async function ownedPostReferencesStorage(
-  ctx: MutationCtx,
+  ctx: Pick<QueryCtx, "db">,
   userId: string,
   postId: Id<"posts">,
   storageId: Id<"_storage">,
@@ -94,25 +95,23 @@ export async function hasActiveSessionMediaClaim(
   storageId: Id<"_storage">,
   now = Date.now(),
 ): Promise<boolean> {
-  let cursor: string | null = null;
-  while (true) {
-    const page = await ctx.db
-      .query("sessionMediaClaims")
-      .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-      .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
-    if (
-      page.page.some(
-        (claim) =>
-          claim.releasedAt === undefined &&
-          claim.consumedAt === undefined &&
-          claim.expiresAt > now,
-      )
-    ) {
-      return true;
-    }
-    if (page.isDone) return false;
-    cursor = page.continueCursor;
-  }
+  // Bounded, non-paginated read. This helper is called from handlers that
+  // already own the function's single paginated query (pending uploads and
+  // post-deletion cleanup), so it must never call `.paginate()`.
+  //
+  // Terminal claims (released or consumed) are stored with `expiresAt: 0`, so
+  // the index range only contains live, unexpired claims. That makes this
+  // existence check exhaustive even when a storage object has many historical
+  // claims; a newest-first scan could hide an older active claim.
+  const claims = await ctx.db
+    .query("sessionMediaClaims")
+    .withIndex("by_storageId_and_expiresAt", (q) =>
+      q.eq("storageId", storageId).gt("expiresAt", now),
+    )
+    .take(MAX_SESSION_MEDIA_BATCH);
+  return claims.some(
+    (claim) => claim.releasedAt === undefined && claim.consumedAt === undefined,
+  );
 }
 
 export async function consumeSessionMediaClaims(
@@ -122,33 +121,20 @@ export async function consumeSessionMediaClaims(
   consumedAt = Date.now(),
 ): Promise<void> {
   const uniqueStorageIds = [...new Set(storageIds)];
-  for (
-    let start = 0;
-    start < uniqueStorageIds.length;
-    start += MAX_SESSION_MEDIA_BATCH
-  ) {
-    for (const storageId of uniqueStorageIds.slice(
-      start,
-      start + MAX_SESSION_MEDIA_BATCH,
-    )) {
-      let cursor: string | null = null;
-      while (true) {
-        const page = await ctx.db
-          .query("sessionMediaClaims")
-          .withIndex("by_userId_and_storageId", (q) =>
-            q.eq("userId", userId).eq("storageId", storageId),
-          )
-          .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
-        for (const claim of page.page) {
-          if (
-            claim.releasedAt === undefined &&
-            claim.consumedAt === undefined
-          ) {
-            await ctx.db.patch(claim._id, { consumedAt });
-          }
-        }
-        if (page.isDone) break;
-        cursor = page.continueCursor;
+  for (const storageId of uniqueStorageIds) {
+    // Bounded, non-paginated read: this helper can run inside handlers that
+    // already own the function's single `.paginate()`. The `expiresAt > 0`
+    // range excludes terminal claims, so all remaining live claims are
+    // consumed rather than hidden behind newer terminal rows.
+    const claims = await ctx.db
+      .query("sessionMediaClaims")
+      .withIndex("by_userId_and_storageId_and_expiresAt", (q) =>
+        q.eq("userId", userId).eq("storageId", storageId).gt("expiresAt", 0),
+      )
+      .take(MAX_SESSION_MEDIA_BATCH);
+    for (const claim of claims) {
+      if (claim.releasedAt === undefined && claim.consumedAt === undefined) {
+        await ctx.db.patch(claim._id, { consumedAt, expiresAt: 0 });
       }
     }
   }
@@ -265,7 +251,7 @@ export const release = mutation({
         claim.releasedAt === undefined &&
         claim.consumedAt === undefined
       ) {
-        await ctx.db.patch(claim._id, { releasedAt });
+        await ctx.db.patch(claim._id, { releasedAt, expiresAt: 0 });
         released += 1;
       }
     }
@@ -295,5 +281,36 @@ export const cleanupExpired = internalMutation({
       );
     }
     return null;
+  },
+});
+
+/**
+ * Resolves storage-backed media the caller still owns, so media restored from a
+ * local recovery snapshot can render again. Ids the caller does not own, or
+ * whose pending asset is gone, resolve to `null` so the client marks them
+ * unavailable instead of leaving them stuck "finalizing".
+ */
+export const getOwnedMediaUrls = query({
+  args: { storageIds: v.array(v.id("_storage")) },
+  returns: v.array(
+    v.object({
+      storageId: v.id("_storage"),
+      url: v.union(v.string(), v.null()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    assertBatchSize(args.storageIds);
+    const unique = [...new Set(args.storageIds)];
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return unique.map((storageId) => ({ storageId, url: null }));
+    const now = Date.now();
+    return await Promise.all(
+      unique.map(async (storageId) => {
+        if (!(await hasOwnedPendingAsset(ctx, user._id, storageId, now))) {
+          return { storageId, url: null };
+        }
+        return { storageId, url: await ctx.storage.getUrl(storageId) };
+      }),
+    );
   },
 });

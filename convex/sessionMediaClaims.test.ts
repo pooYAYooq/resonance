@@ -5,7 +5,10 @@ import { register } from "@convex-dev/better-auth/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, components } from "./_generated/api";
 import schema from "./schema";
-import { consumeSessionMediaClaims } from "./sessionMediaClaims";
+import {
+  consumeSessionMediaClaims,
+  hasActiveSessionMediaClaim,
+} from "./sessionMediaClaims";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -553,5 +556,140 @@ describe("session media claims", () => {
       return claims.filter((claim) => claim.consumedAt !== undefined).length;
     });
     expect(consumedCount).toBe(101);
+  });
+
+  it("resolves owned pending media and reports foreign ids as null", async () => {
+    const t = convexTest(schema, modules);
+    const owner = await createAuthenticatedTestUser(t, "resolve@example.com");
+    const ownedStorageId = await createPendingAsset(t, owner.subject);
+    const foreignStorageId = await createPendingAsset(t, "different-user");
+
+    const result = await t
+      .withIdentity(owner)
+      .query(api.sessionMediaClaims.getOwnedMediaUrls, {
+        storageIds: [ownedStorageId, foreignStorageId],
+      });
+
+    expect(
+      result.find((entry) => entry.storageId === ownedStorageId)?.url,
+    ).toBeTypeOf("string");
+    expect(
+      result.find((entry) => entry.storageId === foreignStorageId)?.url,
+    ).toBeNull();
+  });
+  it("finds an older active claim behind many newer terminal claims", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "behind@example.com");
+    const storageId = await createPendingAsset(t, identity.subject);
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("sessionMediaClaims", {
+        userId: identity.subject,
+        sessionId: "old-session",
+        storageId,
+        createdAt: 1,
+        renewedAt: 1,
+        expiresAt: now + 60_000,
+      });
+      for (let index = 0; index < 101; index += 1) {
+        await ctx.db.insert("sessionMediaClaims", {
+          userId: identity.subject,
+          sessionId: `terminal-${index}`,
+          storageId,
+          createdAt: 1_000 + index,
+          renewedAt: 1_000 + index,
+          expiresAt: 0,
+          releasedAt: 1_000 + index,
+        });
+      }
+    });
+
+    expect(
+      await t.run((ctx) => hasActiveSessionMediaClaim(ctx, storageId)),
+    ).toBe(true);
+
+    await t.run((ctx) =>
+      consumeSessionMediaClaims(ctx, identity.subject, [storageId]),
+    );
+
+    expect(
+      await t.run((ctx) => hasActiveSessionMediaClaim(ctx, storageId)),
+    ).toBe(false);
+  });
+
+  it("does not treat terminal claims as active protection", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "terminal@example.com",
+    );
+    const storageId = await createPendingAsset(t, identity.subject);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("sessionMediaClaims", {
+        userId: identity.subject,
+        sessionId: "consumed",
+        storageId,
+        createdAt: 1,
+        renewedAt: 1,
+        expiresAt: 0,
+        consumedAt: 2,
+      });
+      await ctx.db.insert("sessionMediaClaims", {
+        userId: identity.subject,
+        sessionId: "released",
+        storageId,
+        createdAt: 3,
+        renewedAt: 3,
+        expiresAt: 0,
+        releasedAt: 4,
+      });
+    });
+
+    expect(
+      await t.run((ctx) => hasActiveSessionMediaClaim(ctx, storageId)),
+    ).toBe(false);
+  });
+});
+
+describe("session media claim cleanup helpers", () => {
+  // Convex allows only one paginated query per function; these helpers run
+  // inside handlers that already paginate, so they must use bounded reads.
+  // convex-test does not enforce the runtime rule, so assert it directly.
+  function fakeDb(onPaginate: () => void) {
+    const builder = {
+      withIndex: () => builder,
+      order: () => builder,
+      take: async () => [],
+      paginate: async () => {
+        onPaginate();
+        return { page: [], isDone: true, continueCursor: "" };
+      },
+    };
+    return { query: () => builder, patch: async () => undefined };
+  }
+
+  it("hasActiveSessionMediaClaim uses a bounded read, never pagination", async () => {
+    let paginated = false;
+    const db = fakeDb(() => {
+      paginated = true;
+    });
+    await expect(
+      hasActiveSessionMediaClaim({ db } as never, "storage-id" as never, 0),
+    ).resolves.toBe(false);
+    expect(paginated).toBe(false);
+  });
+
+  it("consumeSessionMediaClaims uses bounded reads, never pagination", async () => {
+    let paginated = false;
+    const db = fakeDb(() => {
+      paginated = true;
+    });
+    await consumeSessionMediaClaims({ db } as never, "user-1", [
+      "storage-a",
+      "storage-b",
+    ] as never[]);
+    expect(paginated).toBe(false);
   });
 });

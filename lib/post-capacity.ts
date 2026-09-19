@@ -138,11 +138,23 @@ export function getCanonicalBodyText(
         parts.push(block.content);
       } else if (
         includeImageCaptions &&
-        block.type === "image" &&
+        (block.type === "image" ||
+          block.type === "audio" ||
+          block.type === "video") &&
         isRecord(block.props) &&
         typeof block.props.caption === "string"
       ) {
         parts.push(block.props.caption);
+      } else if (block.type === "table" && isRecord(block.content)) {
+        const rows = (block.content as { rows?: unknown }).rows;
+        if (Array.isArray(rows)) {
+          for (const row of rows) {
+            if (!isRecord(row) || !Array.isArray(row.cells)) continue;
+            for (const cell of row.cells) {
+              if (isRecord(cell)) parts.push(getInlineText(cell.content));
+            }
+          }
+        }
       } else {
         parts.push(getInlineText(block.content));
       }
@@ -231,6 +243,12 @@ function measureBlocks(
     measurements.blockCount += 1;
     if (block.type === "image") {
       measurements.imageReferenceCount += 1;
+    }
+    if (
+      block.type === "image" ||
+      block.type === "audio" ||
+      block.type === "video"
+    ) {
       const props = block.props;
       const altTextCodePoints = getCodePointCount(
         typeof props?.altText === "string" ? props.altText : "",
@@ -248,6 +266,18 @@ function measureBlocks(
         measurements.maxCaptionCodePoints,
         captionCodePoints,
       );
+    } else if (block.type === "table" && isRecord(block.content)) {
+      const rows = (block.content as { rows?: unknown }).rows;
+      if (Array.isArray(rows)) {
+        for (const row of rows) {
+          if (!isRecord(row) || !Array.isArray(row.cells)) continue;
+          for (const cell of row.cells) {
+            if (isRecord(cell) && Array.isArray(cell.content)) {
+              measureInline(cell.content as PostInlineContent[], measurements);
+            }
+          }
+        }
+      }
     } else if (Array.isArray(block.content)) {
       measureInline(block.content, measurements);
     }

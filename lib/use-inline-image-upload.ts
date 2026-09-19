@@ -2,9 +2,10 @@ import { useMutation } from "convex/react";
 import { useEffect, useRef } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { isSafeEmbeddedMediaUrl } from "@/lib/blocknote-contract";
 import {
-  isAllowedInlineImageType,
-  MAX_INLINE_IMAGE_SIZE_BYTES,
+  isAllowedBlockNoteFile,
+  MAX_BLOCKNOTE_FILE_SIZE_BYTES,
 } from "@/lib/inline-image";
 
 async function retryFinalize(
@@ -22,18 +23,19 @@ async function retryFinalize(
   }
 }
 
-export type UseInlineImageUploadOptions = {
+export type UseBlockNoteFileUploadOptions = {
   resolvedImageUrls?: Record<string, string | null>;
   onUploadSessionCreated?: (
     sessionId: Id<"pendingUploads">,
     storageId: Id<"_storage">,
+    objectUrl: string,
   ) => void;
 };
 
-export function useInlineImageUpload({
+export function useBlockNoteFileUpload({
   resolvedImageUrls = {},
   onUploadSessionCreated,
-}: UseInlineImageUploadOptions = {}) {
+}: UseBlockNoteFileUploadOptions = {}) {
   const createPendingUpload = useMutation(
     api.pendingUploads.createPendingUpload,
   );
@@ -63,10 +65,10 @@ export function useInlineImageUpload({
 
   const uploadFile = async (file: File): Promise<string> => {
     if (
-      !isAllowedInlineImageType(file.type) ||
-      file.size > MAX_INLINE_IMAGE_SIZE_BYTES
+      !isAllowedBlockNoteFile(file.type) ||
+      file.size > MAX_BLOCKNOTE_FILE_SIZE_BYTES
     ) {
-      throw new Error("Invalid inline image file");
+      throw new Error("Invalid BlockNote file");
     }
 
     const session = await createPendingUpload({});
@@ -94,13 +96,19 @@ export function useInlineImageUpload({
         throw new Error("Invalid inline upload session");
       }
 
-      onUploadSessionCreatedRef.current?.(session.sessionId, result.storageId);
       const objectUrl = URL.createObjectURL(file);
       if (disposed.current) {
+        // The hook unmounted mid-upload; revoke and skip the callback so a
+        // stale, revoked URL is never registered as the media's preview.
         URL.revokeObjectURL(objectUrl);
-      } else {
-        objectUrls.current.set(result.storageId, objectUrl);
+        return result.storageId;
       }
+      objectUrls.current.set(result.storageId, objectUrl);
+      onUploadSessionCreatedRef.current?.(
+        session.sessionId,
+        result.storageId,
+        objectUrl,
+      );
       return result.storageId;
     } catch (error) {
       try {
@@ -119,8 +127,18 @@ export function useInlineImageUpload({
     }
   };
 
-  const resolveFileUrl = async (storageId: string): Promise<string> =>
-    objectUrls.current.get(storageId) ?? resolvedImageUrls[storageId] ?? "";
+  // BlockNote resolves every media `url` prop through this hook. Storage bytes
+  // resolve through an object URL or the server-resolved URL; a remote Embed
+  // URL must pass through unchanged so native embeds render.
+  const resolveFileUrl = async (value: string): Promise<string> => {
+    const resolved = objectUrls.current.get(value) ?? resolvedImageUrls[value];
+    if (resolved) return resolved;
+    return isSafeEmbeddedMediaUrl(value) ? value : "";
+  };
 
   return { uploadFile, resolveFileUrl };
 }
+
+/** @deprecated Use useBlockNoteFileUpload for new authoring code. */
+export const useInlineImageUpload = useBlockNoteFileUpload;
+export type UseInlineImageUploadOptions = UseBlockNoteFileUploadOptions;

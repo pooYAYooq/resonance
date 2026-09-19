@@ -214,6 +214,110 @@
   color: var(--primary-foreground) !important;
 }
 
+/*
+ * Reader text/background colors. The editor resolves these from BlockNote's
+ * `.bn-root` theme variables, but the public reader renders outside `.bn-root`
+ * and does not load BlockNote's stylesheet. Mirror the same tokens here so the
+ * authoring preview, editor, and published page agree. Values mirror
+ * `lib/blocknote-colors.ts` (BlockNote's default palette); update both together.
+ */
+:root {
+  --bn-colors-highlights-gray-text: #9b9a97;
+  --bn-colors-highlights-gray-background: #ebeced;
+  --bn-colors-highlights-brown-text: #64473a;
+  --bn-colors-highlights-brown-background: #e9e5e3;
+  --bn-colors-highlights-red-text: #e03e3e;
+  --bn-colors-highlights-red-background: #fbe4e4;
+  --bn-colors-highlights-orange-text: #d9730d;
+  --bn-colors-highlights-orange-background: #f6e9d9;
+  --bn-colors-highlights-yellow-text: #dfab01;
+  --bn-colors-highlights-yellow-background: #fbf3db;
+  --bn-colors-highlights-green-text: #4d6461;
+  --bn-colors-highlights-green-background: #ddedea;
+  --bn-colors-highlights-blue-text: #0b6e99;
+  --bn-colors-highlights-blue-background: #ddebf1;
+  --bn-colors-highlights-purple-text: #6940a5;
+  --bn-colors-highlights-purple-background: #eae4f2;
+  --bn-colors-highlights-pink-text: #ad1a72;
+  --bn-colors-highlights-pink-background: #f4dfeb;
+}
+
+.dark {
+  --bn-colors-highlights-gray-text: #bebdb8;
+  --bn-colors-highlights-gray-background: #9b9a97;
+  --bn-colors-highlights-brown-text: #8e6552;
+  --bn-colors-highlights-brown-background: #64473a;
+  --bn-colors-highlights-red-text: #ec4040;
+  --bn-colors-highlights-red-background: #be3434;
+  --bn-colors-highlights-orange-text: #e3790d;
+  --bn-colors-highlights-orange-background: #b7600a;
+  --bn-colors-highlights-yellow-text: #dfab01;
+  --bn-colors-highlights-yellow-background: #b58b00;
+  --bn-colors-highlights-green-text: #6b8b87;
+  --bn-colors-highlights-green-background: #4d6461;
+  --bn-colors-highlights-blue-text: #0e87bc;
+  --bn-colors-highlights-blue-background: #0b6e99;
+  --bn-colors-highlights-purple-text: #8552d7;
+  --bn-colors-highlights-purple-background: #6940a5;
+  --bn-colors-highlights-pink-text: #da208f;
+  --bn-colors-highlights-pink-background: #ad1a72;
+}
+
+[data-text-color="gray"] {
+  color: var(--bn-colors-highlights-gray-text);
+}
+[data-background-color="gray"] {
+  background-color: var(--bn-colors-highlights-gray-background);
+}
+[data-text-color="brown"] {
+  color: var(--bn-colors-highlights-brown-text);
+}
+[data-background-color="brown"] {
+  background-color: var(--bn-colors-highlights-brown-background);
+}
+[data-text-color="red"] {
+  color: var(--bn-colors-highlights-red-text);
+}
+[data-background-color="red"] {
+  background-color: var(--bn-colors-highlights-red-background);
+}
+[data-text-color="orange"] {
+  color: var(--bn-colors-highlights-orange-text);
+}
+[data-background-color="orange"] {
+  background-color: var(--bn-colors-highlights-orange-background);
+}
+[data-text-color="yellow"] {
+  color: var(--bn-colors-highlights-yellow-text);
+}
+[data-background-color="yellow"] {
+  background-color: var(--bn-colors-highlights-yellow-background);
+}
+[data-text-color="green"] {
+  color: var(--bn-colors-highlights-green-text);
+}
+[data-background-color="green"] {
+  background-color: var(--bn-colors-highlights-green-background);
+}
+[data-text-color="blue"] {
+  color: var(--bn-colors-highlights-blue-text);
+}
+[data-background-color="blue"] {
+  background-color: var(--bn-colors-highlights-blue-background);
+}
+[data-text-color="purple"] {
+  color: var(--bn-colors-highlights-purple-text);
+}
+[data-background-color="purple"] {
+  background-color: var(--bn-colors-highlights-purple-background);
+}
+[data-text-color="pink"] {
+  color: var(--bn-colors-highlights-pink-text);
+}
+[data-background-color="pink"] {
+  background-color: var(--bn-colors-highlights-pink-background);
+}
+
 .shiki-token {
   color: var(--shiki-light);
 }

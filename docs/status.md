@@ -1,213 +1,153 @@
 # Project Status
 
-This is the resume point for returning to Resonance after time away.
+This is the resume point for returning to Resonance after time away. It replaces
+the previous append-only verification log; detailed history now lives in a
+bounded section at the end and in the tracked plan/commit record.
 
 ## Current phase
 
-Phase 3A.3 — Writing & Management — current
+Phase 3A.3 — Writing & Management — current.
+
+Track 2 (persistence, retry, session, and media safety) and Track 3 (long-form
+content and discovery) and Phase 3A.0–3A.2 are shipped. Track 1 (authoring
+workspace and BlockNote experience) is the active track.
+
+## Current focus
+
+Track 1 — Authoring Workspace and BlockNote Experience.
+
+The authoring surface is the installed standard Shadcn BlockNote editor with a
+safe canonical `blocknote@1` document contract and a React-only public reader.
+Headings reserve H1 for the post title: body headings are H2–H6, default H2, and
+toggle headings are disabled.
+
+The serialization seam was repaired in this working tree. Editor-only block
+identity (`id`) no longer bypasses the canonical contract, native unset table
+column widths are accepted and normalized to `null`, and a round-trip
+conformance test drives one of every enabled default block through editor
+serialization → `parsePostBody` → `PostBody`. Before the repair, media, table,
+and divider blocks were rejected on save.
+
+Manual browser acceptance then passed the heading, paste, table/list/code, and
+publish/reader journeys, and surfaced two gaps that are now fixed:
+`resolveFileUrl` returned an empty string for remote Embed URLs (so native
+remote image/video embeds broke), and the reset had removed the visible
+Undo/Redo controls. Remote safe HTTP(S) URLs now pass through unchanged, and a
+persistent icon-based history control renders above the editor.
+
+Authoring resilience now works silently: while a session is dirty the canonical
+proposal is snapshotted to `localStorage` (debounced, flushed on `pagehide`),
+and a stored snapshot is loaded back into the form and editor during hydration
+with no prompt. The snapshot is cleared when the session turns clean, and
+effectively-empty snapshots are ignored, so removed content does not resurrect.
+There is no `beforeunload` warning. Browser-confirmed by the author. An
+always-available in-page Discard/Cancel button remains deferred.
+
+The Review slice is implemented and browser-tested. The browser run confirmed the
+frozen preview, the media gate, and Publish/Update, and surfaced authoring issues
+now tracked as a follow-up backlog (below): editor title sizing, media-state
+wording and affordances, layout consistency, reader typography, and the reader
+page's author identity and engagement controls.
+
+## Baseline status (committed on this branch)
+
+- Local commits on `feature/media-authoring` are **not pushed**: the local-notes
+  ignore, the standard-BlockNote authoring and review flow, and the docs
+  reconciliation.
+- Automated gate green at commit time: `pnpm lint`, `pnpm exec tsc --noEmit`,
+  `pnpm build`, targeted Prettier, and `git diff --check`.
+- `pnpm test:ci` — 33 files, 440 tests. `pnpm test:component` — 74 files, 391
+  tests.
+- Manual browser acceptance: headings, paste with single undo, table/lists/code,
+  publish/reader, remote embeds, visible Undo/Redo, and silent recovery are
+  accepted. Review and layout are browser-tested with follow-ups open.
+- Nothing is pushed and no PR is open. Per `AGENTS.md`, pushing and opening a PR
+  each require separate explicit human approval; `docs/superpowers/**` stays
+  untracked.
+- Repository-wide `pnpm format:check` still reports the known pre-existing
+  baseline of unrelated files; every file changed by this work passes targeted
+  Prettier.
+
+## Open authoring follow-ups (browser audit)
+
+The Review browser pass produced a 29-item audit. The code-rooted,
+high-confidence items:
+
+- Editor title renders at body size: the shared `Input` base ships `md:text-sm`,
+  which overrides the title's `sm:text-5xl` at desktop widths.
+- Broken inline image in the published-edit editor; the code block loses syntax
+  highlighting there while New Post and Review highlight it.
+- Review exposes editable Post details and unresolved media state ("Ready to
+  upload") beside Publish; media rows do not identify cover versus inline and
+  offer no per-row remove/replace; "Ready"/"Finalizing" wording is unclear.
+- Unstyled cover file input; tiny media thumbnails with weak affordances.
+- Undo/Redo controls sit at the bottom of the editor canvas.
+- Reader: first publish dropped the cover and possibly the code block; heading,
+  body, and caption sizes are inconsistent; links are not visually distinct;
+  content is too narrow on wide screens; the post page has no author identity.
+- Design system: unstyled tag checkbox grid, dark-mode contrast and focus,
+  weak action hierarchy, small reaction/bookmark/comment controls, a stray
+  sidebar collapse glyph.
 
 ## Next focus
 
-Phase 3A.0 — UX Correctness, Phase 3A.1 — Product Structure, and Phase 3A.2 —
-Discover Foundations are shipped. Phase 3A.3 — Writing & Management is the sole
-next focus. The Phase 3A target direction and delivery map are canonicalized.
-Track 3 Tasks 1 and 2 are reviewed and committed as `72f382b`; Task 3 Atomic
-Lifecycle Wiring is committed as `a169b2e`; Task 4 capacity and native Search
-evidence is committed as `60cf933` and reviewed with zero CodeRabbit findings.
-The approved slim Search projection removes the duplicate complete-body field,
-and the 150,000-code-point Japanese fixture fits within the measured Search
-budget. Track 3 is shipped. Slice 1 Task 1, the private
-liked-posts backend contract, is committed. Task 2, separate marketing and
-authenticated site shells plus the dependency-required Saved/Liked reader
-routes, is verified and committed as `784db9d`. Task 3, the workspace shell and
-navigation boundary, is committed as `825ee20`. Task 4, the Profile/Settings
-responsibility split and shared account menu, is committed as `744e90a`. Task 5,
-the analytics relocation and dashboard cleanup, is committed as `36e32d6`.
+Close the follow-up backlog above in small focused batches; those issues are the
+gap between the implemented Review slice and its full acceptance.
 
-## Current verification
+1. Media authoring and Review readiness — done in code; wording and per-row
+   affordances remain in the backlog.
+2. Review, publish, and update flows — implemented and browser-tested; close the
+   follow-ups before calling the slice complete.
+3. Authoring browser journey evidence — capture the journeys once the fixes
+   land.
 
-- Phase 3A.0 — `pnpm lint` passed; `pnpm test:ci` passed: 17 files, 179 tests;
-  `pnpm test:component` passed: 53 files, 284 tests; `pnpm build` passed; and
-  `git diff --check` passed.
-- Phase 3A.0 formatting passed for every stageable file changed by this slice.
-  The local `docs/superpowers/**` planning artifacts remain intentionally
-  unstaged and excluded from the staging slice.
-- Repository-wide `pnpm format:check` remains blocked by 46 pre-existing or
-  unrelated files outside the Phase 3A.0 diff, including 28 tracked skill
-  assets and 18 application/configuration files. No formatter exclusions or
-  unrelated formatting changes were added.
-- Better Auth 1.5.3 defaults are intentionally used: finite seven-day sessions
-  with one-day sliding refresh; no custom session configuration or client
-  inactivity logout timer exists.
-- Known limitation: authenticated owner-scoped post mutation tests remain
-  limited by the Better Auth component fixture in `convex-test`.
-- The Convex test harness prints a scheduled-cleanup transaction warning in one
-  passing test; it is a fixture limitation, not a failing assertion.
-- Slice 1 Task 1 — `pnpm test:ci -- convex/likes.test.ts
-convex/bookmarks.test.ts convex/posts.test.ts` passed: 17 files, 184 tests;
-  `npx tsc --noEmit` and `git diff --check` passed. The task's independent
-  specification and quality reviews approved the result; committed as
-  `80256d8`.
-- Slice 1 Task 2 — `pnpm test:ci` passed: 17 files, 184 tests; `pnpm
-test:component` passed: 55 files, 294 tests; `pnpm lint`, `pnpm build`, and
-  `git diff --check` passed. Specification and quality reviews approved the
-  site-shell split and dependency-required Saved/Liked route adjustment.
-- Slice 1 Task 3 — `pnpm test:component` passed: 57 files, 293 tests;
-  `pnpm lint`, `pnpm build`, and `git diff --check` passed. The workspace shell
-  owns the `/dashboard/*` and `/create` auth boundary and navigation.
-- Slice 1 Task 4 — `pnpm test:ci` passed: 17 files, 184 tests; `pnpm
-test:component` passed: 60 files, 303 tests; `pnpm lint`, `pnpm build`, and
-  `git diff --check` passed. `/profile/edit` owns identity editing,
-  `/settings` owns Appearance and Account, and shared account actions serve the
-  site and workspace shells. Committed as `744e90a`.
-- Slice 1 Task 5 — `pnpm test:component` passed: 61 files, 304 tests;
-  `pnpm lint`, `pnpm build`, and `git diff --check` passed. Analytics owns
-  `/dashboard/analytics`, Saved is no longer a dashboard child route, and the
-  workspace overview excludes Analytics and Saved previews. Committed as
-  `36e32d6`.
-- Slice 1 Task 6 — focused `pnpm test:ci -- convex/likes.test.ts
-convex/bookmarks.test.ts` passed: 17 files, 184 tests; full `pnpm test:ci`
-  passed: 17 files, 184 tests; and full `pnpm test:component` passed: 61 files,
-  304 tests. `pnpm lint`, `pnpm build`, `git diff --check`, and the approved
-  legacy-path check passed. `pnpm format:check` still reports the known
-  repository-wide 46-file formatting baseline; no unrelated files were changed.
-- Discover Foundations Task 1 — `pnpm test:ci -- convex/discover.test.ts`
-  passed: 18 files, 208 tests; `npx tsc --noEmit`, targeted ESLint, Prettier,
-  and `git diff --check` passed. Specification and Convex quality reviews
-  approved the projection schema and helper implementation. Committed as
-  `714dd8d`.
-- Discover Foundations Task 2 — `pnpm test:ci -- convex/discover.test.ts
-convex/posts.test.ts convex/users.test.ts` passed: 18 files, 227 tests;
-  `npx tsc --noEmit`, `pnpm lint`, targeted Prettier, and `git diff --check`
-  passed. Specification and Convex quality reviews approved transactional
-  lifecycle synchronization, bounded idempotent maintenance, and author rename
-  repair. Committed as `7910ad3`. Task 3, public Discover queries, is complete.
-  Task 4 URL-state normalization is committed as `219be85`.
-- Discover Foundations Task 4 — `pnpm test:ci -- lib/discover.test.ts` passed:
-  19 files, 241 tests; focused component tests passed: 61 files, 307 tests;
-  `pnpm lint`, `npx tsc --noEmit`, `pnpm build`, targeted Prettier, and
-  `git diff --check` passed. Specification and code-quality reviews approved
-  the implementation, and CodeRabbit reported zero findings. No Discover UI or
-  Convex query behavior was added. Committed as `219be85`.
-- Discover Foundations Task 5 — focused component tests passed: 65 files, 320
-  tests; route tests passed: 19 files, 241 tests; full `pnpm test:ci` passed:
-  19 files, 241 tests; `pnpm lint`, `npx tsc --noEmit`, targeted Prettier,
-  `git diff --check`, and `pnpm build` passed. Specification and code-quality
-  reviews approved the UI; CodeRabbit reported zero findings. Committed as
-  `9479de9`. Legacy development content was intentionally not backfilled.
-- Discover Foundations Task 6 — focused `pnpm test:component --
-"app/(site)/feed/_components/FeedContent.test.tsx"` passed: 65 files, 320
-  tests; targeted ESLint, Prettier, and `git diff --check` passed. Specification
-  and code-quality reviews approved the Feed recovery link. Committed as
-  `1c67c4c`.
-- Discover Foundations Task 7 verification is complete. Documentation now
-  describes the shipped Discover projections, public queries, URL-state route
-  composition, editorial summaries, Feed recovery, and the bounded
-  published-deletion lifecycle, including upload reclamation, analytics
-  reconciliation, strict topic-stat validation, draft cleanup jobs, and stale
-  job recovery. Hot remains deferred because its ranking formula and time window
-  are not defined.
-- Development-only corrections — profile published-post counts are required
-  from user creation onward with no backfill state, and rejected inline image
-  finalization reclaims its session and unclaimed storage object. Existing
-  deletion analytics and public return-validator corrections remain intact.
-- Track 2 final verification — `pnpm lint` passed; focused `pnpm test:ci --
-convex/writeAttempts.test.ts convex/posts.test.ts
-convex/sessionMediaClaims.test.ts convex/pendingUploads.test.ts
-lib/write-contract.test.ts lib/post-content.test.ts` passed: 24 files, 371
-  tests; `pnpm build` and `git diff --check` passed. The passing test run still
-  emits the known Convex-test scheduled-function rollback warning.
-- Track 3 Tasks 1–2 — focused capacity/Discover tests passed: 82 tests; full
-  local Vitest passed: 25 files, 391 tests; component suite passed: 65 files,
-  321 tests; typecheck, lint, targeted formatting, build, and diff checks passed.
-  Capacity and projection changes were reviewed and committed as `72f382b`.
-- Track 3 Task 3 is committed. Post-commit review exposed a rename-reserve
-  boundary defect; its test-first correction passed human and CodeRabbit review
-  and was amended into the lifecycle commit. The lifecycle test command passes:
-  25 files, 397 tests; `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build`,
-  targeted formatting, and diff checks pass.
-- Track 3 Task 4 local baseline passed: 25 files and 397 unit tests, plus 65
-  files and 321 component tests. The representative fixture runner passed 2
-  tests. Its initial 900,238-byte Japanese Search record exposed duplicated
-  body storage; the approved slim projection measures 450,224 bytes and keeps
-  the full body in `searchableText`. Focused slim-projection tests pass 171/171.
-  The current local gate passes 25 files and 405 unit tests, 65 files and 321
-  component tests, lint, TypeScript, production build, formatting, and diff
-  checks.
-  Native Search verification passed on the explicitly authorized
-  `dev:woozy-spaniel-283` deployment: the 150,000-code-point Japanese row,
-  author repair, tail search, near-capacity record, pagination, reactivity, and
-  resource checks all passed. The temporary internal-only harness cleaned its
-  confined rows and was removed.
-- Track 1 Task 1 — Document Studio shell and mode-capability implementation is
-  complete through Steps 1–5 and merged in PR #68. Commit `c5338e6` delivered
-  the shell and mode contract; `pnpm test:component -- 'app/(workspace)/create'`
-  passed: 66 files, 330 tests; `pnpm test:ci`
-  passed: 25 files, 406 tests; `pnpm lint`, targeted Prettier, narrow-layout
-  composition checks, `git diff --check`, and `pnpm build` passed.
-  Recovery-control activation is covered for unavailable published, draft, and
-  invalid-target states. Review-surface and write-flow requirements remain
-  deferred to their planned tasks.
-- Track 1 Task 2 — Session Reducer, Hydration, and Dirty Baselines is delivered
-  in PR #69 and merged to `main` by commit `b30cd62`. Dependency inspection confirmed owner-bound attempt
-  reservation/replay in `convex/writeAttempts.ts`, session-media claim lifecycle
-  in `convex/sessionMediaClaims.ts`, and canonical proposal/equality helpers in
-  `lib/write-contract.ts`. The required red baseline was recorded before
-  implementation: the missing reducer import and dirty-refresh route/editor
-  assertions failed. Steps 1–5 are now implemented and verified: the reducer
-  owns canonical proposal/baseline, version, operation, media, auth-lock, and
-  Review transitions; target hydration is one-time and dirty-safe; and the
-  editor skips reactive replacement while dirty. Focused route/editor tests
-  pass (31 tests), the reducer suite passes (10 tests; full edge run 416 tests),
-  and the full component suite passes (66 files, 340 tests). Coverage now
-  proves consecutive saves advance the version token, unuploaded cover
-  selection makes the session dirty without entering the canonical proposal,
-  and deliberate target replacement waits for explicit confirmation and fetch
-  completion. Failed target replacement now clears only the pending target so
-  a later valid target can load, and a successful cover save clears its
-  ephemeral form selection before adopting the clean baseline. The
-  target-transition regression also proves a dirty post-1 session cannot
-  submit to post-2. `pnpm lint`, targeted Prettier, and `git diff --check` pass
-  after the correction, and `pnpm build` passes after the correction. The
-  repository-wide format check remains red on 45
-  pre-existing unrelated files; all changed files pass targeted Prettier.
-  The approved Task 2 commit includes CodeRabbit's valid minor clean-target
-  prompt correction and fresh verification.
+After Track 1 and Track 4, the Phase 3A.3 release tasks apply: the `FEATURES.md`
+acceptance matrix, `package.json` release checks, human review checklist, PR, and
+worktree cleanup. Track 4 (management, deletion, exit guards, accessibility
+evidence) is separate. The branch is ready to push and open as a PR on approval.
 
-- Track 1 Task 3 — Curated BlockNote interaction contract is implemented in
-  commits `36b5396`, `74d6fcf`, `e2c5e52`, `79b04b6`, and `325e64f`, plus
-  review follow-ups `c076642`, `cda053d`, `8d84f94`, `e682e32`, and `94663ca`.
-  The shipped editor keeps the curated block and inline-style set, native history,
-  selection-preserving link validation, sanitized Markdown/rich-text paste,
-  focus-safe block actions, and sole-block deletion replacement. Code-block
-  language selection and dual-theme Shiki highlighting ship in the same scope.
-  Inline-image upload lifecycle remains extracted for Task 4's
-  `MediaAuthoring` ownership rather than duplicated in the editor.
-  PR #70 merged to `main` as `906f0d3`. A follow-up contrast and accessibility
-  correction now makes the BlockNote surface follow the resolved application
-  theme, keeps the Turn into control readable in light mode, and avoids
-  opacity-dimming disabled history controls. Fresh automated checks pass
-  `pnpm test:ci` (28 files, 443 tests), `pnpm test:component` (69 files,
-  401 tests), `pnpm lint`, TypeScript,
-  targeted Prettier, and `git diff --check`. `pnpm build` passes; the earlier
-  Google-font fetch failure was transient environment noise. The pre-existing
-  45-file repository format
-  baseline remains known debt (the current check reports 43 files after
-  excluding local `docs/superpowers/` artifacts) and is not treated as fixed.
+## Authoritative direction
 
-### Browser acceptance observations
+- Authoring design:
+  `docs/superpowers/specs/2026-09-18-full-blocknote-authoring-design.md`.
+- Baseline recovery design and plan:
+  `docs/superpowers/specs/2026-09-18-authoring-baseline-recovery-design.md`,
+  `docs/superpowers/plans/2026-09-18-authoring-baseline-recovery.md`.
+- Drag-handle design and plan:
+  `docs/superpowers/specs/2026-09-18-drag-handle-menu-design.md`,
+  `docs/superpowers/plans/2026-09-18-drag-handle-menu.md`.
+- Authoring resilience design and plan:
+  `docs/superpowers/specs/2026-09-18-authoring-resilience-design.md`,
+  `docs/superpowers/plans/2026-09-18-authoring-resilience.md`.
+- Review surface design and plan:
+  `docs/superpowers/specs/2026-09-19-review-surface-design.md`,
+  `docs/superpowers/plans/2026-09-19-review-surface.md`.
+- Superseded for editor authoring (kept as history): Section 7 of
+  `docs/superpowers/specs/2026-09-07-writing-management-design.md`,
+  `docs/superpowers/plans/2026-09-07-authoring-blocknote.md`, and
+  `docs/superpowers/plans/2026-09-16-track1-task3-completion.md`.
+- Tracked docs reconciled to the standard-editor reality: `FEATURES.md`,
+  `docs/ARCHITECTURE.md`, and this file.
 
-Manual browser run completed 2026-09-17. The slash-menu keyboard journey, link
-create/edit/reject/cancel flows, Markdown and rich-text paste,
-duplicate/move/turn/delete caret placement, native Undo/Redo, code-block
-language selection, light/dark highlighting, and side-handle drag all passed.
+## Known limitations
 
-One finding is deferred to a later block-support stage and recorded in
-`NOTES.local.md` (local, untracked):
-
+- No stored-data migration or backfill exists. The project is not deployed and
+  development data is disposable.
+- Authenticated owner-scoped post mutation tests remain limited by the Better
+  Auth component fixture in `convex-test`; one passing test emits a known
+  scheduled-cleanup transaction warning from the fixture.
 - Pasted Table-of-Contents anchor links (`#heading`) render as plain text
   because the safe-link allowlist permits only http/https/mailto and reader
   headings have no `id`.
+- The installed native side-handle menu has no separate "Turn into" surface. The
+  side menu is replaced by a custom drag-safe adapter because the Shadcn/Base UI
+  handle opened its menu on mousedown.
+- An untouched new post can briefly count as dirty because the editor's default
+  empty paragraph differs from the `{ blocks: [] }` baseline. Empty snapshots
+  are suppressed so there is no false recovery, but a target switch on a blank
+  post may show the in-app transition notice.
+- An always-available in-page Discard/Cancel action is not implemented; the
+  silent recovery clears the local snapshot on save, revert, or empty.
 
 ## Completed phases
 
@@ -228,53 +168,47 @@ One finding is deferred to a later block-support stage and recorded in
 - Phase 3A.1 — Product Structure
 - Phase 3A.2 — Discover Foundations
 
+## History (bounded summary)
+
+- Track 2 persistence/retry/session/media safety shipped; Track 3 long-form
+  content and native Search verification shipped.
+- Phase 3A.0–3A.2 shipped: UX correctness, product structure (shells,
+  Profile/Settings, analytics relocation), and Discover foundations (Search,
+  Latest, Topics, Feed recovery; Hot deferred).
+- Track 1 Task 1 (Document Studio shell and mode contract, PR #68) and Task 2
+  (session reducer, hydration, dirty baselines, PR #69) shipped.
+- Track 1 Task 3 (curated BlockNote interaction contract plus code-block
+  highlighting) merged in PR #70 (`906f0d3`), followed by a contrast and
+  accessibility correction.
+- The authoring surface was then reset to the installed standard Shadcn
+  BlockNote UI to adopt the full default authoring experience. The curated
+  editor contract and its plans are now superseded, and the standard-editor
+  direction was written up as the 2026-09-18 full-BlockNote design and plan.
+- The authoring baseline recovery (this working tree) fixes the serialization
+  seam, adds the all-block round-trip conformance test, and reconciles the
+  conflicting documentation direction. Browser acceptance and the human commit
+  gate remain.
+- The standard-editor adoption also surfaced two runtime defects that are now
+  fixed: the Shadcn/Base UI drag handle opened its menu on mousedown (replaced
+  with a drag-safe click-opened handle), and the session-media cleanup helpers
+  called `.paginate()` inside already-paginated mutations, which Convex rejects
+  ("multiple paginated queries"). The helpers now use bounded `.take()` reads,
+  guarded by a test, because `convex-test` does not enforce that runtime rule.
+- Authoring resilience shipped as silent local autosave and auto-load after an
+  explicit restore/discard prompt proved noisy and a `beforeunload` warning was
+  intrusive. The remote-embed and Undo/Redo follow-ups are browser-accepted.
+
 ## Where to continue
 
-- Detailed roadmap: [`FEATURES.md`](../FEATURES.md)
-- Architecture reference: [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)
-- Phase 3A target direction and delivery map:
-  [`docs/PHASE_3A.md`](PHASE_3A.md)
-- Phase 3A cross-cutting decisions:
-  [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
-- Track 2 final verification and Track 3 are complete. Track 3 Task 4 passed
-  local and explicitly authorized native development Search verification and is
-  committed as `60cf933`. Track 1 Tasks 1 and 2 are delivered in PRs #68 and
-  #69; Task 3 merged in PR #70 and includes the curated editor interaction
-  contract, code-block highlighting, and the subsequent contrast/accessibility
-  correction on `fix/create-page-contrast`. Task 3 remains limited to editor
-  interactions; Task 4 owns image-drop media claims, lifecycle state, and
-  `MediaAuthoring` forwarding to avoid duplicate media logic. The next resume
-  point is completing and reviewing the contrast-fix branch, then preparing
-  Track 1 Task 4. No divider is in scope.
-- Design-only specification:
-  Local-only design specification (`docs/superpowers/specs/2026-09-07-writing-management-design.md`,
-  local and untracked, but intentionally visible to Git). The mandatory human
-  staging gate prevents these planning artifacts from being committed.
-  Sections 1-7 and final Q64-Q65 clarifications are approved. Section 7 includes
-  the minimal BlockNote interaction contract. The implementation roadmap and
-  four focused plans are now written under `docs/superpowers/plans/`. Track 2 is the
-  required foundation, followed by Track 3, Track 1, and Track 4. Current
-  database content is disposable test data: implementation must not add
-  migrations, backfills, dual reads/writes, or compatibility fields. Runtime
-  capacity/Search/browser evidence remains explicitly gated. Track 2 Tasks 1
-  through 4 are implemented, reviewed, committed, and finally verified.
-  Expired attempts now
-  reconcile to an explicit indeterminate outcome when evidence is insufficient,
-  and reservation, execution, media, and target ownership are isolated by
-  account. No migration, backfill, dual read/write, or compatibility field was
-  added. Track 1 remains explicitly out of scope for this correction: it owns
-  unresolved attempt identity, same-attempt reconciliation after uncertain
-  results, blocking a new attempt until the prior result is authoritative or
-  acknowledged, and production claim/renew/release wiring. It does not promise
-  hard-reload recovery without a separately approved architecture. Task
-  boundaries also require human review/commit gates and an explicit
-  compaction/handoff resume record before work continues. The development-only
-  plans, spec, and visual helpers remain visible to Git as local untracked
-  files; the mandatory staging gate keeps them out of commits.
+- Delivery map and human review gates: [`docs/PHASE_3A.md`](PHASE_3A.md)
+- Cross-cutting decisions: [`docs/PHASE_3A_DECISIONS.md`](PHASE_3A_DECISIONS.md)
+- Roadmap: [`FEATURES.md`](../FEATURES.md)
+- Architecture: [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ## Status maintenance
 
-Keep this file concise. Update the current phase, next task, and completed
-phase list when work ships. Do not duplicate task-level implementation details
-from `FEATURES.md` or individual plans here. Before staging, committing, or
-opening a PR, follow the mandatory human review gates in `docs/PHASE_3A.md`.
+Keep this file concise. It is a resume point, not a log. Update the current
+phase, focus, and baseline status when work ships; replace stale headline state
+instead of appending below it; and keep detailed history in the tracked
+plans/commits. Before staging, committing, or opening a PR, follow the mandatory
+human review gates in `docs/PHASE_3A.md`.

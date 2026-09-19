@@ -67,11 +67,24 @@ implementation order.
 | Track 1 | Authoring Workspace and BlockNote Experience  | 🔵 Next On |
 | Track 4 | Management, Navigation, and Accessibility     | 🟡 Later   |
 
-Track 1 progress: Tasks 1 and 2 delivered the Document Studio shell, explicit
-editor modes, and writing-session hydration state. Task 3 is shipped with the
-curated BlockNote interaction contract and code-block language selection plus
-Shiki highlighting. Task 4's media authoring and image-drop lifecycle is the
-next Track 1 delivery unit.
+Track 1 progress: the writing workspace uses the installed standard BlockNote
+editor with native menus, file controls including remote embeds, code language
+selection, Shiki highlighting, and persistent visible Undo/Redo controls. Its
+safe canonical document contract supports the default text, media, table, and
+presentation features, and the public reader renders that same contract without
+injected HTML. Every enabled block is now proven to survive editor
+serialization, server validation, and reader rendering; previously the canonical
+projection was bypassed and non-text blocks were rejected on save. Headings
+reserve H1 for the post title and offer H2 through H6 with toggle headings
+disabled. Unsaved work is kept in a silent local draft and reloaded on return,
+so a refresh or navigation no longer loses content. Publication now goes through
+an explicit Review step: the frozen canonical post renders in a read-only
+surface, Publish/Update reuse the existing save path, and Review is blocked while
+inline media is unresolved. The author has accepted the editor, embeds, history
+controls, and recovery in the browser. Review is browser-tested; a follow-up
+backlog (editor title sizing, media-state wording and affordances, layout
+consistency, reader typography, and reader author identity) is open before the
+slice is called complete.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
@@ -94,9 +107,9 @@ instead of the provider picture until the user record sync completes
 ### Blog Posts
 
 - Create posts with title, body, and optional cover image (Convex storage)
-- Create posts with block-level inline images through the BlockNote editor;
-  uploads require nonblank alt text, support optional captions, and store
-  canonical Convex Storage IDs separately from the cover-image flow
+- Create posts with block-level images, audio, and video through the standard
+  BlockNote editor; local uploads store canonical Convex Storage IDs through
+  the owner-bound claim lifecycle, and remote media must use safe HTTP(S) URLs
 - Post bodies use the canonical `blocknote@1` structured document format,
   validated at both the browser form and the Convex write boundary
 - Discover at `/blog` defaults to Latest published posts, searches title,

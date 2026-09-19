@@ -34,6 +34,26 @@ describe("useInlineImageUpload", () => {
     await expect(result.current.resolveFileUrl("unknown")).resolves.toBe("");
   });
 
+  it("passes through safe absolute media URLs for native embeds", async () => {
+    const { result } = renderHook(() => useInlineImageUpload());
+    await expect(
+      result.current.resolveFileUrl("https://cdn.example/pic.png"),
+    ).resolves.toBe("https://cdn.example/pic.png");
+    await expect(
+      result.current.resolveFileUrl("http://cdn.example/clip.mp4"),
+    ).resolves.toBe("http://cdn.example/clip.mp4");
+  });
+
+  it("does not pass through relative or unsafe media values", async () => {
+    const { result } = renderHook(() => useInlineImageUpload());
+    await expect(
+      result.current.resolveFileUrl("javascript:alert(1)"),
+    ).resolves.toBe("");
+    await expect(
+      result.current.resolveFileUrl("storage-with-no-url"),
+    ).resolves.toBe("");
+  });
+
   it("revokes an object URL created after the hook unmounts", async () => {
     const createPendingUpload = vi.fn().mockResolvedValue({
       sessionId: "session123",
@@ -48,6 +68,7 @@ describe("useInlineImageUpload", () => {
 
     const createObjectURL = vi.fn(() => "blob:inline-image");
     const revokeObjectURL = vi.fn();
+    const onUploadSessionCreated = vi.fn();
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
     const fetchPromise = Promise.resolve({
       ok: true,
@@ -58,7 +79,9 @@ describe("useInlineImageUpload", () => {
       vi.fn(() => fetchPromise),
     );
 
-    const { result, unmount } = renderHook(() => useInlineImageUpload());
+    const { result, unmount } = renderHook(() =>
+      useInlineImageUpload({ onUploadSessionCreated }),
+    );
     const uploadPromise = result.current.uploadFile(
       new File(["image"], "image.png", { type: "image/png" }),
     );
@@ -67,5 +90,6 @@ describe("useInlineImageUpload", () => {
     await expect(uploadPromise).resolves.toBe("storage123");
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:inline-image");
+    expect(onUploadSessionCreated).not.toHaveBeenCalled();
   });
 });

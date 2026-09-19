@@ -35,9 +35,17 @@ describe("DocumentStudio", () => {
     expect(screen.getByRole("textbox", { name: "Blog title" })).toBeVisible();
     expect(screen.getByTestId("body-canvas")).toBeVisible();
     expect(screen.getAllByText("Post details")).toHaveLength(1);
+    expect(studio.querySelector("details")).toHaveAttribute("open");
     expect(screen.getByRole("button", { name: "Save Draft" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Review" })).toBeVisible();
     expect(studio.className).not.toContain("rounded-lg");
+    expect(screen.getByRole("main", { name: "Writing canvas" })).toBeVisible();
+    expect(
+      studio.querySelector('[data-studio-title="true"]'),
+    ).toBeInTheDocument();
+    expect(studio.querySelector('[data-studio-canvas="true"]')).not.toHaveClass(
+      "max-w-3xl",
+    );
   });
 
   it("keeps draft actions visible for an existing draft", () => {

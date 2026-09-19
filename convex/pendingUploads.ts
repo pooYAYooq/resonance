@@ -8,8 +8,8 @@ import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import type { Id } from "./_generated/dataModel";
 import {
-  isAllowedInlineImageType,
-  MAX_INLINE_IMAGE_SIZE_BYTES,
+  isAllowedBlockNoteFile,
+  MAX_BLOCKNOTE_FILE_SIZE_BYTES,
 } from "../lib/inline-image";
 import { hasActiveSessionMediaClaim } from "./sessionMediaClaims";
 
@@ -47,7 +47,7 @@ const requireAuthUser = async (ctx: MutationCtx) => {
 };
 
 /**
- * Validates that an uploaded file is a valid image within size and time constraints.
+ * Validates that an uploaded BlockNote file is within the safe media policy.
  *
  * @param ctx - Mutation context
  * @param storageId - The storage ID to validate
@@ -55,7 +55,7 @@ const requireAuthUser = async (ctx: MutationCtx) => {
  * @param now - Current timestamp
  * @returns True if the file is a valid image upload
  */
-const isValidUploadedImage = async (
+const isValidUploadedBlockNoteFile = async (
   ctx: MutationCtx,
   storageId: Id<"_storage">,
   createdAt: number,
@@ -70,8 +70,8 @@ const isValidUploadedImage = async (
   return !!(
     metadata &&
     metadata.contentType &&
-    isAllowedInlineImageType(metadata.contentType) &&
-    metadata.size <= MAX_INLINE_IMAGE_SIZE_BYTES
+    isAllowedBlockNoteFile(metadata.contentType) &&
+    metadata.size <= MAX_BLOCKNOTE_FILE_SIZE_BYTES
   );
 };
 
@@ -142,7 +142,7 @@ export const finalizePendingUpload = mutation({
 
     const valid =
       session.expiresAt > Date.now() &&
-      (await isValidUploadedImage(
+      (await isValidUploadedBlockNoteFile(
         ctx,
         args.storageId,
         session.createdAt,

@@ -1,4 +1,3 @@
-import { BlockNoteEditor } from "@blocknote/core";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -10,15 +9,9 @@ import {
   it,
   vi,
 } from "vitest";
+import PostBodyEditor from "./PostBodyEditor";
+import { parsePostBody } from "@/lib/post-content";
 import { draftPostSchema } from "@/schemas/blog";
-import { parsePostBody, type BlockNoteDocument } from "@/lib/post-content";
-import PostBodyEditor, {
-  editorSchema,
-  getCuratedPasteOptions,
-  isSafeAuthorLink,
-  normalizeBlock,
-  type EditorBlock,
-} from "./PostBodyEditor";
 
 const { themeState } = vi.hoisted(() => ({
   themeState: { resolvedTheme: "light" as "light" | "dark" },
@@ -45,8 +38,6 @@ const browserRect = {
 } as DOMRect;
 let boundingRectSpy: ReturnType<typeof vi.spyOn>;
 let clientRectsSpy: ReturnType<typeof vi.spyOn>;
-let rangeClientRectsDescriptor: PropertyDescriptor | undefined;
-let rangeBoundingRectDescriptor: PropertyDescriptor | undefined;
 let clipboardEventDescriptor: PropertyDescriptor | undefined;
 
 class TestClipboardEvent extends Event {
@@ -56,28 +47,21 @@ class TestClipboardEvent extends Event {
 }
 
 beforeAll(() => {
+  // jsdom has no layout measurements for text ranges used during native paste.
+  Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+    configurable: true,
+    value: () => browserRect,
+  });
+  Object.defineProperty(Range.prototype, "getClientRects", {
+    configurable: true,
+    value: () => [browserRect],
+  });
   boundingRectSpy = vi
     .spyOn(HTMLElement.prototype, "getBoundingClientRect")
     .mockReturnValue(browserRect);
   clientRectsSpy = vi
     .spyOn(HTMLElement.prototype, "getClientRects")
     .mockReturnValue([browserRect] as unknown as DOMRectList);
-  rangeClientRectsDescriptor = Object.getOwnPropertyDescriptor(
-    Range.prototype,
-    "getClientRects",
-  );
-  rangeBoundingRectDescriptor = Object.getOwnPropertyDescriptor(
-    Range.prototype,
-    "getBoundingClientRect",
-  );
-  Object.defineProperty(Range.prototype, "getClientRects", {
-    configurable: true,
-    value: () => [browserRect],
-  });
-  Object.defineProperty(Range.prototype, "getBoundingClientRect", {
-    configurable: true,
-    value: () => browserRect,
-  });
   Object.defineProperty(document, "elementFromPoint", {
     configurable: true,
     value: () => document.body,
@@ -101,30 +85,11 @@ beforeEach(() => {
 });
 
 afterAll(() => {
+  delete (Range.prototype as unknown as Record<string, unknown>)
+    .getBoundingClientRect;
+  delete (Range.prototype as unknown as Record<string, unknown>).getClientRects;
   boundingRectSpy.mockRestore();
   clientRectsSpy.mockRestore();
-  if (rangeClientRectsDescriptor) {
-    Object.defineProperty(
-      Range.prototype,
-      "getClientRects",
-      rangeClientRectsDescriptor,
-    );
-  } else {
-    delete (Range.prototype as unknown as Record<string, unknown>)[
-      "getClientRects"
-    ];
-  }
-  if (rangeBoundingRectDescriptor) {
-    Object.defineProperty(
-      Range.prototype,
-      "getBoundingClientRect",
-      rangeBoundingRectDescriptor,
-    );
-  } else {
-    delete (Range.prototype as unknown as Record<string, unknown>)[
-      "getBoundingClientRect"
-    ];
-  }
   if (clipboardEventDescriptor) {
     Object.defineProperty(
       globalThis,
@@ -132,28 +97,118 @@ afterAll(() => {
       clipboardEventDescriptor,
     );
   } else {
-    delete (globalThis as unknown as Record<string, unknown>)["ClipboardEvent"];
+    delete (globalThis as Record<string, unknown>).ClipboardEvent;
   }
 });
 
-function expectEditorSelection(editor: HTMLElement) {
-  const selection = window.getSelection();
-  expect(selection?.rangeCount).toBeGreaterThan(0);
-  expect(editor.contains(selection?.anchorNode ?? null)).toBe(true);
+function getEditor(container: HTMLElement) {
+  const editor = container.querySelector<HTMLElement>(
+    '[contenteditable="true"]',
+  );
+  if (!editor) throw new Error("Expected BlockNote contenteditable");
+  return editor;
 }
 
-describe("PostBodyEditor native interaction contract", () => {
-  it("mounts one contenteditable editor without unsupported native UI", () => {
+describe("PostBodyEditor standard BlockNote integration", () => {
+  it.each(["text/plain", "text/html"])(
+    "normalizes %s heading paste in the editor and emitted document with one undo",
+    async (mimeType) => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const { container } = render(
+        <PostBodyEditor onChange={onChange} onBlur={() => {}} />,
+      );
+      const editor = getEditor(container);
+      await user.click(editor);
+      fireEvent.paste(editor, {
+        clipboardData: {
+          types: [mimeType],
+          files: [],
+          getData: (type: string) =>
+            type !== mimeType
+              ? ""
+              : mimeType === "text/html"
+                ? "<h1>Title heading</h1><h4>Deep heading</h4><p>####### stays text</p>"
+                : "# Title heading\n\n#### Deep heading\n\n####### stays text",
+        },
+      });
+      await waitFor(() =>
+        expect(editor.querySelector("h2")).toHaveTextContent("Title heading"),
+      );
+      expect(editor.querySelector("h1")).toBeNull();
+      expect(editor.querySelector("h4")).toHaveTextContent("Deep heading");
+      expect(editor).toHaveTextContent("####### stays text");
+      const emitted = onChange.mock.lastCall?.[0];
+      expect(
+        emitted.blocks
+          .filter((block: { type: string }) => block.type === "heading")
+          .map((block: { props: { level: number } }) => block.props.level),
+      ).toEqual([2, 4]);
+      expect(parsePostBody(JSON.stringify(emitted)).kind).toBe("structured");
+      expect(
+        draftPostSchema.safeParse({
+          title: "Title",
+          content: emitted,
+          tags: [],
+        }).success,
+      ).toBe(true);
+      fireEvent.keyDown(editor, { key: "z", code: "KeyZ", ctrlKey: true });
+      await waitFor(() =>
+        expect(editor).not.toHaveTextContent("Title heading"),
+      );
+      expect(editor).not.toHaveTextContent("Deep heading");
+      expect(document.activeElement).toBe(editor);
+      fireEvent.keyDown(editor, {
+        key: "z",
+        code: "KeyZ",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+      await waitFor(() =>
+        expect(editor.querySelector("h2")).toHaveTextContent("Title heading"),
+      );
+      expect(editor.querySelector("h1")).toBeNull();
+      expect(editor.querySelector("h4")).toHaveTextContent("Deep heading");
+    },
+  );
+
+  it("keeps H1 typing and shortcut disabled while allowing native body heading shortcuts", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
+    );
+    const editor = getEditor(container);
+    await user.click(editor);
+    await user.type(editor, "# ");
+    expect(editor.querySelector("h1")).toBeNull();
+    expect(editor.querySelector("p")).toHaveTextContent("#");
+    fireEvent.keyDown(editor, {
+      key: "1",
+      code: "Digit1",
+      ctrlKey: true,
+      altKey: true,
+    });
+    expect(editor.querySelector("h1")).toBeNull();
+    for (const level of [2, 3, 4, 5, 6]) {
+      fireEvent.keyDown(editor, {
+        key: String(level),
+        code: `Digit${level}`,
+        ctrlKey: true,
+        altKey: true,
+      });
+      expect(editor.querySelector(`h${level}`)).not.toBeNull();
+    }
+  });
+  it("mounts the standard editor without curated replacement controls", () => {
     const { container } = render(
       <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
     );
 
-    expect(container.querySelector('[contenteditable="true"]')).not.toBeNull();
-    expect(container.querySelector('[aria-label*="Color" i]')).toBeNull();
-    expect(container.querySelector('[aria-label*="Align" i]')).toBeNull();
+    expect(getEditor(container)).toBeVisible();
+    expect(screen.queryByRole("toolbar", { name: "Block actions" })).toBeNull();
   });
 
-  it("uses the resolved app theme for the editor and native controls", () => {
+  it("uses the resolved application theme", () => {
     themeState.resolvedTheme = "dark";
     const { container, rerender } = render(
       <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
@@ -165,72 +220,68 @@ describe("PostBodyEditor native interaction contract", () => {
 
     themeState.resolvedTheme = "light";
     rerender(<PostBodyEditor onChange={() => {}} onBlur={() => {}} />);
-
     expect(editorRoot).toHaveAttribute("data-color-scheme", "light");
-    expect(editorRoot).toHaveStyle({ colorScheme: "light" });
   });
 
-  it("uses the accessible app-muted color for the editor placeholder", () => {
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editorRoot = container.querySelector<HTMLElement>(".bn-root");
-
-    expect(editorRoot?.style.getPropertyValue("--bn-colors-side-menu")).toBe(
-      "var(--muted-foreground)",
-    );
-  });
-
-  it("keeps disabled history actions readable without opacity dimming", () => {
-    render(<PostBodyEditor onChange={() => {}} onBlur={() => {}} />);
-    const redo = screen.getByRole("button", { name: "Redo" });
-
-    expect(redo).toBeDisabled();
-    expect(redo).toHaveClass("disabled:text-muted-foreground");
-    expect(redo).not.toHaveClass("disabled:opacity-50");
-  });
-
-  it("uses BlockNote's native Markdown paste policy while preferring HTML", () => {
-    expect(getCuratedPasteOptions()).toEqual({
-      prioritizeMarkdownOverHTML: false,
-      plainTextAsMarkdown: true,
-    });
-  });
-
-  it("preserves safe rich links and strips unsafe links plus unsupported colors", () => {
-    const editor = BlockNoteEditor.create({
-      schema: editorSchema,
-      links: { isValidLink: isSafeAuthorLink },
-    });
-    const [richBlock] = editor.tryParseHTMLToBlocks(
-      '<blockquote><strong>Supported</strong> <a href="https://example.com">link</a></blockquote>',
-    );
-    const [unsafeBlock] = editor.tryParseHTMLToBlocks(
-      '<p style="color: red"><a href="javascript:alert(1)">Safe text</a></p>',
-    );
-
-    expect(normalizeBlock(richBlock as unknown as EditorBlock)).toMatchObject({
-      type: "quote",
-    });
-    expect(normalizeBlock(unsafeBlock as unknown as EditorBlock)).toEqual({
-      type: "paragraph",
-      content: [{ type: "text", text: "Safe text" }],
-    });
-  });
-
-  it("keeps focus and does not throw for a rich-text paste event", async () => {
+  it("opens the native slash menu with the full standard block list", async () => {
     const user = userEvent.setup();
     const { container } = render(
       <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
     );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
+    const editor = getEditor(container);
 
-    await user.click(editor!);
+    await user.click(editor);
+    await user.type(editor, "/");
+
+    expect(await screen.findByRole("listbox")).toBeVisible();
+    expect(screen.getByText("Check List")).toBeVisible();
+    expect(screen.getByText("Table")).toBeVisible();
+    expect(screen.getByText("Divider")).toBeVisible();
+    expect(screen.queryByText("Heading 1")).toBeNull();
+    expect(screen.queryByText(/Toggle Heading/)).toBeNull();
+    for (const level of [2, 3, 4, 5, 6])
+      expect(screen.getByText(`Heading ${level}`)).toBeVisible();
+  });
+
+  it("keeps editor focus while navigating and dismissing the native slash menu", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
+    );
+    const editor = getEditor(container);
+
+    await user.click(editor);
+    await user.type(editor, "/");
+    const initiallySelected = screen
+      .getAllByRole("option")
+      .find((option) => option.getAttribute("aria-selected") === "true");
+
+    await user.keyboard("{ArrowDown}");
+
+    const selectedAfterArrow = screen
+      .getAllByRole("option")
+      .find((option) => option.getAttribute("aria-selected") === "true");
+    expect(selectedAfterArrow).toBeDefined();
+    expect(selectedAfterArrow).not.toBe(initiallySelected);
+    expect(document.activeElement).toBe(editor);
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument(),
+    );
+    expect(document.activeElement).toBe(editor);
+  });
+
+  it("routes rich HTML paste through the native editor without losing focus", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
+    );
+    const editor = getEditor(container);
+
+    await user.click(editor);
     expect(() =>
-      fireEvent.paste(editor!, {
+      fireEvent.paste(editor, {
         clipboardData: {
           types: ["text/html", "text/plain"],
           getData: (type: string) =>
@@ -238,327 +289,6 @@ describe("PostBodyEditor native interaction contract", () => {
         },
       }),
     ).not.toThrow();
-    expect(document.activeElement).toBe(editor);
-  });
-
-  it("normalizes pasted Markdown headings to the H2 through H6 contract", async () => {
-    const user = userEvent.setup();
-    let emitted: BlockNoteDocument | undefined;
-    const { container } = render(
-      <PostBodyEditor
-        onChange={(value) => {
-          emitted = value;
-        }}
-        onBlur={() => {}}
-      />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    fireEvent.paste(editor!, {
-      clipboardData: {
-        types: ["text/plain"],
-        getData: () => "# H1\n\n#### H4",
-      },
-    });
-
-    await waitFor(() => expect(emitted).toBeDefined());
-    const document = emitted as BlockNoteDocument;
-    const headingLevels = document.blocks
-      .filter((block) => block.type === "heading")
-      .map((block) => block.props?.level);
-
-    expect(headingLevels).toEqual([2, 4]);
-    expect(parsePostBody(JSON.stringify(document)).kind).toBe("structured");
-    expect(
-      draftPostSchema.safeParse({
-        title: "Markdown headings",
-        content: document,
-        tags: [],
-      }).success,
-    ).toBe(true);
-  });
-
-  it("undoes the paste and heading correction as one editor action", async () => {
-    const user = userEvent.setup();
-    let emitted: BlockNoteDocument | undefined;
-    const { container } = render(
-      <PostBodyEditor
-        onChange={(value) => {
-          emitted = value;
-        }}
-        onBlur={() => {}}
-      />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    fireEvent.paste(editor!, {
-      clipboardData: {
-        types: ["text/plain"],
-        getData: () => "# H1\n\n#### H4",
-      },
-    });
-    await waitFor(() =>
-      expect(emitted?.blocks.some((block) => block.type === "heading")).toBe(
-        true,
-      ),
-    );
-
-    await user.keyboard("{Control>}z{/Control}");
-
-    await waitFor(() => {
-      expect(emitted?.blocks).toHaveLength(1);
-      expect(emitted?.blocks[0]?.type).toBe("paragraph");
-    });
-  });
-
-  it("moves slash-menu selection with ArrowDown without leaving the editor", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "/");
-    expect(document.activeElement).toBe(editor);
-    expect(screen.queryByText(/Ctrl[-+]|Shift/i)).not.toBeInTheDocument();
-    const options = screen.getAllByRole("option");
-    const initiallySelected = options.find((option) =>
-      option.hasAttribute("aria-selected"),
-    );
-    expect(initiallySelected).toBeDefined();
-
-    await user.keyboard("{ArrowDown}");
-
-    const selectedAfterArrow = screen
-      .getAllByRole("option")
-      .find((option) => option.hasAttribute("aria-selected"));
-    expect(selectedAfterArrow).toBeDefined();
-    expect(selectedAfterArrow).not.toBe(initiallySelected);
-    expect(document.activeElement).toBe(editor);
-  });
-
-  it("inserts the selected slash block while retaining editor focus", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "/");
-    await user.keyboard("{ArrowDown}{Enter}");
-
-    await waitFor(() => {
-      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    });
-    expect(
-      editor!.querySelector('[data-content-type="heading"]'),
-    ).not.toBeNull();
-    expect(document.activeElement).toBe(editor);
-    expect(window.getSelection()?.anchorNode).not.toBeNull();
-  });
-
-  it("dismisses the slash menu with Escape while retaining caret focus", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "/");
-    expect(screen.getByRole("listbox")).toBeInTheDocument();
-
-    await user.keyboard("{Escape}");
-
-    await waitFor(() => {
-      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    });
-    expect(document.activeElement).toBe(editor);
-    const selection = window.getSelection();
-    expect(selection?.rangeCount).toBeGreaterThan(0);
-    expect(selection?.anchorNode).not.toBeNull();
-    expect(editor!.contains(selection?.anchorNode ?? null)).toBe(true);
-  });
-
-  it("splits a paragraph with Enter while keeping focus in the editor", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "Line one");
-    await user.keyboard("{Enter}");
-    await user.type(editor!, "Line two");
-
-    await waitFor(() => {
-      const paragraphs = editor!.querySelectorAll(
-        '[data-content-type="paragraph"]',
-      );
-      expect(paragraphs.length).toBeGreaterThanOrEqual(2);
-    });
-    expect(document.activeElement).toBe(editor);
-  });
-
-  // jsdom does not keep a stable selected-block/DOM projection after Delete;
-  // adjacent and sole-block deletion remain covered by sync-level tests and
-  // exact native selection behavior is verified in the browser journey.
-  it("duplicates a selected block through the mounted action control", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "Duplicate me");
-    await user.click(screen.getByRole("button", { name: "Duplicate block" }));
-
-    await waitFor(() => {
-      expect(
-        editor!.querySelectorAll('[data-content-type="paragraph"]').length,
-      ).toBe(2);
-    });
-    expect(editor!.textContent).toBe("Duplicate meDuplicate me");
-    expect(document.activeElement).toBe(editor);
-  });
-
-  it("turns the selected block into a heading through the mounted control", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "Make this a heading");
-    await user.selectOptions(
-      screen.getByLabelText("Turn block into"),
-      "heading-2",
-    );
-
-    await waitFor(() => {
-      expect(
-        editor!.querySelector('[data-content-type="heading"]'),
-      ).not.toBeNull();
-    });
-    expect(editor!.textContent).toBe("Make this a heading");
-    expect(document.activeElement).toBe(editor);
-  });
-
-  it("keeps editor focus during Backspace navigation", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "First");
-    await user.keyboard("{Enter}");
-    await user.type(editor!, "Second");
-    fireEvent.keyDown(editor!, { key: "Home" });
-    fireEvent.keyDown(editor!, { key: "Backspace" });
-
-    // jsdom does not expose ProseMirror's native block-merge transaction
-    // reliably; exact merge behavior is verified in the browser journey.
-    expect(document.activeElement).toBe(editor);
-    expectEditorSelection(editor!);
-  });
-
-  it("moves the caret with Arrow keys without leaving the editor", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "abc");
-
-    fireEvent.keyDown(editor!, { key: "ArrowLeft" });
-
-    expect(document.activeElement).toBe(editor);
-    // jsdom cannot reliably expose ProseMirror's caret offset after movement.
-    expectEditorSelection(editor!);
-  });
-
-  it("places the caret at the line start with Home and line end with End", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "hello");
-    fireEvent.keyDown(editor!, { key: "Home" });
-
-    expect(document.activeElement).toBe(editor);
-    expectEditorSelection(editor!);
-
-    fireEvent.keyDown(editor!, { key: "End" });
-    expect(document.activeElement).toBe(editor);
-    expectEditorSelection(editor!);
-  });
-
-  it("restores previous content after a native undo shortcut", async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <PostBodyEditor onChange={() => {}} onBlur={() => {}} />,
-    );
-    const editor = container.querySelector<HTMLElement>(
-      '[contenteditable="true"]',
-    );
-    expect(editor).not.toBeNull();
-
-    await user.click(editor!);
-    await user.type(editor!, "typed");
-
-    await waitFor(() => {
-      expect(editor!.textContent).toContain("typed");
-    });
-
-    await user.keyboard("{Control>}z{/Control}");
-
     expect(document.activeElement).toBe(editor);
   });
 });

@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { BlockNoteDocument } from "@/lib/post-content";
+import { saveDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
 import CreateRoute from "./page";
 
 const validEnvelope: BlockNoteDocument = {
@@ -9,6 +10,11 @@ const validEnvelope: BlockNoteDocument = {
   blocks: [
     {
       type: "paragraph",
+      props: {
+        backgroundColor: "default",
+        textColor: "default",
+        textAlignment: "left",
+      },
       content: [{ type: "text", text: "This is enough content for the body." }],
     },
   ],
@@ -24,6 +30,11 @@ const inlineEnvelope: BlockNoteDocument = {
   blocks: [
     {
       type: "paragraph",
+      props: {
+        backgroundColor: "default",
+        textColor: "default",
+        textAlignment: "left",
+      },
       content: [
         {
           type: "text",
@@ -34,8 +45,12 @@ const inlineEnvelope: BlockNoteDocument = {
     {
       type: "image",
       props: {
-        storageId: "storage-inline-1",
-        altText: "Inline image",
+        source: { kind: "storage", id: "storage-inline-1" },
+        name: "Inline image",
+        caption: "",
+        backgroundColor: "default",
+        showPreview: true,
+        textAlignment: "left",
       },
     },
   ],
@@ -48,7 +63,11 @@ const shortEnvelope: BlockNoteDocument = {
 
 type MockPostBodyEditorProps = {
   onChange: (value: BlockNoteDocument) => void;
-  onUploadSessionCreated?: (sessionId: string, storageId: string) => void;
+  onUploadSessionCreated?: (
+    sessionId: string,
+    storageId: string,
+    objectUrl: string,
+  ) => void;
   initialContent?: BlockNoteDocument;
   resolvedImageUrls?: Record<string, string | null>;
 };
@@ -76,7 +95,11 @@ vi.mock("./_components/PostBodyEditor", () => ({
         type="button"
         aria-label="Register inline upload"
         onClick={() =>
-          onUploadSessionCreated?.("session-inline-1", "storage-inline-1")
+          onUploadSessionCreated?.(
+            "session-inline-1",
+            "storage-inline-1",
+            "blob:inline-1",
+          )
         }
       >
         Register inline upload
@@ -85,7 +108,11 @@ vi.mock("./_components/PostBodyEditor", () => ({
         type="button"
         aria-label="Register later inline upload"
         onClick={() =>
-          onUploadSessionCreated?.("session-inline-2", "storage-inline-2")
+          onUploadSessionCreated?.(
+            "session-inline-2",
+            "storage-inline-2",
+            "blob:inline-2",
+          )
         }
       >
         Register later inline upload
@@ -110,9 +137,13 @@ vi.mock("./_components/PostBodyEditor", () => ({
 
 const {
   pushMock,
+  toastMock,
   toastSuccessMock,
   toastErrorMock,
   cleanupPendingUploadsMock,
+  claimSessionMediaMock,
+  renewSessionMediaMock,
+  releaseSessionMediaMock,
   createPendingUploadMock,
   finalizePendingUploadMock,
   saveDraftMock,
@@ -121,23 +152,29 @@ const {
   getPublishedPostForEditingMock,
   updatePublishedPostMock,
   reserveAttemptMock,
+  convexQueryMock,
   draftIdParam,
   editPostIdParam,
   useConvexAuthState,
   routerMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
+  toastMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   toastErrorMock: vi.fn(),
   createPendingUploadMock: vi.fn(),
   finalizePendingUploadMock: vi.fn(),
   cleanupPendingUploadsMock: vi.fn(),
+  claimSessionMediaMock: vi.fn(),
+  renewSessionMediaMock: vi.fn(),
+  releaseSessionMediaMock: vi.fn(),
   saveDraftMock: vi.fn(),
   publishPostMock: vi.fn(),
   getDraftByIdMock: vi.fn(),
   getPublishedPostForEditingMock: vi.fn(),
   updatePublishedPostMock: vi.fn(),
   reserveAttemptMock: vi.fn(),
+  convexQueryMock: vi.fn(),
   draftIdParam: { value: undefined as string | undefined },
   editPostIdParam: { value: undefined as string | undefined },
   useConvexAuthState: vi.fn(),
@@ -158,10 +195,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("sonner", () => ({
-  toast: {
+  toast: Object.assign(toastMock, {
     success: toastSuccessMock,
     error: toastErrorMock,
-  },
+    dismiss: vi.fn(),
+  }),
 }));
 
 vi.mock("convex/react", () => ({
@@ -169,6 +207,9 @@ vi.mock("convex/react", () => ({
     if (apiRef === "createPendingUpload") return createPendingUploadMock;
     if (apiRef === "finalizePendingUpload") return finalizePendingUploadMock;
     if (apiRef === "cleanupPending") return cleanupPendingUploadsMock;
+    if (apiRef === "claimSessionMedia") return claimSessionMediaMock;
+    if (apiRef === "renewSessionMedia") return renewSessionMediaMock;
+    if (apiRef === "releaseSessionMedia") return releaseSessionMediaMock;
     if (apiRef === "saveDraft") return saveDraftMock;
     if (apiRef === "publishPost") return publishPostMock;
     if (apiRef === "updatePublishedPost") return updatePublishedPostMock;
@@ -184,6 +225,7 @@ vi.mock("convex/react", () => ({
     return undefined;
   },
   useConvexAuth: () => useConvexAuthState(),
+  useConvex: () => ({ query: convexQueryMock }),
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
@@ -203,6 +245,12 @@ vi.mock("@/convex/_generated/api", () => ({
     writeAttempts: {
       reserveAttempt: "reserveAttempt",
     },
+    sessionMediaClaims: {
+      claim: "claimSessionMedia",
+      renew: "renewSessionMedia",
+      release: "releaseSessionMedia",
+      getOwnedMediaUrls: "getOwnedMediaUrls",
+    },
   },
 }));
 
@@ -211,17 +259,24 @@ describe("CreateRoute", () => {
     routerMock.push = pushMock;
     routerMock.replace = pushMock;
     pushMock.mockClear();
+    toastMock.mockClear();
     toastSuccessMock.mockClear();
     toastErrorMock.mockClear();
+    window.localStorage.clear();
     createPendingUploadMock.mockReset();
     finalizePendingUploadMock.mockReset();
     cleanupPendingUploadsMock.mockReset();
+    claimSessionMediaMock.mockReset();
+    renewSessionMediaMock.mockReset();
+    releaseSessionMediaMock.mockReset();
     saveDraftMock.mockReset();
     publishPostMock.mockReset();
     getDraftByIdMock.mockReset();
     getPublishedPostForEditingMock.mockReset();
     updatePublishedPostMock.mockReset();
     reserveAttemptMock.mockReset();
+    convexQueryMock.mockReset();
+    convexQueryMock.mockResolvedValue([]);
     draftIdParam.value = undefined;
     editPostIdParam.value = undefined;
     useConvexAuthState.mockReturnValue({
@@ -234,6 +289,10 @@ describe("CreateRoute", () => {
       expiresAt: 1_000,
     });
     finalizePendingUploadMock.mockResolvedValue({ accepted: true });
+    claimSessionMediaMock.mockResolvedValue({
+      claimId: "claim-1",
+      expiresAt: 2_000,
+    });
     reserveAttemptMock.mockResolvedValue({
       attemptId: "attempt-1",
       expiresAt: 2_000,
@@ -259,6 +318,22 @@ describe("CreateRoute", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
+  async function enterReview(
+    user: ReturnType<typeof userEvent.setup>,
+    label:
+      | "Review for publication"
+      | "Review Update" = "Review for publication",
+  ) {
+    await user.click(screen.getByRole("button", { name: label }));
+  }
+
+  async function submitFromReview(
+    user: ReturnType<typeof userEvent.setup>,
+    label: "Publish" | "Update Post" = "Publish",
+  ) {
+    await user.click(await screen.findByRole("button", { name: label }));
+  }
+
   it("leaves authentication redirects to the workspace shell", async () => {
     useConvexAuthState.mockReturnValue({
       isAuthenticated: false,
@@ -282,8 +357,235 @@ describe("CreateRoute", () => {
     expect(screen.getByRole("button", { name: "Save Draft" })).toBeVisible();
   });
 
+  it("persists a dirty proposal to local storage", async () => {
+    render(<CreateRoute />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+
+    await waitFor(() => expect(readDraftRecovery("new:new")).not.toBeNull(), {
+      timeout: 2500,
+    });
+  });
+
+  it("ignores and clears an empty recovered snapshot", async () => {
+    saveDraftRecovery(
+      "new:new",
+      {
+        title: "",
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "paragraph",
+              props: {
+                backgroundColor: "default",
+                textColor: "default",
+                textAlignment: "left",
+              },
+              content: [],
+            },
+          ],
+        }),
+        tags: [],
+      },
+      Date.now(),
+    );
+
+    render(<CreateRoute />);
+
+    await waitFor(() => expect(readDraftRecovery("new:new")).toBeNull());
+    expect(toastMock).not.toHaveBeenCalled();
+  });
+
+  it("silently loads unsaved work found in local storage", async () => {
+    saveDraftRecovery(
+      "new:new",
+      {
+        title: "Recovered title",
+        body: JSON.stringify(validEnvelope),
+        tags: [],
+      },
+      Date.now(),
+    );
+
+    render(<CreateRoute />);
+
+    expect(
+      await screen.findByDisplayValue("Recovered title"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(JSON.stringify(validEnvelope))).toBeInTheDocument();
+    expect(toastMock).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("resolves storage media restored from a recovery snapshot", async () => {
+    saveDraftRecovery(
+      "new:new",
+      {
+        title: "Recovered media",
+        body: JSON.stringify(inlineEnvelope),
+        tags: [],
+      },
+      Date.now(),
+    );
+    convexQueryMock.mockResolvedValue([
+      {
+        storageId: "storage-inline-1",
+        url: "https://cdn.example.com/recovered.png",
+      },
+    ]);
+
+    render(<CreateRoute />);
+
+    expect(
+      await screen.findByDisplayValue("Recovered media"),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/recovered\.png/)).toBeInTheDocument(),
+    );
+    expect(convexQueryMock).toHaveBeenCalledWith("getOwnedMediaUrls", {
+      storageIds: ["storage-inline-1"],
+    });
+  });
+
+  it("marks recovered media unavailable when the server cannot resolve it", async () => {
+    saveDraftRecovery(
+      "new:new",
+      {
+        title: "Recovered media",
+        body: JSON.stringify(inlineEnvelope),
+        tags: [],
+      },
+      Date.now(),
+    );
+    convexQueryMock.mockResolvedValue([
+      { storageId: "storage-inline-1", url: null },
+    ]);
+
+    render(<CreateRoute />);
+
+    expect(
+      await screen.findByDisplayValue("Recovered media"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "This media is no longer available. Re-upload or remove it.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("removes an unavailable recovered media block", async () => {
+    const user = userEvent.setup();
+    saveDraftRecovery(
+      "new:new",
+      {
+        title: "Recovered media",
+        body: JSON.stringify(inlineEnvelope),
+        tags: [],
+      },
+      Date.now(),
+    );
+    convexQueryMock.mockResolvedValue([
+      { storageId: "storage-inline-1", url: null },
+    ]);
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Recovered media");
+
+    await user.click(
+      await screen.findByRole("button", { name: "Remove media" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove media" })).toBeNull(),
+    );
+    expect(releaseSessionMediaMock).toHaveBeenCalledWith(
+      expect.objectContaining({ storageIds: ["storage-inline-1"] }),
+    );
+  });
+
+  it("enters Review and returns to editing with content preserved", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+
+    await enterReview(user);
+
+    const surface = await screen.findByTestId("review-surface");
+    expect(surface).toHaveTextContent("Reviewable");
+    expect(surface).toHaveTextContent("This is enough content for the body.");
+    expect(publishPostMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Back to editing" }));
+
+    expect(screen.queryByTestId("review-surface")).toBeNull();
+    expect(screen.getByDisplayValue("Reviewable")).toBeInTheDocument();
+  });
+
+  it("blocks Review while inline media is unresolved", async () => {
+    const user = userEvent.setup();
+
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit inline content" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText("Review blocked until media is ready"),
+      ).toBeInTheDocument(),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+
+    expect(screen.queryByTestId("review-surface")).toBeNull();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Some media is still uploading. Wait for it to finish before reviewing.",
+    );
+  });
+
+  it("removes an existing cover image", async () => {
+    const user = userEvent.setup();
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Resumed title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: "cover-1",
+      imageUrl: "https://cover.example/image.png",
+      inlineImages: [],
+      updatedAt: 123,
+    });
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Resumed title");
+
+    expect(screen.getByRole("button", { name: "Remove cover" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Remove cover" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove cover" })).toBeNull(),
+    );
   });
 
   it("hydrates a draft when opened with a draft ID", async () => {
@@ -305,6 +607,54 @@ describe("CreateRoute", () => {
       await screen.findByDisplayValue("Resumed title"),
     ).toBeInTheDocument();
     expect(screen.getByText(JSON.stringify(validEnvelope))).toBeInTheDocument();
+  });
+
+  it("does not restore a recovery snapshot older than the server draft", async () => {
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Server newer",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 500,
+    });
+    saveDraftRecovery(
+      "draft:draft-1",
+      { title: "Local stale", body: JSON.stringify(validEnvelope), tags: [] },
+      100,
+    );
+
+    render(<CreateRoute />);
+
+    expect(await screen.findByDisplayValue("Server newer")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Local stale")).toBeNull();
+    expect(readDraftRecovery("draft:draft-1")).toBeNull();
+  });
+
+  it("restores a recovery snapshot newer than the server draft", async () => {
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Server older",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 100,
+    });
+    saveDraftRecovery(
+      "draft:draft-1",
+      { title: "Local newer", body: JSON.stringify(validEnvelope), tags: [] },
+      500,
+    );
+
+    render(<CreateRoute />);
+
+    expect(await screen.findByDisplayValue("Local newer")).toBeInTheDocument();
   });
 
   it("preserves a dirty draft when reactive server data refreshes", async () => {
@@ -399,16 +749,14 @@ describe("CreateRoute", () => {
     expect(
       await screen.findByDisplayValue("Published title"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Update Published Post")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review Update" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Save Draft" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
 
-    await userEvent
-      .setup()
-      .click(screen.getByRole("button", { name: "Edit blog content" }));
-    await userEvent
-      .setup()
-      .click(screen.getByRole("button", { name: "Update Published Post" }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Edit blog content" }));
+    await enterReview(user, "Review Update");
+    await submitFromReview(user, "Update Post");
 
     await waitFor(() => {
       expect(updatePublishedPostMock).toHaveBeenCalledWith(
@@ -419,6 +767,37 @@ describe("CreateRoute", () => {
     expect(publishPostMock).not.toHaveBeenCalled();
     expect(toastSuccessMock).toHaveBeenCalledWith("Post updated successfully!");
     expect(pushMock).toHaveBeenCalledWith("/dashboard/published");
+  });
+
+  it("resolves inline images when editing a published post", async () => {
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(inlineEnvelope),
+      tags: ["Technology"],
+      imageStorageId: null,
+      imageUrl: null,
+      inlineImages: [
+        {
+          storageId: "storage-inline-1",
+          url: "https://cdn.example.com/inline.png",
+        },
+      ],
+      publishedAt: 100,
+      updatedAt: 101,
+    });
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Published title");
+
+    expect(
+      screen.getByText(
+        JSON.stringify({
+          "storage-inline-1": "https://cdn.example.com/inline.png",
+        }),
+      ),
+    ).toBeInTheDocument();
   });
 
   it("keeps the active published target when the URL changes while dirty", async () => {
@@ -458,9 +837,8 @@ describe("CreateRoute", () => {
     expect(screen.getByDisplayValue("Unsaved post one")).toBeInTheDocument();
     expect(screen.queryByDisplayValue("Post two")).toBeNull();
 
-    await user.click(
-      screen.getByRole("button", { name: "Update Published Post" }),
-    );
+    await enterReview(user, "Review Update");
+    await submitFromReview(user, "Update Post");
     await waitFor(() => {
       expect(reserveAttemptMock).toHaveBeenCalledWith(
         expect.objectContaining({ postId: "post-1" }),
@@ -506,10 +884,20 @@ describe("CreateRoute", () => {
     view.rerender(<CreateRoute />);
 
     expect(screen.getByDisplayValue("Unsaved post one")).toBeInTheDocument();
+    saveDraftRecovery(
+      "published-edit:post-1",
+      {
+        title: "Unsaved post one",
+        body: JSON.stringify(validEnvelope),
+        tags: ["Technology"],
+      },
+      Date.now(),
+    );
     await user.click(
       screen.getByRole("button", { name: "Load requested document" }),
     );
     expect(await screen.findByDisplayValue("Post two")).toBeInTheDocument();
+    expect(readDraftRecovery("published-edit:post-1")).toBeNull();
   });
 
   it("clears a pending target when navigation becomes invalid", async () => {
@@ -589,7 +977,7 @@ describe("CreateRoute", () => {
     );
 
     const submitButton = screen.getByRole("button", {
-      name: "Update Published Post",
+      name: "Review Update",
     });
     expect(submitButton).toBeDisabled();
     expect(reserveAttemptMock).not.toHaveBeenCalled();
@@ -729,6 +1117,48 @@ describe("CreateRoute", () => {
     ).toBeInTheDocument();
   });
 
+  it("clears a discarded cover selection so later navigation does not prompt", async () => {
+    const user = userEvent.setup();
+    const publishedPost = (id: string, title: string, updatedAt: number) => ({
+      _id: id,
+      title,
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: undefined,
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: updatedAt - 1,
+      updatedAt,
+    });
+
+    const view = render(<CreateRoute />);
+    await user.upload(
+      screen.getByLabelText("Image (optional)"),
+      new File(["cover"], "cover.png", { type: "image/png" }),
+    );
+
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue(
+      publishedPost("post-1", "Post one", 101),
+    );
+    view.rerender(<CreateRoute />);
+    await user.click(
+      screen.getByRole("button", { name: "Load requested document" }),
+    );
+    await screen.findByDisplayValue("Post one");
+
+    editPostIdParam.value = "post-2";
+    getPublishedPostForEditingMock.mockReturnValue(
+      publishedPost("post-2", "Post two", 201),
+    );
+    view.rerender(<CreateRoute />);
+
+    expect(await screen.findByDisplayValue("Post two")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Load requested document" }),
+    ).toBeNull();
+  });
+
   it("adopts a new target after successfully saving a selected cover", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue({
@@ -746,6 +1176,10 @@ describe("CreateRoute", () => {
     );
     await user.click(screen.getByRole("button", { name: "Save Draft" }));
     await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
+    expect(claimSessionMediaMock).toHaveBeenCalledWith({
+      sessionId: "new:new",
+      storageId: "storage-cover",
+    });
 
     editPostIdParam.value = "post-2";
     getPublishedPostForEditingMock.mockReturnValue({
@@ -941,7 +1375,9 @@ describe("CreateRoute", () => {
       screen.getByLabelText("Image (optional)"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
 
     await waitFor(() => {
       expect(
@@ -1039,7 +1475,9 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your thought a name"),
       "A titled post",
     );
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText(/Content must contain/)).toBeInTheDocument();
@@ -1073,14 +1511,15 @@ describe("CreateRoute", () => {
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
-    const button = screen.getByRole("button", { name: /publish/i });
+    await enterReview(user);
+    const button = await screen.findByRole("button", { name: "Publish" });
     await user.click(button);
 
     await waitFor(() => {
       expect(button).toBeDisabled();
     });
 
-    expect(screen.getByText(/saving/i)).toBeInTheDocument();
+    expect(screen.getByText(/publishing/i)).toBeInTheDocument();
   });
 
   it("submits successfully and redirects", async () => {
@@ -1105,7 +1544,8 @@ describe("CreateRoute", () => {
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await enterReview(user);
+    await submitFromReview(user);
 
     await waitFor(() => {
       expect(createPendingUploadMock).toHaveBeenCalled();
@@ -1152,7 +1592,8 @@ describe("CreateRoute", () => {
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await enterReview(user);
+    await submitFromReview(user);
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith("Failed to upload image");
@@ -1175,7 +1616,8 @@ describe("CreateRoute", () => {
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
 
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await enterReview(user);
+    await submitFromReview(user);
 
     await waitFor(() => {
       expect(publishPostMock).toHaveBeenCalledWith(
@@ -1192,6 +1634,65 @@ describe("CreateRoute", () => {
 
     expect(createPendingUploadMock).not.toHaveBeenCalled();
     expect(cleanupPendingUploadsMock).not.toHaveBeenCalled();
+  });
+
+  it("claims inline media and exposes its resolved object URL", async () => {
+    const user = userEvent.setup();
+
+    render(<CreateRoute />);
+    await user.click(
+      screen.getByRole("button", { name: "Register inline upload" }),
+    );
+
+    await waitFor(() => {
+      expect(claimSessionMediaMock).toHaveBeenCalledWith({
+        sessionId: "new:new",
+        storageId: "storage-inline-1",
+      });
+    });
+    expect(screen.getByText(/blob:inline-1/)).toBeInTheDocument();
+  });
+
+  it("renews active claims and releases them when the editor unmounts", async () => {
+    const view = render(<CreateRoute />);
+    await userEvent
+      .setup()
+      .click(
+        await screen.findByRole("button", { name: "Register inline upload" }),
+      );
+    expect(claimSessionMediaMock).toHaveBeenCalled();
+
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    fireEvent.focus(window);
+    expect(renewSessionMediaMock).toHaveBeenCalledWith({
+      sessionId: "new:new",
+      storageIds: ["storage-inline-1"],
+      isVisible: true,
+      isActive: true,
+    });
+    view.unmount();
+    expect(releaseSessionMediaMock).toHaveBeenCalledWith({
+      sessionId: "new:new",
+      storageIds: ["storage-inline-1"],
+    });
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("skips renewal while the document is not focused", async () => {
+    const view = render(<CreateRoute />);
+    await userEvent
+      .setup()
+      .click(
+        await screen.findByRole("button", { name: "Register inline upload" }),
+      );
+
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    fireEvent.focus(window);
+
+    expect(renewSessionMediaMock).not.toHaveBeenCalled();
+    view.unmount();
+    vi.restoreAllMocks();
   });
 
   it("cleans up only the current submit's inline sessions after a failure", async () => {
@@ -1211,7 +1712,8 @@ describe("CreateRoute", () => {
     await user.click(
       screen.getByRole("button", { name: "Register inline upload" }),
     );
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await enterReview(user);
+    await submitFromReview(user);
 
     await waitFor(() => {
       expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
@@ -1240,7 +1742,8 @@ describe("CreateRoute", () => {
     await user.click(
       screen.getByRole("button", { name: "Register inline upload" }),
     );
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await enterReview(user);
+    await submitFromReview(user);
 
     await waitFor(() => {
       expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
@@ -1282,12 +1785,16 @@ describe("CreateRoute", () => {
     await user.click(
       screen.getByRole("button", { name: "Register inline upload" }),
     );
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await enterReview(user);
+    await submitFromReview(user);
 
     await waitFor(() => expect(publishPostMock).toHaveBeenCalled());
 
-    await user.click(
-      screen.getByRole("button", { name: "Register later inline upload" }),
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Register later inline upload",
+        hidden: true,
+      }),
     );
     rejectPublishPost?.(new Error("Invalid inline upload claim"));
 
@@ -1314,7 +1821,9 @@ describe("CreateRoute", () => {
       screen.getByLabelText("Image (optional)"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
 
     await waitFor(() => {
       expect(
@@ -1328,7 +1837,9 @@ describe("CreateRoute", () => {
     await user.click(
       await screen.findByRole("button", { name: "Set short blog content" }),
     );
-    await user.click(screen.getByRole("button", { name: /publish/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
 
     await waitFor(() => {
       expect(

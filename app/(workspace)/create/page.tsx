@@ -4,25 +4,26 @@ import { draftPostSchema, publishPostSchema } from "@/schemas/blog";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
-import type { BlockNoteDocument } from "@/lib/post-content";
+import type { BlockNoteDocument, PostBlock } from "@/lib/post-content";
 import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
-import type { CanonicalProposal } from "@/lib/write-contract";
+import {
+  parseCanonicalDocument,
+  getProposalEqualityKey,
+  type CanonicalProposal,
+} from "@/lib/write-contract";
+import { clearDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
+import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "convex/react";
+import { useConvex, useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Suspense,
+  useCallback,
   useTransition,
   useEffect,
   useMemo,
@@ -34,6 +35,13 @@ import { toast } from "sonner";
 import z from "zod";
 import { getEditorCapabilities, resolveEditorMode } from "./editorMode";
 import DocumentStudio from "./_components/DocumentStudio";
+import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
+import {
+  getReviewBlocker,
+  REVIEW_BLOCKER_MESSAGES,
+} from "./_components/reviewReadiness";
+import ReviewSurface from "./_components/ReviewSurface";
+import { useDraftRecovery } from "./_components/useDraftRecovery";
 import {
   useWritingSession,
   type WritingSessionTarget,
@@ -41,12 +49,7 @@ import {
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
   ssr: false,
-  loading: () => (
-    <div
-      className="min-h-80 rounded-md border border-input bg-background px-3 py-2"
-      aria-hidden="true"
-    />
-  ),
+  loading: () => <div className="min-h-96" aria-hidden="true" />,
 });
 
 const emptyDocument: BlockNoteDocument = {
@@ -54,9 +57,190 @@ const emptyDocument: BlockNoteDocument = {
   blocks: [],
 };
 
+// Matches the server's per-query batch cap in `getOwnedMediaUrls`.
+const RESOLVE_MEDIA_BATCH = 100;
+
 type PostFormInput = z.input<typeof draftPostSchema>;
 type PostFormOutput = z.output<typeof draftPostSchema>;
 type SubmitMode = "draft" | "publish";
+
+function collectInlineMedia(
+  blocks: BlockNoteDocument["blocks"],
+  resolvedImageUrls: Record<string, string | null>,
+  failedIds: readonly string[] = [],
+): MediaAsset[] {
+  const assets: MediaAsset[] = [];
+  const failed = new Set(failedIds);
+  const visit = (items: BlockNoteDocument["blocks"]) => {
+    for (const block of items) {
+      const source = block.props?.source;
+      if (
+        (block.type === "image" ||
+          block.type === "audio" ||
+          block.type === "video") &&
+        typeof source === "object" &&
+        source !== null &&
+        !Array.isArray(source) &&
+        (source as { kind?: unknown }).kind === "storage" &&
+        typeof (source as { id?: unknown }).id === "string"
+      ) {
+        const storageId = (source as { id: string }).id;
+        const url = resolvedImageUrls[storageId];
+        const props = block.props ?? {};
+        const claimFailed = failed.has(storageId);
+        const unavailable = url === null;
+        assets.push({
+          id: storageId,
+          kind: "inline",
+          status:
+            claimFailed || unavailable
+              ? "failed"
+              : url
+                ? "resolved"
+                : "finalizing",
+          ...(claimFailed && { error: "Media claim failed" }),
+          ...(unavailable &&
+            !claimFailed && {
+              error:
+                "This media is no longer available. Re-upload or remove it.",
+            }),
+          ...(url && { url }),
+          fileName: typeof props.name === "string" ? props.name : "",
+        });
+      }
+      if (block.children?.length) visit(block.children);
+    }
+  };
+  visit(blocks);
+  return assets;
+}
+
+/**
+ * True when a proposal carries no authored work: no title, no tags, and only
+ * empty paragraphs. The editor always materializes one empty paragraph, which
+ * otherwise reads as an unsaved change on a brand-new post.
+ */
+function isEffectivelyEmptyProposal(proposal: CanonicalProposal): boolean {
+  if (proposal.title.trim() || proposal.tags.length > 0) return false;
+  const document = parseCanonicalDocument(proposal.body);
+  if (!document) return false;
+  return document.blocks.every(
+    (block) =>
+      block.type === "paragraph" &&
+      (block.content?.length ?? 0) === 0 &&
+      (block.children?.length ?? 0) === 0,
+  );
+}
+
+/**
+ * The silent local draft for a session, if one holds real work. Empty snapshots
+ * are cleared so they never re-open an empty editor.
+ */
+function readRecoveredDraft(sessionKey: string): {
+  document: BlockNoteDocument;
+  proposal: CanonicalProposal;
+  savedAt: number;
+} | null {
+  const snapshot = readDraftRecovery(sessionKey);
+  if (!snapshot) return null;
+  if (isEffectivelyEmptyProposal(snapshot.proposal)) {
+    clearDraftRecovery(sessionKey);
+    return null;
+  }
+  const document = parseCanonicalDocument(snapshot.proposal.body);
+  if (!document) return null;
+  return {
+    document,
+    proposal: snapshot.proposal,
+    savedAt: snapshot.savedAt,
+  };
+}
+
+/**
+ * Replaces or removes a storage-backed media source in a canonical document,
+ * backing the inline-media Retry and Remove actions.
+ */
+function mapDocumentMediaSource(
+  document: BlockNoteDocument,
+  sourceId: string,
+  replacementId: string | null,
+): BlockNoteDocument {
+  const isSource = (value: unknown) =>
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    (value as { kind?: unknown }).kind === "storage" &&
+    (value as { id?: unknown }).id === sourceId;
+
+  const mapBlocks = (blocks: PostBlock[]): PostBlock[] =>
+    blocks.flatMap((block) => {
+      const props = block.props ?? {};
+      if (isSource(props.source)) {
+        if (replacementId === null) return [];
+        return [
+          {
+            ...block,
+            props: {
+              ...props,
+              source: { kind: "storage", id: replacementId },
+            },
+          },
+        ];
+      }
+      if (block.children?.length) {
+        return [{ ...block, children: mapBlocks(block.children) }];
+      }
+      return [block];
+    });
+
+  return { ...document, blocks: mapBlocks(document.blocks) };
+}
+
+/**
+ * Resolves storage-backed media in a restored recovery document back to URLs.
+ * A refresh drops the client's object URLs, so the server is asked which ids
+ * the caller still owns. Unresolved ids become `null`, which `collectInlineMedia`
+ * maps to a failed asset so Review shows recovery guidance instead of being
+ * stuck "finalizing" forever.
+ */
+async function resolveRecoveredMediaUrls(
+  convex: ReturnType<typeof useConvex>,
+  document: BlockNoteDocument,
+  base: Record<string, string | null>,
+): Promise<Record<string, string | null>> {
+  const storageIds = extractImageStorageIds(
+    document.blocks as Parameters<typeof extractImageStorageIds>[0],
+  );
+  if (storageIds.length === 0) return base;
+
+  // Default every requested id to null until the server resolves it, so a
+  // failed or partial query still marks the asset unavailable rather than
+  // leaving it "finalizing" and blocking Review forever.
+  const urls: Record<string, string | null> = { ...base };
+  for (const storageId of storageIds) {
+    urls[storageId] = null;
+  }
+
+  try {
+    for (
+      let start = 0;
+      start < storageIds.length;
+      start += RESOLVE_MEDIA_BATCH
+    ) {
+      const batch = storageIds.slice(start, start + RESOLVE_MEDIA_BATCH);
+      const resolved = await convex.query(
+        api.sessionMediaClaims.getOwnedMediaUrls,
+        { storageIds: batch as Id<"_storage">[] },
+      );
+      for (const { storageId, url } of resolved) {
+        urls[storageId] = url;
+      }
+    }
+  } catch {
+    // Keep the null defaults for anything the server could not resolve.
+  }
+  return urls;
+}
 
 /**
  * Renders the authenticated blog post creation page.
@@ -80,9 +264,13 @@ export default function CreateRoute() {
 }
 
 function CreateEditor() {
+  const convex = useConvex();
+  const { uploadFile } = useBlockNoteFileUpload();
   const [isPending, startTransition] = useTransition();
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
+  const [coverImageUrl, setCoverImageUrl] = useState<string | undefined>();
+  const coverObjectUrlRef = useRef<string | undefined>(undefined);
   const [acceptedTargetError, setAcceptedTargetError] = useState<{
     targetKey: string;
     message: string;
@@ -108,6 +296,9 @@ function CreateEditor() {
     api.pendingUploads.finalizePendingUpload,
   );
   const cleanupPendingUploads = useMutation(api.pendingUploads.cleanupPending);
+  const claimSessionMedia = useMutation(api.sessionMediaClaims.claim);
+  const renewSessionMedia = useMutation(api.sessionMediaClaims.renew);
+  const releaseSessionMedia = useMutation(api.sessionMediaClaims.release);
   const saveDraft = useMutation(api.posts.saveDraft);
   const publishPost = useMutation(api.posts.publishPost);
   const updatePublishedPost = useMutation(api.posts.updatePublishedPost);
@@ -115,6 +306,10 @@ function CreateEditor() {
   const inlineSessions = useRef(
     new Map<Id<"pendingUploads">, Id<"_storage">>(),
   );
+  const clearedCoverSelection = useRef<File | undefined>(undefined);
+  const selectedCoverRef = useRef<File | undefined>(undefined);
+  const claimedMedia = useRef(new Set<Id<"_storage">>());
+  const [recoveryNonce, setRecoveryNonce] = useState(0);
 
   const form = useForm<PostFormInput, undefined, PostFormOutput>({
     resolver: zodResolver(draftPostSchema),
@@ -166,6 +361,34 @@ function CreateEditor() {
       : "skip",
   );
   const watchedValues = useWatch({ control: form.control });
+  const inlineMedia = useMemo(
+    () =>
+      collectInlineMedia(
+        watchedValues.content?.blocks ?? [],
+        resolvedImageUrls,
+        sessionState.media.failed,
+      ),
+    [resolvedImageUrls, sessionState.media.failed, watchedValues.content],
+  );
+  const coverMedia = useMemo<MediaAsset | null>(() => {
+    const selected = watchedValues.image;
+    if (selected instanceof File) {
+      return {
+        id: "cover-selection",
+        kind: "cover",
+        status: "choosing",
+        fileName: selected.name,
+        ...(coverImageUrl && { url: coverImageUrl }),
+      };
+    }
+    if (!coverStorageId) return null;
+    return {
+      id: coverStorageId,
+      kind: "cover",
+      status: "resolved",
+      ...(coverImageUrl && { url: coverImageUrl }),
+    };
+  }, [coverImageUrl, coverStorageId, watchedValues.image]);
   const proposal = useMemo<CanonicalProposal>(
     () => ({
       title: watchedValues.title ?? "",
@@ -182,6 +405,23 @@ function CreateEditor() {
   );
   const hydratedSessionKey = useRef<string | undefined>(undefined);
   const activeSessionKeyRef = useRef<string | undefined>(undefined);
+  const claimRecoveredMedia = useCallback(
+    (urls: Record<string, string | null>) => {
+      const sessionId = activeSessionKeyRef.current ?? "new:new";
+      for (const [storageId, url] of Object.entries(urls)) {
+        if (!url) continue;
+        void Promise.resolve(
+          claimSessionMedia({
+            sessionId,
+            storageId: storageId as Id<"_storage">,
+          }),
+        ).catch(() => {
+          // Re-claiming is best effort; the resolved URL still renders.
+        });
+      }
+    },
+    [claimSessionMedia],
+  );
   const requestedTarget = useMemo(
     () =>
       requestedEditorMode.mode === "invalid"
@@ -209,6 +449,18 @@ function CreateEditor() {
       ? `${pendingTarget.editorMode}:${pendingTarget.id ?? "new"}`
       : undefined;
 
+    // A hydrated or adopted target replaces the active session's cover state, so
+    // drop any residual selected cover file. Otherwise the transition guard
+    // keeps prompting about a cover that no longer belongs to the form.
+    const resetCoverSelectionRefs = () => {
+      selectedCoverRef.current = undefined;
+      clearedCoverSelection.current = undefined;
+      if (coverObjectUrlRef.current) {
+        URL.revokeObjectURL(coverObjectUrlRef.current);
+        coverObjectUrlRef.current = undefined;
+      }
+    };
+
     if (pendingTarget && pendingSessionKey !== activeSessionKey) {
       if (pendingTarget.editorMode === "new") {
         form.reset({
@@ -228,7 +480,9 @@ function CreateEditor() {
         });
         setAcceptedTargetError(undefined);
         setDraftId(undefined);
+        resetCoverSelectionRefs();
         setCoverStorageId(undefined);
+        setCoverImageUrl(undefined);
         setInitialContent(emptyDocument);
         setResolvedImageUrls({});
         hydratedSessionKey.current = pendingSessionKey;
@@ -281,7 +535,9 @@ function CreateEditor() {
       });
       setAcceptedTargetError(undefined);
       if (pendingTarget.editorMode === "draft") setDraftId(pendingData._id);
+      resetCoverSelectionRefs();
       setCoverStorageId(pendingData.imageStorageId ?? undefined);
+      setCoverImageUrl(pendingData.imageUrl ?? undefined);
       setInitialContent(parsed.document);
       setResolvedImageUrls(
         Object.fromEntries(
@@ -307,14 +563,9 @@ function CreateEditor() {
     const sessionKey = activeSessionKey;
     if (hydratedSessionKey.current === sessionKey) return;
     if (sessionState.dirty) return;
+    resetCoverSelectionRefs();
 
     if (editorMode.mode === "new") {
-      form.reset({
-        title: "",
-        content: emptyDocument,
-        tags: [],
-        image: undefined,
-      });
       dispatchSession({
         type: "establishBaseline",
         proposal: {
@@ -324,9 +575,39 @@ function CreateEditor() {
         },
       });
       setDraftId(undefined);
-      setCoverStorageId(undefined);
-      setInitialContent(emptyDocument);
-      setResolvedImageUrls({});
+      const recovered = readRecoveredDraft(sessionKey);
+      if (recovered) {
+        form.reset({
+          title: recovered.proposal.title,
+          content: recovered.document,
+          tags: recovered.proposal.tags as PostFormInput["tags"],
+          image: undefined,
+        });
+        setCoverStorageId(
+          recovered.proposal.imageStorageId as Id<"_storage"> | undefined,
+        );
+        setCoverImageUrl(undefined);
+        setInitialContent(recovered.document);
+        void resolveRecoveredMediaUrls(convex, recovered.document, {}).then(
+          (urls) => {
+            if (hydratedSessionKey.current !== sessionKey) return;
+            setResolvedImageUrls(urls);
+            claimRecoveredMedia(urls);
+            setRecoveryNonce((nonce) => nonce + 1);
+          },
+        );
+      } else {
+        form.reset({
+          title: "",
+          content: emptyDocument,
+          tags: [],
+          image: undefined,
+        });
+        setCoverStorageId(undefined);
+        setCoverImageUrl(undefined);
+        setInitialContent(emptyDocument);
+        setResolvedImageUrls({});
+      }
       hydratedSessionKey.current = sessionKey;
       return;
     }
@@ -348,32 +629,77 @@ function CreateEditor() {
       return;
     }
 
-    form.reset({
+    const serverProposal: CanonicalProposal = {
       title: target.title,
-      content: parsed.document,
-      tags: target.tags as PostFormInput["tags"],
-      image: undefined,
-    });
+      body: JSON.stringify(parsed.document),
+      tags: target.tags,
+      ...(target.imageStorageId && { imageStorageId: target.imageStorageId }),
+    };
     dispatchSession({
       type: "establishBaseline",
-      proposal: {
-        title: target.title,
-        body: JSON.stringify(parsed.document),
-        tags: target.tags,
-        ...(target.imageStorageId && { imageStorageId: target.imageStorageId }),
-      },
+      proposal: serverProposal,
       expectedUpdatedAt: target.updatedAt,
     });
-    if (editorMode.mode === "draft") setDraftId(target._id);
-    setCoverStorageId(target.imageStorageId ?? undefined);
-    setInitialContent(parsed.document);
-    setResolvedImageUrls(
-      Object.fromEntries(
-        target.inlineImages.map(({ storageId, url }) => [storageId, url]),
-      ),
+    const serverImages = Object.fromEntries(
+      target.inlineImages.map(({ storageId, url }) => [storageId, url]),
     );
+    const recovered = readRecoveredDraft(sessionKey);
+    const serverUpdatedAt =
+      typeof target.updatedAt === "number" ? target.updatedAt : 0;
+    const matchesServer =
+      recovered !== null &&
+      getProposalEqualityKey(recovered.proposal) ===
+        getProposalEqualityKey(serverProposal);
+    // Restore only genuinely newer local work. A snapshot that matches the
+    // server, or predates the server's latest save, is stale and must not
+    // overwrite edits another client already persisted.
+    const useRecovered =
+      recovered !== null &&
+      !matchesServer &&
+      recovered.savedAt > serverUpdatedAt;
+    if (recovered && !useRecovered) {
+      clearDraftRecovery(sessionKey);
+    }
+
+    if (recovered && useRecovered) {
+      form.reset({
+        title: recovered.proposal.title,
+        content: recovered.document,
+        tags: recovered.proposal.tags as PostFormInput["tags"],
+        image: undefined,
+      });
+      setCoverStorageId(
+        recovered.proposal.imageStorageId as Id<"_storage"> | undefined,
+      );
+      setCoverImageUrl(undefined);
+      setInitialContent(recovered.document);
+      void resolveRecoveredMediaUrls(
+        convex,
+        recovered.document,
+        serverImages,
+      ).then((urls) => {
+        if (hydratedSessionKey.current !== sessionKey) return;
+        setResolvedImageUrls(urls);
+        claimRecoveredMedia(urls);
+        setRecoveryNonce((nonce) => nonce + 1);
+      });
+    } else {
+      form.reset({
+        title: target.title,
+        content: parsed.document,
+        tags: target.tags as PostFormInput["tags"],
+        image: undefined,
+      });
+      setCoverStorageId(target.imageStorageId ?? undefined);
+      setCoverImageUrl(target.imageUrl ?? undefined);
+      setInitialContent(parsed.document);
+      setResolvedImageUrls(serverImages);
+    }
+    if (editorMode.mode === "draft") setDraftId(target._id);
     hydratedSessionKey.current = sessionKey;
   }, [
+    claimRecoveredMedia,
+    convex,
     editorMode.mode,
     form,
     hydratedDraft,
@@ -395,29 +721,45 @@ function CreateEditor() {
   }, [dispatchSession, proposal, sessionState.baseline]);
 
   useEffect(() => {
+    if (
+      clearedCoverSelection.current &&
+      watchedValues.image === clearedCoverSelection.current
+    ) {
+      clearedCoverSelection.current = undefined;
+      return;
+    }
+    const pending = inlineMedia
+      .filter(
+        (asset) =>
+          asset.status === "uploading" || asset.status === "finalizing",
+      )
+      .map((asset) => asset.id);
+    const failed = inlineMedia
+      .filter(
+        (asset) => asset.status === "failed" || asset.status === "expired",
+      )
+      .map((asset) => asset.id);
     const coverSelected = Boolean(watchedValues.image);
-    if (sessionState.media.coverSelected === coverSelected) return;
+    if (
+      sessionState.media.coverSelected === coverSelected &&
+      sessionState.media.pending.join("|") === pending.join("|") &&
+      sessionState.media.failed.join("|") === failed.join("|")
+    )
+      return;
     dispatchSession({
       type: "setMedia",
-      media: { ...sessionState.media, coverSelected },
+      media: { ...sessionState.media, coverSelected, pending, failed },
     });
-  }, [dispatchSession, sessionState.media, watchedValues.image]);
+  }, [dispatchSession, inlineMedia, sessionState.media, watchedValues.image]);
 
-  if (requestedEditorMode.mode === "invalid" && !sessionState.dirty) {
-    return (
-      <DocumentStudio
-        mode="invalid"
-        state="unavailable"
-        status={
-          <UnavailableState
-            message="This editor request is unavailable."
-            recoveryLabel="Back to Dashboard"
-            onRecover={() => router.push("/dashboard")}
-          />
-        }
-      />
-    );
-  }
+  useEffect(
+    () => () => {
+      if (coverObjectUrlRef.current) {
+        URL.revokeObjectURL(coverObjectUrlRef.current);
+      }
+    },
+    [],
+  );
 
   const target =
     editorMode.mode === "draft"
@@ -440,11 +782,68 @@ function CreateEditor() {
 
   const activeSessionKey = `${editorMode.mode}:${editorMode.id ?? "new"}`;
   activeSessionKeyRef.current = activeSessionKey;
+
+  useDraftRecovery({
+    sessionKey: activeSessionKey,
+    ready: sessionState.baseline !== null,
+    dirty: sessionState.dirty,
+    proposal,
+  });
+
+  useEffect(() => {
+    const sessionKey = activeSessionKey;
+    const renew = () => {
+      const storageIds = [...claimedMedia.current];
+      if (storageIds.length === 0) return;
+      const isVisible = document.visibilityState === "visible";
+      const isActive = document.hasFocus();
+      if (!isVisible || !isActive) return;
+      void Promise.resolve(
+        renewSessionMedia({
+          sessionId: sessionKey,
+          storageIds,
+          isVisible,
+          isActive,
+        }),
+      ).catch(() => undefined);
+    };
+    const interval = window.setInterval(renew, 5 * 60 * 1000);
+    document.addEventListener("visibilitychange", renew);
+    window.addEventListener("focus", renew);
+    const claimedStorageIds = claimedMedia.current;
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", renew);
+      window.removeEventListener("focus", renew);
+      const storageIds = [...claimedStorageIds];
+      if (storageIds.length === 0) return;
+      void Promise.resolve(
+        releaseSessionMedia({ sessionId: sessionKey, storageIds }),
+      ).catch(() => undefined);
+      claimedStorageIds.clear();
+    };
+  }, [activeSessionKey, releaseSessionMedia, renewSessionMedia]);
+
+  if (requestedEditorMode.mode === "invalid" && !sessionState.dirty) {
+    return (
+      <DocumentStudio
+        mode="invalid"
+        state="unavailable"
+        status={
+          <UnavailableState
+            message="This editor request is unavailable."
+            recoveryLabel="Back to Dashboard"
+            onRecover={() => router.push("/dashboard")}
+          />
+        }
+      />
+    );
+  }
   const requestedSessionKey = requestedTarget
     ? `${requestedTarget.editorMode}:${requestedTarget.id ?? "new"}`
     : undefined;
   const targetTransition =
-    sessionState.dirty &&
+    (sessionState.dirty || Boolean(selectedCoverRef.current)) &&
     requestedTarget &&
     requestedSessionKey !== activeSessionKey
       ? requestedTarget
@@ -572,6 +971,11 @@ function CreateEditor() {
             throw new Error("Invalid inline upload session");
           }
           submitSessions.set(session.sessionId, storageId);
+          await claimSessionMedia({
+            sessionId: operationSessionKey,
+            storageId,
+          });
+          claimedMedia.current.add(storageId);
         }
 
         const savedCoverStorageId = storageId ?? coverStorageId;
@@ -659,6 +1063,8 @@ function CreateEditor() {
           submittedImage &&
           form.getValues("image") === submittedImage
         ) {
+          clearedCoverSelection.current = submittedImage;
+          selectedCoverRef.current = undefined;
           form.resetField("image", { defaultValue: undefined });
         }
         if (isCurrentSession) setInitialContent(values.content);
@@ -672,6 +1078,17 @@ function CreateEditor() {
             expectedUpdatedAt: result.updatedAt,
           },
         });
+        const currentCoverSelection = selectedCoverRef.current;
+        if (
+          isCurrentSession &&
+          currentCoverSelection &&
+          currentCoverSelection !== submittedImage
+        ) {
+          dispatchSession({
+            type: "setMedia",
+            media: { ...sessionState.media, coverSelected: true },
+          });
+        }
         operationSessionKeySettled = true;
         if (isCurrentSession) {
           draftSaved = mode === "draft";
@@ -753,6 +1170,102 @@ function CreateEditor() {
     });
   }
 
+  const reviewing = sessionState.presentation === "review";
+  const reviewBlocker = getReviewBlocker(sessionState.media);
+  const reviewInlineImages = Object.entries(resolvedImageUrls)
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+    .map(([storageId, url]) => ({ storageId, url }));
+
+  function retryInlineMedia(storageId: string) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*,audio/*,video/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      void (async () => {
+        try {
+          const nextStorageId = await uploadFile(file);
+          const objectUrl = URL.createObjectURL(file);
+          setResolvedImageUrls((current) => ({
+            ...current,
+            [nextStorageId]: objectUrl,
+          }));
+          const nextContent = mapDocumentMediaSource(
+            watchedValues.content as BlockNoteDocument,
+            storageId,
+            nextStorageId,
+          );
+          form.setValue("content", nextContent, {
+            shouldDirty: true,
+            shouldTouch: true,
+          });
+          setInitialContent(nextContent);
+          dispatchSession({ type: "clearFailedMedia", storageId });
+          void Promise.resolve(
+            claimSessionMedia({
+              sessionId: activeSessionKeyRef.current ?? "new:new",
+              storageId: nextStorageId as Id<"_storage">,
+            }),
+          ).catch(() => {});
+          setRecoveryNonce((nonce) => nonce + 1);
+        } catch {
+          toast.error("Could not replace the media. Try again or remove it.");
+        }
+      })();
+    };
+    input.click();
+  }
+
+  function removeInlineMedia(storageId: string) {
+    const nextContent = mapDocumentMediaSource(
+      watchedValues.content as BlockNoteDocument,
+      storageId,
+      null,
+    );
+    form.setValue("content", nextContent, {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    setInitialContent(nextContent);
+    setResolvedImageUrls((current) => {
+      const next = { ...current };
+      delete next[storageId];
+      return next;
+    });
+    dispatchSession({ type: "clearFailedMedia", storageId });
+    void Promise.resolve(
+      releaseSessionMedia({
+        sessionId: activeSessionKeyRef.current ?? "new:new",
+        storageIds: [storageId as Id<"_storage">],
+      }),
+    ).catch(() => {});
+    setRecoveryNonce((nonce) => nonce + 1);
+  }
+
+  function enterReview() {
+    if (reviewBlocker) {
+      toast.error(REVIEW_BLOCKER_MESSAGES[reviewBlocker]);
+      return;
+    }
+    void form.handleSubmit((values) => {
+      const publishValues = publishPostSchema.safeParse(values);
+      if (!publishValues.success) {
+        const issue = publishValues.error.issues[0];
+        const field = issue?.path[0];
+        if (field === "title" || field === "content") {
+          form.setError(field, { message: issue.message });
+        }
+        return;
+      }
+      dispatchSession({ type: "enterReview" });
+    })();
+  }
+
+  function submitFromReview() {
+    void form.handleSubmit((values) => onSubmit(values, "publish"))();
+  }
+
   return (
     <form
       onSubmit={(event) => {
@@ -763,84 +1276,148 @@ function CreateEditor() {
         mode={editorMode.mode}
         notice={transitionNotice}
         heading={
-          editorMode.mode === "published-edit"
-            ? "Edit Published Post"
-            : "New Post"
+          reviewing
+            ? undefined
+            : editorMode.mode === "published-edit"
+              ? "Edit Published Post"
+              : "New Post"
         }
-        description="Give your ideas a home. Draft a deep dive, share a quick update, or capture a fleeting thought to share with your community."
+        description={
+          reviewing
+            ? undefined
+            : "Give your ideas a home. Draft a deep dive, share a quick update, or capture a fleeting thought to share with your community."
+        }
         title={
-          <Controller
-            name="title"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field>
-                <FieldLabel>Blog Title</FieldLabel>
-                <FieldDescription>
-                  This becomes the title of your published post.
-                </FieldDescription>
-                <Input
-                  aria-invalid={fieldState.invalid}
-                  placeholder="Give your thought a name"
-                  {...field}
-                />
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
-        }
-        body={
-          <Controller
-            name="content"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel id="blog-content-label">Blog Content</FieldLabel>
-                <PostBodyEditor
-                  key={`${editorMode.mode}:${editorMode.id ?? "new"}`}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  invalid={fieldState.invalid}
-                  isDirty={sessionState.dirty}
-                  labelledBy="blog-content-label"
-                  initialContent={initialContent}
-                  resolvedImageUrls={resolvedImageUrls}
-                  onUploadSessionCreated={(sessionId, storageId) =>
-                    inlineSessions.current.set(sessionId, storageId)
-                  }
-                />
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
-        }
-        details={
-          <FieldGroup className="gap-y-4">
+          <div
+            hidden={reviewing}
+            inert={reviewing ? true : undefined}
+            aria-hidden={reviewing || undefined}
+          >
             <Controller
-              name="image"
+              name="title"
               control={form.control}
               render={({ field, fieldState }) => (
-                <Field>
-                  <FieldLabel htmlFor="image">Image (optional)</FieldLabel>
+                <div className="space-y-2">
                   <Input
-                    id="image"
-                    type="file"
-                    accept="image/*"
+                    aria-label="Blog title"
                     aria-invalid={fieldState.invalid}
-                    placeholder="Choose an image to upload"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      field.onChange(file);
-                    }}
+                    className="h-auto border-0 bg-transparent px-0 py-2 text-4xl font-semibold tracking-tight shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0 sm:text-5xl"
+                    placeholder="Give your thought a name"
+                    {...field}
                   />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
-                </Field>
+                </div>
               )}
+            />
+          </div>
+        }
+        body={
+          <>
+            <div
+              hidden={reviewing}
+              inert={reviewing ? true : undefined}
+              aria-hidden={reviewing || undefined}
+            >
+              <Controller
+                name="content"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <div data-invalid={fieldState.invalid}>
+                    <span id="blog-content-label" className="sr-only">
+                      Blog content
+                    </span>
+                    <PostBodyEditor
+                      key={`${editorMode.mode}:${editorMode.id ?? "new"}:${recoveryNonce}`}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      invalid={fieldState.invalid}
+                      isDirty={sessionState.dirty}
+                      labelledBy="blog-content-label"
+                      initialContent={initialContent}
+                      resolvedImageUrls={resolvedImageUrls}
+                      onUploadSessionCreated={(
+                        sessionId,
+                        storageId,
+                        objectUrl,
+                      ) => {
+                        inlineSessions.current.set(sessionId, storageId);
+                        setResolvedImageUrls((current) => ({
+                          ...current,
+                          [storageId]: objectUrl,
+                        }));
+                        claimedMedia.current.add(storageId);
+                        void Promise.resolve(
+                          claimSessionMedia({
+                            sessionId: activeSessionKeyRef.current ?? "new:new",
+                            storageId,
+                          }),
+                        ).catch(() => {
+                          dispatchSession({
+                            type: "appendFailedMedia",
+                            storageId,
+                          });
+                        });
+                      }}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </div>
+                )}
+              />
+            </div>
+            {reviewing && sessionState.proposal && (
+              <ReviewSurface
+                mode={editorMode.mode}
+                proposal={sessionState.proposal}
+                inlineImages={reviewInlineImages}
+                coverUrl={coverImageUrl}
+                pending={isPending}
+                onBack={() => dispatchSession({ type: "returnToEdit" })}
+                onSubmit={submitFromReview}
+              />
+            )}
+          </>
+        }
+        details={
+          <FieldGroup className="gap-y-4">
+            <MediaAuthoring
+              inlineImages={inlineMedia}
+              cover={coverMedia}
+              coverInputAriaLabel="Image (optional)"
+              onChooseCover={(file) =>
+                (() => {
+                  selectedCoverRef.current = file;
+                  if (coverObjectUrlRef.current) {
+                    URL.revokeObjectURL(coverObjectUrlRef.current);
+                  }
+                  const objectUrl = URL.createObjectURL(file);
+                  coverObjectUrlRef.current = objectUrl;
+                  setCoverImageUrl(objectUrl);
+                  form.setValue("image", file, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                  });
+                  dispatchSession({
+                    type: "setMedia",
+                    media: { ...sessionState.media, coverSelected: true },
+                  });
+                })()
+              }
+              onRemoveCover={() => {
+                selectedCoverRef.current = undefined;
+                if (coverObjectUrlRef.current) {
+                  URL.revokeObjectURL(coverObjectUrlRef.current);
+                  coverObjectUrlRef.current = undefined;
+                }
+                setCoverImageUrl(undefined);
+                form.resetField("image", { defaultValue: undefined });
+                setCoverStorageId(undefined);
+              }}
+              onRetry={retryInlineMedia}
+              onRemoveInline={removeInlineMedia}
             />
             <Controller
               name="tags"
@@ -855,55 +1432,44 @@ function CreateEditor() {
           </FieldGroup>
         }
         actions={
-          <>
-            {capabilities.canSaveDraft && (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isPending || Boolean(sessionState.pendingTarget)}
-                onClick={() => {
-                  void form.handleSubmit((values) =>
-                    onSubmit(values, "draft"),
-                  )();
-                }}
-              >
-                Save Draft
-              </Button>
-            )}
-            {capabilities.canUpdate && (
-              <Button
-                type="button"
-                disabled={isPending || Boolean(sessionState.pendingTarget)}
-                onClick={() => {
-                  void form.handleSubmit((values) =>
-                    onSubmit(values, "publish"),
-                  )();
-                }}
-              >
-                {isPending ? "Updating..." : "Update Published Post"}
-              </Button>
-            )}
-            {capabilities.canPublish && (
-              <Button
-                type="button"
-                disabled={isPending || Boolean(sessionState.pendingTarget)}
-                onClick={() => {
-                  void form.handleSubmit((values) =>
-                    onSubmit(values, "publish"),
-                  )();
-                }}
-              >
-                {isPending ? (
-                  <>
-                    <Loader2 className="animate-spin size-4" />
-                    <span className="ml-2">Saving...</span>
-                  </>
-                ) : (
-                  <span>Publish</span>
-                )}
-              </Button>
-            )}
-          </>
+          reviewing ? undefined : (
+            <>
+              {capabilities.canSaveDraft && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending || Boolean(sessionState.pendingTarget)}
+                  onClick={() => {
+                    void form.handleSubmit((values) =>
+                      onSubmit(values, "draft"),
+                    )();
+                  }}
+                >
+                  Save Draft
+                </Button>
+              )}
+              {capabilities.canPublish && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending || Boolean(sessionState.pendingTarget)}
+                  onClick={enterReview}
+                >
+                  Review for publication
+                </Button>
+              )}
+              {capabilities.canUpdate && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending || Boolean(sessionState.pendingTarget)}
+                  onClick={enterReview}
+                >
+                  Review Update
+                </Button>
+              )}
+            </>
+          )
         }
       />
     </form>

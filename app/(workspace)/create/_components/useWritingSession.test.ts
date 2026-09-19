@@ -150,6 +150,19 @@ describe("writingSessionReducer", () => {
     expect(state.dirty).toBe(true);
   });
 
+  it("allows entering Review from a clean saved session", () => {
+    let state = createInitialWritingSessionState("draft");
+    state = reduce(state, {
+      type: "establishBaseline",
+      proposal: changedProposal,
+    });
+    expect(state.dirty).toBe(false);
+
+    state = reduce(state, { type: "enterReview" });
+
+    expect(state.presentation).toBe("review");
+  });
+
   it("tracks an in-flight operation and adopts a successful save baseline", () => {
     let state = createInitialWritingSessionState("draft");
     state = reduce(state, { type: "setProposal", proposal: changedProposal });
@@ -297,6 +310,26 @@ describe("writingSessionReducer", () => {
       media: { pending: [], failed: [], coverSelected: true },
     });
     expect(state.dirty).toBe(true);
+  });
+
+  it("appends failed media without dropping earlier failures", () => {
+    let state = createInitialWritingSessionState("new");
+    state = reduce(state, { type: "appendFailedMedia", storageId: "a" });
+    state = reduce(state, { type: "appendFailedMedia", storageId: "b" });
+    state = reduce(state, { type: "appendFailedMedia", storageId: "a" });
+
+    expect(state.media.failed).toEqual(["a", "b"]);
+    expect(state.dirty).toBe(true);
+  });
+
+  it("clears a single failed media id", () => {
+    let state = createInitialWritingSessionState("new");
+    state = reduce(state, { type: "appendFailedMedia", storageId: "a" });
+    state = reduce(state, { type: "appendFailedMedia", storageId: "b" });
+
+    state = reduce(state, { type: "clearFailedMedia", storageId: "a" });
+
+    expect(state.media.failed).toEqual(["b"]);
   });
 
   it("locks without discarding the proposal and deliberately replaces it on Load latest", () => {

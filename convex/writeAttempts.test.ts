@@ -191,7 +191,27 @@ it("executes a reserved draft save once and replays its result", async () => {
       updatedAt: 1,
     }),
   );
-  const nextProposal = { ...proposal, title: "Saved title" };
+  const nextProposal = {
+    ...proposal,
+    title: "Saved title",
+    body: JSON.stringify({
+      format: "blocknote@1",
+      blocks: [
+        {
+          type: "heading",
+          props: { level: 1 },
+          content: [{ type: "text", text: "Heading" }],
+          children: [
+            {
+              type: "heading",
+              props: { level: 7 },
+              content: [{ type: "text", text: "Nested" }],
+            },
+          ],
+        },
+      ],
+    }),
+  };
   const reservation = await t
     .withIdentity(identity)
     .mutation(api.writeAttempts.reserveAttempt, {
@@ -211,6 +231,11 @@ it("executes a reserved draft save once and replays its result", async () => {
   expect(result).toMatchObject({
     postId: draftId,
     status: "draft",
+  });
+  const saved = await t.run(async (ctx) => ctx.db.get(draftId));
+  expect(JSON.parse(saved!.body).blocks[0]).toMatchObject({
+    props: { level: 2 },
+    children: [{ props: { level: 6 } }],
   });
 
   await expect(
@@ -420,8 +445,9 @@ it("persists and replays deterministic validation failures after expiry", async 
         {
           type: "image",
           props: {
-            storageId: "image-1",
-            altText: "x".repeat(1_001),
+            url: "image-1",
+            name: "A publication image",
+            caption: "x".repeat(5_001),
           },
         },
       ],
@@ -446,7 +472,7 @@ it("persists and replays deterministic validation failures after expiry", async 
   expect(failed).toEqual({
     kind: "failed",
     category: "capacity",
-    message: "Image alt text is too long.",
+    message: "Image caption is too long.",
   });
   await expect(
     t.run(async (ctx) => ctx.db.get(draftId)),
@@ -802,8 +828,8 @@ it("publishes 100 inline images and a cover through the write lifecycle", async 
       blocks: storageIds.slice(0, 100).map((storageId, index) => ({
         type: "image",
         props: {
-          storageId,
-          altText: "A publication image",
+          url: storageId,
+          name: "A publication image",
           ...(index === 0
             ? { caption: "This publication has enough readable content." }
             : {}),

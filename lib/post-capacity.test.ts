@@ -108,6 +108,82 @@ describe("post capacity", () => {
     });
   });
 
+  it("counts table cell text and inline nodes toward capacity", async () => {
+    const capacity = await import("./post-capacity");
+    const tableDocument = {
+      format: "blocknote@1",
+      blocks: [
+        {
+          type: "table",
+          props: { textColor: "default" },
+          content: {
+            type: "tableContent",
+            columnWidths: [null],
+            rows: [
+              {
+                cells: [
+                  {
+                    type: "tableCell",
+                    content: [
+                      {
+                        type: "link",
+                        href: "https://example.com",
+                        content: [{ type: "text", text: "cell text" }],
+                      },
+                    ],
+                    props: {
+                      colspan: 1,
+                      rowspan: 1,
+                      backgroundColor: "default",
+                      textColor: "default",
+                      textAlignment: "left",
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    } as unknown as BlockNoteDocument;
+
+    expect(capacity.getCanonicalBodyText(tableDocument.blocks)).toContain(
+      "cell text",
+    );
+
+    const measurements = capacity.measurePostContent(tableDocument);
+    expect(measurements.textCodePoints).toBeGreaterThan(0);
+    expect(measurements.inlineNodeCount).toBeGreaterThan(0);
+    expect(measurements.urlCodePoints).toBeGreaterThan(0);
+  });
+
+  it("counts audio and video captions toward readable text and caption limits", async () => {
+    const capacity = await import("./post-capacity");
+    const audioDocument = {
+      format: "blocknote@1",
+      blocks: [
+        {
+          type: "audio",
+          props: {
+            source: { kind: "url", url: "https://cdn.example.com/audio.mp3" },
+            name: "audio.mp3",
+            caption: "Audio caption text",
+            backgroundColor: "default",
+            showPreview: true,
+          },
+        },
+      ],
+    } as unknown as BlockNoteDocument;
+
+    expect(capacity.getCanonicalBodyText(audioDocument.blocks)).toContain(
+      "Audio caption text",
+    );
+
+    const measurements = capacity.measurePostContent(audioDocument);
+    expect(measurements.captionCodePoints).toBeGreaterThan(0);
+    expect(measurements.textCodePoints).toBeGreaterThan(0);
+  });
+
   it("returns typed errors for exact and one-over text, URL, and source-byte limits", async () => {
     const capacity = await import("./post-capacity");
     const validatePostCapacity = (capacity as Record<string, unknown>)[

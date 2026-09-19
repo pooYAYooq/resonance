@@ -71,8 +71,8 @@ describe("blog post generateMetadata", () => {
           {
             type: "image",
             props: {
-              storageId: "storage-secret-1",
-              altText: "internal alt description",
+              url: "storage-secret-1",
+              name: "internal file name",
             },
           },
         ],
@@ -85,7 +85,7 @@ describe("blog post generateMetadata", () => {
     expect(metadata.description).toContain("Readable excerpt text");
     expect(metadata.description).not.toContain("blocknote@1");
     expect(metadata.description).not.toContain("storage-secret-1");
-    expect(metadata.description).not.toContain("internal alt description");
+    expect(metadata.description).not.toContain("internal file name");
     expect(metadata.description).not.toMatch(/[{}\[\]"]+/);
     expect(metadata.openGraph?.description).toBe(metadata.description);
   });
