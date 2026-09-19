@@ -7,7 +7,10 @@ the remaining Phase 3A redesign work.
 
 **Current delivery position:** Phase 3A.0, Phase 3A.1 Product Structure, and
 Phase 3A.2 Discover Foundations are shipped. Phase 3A.3, Writing and Content
-Management, is the sole next delivery focus.
+Management, is the sole next delivery focus. Within it, Track 1's
+standard-BlockNote authoring and Review baseline is merged to `main` (PR #72,
+merge commit `1bc54ef`); Track 1 remains open on a UI/UX follow-up backlog, and
+Track 4 (management, navigation, accessibility) is not started.
 
 **Required fresh-session reading order:**
 
@@ -175,6 +178,12 @@ of misleading public placeholders are complete.
 
 ### 3A.3: Writing and Content Management
 
+Shipped baseline (Track 1, PR #72): full-page Create/Edit environment inside the
+workspace shell, the explicit Preview/Review -> Publish publication sequence, and
+silent local draft recovery. Open: the Track 1 UI/UX follow-up backlog
+(media-state wording and affordances, layout consistency, reader typography, and
+reader author identity) and the remaining scope below.
+
 - Full-page Create/Edit environment inside the workspace shell.
 - Preview/Review -> explicit Publish -> newly published post.
 - My Posts and Drafts management rows.
@@ -292,14 +301,14 @@ of misleading public placeholders are complete.
 
 ## Delivery Slice Map
 
-| Slice                                  | Product outcome                                                                                 | Scope areas crossed                                           | Why this combination is deliberate                                                                                                   | Explicitly later                                                              |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| 0. Documentation Canonicalization      | One durable source of truth, decision log, roadmap, and resume point.                           | Delivery governance                                           | Prevents rediscovery and conflicting instructions before any code changes.                                                           | Application implementation.                                                   |
-| 1. Product Structure                   | Coherent shells/navigation, reader utilities, Settings/Profile split, and analytics relocation. | 3A.1 plus Saved/Liked data foundations needed for navigation. | A sidebar cannot expose working reader utilities until their routes/access paths exist. The shell boundary must be established once. | Dashboard Overview redesign, final card variants, Discover, writing redesign. |
-| 2. Discover Foundations                | Real Search, Latest, Topics, and Feed recovery to Discover.                                     | 3A.2 with editorial post presentation foundations.            | Search, topic browsing, result pagination, cards, and empty states form one honest discovery loop.                                   | Hot implementation until its formula/time window is defined.                  |
-| 3. Writing and Content Management      | Writing environment, review/publish completion, management rows, and deletion UI.               | 3A.3 plus My Posts dependencies.                              | Create/Edit, Drafts, My Posts, publishing, and deletion confirmation are one author lifecycle.                                       | Autosave, revision history, unpublish, and detailed editor-layout decisions.  |
-| 4. Identity and Engagement Surfaces    | Stronger profiles, actionable Notifications, and compact collection presentations.              | 3A.4 with shared page-state work from 3A.5.                   | These surfaces support the reader-to-author loop and must use consistent recovery, loading, and collection behavior.                 | Follower directories, activity feeds, notification expansion.                 |
-| 5. Visual System and Responsive Polish | Deliberate Resonance visual system and final interaction polish.                                | 3A.5 across shipped surfaces.                                 | A durable visual system depends on settled page responsibilities and component families.                                             | New product infrastructure.                                                   |
+| Slice                                  | Product outcome                                                                                 | Scope areas crossed                                           | Why this combination is deliberate                                                                                                   | Explicitly later                                                                                                                         |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. Documentation Canonicalization      | One durable source of truth, decision log, roadmap, and resume point.                           | Delivery governance                                           | Prevents rediscovery and conflicting instructions before any code changes.                                                           | Application implementation.                                                                                                              |
+| 1. Product Structure                   | Coherent shells/navigation, reader utilities, Settings/Profile split, and analytics relocation. | 3A.1 plus Saved/Liked data foundations needed for navigation. | A sidebar cannot expose working reader utilities until their routes/access paths exist. The shell boundary must be established once. | Dashboard Overview redesign, final card variants, Discover, writing redesign.                                                            |
+| 2. Discover Foundations                | Real Search, Latest, Topics, and Feed recovery to Discover.                                     | 3A.2 with editorial post presentation foundations.            | Search, topic browsing, result pagination, cards, and empty states form one honest discovery loop.                                   | Hot implementation until its formula/time window is defined.                                                                             |
+| 3. Writing and Content Management      | Writing environment, review/publish completion, management rows, and deletion UI.               | 3A.3 plus My Posts dependencies.                              | Create/Edit, Drafts, My Posts, publishing, and deletion confirmation are one author lifecycle.                                       | Server autosave, revision history, unpublish, and detailed editor-layout decisions. Track 1 baseline shipped in PR #72; follow-ups open. |
+| 4. Identity and Engagement Surfaces    | Stronger profiles, actionable Notifications, and compact collection presentations.              | 3A.4 with shared page-state work from 3A.5.                   | These surfaces support the reader-to-author loop and must use consistent recovery, loading, and collection behavior.                 | Follower directories, activity feeds, notification expansion.                                                                            |
+| 5. Visual System and Responsive Polish | Deliberate Resonance visual system and final interaction polish.                                | 3A.5 across shipped surfaces.                                 | A durable visual system depends on settled page responsibilities and component families.                                             | New product infrastructure.                                                                                                              |
 
 ## Sequencing Rules
 
@@ -349,7 +358,9 @@ notification expansion, final visual-system work, or a universal card redesign.
 
 - Dashboard Overview purpose and composition.
 - Hot ranking formula and time window.
-- Autosave, unpublish, revision history, and detailed Create/Edit composition.
+- Server-side autosave, unpublish, revision history, and detailed Create/Edit
+  composition. Silent local draft recovery shipped in PR #72; that is a
+  client-side safety net, not a server autosave system.
 - Avatar upload/custom storage and other new public identity fields.
 - Exact typography, supporting color palette, compact-footer composition, and
   final responsive visual treatments.
