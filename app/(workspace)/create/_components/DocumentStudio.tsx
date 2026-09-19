@@ -49,24 +49,14 @@ export default function DocumentStudio({
       data-studio-state={state}
       className="min-h-full bg-background"
     >
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
         {isReady ? (
           <>
-            <header className="flex flex-col gap-6 border-b pb-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-2xl space-y-2">
+            <header className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
                 <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   {modeLabels[mode]}
                 </p>
-                {heading && (
-                  <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-                    {heading}
-                  </h1>
-                )}
-                {description && (
-                  <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                    {description}
-                  </p>
-                )}
               </div>
               <div
                 className="flex flex-wrap items-center gap-2"
@@ -78,15 +68,24 @@ export default function DocumentStudio({
 
             {notice}
 
-            <div
-              className="mx-auto flex w-full max-w-3xl flex-col gap-6"
+            <main
+              aria-label="Writing canvas"
+              className="mx-auto flex w-full max-w-5xl flex-col gap-5"
               data-studio-canvas="true"
             >
-              {title}
+              <div data-studio-title="true" className="pt-4">
+                {heading && <h1 className="sr-only">{heading}</h1>}
+                {title}
+              </div>
+              {description && (
+                <p className="text-base leading-relaxed text-muted-foreground">
+                  {description}
+                </p>
+              )}
               {body}
-            </div>
+            </main>
 
-            <details open className="mx-auto w-full max-w-3xl border-t pt-5">
+            <details open className="mx-auto w-full max-w-5xl border-t pt-5">
               <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
                 Post details
               </summary>

@@ -34,6 +34,26 @@ describe("useInlineImageUpload", () => {
     await expect(result.current.resolveFileUrl("unknown")).resolves.toBe("");
   });
 
+  it("passes through safe absolute media URLs for native embeds", async () => {
+    const { result } = renderHook(() => useInlineImageUpload());
+    await expect(
+      result.current.resolveFileUrl("https://cdn.example/pic.png"),
+    ).resolves.toBe("https://cdn.example/pic.png");
+    await expect(
+      result.current.resolveFileUrl("http://cdn.example/clip.mp4"),
+    ).resolves.toBe("http://cdn.example/clip.mp4");
+  });
+
+  it("does not pass through relative or unsafe media values", async () => {
+    const { result } = renderHook(() => useInlineImageUpload());
+    await expect(
+      result.current.resolveFileUrl("javascript:alert(1)"),
+    ).resolves.toBe("");
+    await expect(
+      result.current.resolveFileUrl("storage-with-no-url"),
+    ).resolves.toBe("");
+  });
+
   it("revokes an object URL created after the hook unmounts", async () => {
     const createPendingUpload = vi.fn().mockResolvedValue({
       sessionId: "session123",

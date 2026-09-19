@@ -31,27 +31,26 @@ async function hasOwnedPendingAsset(
   storageId: Id<"_storage">,
   now: number,
 ): Promise<boolean> {
-  let cursor: string | null = null;
-  while (true) {
-    const page = await ctx.db
-      .query("pendingUploads")
-      .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-      .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
-    for (const claim of page.page) {
-      if (claim.userId !== userId) continue;
-      if (claim.consumedAt === undefined && claim.expiresAt > now) {
-        return true;
-      }
-      if (
-        claim.postId !== undefined &&
-        (await ownedPostReferencesStorage(ctx, userId, claim.postId, storageId))
-      ) {
-        return true;
-      }
+  // Bounded read, never paginated: Convex allows a single `.paginate()` per
+  // function, and this helper runs inside paginated cleanup handlers.
+  const claims = await ctx.db
+    .query("pendingUploads")
+    .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+    .order("desc")
+    .take(MAX_SESSION_MEDIA_BATCH);
+  for (const claim of claims) {
+    if (claim.userId !== userId) continue;
+    if (claim.consumedAt === undefined && claim.expiresAt > now) {
+      return true;
     }
-    if (page.isDone) return false;
-    cursor = page.continueCursor;
+    if (
+      claim.postId !== undefined &&
+      (await ownedPostReferencesStorage(ctx, userId, claim.postId, storageId))
+    ) {
+      return true;
+    }
   }
+  return false;
 }
 
 async function ownedPostReferencesStorage(
@@ -94,25 +93,20 @@ export async function hasActiveSessionMediaClaim(
   storageId: Id<"_storage">,
   now = Date.now(),
 ): Promise<boolean> {
-  let cursor: string | null = null;
-  while (true) {
-    const page = await ctx.db
-      .query("sessionMediaClaims")
-      .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-      .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
-    if (
-      page.page.some(
-        (claim) =>
-          claim.releasedAt === undefined &&
-          claim.consumedAt === undefined &&
-          claim.expiresAt > now,
-      )
-    ) {
-      return true;
-    }
-    if (page.isDone) return false;
-    cursor = page.continueCursor;
-  }
+  // Bounded, non-paginated read. This helper is called from handlers that
+  // already own the function's single paginated query (pending uploads and
+  // post-deletion cleanup), so it must never call `.paginate()`.
+  const claims = await ctx.db
+    .query("sessionMediaClaims")
+    .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+    .order("desc")
+    .take(MAX_SESSION_MEDIA_BATCH);
+  return claims.some(
+    (claim) =>
+      claim.releasedAt === undefined &&
+      claim.consumedAt === undefined &&
+      claim.expiresAt > now,
+  );
 }
 
 export async function consumeSessionMediaClaims(
@@ -122,33 +116,19 @@ export async function consumeSessionMediaClaims(
   consumedAt = Date.now(),
 ): Promise<void> {
   const uniqueStorageIds = [...new Set(storageIds)];
-  for (
-    let start = 0;
-    start < uniqueStorageIds.length;
-    start += MAX_SESSION_MEDIA_BATCH
-  ) {
-    for (const storageId of uniqueStorageIds.slice(
-      start,
-      start + MAX_SESSION_MEDIA_BATCH,
-    )) {
-      let cursor: string | null = null;
-      while (true) {
-        const page = await ctx.db
-          .query("sessionMediaClaims")
-          .withIndex("by_userId_and_storageId", (q) =>
-            q.eq("userId", userId).eq("storageId", storageId),
-          )
-          .paginate({ numItems: MAX_SESSION_MEDIA_BATCH, cursor });
-        for (const claim of page.page) {
-          if (
-            claim.releasedAt === undefined &&
-            claim.consumedAt === undefined
-          ) {
-            await ctx.db.patch(claim._id, { consumedAt });
-          }
-        }
-        if (page.isDone) break;
-        cursor = page.continueCursor;
+  for (const storageId of uniqueStorageIds) {
+    // Bounded, non-paginated read: this helper can run inside handlers that
+    // already own the function's single `.paginate()`.
+    const claims = await ctx.db
+      .query("sessionMediaClaims")
+      .withIndex("by_userId_and_storageId", (q) =>
+        q.eq("userId", userId).eq("storageId", storageId),
+      )
+      .order("desc")
+      .take(MAX_SESSION_MEDIA_BATCH);
+    for (const claim of claims) {
+      if (claim.releasedAt === undefined && claim.consumedAt === undefined) {
+        await ctx.db.patch(claim._id, { consumedAt });
       }
     }
   }

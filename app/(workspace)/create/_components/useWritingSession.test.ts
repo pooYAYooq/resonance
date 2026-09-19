@@ -150,6 +150,19 @@ describe("writingSessionReducer", () => {
     expect(state.dirty).toBe(true);
   });
 
+  it("allows entering Review from a clean saved session", () => {
+    let state = createInitialWritingSessionState("draft");
+    state = reduce(state, {
+      type: "establishBaseline",
+      proposal: changedProposal,
+    });
+    expect(state.dirty).toBe(false);
+
+    state = reduce(state, { type: "enterReview" });
+
+    expect(state.presentation).toBe("review");
+  });
+
   it("tracks an in-flight operation and adopts a successful save baseline", () => {
     let state = createInitialWritingSessionState("draft");
     state = reduce(state, { type: "setProposal", proposal: changedProposal });

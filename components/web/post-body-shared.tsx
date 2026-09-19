@@ -1,0 +1,106 @@
+import type { ReactNode } from "react";
+import type { PostBlock, PostInlineContent } from "@/lib/post-content";
+import { DEFAULT_HEADING_LEVEL } from "@/lib/heading";
+import { isSafeAuthorLink } from "@/lib/safe-link";
+
+const alignmentClass = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+  justify: "text-justify",
+} as const;
+
+const headingSizeClass = {
+  2: "text-3xl",
+  3: "text-2xl",
+  4: "text-xl",
+  5: "text-lg",
+  6: "text-base",
+} as const;
+
+export function getHeadingClassName(level: unknown): string {
+  const resolved =
+    typeof level === "number" && level >= 2 && level <= 6
+      ? (level as keyof typeof headingSizeClass)
+      : (DEFAULT_HEADING_LEVEL as keyof typeof headingSizeClass);
+  return `${headingSizeClass[resolved]} font-semibold tracking-tight`;
+}
+
+export function getTextAlignment(props: Record<string, unknown> | undefined) {
+  const value = props?.textAlignment;
+  return typeof value === "string" && value in alignmentClass
+    ? alignmentClass[value as keyof typeof alignmentClass]
+    : alignmentClass.left;
+}
+
+export function renderInlineContent(
+  content: PostInlineContent[] | undefined,
+  keyPrefix: string,
+): ReactNode[] {
+  if (!content) return [];
+  return content.map((inline, index) => {
+    const key = `${keyPrefix}-${index}`;
+    const children =
+      inline.type === "link"
+        ? renderInlineContent(inline.content, key)
+        : inline.text;
+    let node: ReactNode = children;
+    const styles = inline.styles ?? {};
+    if (styles.code) node = <code>{node}</code>;
+    if (styles.bold) node = <strong>{node}</strong>;
+    if (styles.italic) node = <em>{node}</em>;
+    if (styles.underline) node = <u>{node}</u>;
+    if (styles.strike) node = <s>{node}</s>;
+    if (typeof styles.textColor === "string") {
+      node = <span data-text-color={styles.textColor}>{node}</span>;
+    }
+    if (typeof styles.backgroundColor === "string") {
+      node = <span data-background-color={styles.backgroundColor}>{node}</span>;
+    }
+    if (
+      inline.type === "link" &&
+      inline.href &&
+      isSafeAuthorLink(inline.href)
+    ) {
+      return (
+        <a
+          key={key}
+          href={inline.href}
+          rel="noopener noreferrer nofollow"
+          className="underline underline-offset-2 hover:text-primary"
+        >
+          {node}
+        </a>
+      );
+    }
+    return <span key={key}>{node}</span>;
+  });
+}
+
+export function getInlineText(
+  content: PostInlineContent[] | undefined,
+): string {
+  if (!content) return "";
+  return content
+    .map((inline) =>
+      inline.type === "link" ? getInlineText(inline.content) : inline.text,
+    )
+    .join("");
+}
+
+export function getMediaUrl(
+  block: PostBlock,
+  resolved: Map<string, string>,
+): string | undefined {
+  const source = block.props?.source;
+  if (typeof source !== "object" || source === null || Array.isArray(source)) {
+    return undefined;
+  }
+  const value = source as { kind?: unknown; id?: unknown; url?: unknown };
+  if (value.kind === "storage" && typeof value.id === "string") {
+    return resolved.get(value.id);
+  }
+  return value.kind === "url" && typeof value.url === "string"
+    ? value.url
+    : undefined;
+}

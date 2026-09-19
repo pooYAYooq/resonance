@@ -4,18 +4,17 @@ import { draftPostSchema, publishPostSchema } from "@/schemas/blog";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument } from "@/lib/post-content";
 import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
-import type { CanonicalProposal } from "@/lib/write-contract";
+import {
+  parseCanonicalDocument,
+  getProposalEqualityKey,
+  type CanonicalProposal,
+} from "@/lib/write-contract";
+import { clearDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
@@ -34,6 +33,13 @@ import { toast } from "sonner";
 import z from "zod";
 import { getEditorCapabilities, resolveEditorMode } from "./editorMode";
 import DocumentStudio from "./_components/DocumentStudio";
+import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
+import {
+  getReviewBlocker,
+  REVIEW_BLOCKER_MESSAGES,
+} from "./_components/reviewReadiness";
+import ReviewSurface from "./_components/ReviewSurface";
+import { useDraftRecovery } from "./_components/useDraftRecovery";
 import {
   useWritingSession,
   type WritingSessionTarget,
@@ -41,12 +47,7 @@ import {
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
   ssr: false,
-  loading: () => (
-    <div
-      className="min-h-80 rounded-md border border-input bg-background px-3 py-2"
-      aria-hidden="true"
-    />
-  ),
+  loading: () => <div className="min-h-96" aria-hidden="true" />,
 });
 
 const emptyDocument: BlockNoteDocument = {
@@ -57,6 +58,85 @@ const emptyDocument: BlockNoteDocument = {
 type PostFormInput = z.input<typeof draftPostSchema>;
 type PostFormOutput = z.output<typeof draftPostSchema>;
 type SubmitMode = "draft" | "publish";
+
+function collectInlineMedia(
+  blocks: BlockNoteDocument["blocks"],
+  resolvedImageUrls: Record<string, string | null>,
+  failedIds: readonly string[] = [],
+): MediaAsset[] {
+  const assets: MediaAsset[] = [];
+  const failed = new Set(failedIds);
+  const visit = (items: BlockNoteDocument["blocks"]) => {
+    for (const block of items) {
+      const source = block.props?.source;
+      if (
+        (block.type === "image" ||
+          block.type === "audio" ||
+          block.type === "video") &&
+        typeof source === "object" &&
+        source !== null &&
+        !Array.isArray(source) &&
+        (source as { kind?: unknown }).kind === "storage" &&
+        typeof (source as { id?: unknown }).id === "string"
+      ) {
+        const storageId = (source as { id: string }).id;
+        const url = resolvedImageUrls[storageId];
+        const props = block.props ?? {};
+        assets.push({
+          id: storageId,
+          kind: "inline",
+          status: failed.has(storageId)
+            ? "failed"
+            : url
+              ? "resolved"
+              : "finalizing",
+          ...(failed.has(storageId) && { error: "Media claim failed" }),
+          ...(url && { url }),
+          fileName: typeof props.name === "string" ? props.name : "",
+        });
+      }
+      if (block.children?.length) visit(block.children);
+    }
+  };
+  visit(blocks);
+  return assets;
+}
+
+/**
+ * True when a proposal carries no authored work: no title, no tags, and only
+ * empty paragraphs. The editor always materializes one empty paragraph, which
+ * otherwise reads as an unsaved change on a brand-new post.
+ */
+function isEffectivelyEmptyProposal(proposal: CanonicalProposal): boolean {
+  if (proposal.title.trim() || proposal.tags.length > 0) return false;
+  const document = parseCanonicalDocument(proposal.body);
+  if (!document) return false;
+  return document.blocks.every(
+    (block) =>
+      block.type === "paragraph" &&
+      (block.content?.length ?? 0) === 0 &&
+      (block.children?.length ?? 0) === 0,
+  );
+}
+
+/**
+ * The silent local draft for a session, if one holds real work. Empty snapshots
+ * are cleared so they never re-open an empty editor.
+ */
+function readRecoveredDraft(sessionKey: string): {
+  document: BlockNoteDocument;
+  proposal: CanonicalProposal;
+} | null {
+  const snapshot = readDraftRecovery(sessionKey);
+  if (!snapshot) return null;
+  if (isEffectivelyEmptyProposal(snapshot.proposal)) {
+    clearDraftRecovery(sessionKey);
+    return null;
+  }
+  const document = parseCanonicalDocument(snapshot.proposal.body);
+  if (!document) return null;
+  return { document, proposal: snapshot.proposal };
+}
 
 /**
  * Renders the authenticated blog post creation page.
@@ -83,6 +163,8 @@ function CreateEditor() {
   const [isPending, startTransition] = useTransition();
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
+  const [coverImageUrl, setCoverImageUrl] = useState<string | undefined>();
+  const coverObjectUrlRef = useRef<string | undefined>(undefined);
   const [acceptedTargetError, setAcceptedTargetError] = useState<{
     targetKey: string;
     message: string;
@@ -108,6 +190,9 @@ function CreateEditor() {
     api.pendingUploads.finalizePendingUpload,
   );
   const cleanupPendingUploads = useMutation(api.pendingUploads.cleanupPending);
+  const claimSessionMedia = useMutation(api.sessionMediaClaims.claim);
+  const renewSessionMedia = useMutation(api.sessionMediaClaims.renew);
+  const releaseSessionMedia = useMutation(api.sessionMediaClaims.release);
   const saveDraft = useMutation(api.posts.saveDraft);
   const publishPost = useMutation(api.posts.publishPost);
   const updatePublishedPost = useMutation(api.posts.updatePublishedPost);
@@ -115,6 +200,10 @@ function CreateEditor() {
   const inlineSessions = useRef(
     new Map<Id<"pendingUploads">, Id<"_storage">>(),
   );
+  const clearedCoverSelection = useRef<File | undefined>(undefined);
+  const selectedCoverRef = useRef<File | undefined>(undefined);
+  const claimedMedia = useRef(new Set<Id<"_storage">>());
+  const [recoveryNonce, setRecoveryNonce] = useState(0);
 
   const form = useForm<PostFormInput, undefined, PostFormOutput>({
     resolver: zodResolver(draftPostSchema),
@@ -166,6 +255,34 @@ function CreateEditor() {
       : "skip",
   );
   const watchedValues = useWatch({ control: form.control });
+  const inlineMedia = useMemo(
+    () =>
+      collectInlineMedia(
+        watchedValues.content?.blocks ?? [],
+        resolvedImageUrls,
+        sessionState.media.failed,
+      ),
+    [resolvedImageUrls, sessionState.media.failed, watchedValues.content],
+  );
+  const coverMedia = useMemo<MediaAsset | null>(() => {
+    const selected = watchedValues.image;
+    if (selected instanceof File) {
+      return {
+        id: "cover-selection",
+        kind: "cover",
+        status: "choosing",
+        fileName: selected.name,
+        ...(coverImageUrl && { url: coverImageUrl }),
+      };
+    }
+    if (!coverStorageId) return null;
+    return {
+      id: coverStorageId,
+      kind: "cover",
+      status: "resolved",
+      ...(coverImageUrl && { url: coverImageUrl }),
+    };
+  }, [coverImageUrl, coverStorageId, watchedValues.image]);
   const proposal = useMemo<CanonicalProposal>(
     () => ({
       title: watchedValues.title ?? "",
@@ -229,6 +346,7 @@ function CreateEditor() {
         setAcceptedTargetError(undefined);
         setDraftId(undefined);
         setCoverStorageId(undefined);
+        setCoverImageUrl(undefined);
         setInitialContent(emptyDocument);
         setResolvedImageUrls({});
         hydratedSessionKey.current = pendingSessionKey;
@@ -282,6 +400,7 @@ function CreateEditor() {
       setAcceptedTargetError(undefined);
       if (pendingTarget.editorMode === "draft") setDraftId(pendingData._id);
       setCoverStorageId(pendingData.imageStorageId ?? undefined);
+      setCoverImageUrl(pendingData.imageUrl ?? undefined);
       setInitialContent(parsed.document);
       setResolvedImageUrls(
         Object.fromEntries(
@@ -309,12 +428,6 @@ function CreateEditor() {
     if (sessionState.dirty) return;
 
     if (editorMode.mode === "new") {
-      form.reset({
-        title: "",
-        content: emptyDocument,
-        tags: [],
-        image: undefined,
-      });
       dispatchSession({
         type: "establishBaseline",
         proposal: {
@@ -324,9 +437,33 @@ function CreateEditor() {
         },
       });
       setDraftId(undefined);
-      setCoverStorageId(undefined);
-      setInitialContent(emptyDocument);
-      setResolvedImageUrls({});
+      const recovered = readRecoveredDraft(sessionKey);
+      if (recovered) {
+        form.reset({
+          title: recovered.proposal.title,
+          content: recovered.document,
+          tags: recovered.proposal.tags as PostFormInput["tags"],
+          image: undefined,
+        });
+        setCoverStorageId(
+          recovered.proposal.imageStorageId as Id<"_storage"> | undefined,
+        );
+        setCoverImageUrl(undefined);
+        setInitialContent(recovered.document);
+        setResolvedImageUrls({});
+        setRecoveryNonce((nonce) => nonce + 1);
+      } else {
+        form.reset({
+          title: "",
+          content: emptyDocument,
+          tags: [],
+          image: undefined,
+        });
+        setCoverStorageId(undefined);
+        setCoverImageUrl(undefined);
+        setInitialContent(emptyDocument);
+        setResolvedImageUrls({});
+      }
       hydratedSessionKey.current = sessionKey;
       return;
     }
@@ -348,30 +485,52 @@ function CreateEditor() {
       return;
     }
 
-    form.reset({
+    const serverProposal: CanonicalProposal = {
       title: target.title,
-      content: parsed.document,
-      tags: target.tags as PostFormInput["tags"],
-      image: undefined,
-    });
+      body: JSON.stringify(parsed.document),
+      tags: target.tags,
+      ...(target.imageStorageId && { imageStorageId: target.imageStorageId }),
+    };
     dispatchSession({
       type: "establishBaseline",
-      proposal: {
-        title: target.title,
-        body: JSON.stringify(parsed.document),
-        tags: target.tags,
-        ...(target.imageStorageId && { imageStorageId: target.imageStorageId }),
-      },
+      proposal: serverProposal,
       expectedUpdatedAt: target.updatedAt,
     });
-    if (editorMode.mode === "draft") setDraftId(target._id);
-    setCoverStorageId(target.imageStorageId ?? undefined);
-    setInitialContent(parsed.document);
-    setResolvedImageUrls(
-      Object.fromEntries(
-        target.inlineImages.map(({ storageId, url }) => [storageId, url]),
-      ),
+    const serverImages = Object.fromEntries(
+      target.inlineImages.map(({ storageId, url }) => [storageId, url]),
     );
+    const recovered = readRecoveredDraft(sessionKey);
+    if (
+      recovered &&
+      getProposalEqualityKey(recovered.proposal) !==
+        getProposalEqualityKey(serverProposal)
+    ) {
+      form.reset({
+        title: recovered.proposal.title,
+        content: recovered.document,
+        tags: recovered.proposal.tags as PostFormInput["tags"],
+        image: undefined,
+      });
+      setCoverStorageId(
+        recovered.proposal.imageStorageId as Id<"_storage"> | undefined,
+      );
+      setCoverImageUrl(undefined);
+      setInitialContent(recovered.document);
+      setResolvedImageUrls(serverImages);
+      setRecoveryNonce((nonce) => nonce + 1);
+    } else {
+      form.reset({
+        title: target.title,
+        content: parsed.document,
+        tags: target.tags as PostFormInput["tags"],
+        image: undefined,
+      });
+      setCoverStorageId(target.imageStorageId ?? undefined);
+      setCoverImageUrl(target.imageUrl ?? undefined);
+      setInitialContent(parsed.document);
+      setResolvedImageUrls(serverImages);
+    }
+    if (editorMode.mode === "draft") setDraftId(target._id);
     hydratedSessionKey.current = sessionKey;
   }, [
     editorMode.mode,
@@ -395,29 +554,45 @@ function CreateEditor() {
   }, [dispatchSession, proposal, sessionState.baseline]);
 
   useEffect(() => {
+    if (
+      clearedCoverSelection.current &&
+      watchedValues.image === clearedCoverSelection.current
+    ) {
+      clearedCoverSelection.current = undefined;
+      return;
+    }
+    const pending = inlineMedia
+      .filter(
+        (asset) =>
+          asset.status === "uploading" || asset.status === "finalizing",
+      )
+      .map((asset) => asset.id);
+    const failed = inlineMedia
+      .filter(
+        (asset) => asset.status === "failed" || asset.status === "expired",
+      )
+      .map((asset) => asset.id);
     const coverSelected = Boolean(watchedValues.image);
-    if (sessionState.media.coverSelected === coverSelected) return;
+    if (
+      sessionState.media.coverSelected === coverSelected &&
+      sessionState.media.pending.join("|") === pending.join("|") &&
+      sessionState.media.failed.join("|") === failed.join("|")
+    )
+      return;
     dispatchSession({
       type: "setMedia",
-      media: { ...sessionState.media, coverSelected },
+      media: { ...sessionState.media, coverSelected, pending, failed },
     });
-  }, [dispatchSession, sessionState.media, watchedValues.image]);
+  }, [dispatchSession, inlineMedia, sessionState.media, watchedValues.image]);
 
-  if (requestedEditorMode.mode === "invalid" && !sessionState.dirty) {
-    return (
-      <DocumentStudio
-        mode="invalid"
-        state="unavailable"
-        status={
-          <UnavailableState
-            message="This editor request is unavailable."
-            recoveryLabel="Back to Dashboard"
-            onRecover={() => router.push("/dashboard")}
-          />
-        }
-      />
-    );
-  }
+  useEffect(
+    () => () => {
+      if (coverObjectUrlRef.current) {
+        URL.revokeObjectURL(coverObjectUrlRef.current);
+      }
+    },
+    [],
+  );
 
   const target =
     editorMode.mode === "draft"
@@ -440,11 +615,68 @@ function CreateEditor() {
 
   const activeSessionKey = `${editorMode.mode}:${editorMode.id ?? "new"}`;
   activeSessionKeyRef.current = activeSessionKey;
+
+  useDraftRecovery({
+    sessionKey: activeSessionKey,
+    ready: sessionState.baseline !== null,
+    dirty: sessionState.dirty,
+    proposal,
+  });
+
+  useEffect(() => {
+    const sessionKey = activeSessionKey;
+    const renew = () => {
+      const storageIds = [...claimedMedia.current];
+      if (storageIds.length === 0) return;
+      const isVisible = document.visibilityState === "visible";
+      const isActive = document.hasFocus();
+      if (!isVisible || !isActive) return;
+      void Promise.resolve(
+        renewSessionMedia({
+          sessionId: sessionKey,
+          storageIds,
+          isVisible,
+          isActive,
+        }),
+      ).catch(() => undefined);
+    };
+    const interval = window.setInterval(renew, 5 * 60 * 1000);
+    document.addEventListener("visibilitychange", renew);
+    window.addEventListener("focus", renew);
+    const claimedStorageIds = claimedMedia.current;
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", renew);
+      window.removeEventListener("focus", renew);
+      const storageIds = [...claimedStorageIds];
+      if (storageIds.length === 0) return;
+      void Promise.resolve(
+        releaseSessionMedia({ sessionId: sessionKey, storageIds }),
+      ).catch(() => undefined);
+      claimedStorageIds.clear();
+    };
+  }, [activeSessionKey, releaseSessionMedia, renewSessionMedia]);
+
+  if (requestedEditorMode.mode === "invalid" && !sessionState.dirty) {
+    return (
+      <DocumentStudio
+        mode="invalid"
+        state="unavailable"
+        status={
+          <UnavailableState
+            message="This editor request is unavailable."
+            recoveryLabel="Back to Dashboard"
+            onRecover={() => router.push("/dashboard")}
+          />
+        }
+      />
+    );
+  }
   const requestedSessionKey = requestedTarget
     ? `${requestedTarget.editorMode}:${requestedTarget.id ?? "new"}`
     : undefined;
   const targetTransition =
-    sessionState.dirty &&
+    (sessionState.dirty || Boolean(selectedCoverRef.current)) &&
     requestedTarget &&
     requestedSessionKey !== activeSessionKey
       ? requestedTarget
@@ -572,6 +804,11 @@ function CreateEditor() {
             throw new Error("Invalid inline upload session");
           }
           submitSessions.set(session.sessionId, storageId);
+          await claimSessionMedia({
+            sessionId: operationSessionKey,
+            storageId,
+          });
+          claimedMedia.current.add(storageId);
         }
 
         const savedCoverStorageId = storageId ?? coverStorageId;
@@ -659,6 +896,8 @@ function CreateEditor() {
           submittedImage &&
           form.getValues("image") === submittedImage
         ) {
+          clearedCoverSelection.current = submittedImage;
+          selectedCoverRef.current = undefined;
           form.resetField("image", { defaultValue: undefined });
         }
         if (isCurrentSession) setInitialContent(values.content);
@@ -672,6 +911,17 @@ function CreateEditor() {
             expectedUpdatedAt: result.updatedAt,
           },
         });
+        const currentCoverSelection = selectedCoverRef.current;
+        if (
+          isCurrentSession &&
+          currentCoverSelection &&
+          currentCoverSelection !== submittedImage
+        ) {
+          dispatchSession({
+            type: "setMedia",
+            media: { ...sessionState.media, coverSelected: true },
+          });
+        }
         operationSessionKeySettled = true;
         if (isCurrentSession) {
           draftSaved = mode === "draft";
@@ -753,6 +1003,35 @@ function CreateEditor() {
     });
   }
 
+  const reviewing = sessionState.presentation === "review";
+  const reviewBlocker = getReviewBlocker(sessionState.media);
+  const reviewInlineImages = Object.entries(resolvedImageUrls)
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+    .map(([storageId, url]) => ({ storageId, url }));
+
+  function enterReview() {
+    if (reviewBlocker) {
+      toast.error(REVIEW_BLOCKER_MESSAGES[reviewBlocker]);
+      return;
+    }
+    void form.handleSubmit((values) => {
+      const publishValues = publishPostSchema.safeParse(values);
+      if (!publishValues.success) {
+        const issue = publishValues.error.issues[0];
+        const field = issue?.path[0];
+        if (field === "title" || field === "content") {
+          form.setError(field, { message: issue.message });
+        }
+        return;
+      }
+      dispatchSession({ type: "enterReview" });
+    })();
+  }
+
+  function submitFromReview() {
+    void form.handleSubmit((values) => onSubmit(values, "publish"))();
+  }
+
   return (
     <form
       onSubmit={(event) => {
@@ -763,84 +1042,150 @@ function CreateEditor() {
         mode={editorMode.mode}
         notice={transitionNotice}
         heading={
-          editorMode.mode === "published-edit"
-            ? "Edit Published Post"
-            : "New Post"
+          reviewing
+            ? undefined
+            : editorMode.mode === "published-edit"
+              ? "Edit Published Post"
+              : "New Post"
         }
-        description="Give your ideas a home. Draft a deep dive, share a quick update, or capture a fleeting thought to share with your community."
+        description={
+          reviewing
+            ? undefined
+            : "Give your ideas a home. Draft a deep dive, share a quick update, or capture a fleeting thought to share with your community."
+        }
         title={
-          <Controller
-            name="title"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field>
-                <FieldLabel>Blog Title</FieldLabel>
-                <FieldDescription>
-                  This becomes the title of your published post.
-                </FieldDescription>
-                <Input
-                  aria-invalid={fieldState.invalid}
-                  placeholder="Give your thought a name"
-                  {...field}
-                />
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
-        }
-        body={
-          <Controller
-            name="content"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel id="blog-content-label">Blog Content</FieldLabel>
-                <PostBodyEditor
-                  key={`${editorMode.mode}:${editorMode.id ?? "new"}`}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  invalid={fieldState.invalid}
-                  isDirty={sessionState.dirty}
-                  labelledBy="blog-content-label"
-                  initialContent={initialContent}
-                  resolvedImageUrls={resolvedImageUrls}
-                  onUploadSessionCreated={(sessionId, storageId) =>
-                    inlineSessions.current.set(sessionId, storageId)
-                  }
-                />
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
-        }
-        details={
-          <FieldGroup className="gap-y-4">
+          <div
+            hidden={reviewing}
+            inert={reviewing ? true : undefined}
+            aria-hidden={reviewing || undefined}
+          >
             <Controller
-              name="image"
+              name="title"
               control={form.control}
               render={({ field, fieldState }) => (
-                <Field>
-                  <FieldLabel htmlFor="image">Image (optional)</FieldLabel>
+                <div className="space-y-2">
                   <Input
-                    id="image"
-                    type="file"
-                    accept="image/*"
+                    aria-label="Blog title"
                     aria-invalid={fieldState.invalid}
-                    placeholder="Choose an image to upload"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      field.onChange(file);
-                    }}
+                    className="h-auto border-0 bg-transparent px-0 py-2 text-4xl font-semibold tracking-tight shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0 sm:text-5xl"
+                    placeholder="Give your thought a name"
+                    {...field}
                   />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
-                </Field>
+                </div>
               )}
+            />
+          </div>
+        }
+        body={
+          <>
+            <div
+              hidden={reviewing}
+              inert={reviewing ? true : undefined}
+              aria-hidden={reviewing || undefined}
+            >
+              <Controller
+                name="content"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <div data-invalid={fieldState.invalid}>
+                    <span id="blog-content-label" className="sr-only">
+                      Blog content
+                    </span>
+                    <PostBodyEditor
+                      key={`${editorMode.mode}:${editorMode.id ?? "new"}:${recoveryNonce}`}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      invalid={fieldState.invalid}
+                      isDirty={sessionState.dirty}
+                      labelledBy="blog-content-label"
+                      initialContent={initialContent}
+                      resolvedImageUrls={resolvedImageUrls}
+                      onUploadSessionCreated={(
+                        sessionId,
+                        storageId,
+                        objectUrl,
+                      ) => {
+                        inlineSessions.current.set(sessionId, storageId);
+                        setResolvedImageUrls((current) => ({
+                          ...current,
+                          [storageId]: objectUrl,
+                        }));
+                        claimedMedia.current.add(storageId);
+                        void Promise.resolve(
+                          claimSessionMedia({
+                            sessionId: activeSessionKeyRef.current ?? "new:new",
+                            storageId,
+                          }),
+                        ).catch(() => {
+                          dispatchSession({
+                            type: "setMedia",
+                            media: {
+                              ...sessionState.media,
+                              failed: [...sessionState.media.failed, storageId],
+                            },
+                          });
+                        });
+                      }}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </div>
+                )}
+              />
+            </div>
+            {reviewing && sessionState.proposal && (
+              <ReviewSurface
+                mode={editorMode.mode}
+                proposal={sessionState.proposal}
+                inlineImages={reviewInlineImages}
+                coverUrl={coverImageUrl}
+                pending={isPending}
+                onBack={() => dispatchSession({ type: "returnToEdit" })}
+                onSubmit={submitFromReview}
+              />
+            )}
+          </>
+        }
+        details={
+          <FieldGroup className="gap-y-4">
+            <MediaAuthoring
+              inlineImages={inlineMedia}
+              cover={coverMedia}
+              coverInputAriaLabel="Image (optional)"
+              onChooseCover={(file) =>
+                (() => {
+                  selectedCoverRef.current = file;
+                  if (coverObjectUrlRef.current) {
+                    URL.revokeObjectURL(coverObjectUrlRef.current);
+                  }
+                  const objectUrl = URL.createObjectURL(file);
+                  coverObjectUrlRef.current = objectUrl;
+                  setCoverImageUrl(objectUrl);
+                  form.setValue("image", file, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                  });
+                  dispatchSession({
+                    type: "setMedia",
+                    media: { ...sessionState.media, coverSelected: true },
+                  });
+                })()
+              }
+              onRemoveCover={() => {
+                selectedCoverRef.current = undefined;
+                if (coverObjectUrlRef.current) {
+                  URL.revokeObjectURL(coverObjectUrlRef.current);
+                  coverObjectUrlRef.current = undefined;
+                }
+                setCoverImageUrl(undefined);
+                form.resetField("image", { defaultValue: undefined });
+                setCoverStorageId(undefined);
+              }}
+              onRetry={() => toast.info("Select the image again to retry.")}
             />
             <Controller
               name="tags"
@@ -855,55 +1200,44 @@ function CreateEditor() {
           </FieldGroup>
         }
         actions={
-          <>
-            {capabilities.canSaveDraft && (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isPending || Boolean(sessionState.pendingTarget)}
-                onClick={() => {
-                  void form.handleSubmit((values) =>
-                    onSubmit(values, "draft"),
-                  )();
-                }}
-              >
-                Save Draft
-              </Button>
-            )}
-            {capabilities.canUpdate && (
-              <Button
-                type="button"
-                disabled={isPending || Boolean(sessionState.pendingTarget)}
-                onClick={() => {
-                  void form.handleSubmit((values) =>
-                    onSubmit(values, "publish"),
-                  )();
-                }}
-              >
-                {isPending ? "Updating..." : "Update Published Post"}
-              </Button>
-            )}
-            {capabilities.canPublish && (
-              <Button
-                type="button"
-                disabled={isPending || Boolean(sessionState.pendingTarget)}
-                onClick={() => {
-                  void form.handleSubmit((values) =>
-                    onSubmit(values, "publish"),
-                  )();
-                }}
-              >
-                {isPending ? (
-                  <>
-                    <Loader2 className="animate-spin size-4" />
-                    <span className="ml-2">Saving...</span>
-                  </>
-                ) : (
-                  <span>Publish</span>
-                )}
-              </Button>
-            )}
-          </>
+          reviewing ? undefined : (
+            <>
+              {capabilities.canSaveDraft && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending || Boolean(sessionState.pendingTarget)}
+                  onClick={() => {
+                    void form.handleSubmit((values) =>
+                      onSubmit(values, "draft"),
+                    )();
+                  }}
+                >
+                  Save Draft
+                </Button>
+              )}
+              {capabilities.canPublish && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending || Boolean(sessionState.pendingTarget)}
+                  onClick={enterReview}
+                >
+                  Review for publication
+                </Button>
+              )}
+              {capabilities.canUpdate && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending || Boolean(sessionState.pendingTarget)}
+                  onClick={enterReview}
+                >
+                  Review Update
+                </Button>
+              )}
+            </>
+          )
         }
       />
     </form>

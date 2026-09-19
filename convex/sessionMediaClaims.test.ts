@@ -5,7 +5,10 @@ import { register } from "@convex-dev/better-auth/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, components } from "./_generated/api";
 import schema from "./schema";
-import { consumeSessionMediaClaims } from "./sessionMediaClaims";
+import {
+  consumeSessionMediaClaims,
+  hasActiveSessionMediaClaim,
+} from "./sessionMediaClaims";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -553,5 +556,46 @@ describe("session media claims", () => {
       return claims.filter((claim) => claim.consumedAt !== undefined).length;
     });
     expect(consumedCount).toBe(101);
+  });
+});
+
+describe("session media claim cleanup helpers", () => {
+  // Convex allows only one paginated query per function; these helpers run
+  // inside handlers that already paginate, so they must use bounded reads.
+  // convex-test does not enforce the runtime rule, so assert it directly.
+  function fakeDb(onPaginate: () => void) {
+    const builder = {
+      withIndex: () => builder,
+      order: () => builder,
+      take: async () => [],
+      paginate: async () => {
+        onPaginate();
+        return { page: [], isDone: true, continueCursor: "" };
+      },
+    };
+    return { query: () => builder, patch: async () => undefined };
+  }
+
+  it("hasActiveSessionMediaClaim uses a bounded read, never pagination", async () => {
+    let paginated = false;
+    const db = fakeDb(() => {
+      paginated = true;
+    });
+    await expect(
+      hasActiveSessionMediaClaim({ db } as never, "storage-id" as never, 0),
+    ).resolves.toBe(false);
+    expect(paginated).toBe(false);
+  });
+
+  it("consumeSessionMediaClaims uses bounded reads, never pagination", async () => {
+    let paginated = false;
+    const db = fakeDb(() => {
+      paginated = true;
+    });
+    await consumeSessionMediaClaims({ db } as never, "user-1", [
+      "storage-a",
+      "storage-b",
+    ] as never[]);
+    expect(paginated).toBe(false);
   });
 });

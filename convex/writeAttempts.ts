@@ -4,6 +4,7 @@ import { internalMutation, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
 import { fingerprintProposal } from "../lib/write-contract";
+import { parsePostBody } from "../lib/post-content";
 import type { MutationCtx } from "./_generated/server";
 import {
   executePublish,
@@ -292,10 +293,16 @@ export async function executeOwnedAttempt(
     };
   }
 
+  // Bind retries to the submitted proposal above, then persist its canonical
+  // body. Lifecycle validation still checks capacity and rejects invalid input.
+  const parsedBody = parsePostBody(proposal.body, { validateCapacity: false });
   const executionArgs = {
     postId: attempt.postId,
     expectedUpdatedAt: attempt.expectedUpdatedAt,
-    proposal,
+    proposal:
+      parsedBody.kind === "structured"
+        ? { ...proposal, body: JSON.stringify(parsedBody.document) }
+        : proposal,
   };
   let result: WriteExecutionResult;
   try {

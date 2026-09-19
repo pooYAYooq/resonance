@@ -186,8 +186,8 @@ describe("PostCard", () => {
         {
           type: "image",
           props: {
-            storageId: "storage-secret-1",
-            altText: "internal alt description",
+            url: "storage-secret-1",
+            name: "internal file name",
             caption: "A readable caption",
           },
         },
@@ -197,7 +197,7 @@ describe("PostCard", () => {
     const excerpt = container.querySelector("p.line-clamp-3");
 
     expect(excerpt?.textContent).toBe("A readable caption");
-    expect(excerpt).not.toHaveTextContent("internal alt description");
+    expect(excerpt).not.toHaveTextContent("internal file name");
     expect(excerpt).not.toHaveTextContent("storage-secret-1");
   });
 

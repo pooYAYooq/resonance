@@ -236,7 +236,7 @@ export function writingSessionReducer(
     }
 
     case "enterReview":
-      return state.dirty ? { ...state, presentation: "review" } : state;
+      return { ...state, presentation: "review" };
 
     case "returnToEdit":
       return { ...state, presentation: "edit" };

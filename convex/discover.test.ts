@@ -311,8 +311,8 @@ describe("Discover summary and Search corpus boundaries", () => {
           {
             type: "image",
             props: {
-              storageId: "storage-1",
-              altText: "A diagram",
+              url: "storage-1",
+              name: "A diagram",
               caption: "This caption must not be exposed as the excerpt.",
             },
           },

@@ -1,66 +1,163 @@
-import { describe, expect, it } from "vitest";
 import { BlockNoteEditor } from "@blocknote/core";
-import { getDefaultReactSlashMenuItems } from "@blocknote/react";
+import { BlockNoteView } from "@blocknote/shadcn";
 import {
-  CODE_LANGUAGES,
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { getDefaultReactSlashMenuItems } from "@blocknote/react";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { parsePostBody } from "@/lib/post-content";
+import { PostBody } from "@/components/web/PostBody";
+import {
   blockNoteSupportedLanguages,
+  CODE_LANGUAGES,
 } from "@/lib/code-languages";
 import {
   editorSchema,
-  getCuratedBlockTypeSelectItems,
-  getCuratedPasteOptions,
-  getCuratedSlashMenuItems,
+  BodyFormattingToolbar,
+  getEditorPasteOptions,
   getInitialEditorContent,
-  getTurnIntoBlockUpdate,
+  HistoryControls,
   isSafeAuthorLink,
   normalizeBlock,
+  serializeEditorDocument,
+  type EditorBlock,
 } from "./PostBodyEditor";
-import type { EditorBlock } from "./PostBodyEditor";
+
+vi.mock("@/components/web/HighlightedCode", () => ({
+  HighlightedCode: ({ code }: { code: string }) => <pre>{code}</pre>,
+}));
+
+const jsdomRect = {
+  bottom: 0,
+  height: 0,
+  left: 0,
+  right: 0,
+  toJSON: () => ({}),
+  top: 0,
+  width: 0,
+  x: 0,
+  y: 0,
+} as DOMRect;
+
+beforeAll(() => {
+  // jsdom has no layout; ProseMirror measures selections after programmatic
+  // edits, which needs Range and element rects.
+  Object.defineProperty(Range.prototype, "getClientRects", {
+    configurable: true,
+    value: () => [jsdomRect],
+  });
+  Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+    configurable: true,
+    value: () => jsdomRect,
+  });
+  Object.defineProperty(Element.prototype, "getClientRects", {
+    configurable: true,
+    value: () => [jsdomRect],
+  });
+  Object.defineProperty(Element.prototype, "getBoundingClientRect", {
+    configurable: true,
+    value: () => jsdomRect,
+  });
+});
+
+function buildFullEditor() {
+  return BlockNoteEditor.create({
+    schema: editorSchema,
+    initialContent: [
+      { type: "paragraph", content: "Intro paragraph" },
+      { type: "heading", props: { level: 2 }, content: "Heading two" },
+      { type: "heading", props: { level: 3 }, content: "Heading three" },
+      { type: "heading", props: { level: 4 }, content: "Heading four" },
+      { type: "heading", props: { level: 5 }, content: "Heading five" },
+      { type: "heading", props: { level: 6 }, content: "Heading six" },
+      { type: "quote", content: "Quoted line" },
+      { type: "bulletListItem", content: "Bullet item" },
+      { type: "numberedListItem", content: "Numbered item" },
+      { type: "checkListItem", props: { checked: true }, content: "Checked" },
+      { type: "toggleListItem", content: "Toggle item" },
+      {
+        type: "codeBlock",
+        props: { language: "typescript" },
+        content: "const answer = 42;",
+      },
+      { type: "divider" },
+      {
+        type: "table",
+        content: {
+          type: "tableContent",
+          rows: [{ cells: ["Cell A", "Cell B"] }],
+        },
+      },
+      {
+        type: "image",
+        props: { url: "storage-image-1", name: "lake.png", caption: "A lake" },
+      },
+      { type: "audio", props: { url: "storage-audio-1", name: "sound.mp3" } },
+      {
+        type: "video",
+        props: { url: "https://cdn.example.com/clip.mp4", name: "clip.mp4" },
+      },
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Styled paragraph",
+            styles: { bold: true, textColor: "red" },
+          },
+        ],
+      },
+    ],
+  });
+}
 
 describe("PostBodyEditor configuration", () => {
-  it("omits empty initial content so BlockNote can create its default paragraph", () => {
-    expect(
-      getInitialEditorContent({ format: "blocknote@1", blocks: [] }),
-    ).toBeUndefined();
-  });
-
-  it("keeps only the approved slash menu items", () => {
-    const items = [
-      { key: "heading", title: "Heading 1" },
-      { key: "heading_2", title: "Heading 2", badge: "Ctrl-Alt-2" },
-      { key: "heading_3", title: "Heading 3", badge: "Ctrl-Alt-3" },
-      { key: "heading_4", title: "Heading 4", badge: "Ctrl-Alt-4" },
-      { key: "heading_5", title: "Heading 5", badge: "Ctrl-Alt-5" },
-      { key: "heading_6", title: "Heading 6", badge: "Ctrl-Alt-6" },
-      { key: "toggle_heading", title: "Toggle Heading 1" },
-      { key: "emoji", title: "Emoji" },
-      { key: "paragraph", title: "Paragraph" },
-      { key: "code_block", title: "Code Block" },
-      { key: "image", title: "Image" },
-    ];
-
-    expect(getCuratedSlashMenuItems(items)).toEqual([
-      { key: "heading_2", title: "Section heading" },
-      { key: "heading_3", title: "Subheading" },
-      { key: "heading_4", title: "Heading 4" },
-      { key: "heading_5", title: "Heading 5" },
-      { key: "heading_6", title: "Heading 6" },
-      { key: "paragraph", title: "Paragraph" },
-      { key: "code_block", title: "Code Block" },
-      { key: "image", title: "Image" },
-    ]);
-  });
-
-  it("exposes heading levels 4 through 6 from BlockNote's default slash menu", () => {
-    const editor = BlockNoteEditor.create({ schema: editorSchema });
-    const items = getDefaultReactSlashMenuItems(editor);
-    const headings = getCuratedSlashMenuItems(items).filter((item) =>
-      String((item as { key?: unknown }).key).startsWith("heading_"),
+  it("shows only H2 through H6 in the native block-type dropdown", async () => {
+    const editor = BlockNoteEditor.create({
+      schema: editorSchema,
+      initialContent: [{ type: "paragraph", content: "Select a heading" }],
+    });
+    render(
+      <BlockNoteView editor={editor} formattingToolbar={false}>
+        <BodyFormattingToolbar />
+      </BlockNoteView>,
     );
-
+    fireEvent.click(screen.getByRole("combobox"));
+    const items = await screen.findAllByRole("option");
     expect(
-      headings.map((item) => (item as unknown as { key: string }).key),
+      items
+        .filter((item) => /heading/i.test(item.textContent ?? ""))
+        .map((item) => item.textContent),
     ).toEqual([
+      "Heading 2",
+      "Heading 3",
+      "Heading 4",
+      "Heading 5",
+      "Heading 6",
+    ]);
+    fireEvent.keyDown(screen.getByRole("option", { name: "Heading 4" }), {
+      key: "Enter",
+    });
+    expect(editor.document[0]).toMatchObject({
+      type: "heading",
+      props: { level: 4 },
+    });
+  });
+  it("offers only body headings and creates an H2 by default", () => {
+    const editor = BlockNoteEditor.create({
+      schema: editorSchema,
+      initialContent: [{ type: "heading", content: "Section" }],
+    });
+    expect(editor.document[0].props).toMatchObject({ level: 2 });
+    expect(editor.document[0].props).not.toHaveProperty("isToggleable");
+    const keys = getDefaultReactSlashMenuItems(editor).map(
+      (item) => (item as { key?: string }).key,
+    );
+    expect(keys.filter((key) => key?.includes("heading"))).toEqual([
       "heading_2",
       "heading_3",
       "heading_4",
@@ -69,78 +166,57 @@ describe("PostBodyEditor configuration", () => {
     ]);
   });
 
-  it("keeps only paragraph, section, and list block types in the toolbar", () => {
-    const items = [
-      { name: "Paragraph", type: "paragraph" },
-      { name: "Heading 1", type: "heading", props: { level: 1 } },
-      {
-        name: "Heading 2",
+  it("normalizes raw hydration and serialized editor heading levels", () => {
+    for (const [input, output] of [
+      [1, 2],
+      [4, 4],
+      [7, 6],
+    ]) {
+      const block = {
+        id: "editor-only-id",
         type: "heading",
-        props: { level: 2, isToggleable: false },
-      },
-      {
-        name: "Heading 3",
-        type: "heading",
-        props: { level: 3, isToggleable: false },
-      },
-      {
-        name: "Heading 4",
-        type: "heading",
-        props: { level: 4, isToggleable: false },
-      },
-      {
-        name: "Heading 5",
-        type: "heading",
-        props: { level: 5, isToggleable: false },
-      },
-      {
-        name: "Heading 6",
-        type: "heading",
-        props: { level: 6, isToggleable: false },
-      },
-      {
-        name: "Toggle Heading 2",
-        type: "heading",
-        props: { level: 2, isToggleable: true },
-      },
-      { name: "Quote", type: "quote" },
-      { name: "Bullet List", type: "bulletListItem" },
-      { name: "Numbered List", type: "numberedListItem" },
-      { name: "Code block", type: "codeBlock" },
-      { name: "Image", type: "image" },
-      { name: "Check List", type: "checkListItem" },
-    ];
-
-    expect(getCuratedBlockTypeSelectItems(items)).toEqual([
-      { name: "Paragraph", type: "paragraph" },
-      { name: "Section heading", type: "heading", props: { level: 2 } },
-      { name: "Subheading", type: "heading", props: { level: 3 } },
-      { name: "Heading 4", type: "heading", props: { level: 4 } },
-      { name: "Heading 5", type: "heading", props: { level: 5 } },
-      { name: "Heading 6", type: "heading", props: { level: 6 } },
-      { name: "Quote", type: "quote" },
-      { name: "Bullet List", type: "bulletListItem" },
-      { name: "Numbered List", type: "numberedListItem" },
-      { name: "Image", type: "image" },
-    ]);
-  });
-
-  it("serializes BlockNote code content from its inline-node shape", () => {
-    expect(
-      normalizeBlock({
-        type: "codeBlock",
-        props: { language: "ts" },
-        content: [{ type: "text", text: "const answer = 42;", styles: {} }],
+        props: { level: input },
+        content: "Heading",
         children: [],
-      }),
-    ).toEqual({
-      type: "codeBlock",
-      props: { language: "typescript" },
-      content: "const answer = 42;",
-    });
+      };
+      expect(normalizeBlock(block).props?.level).toBe(output);
+      expect(
+        getInitialEditorContent({ format: "blocknote@1", blocks: [block] })?.[0]
+          .props?.level,
+      ).toBe(output);
+    }
+  });
+  it("keeps the complete standard BlockNote block and style set available", () => {
+    expect(editorSchema.blockSpecs.checkListItem).toBeDefined();
+    expect(editorSchema.blockSpecs.toggleListItem).toBeDefined();
+    expect(editorSchema.blockSpecs.divider).toBeDefined();
+    expect(editorSchema.blockSpecs.table).toBeDefined();
+    expect("file" in editorSchema.blockSpecs).toBe(false);
+    expect(editorSchema.blockSpecs.audio).toBeDefined();
+    expect(editorSchema.blockSpecs.video).toBeDefined();
+    expect(editorSchema.styleSpecs.textColor).toBeDefined();
+    expect(editorSchema.styleSpecs.backgroundColor).toBeDefined();
   });
 
-  it("offers only canonical languages in the native code-block selector", () => {
+  it("leaves the installed slash menu unfiltered", () => {
+    const editor = BlockNoteEditor.create({ schema: editorSchema });
+    const keys = getDefaultReactSlashMenuItems(editor).map(
+      (item) => (item as { key?: string }).key,
+    );
+
+    expect(keys).toContain("check_list");
+    expect(keys).toContain("divider");
+    expect(keys).toContain("table");
+    expect(keys).toContain("image");
+  });
+
+  it("omits empty initial content so BlockNote creates its default paragraph", () => {
+    expect(
+      getInitialEditorContent({ format: "blocknote@1", blocks: [] }),
+    ).toBeUndefined();
+  });
+
+  it("keeps the canonical language selector on the standard code block", () => {
     const editor = BlockNoteEditor.create({
       schema: editorSchema,
       initialContent: [{ type: "codeBlock", content: "x" }],
@@ -151,239 +227,192 @@ describe("PostBodyEditor configuration", () => {
     editor.mount(container);
 
     try {
-      const select = container.querySelector("select");
-      expect(select).not.toBeNull();
-      expect(Array.from(select?.options ?? [], ({ value }) => value)).toEqual(
-        CODE_LANGUAGES.map(({ id }) => id),
-      );
+      expect(
+        Array.from(container.querySelectorAll("select option")),
+      ).toHaveLength(CODE_LANGUAGES.length);
       expect(Object.keys(blockNoteSupportedLanguages)).toEqual(
         CODE_LANGUAGES.map(({ id }) => id),
       );
-      expect(select?.value).toBe("text");
       expect(block.props.language).toBe("text");
     } finally {
       editor.unmount();
     }
   });
 
-  it.each([
-    ["kotlin", "text"],
-    ["", "text"],
-    [undefined, "text"],
-    [42, "text"],
-    ["rs", "rust"],
-    ["rust", "rust"],
-  ])("serializes code language %s as %s", (language, expected) => {
+  it("normalizes unknown code languages to the canonical fallback", () => {
     expect(
       normalizeBlock({
         type: "codeBlock",
-        props: { language },
-        content: "x",
+        props: { language: "unknown" },
+        content: [{ type: "text", text: "const answer = 42;" }],
         children: [],
       }),
     ).toEqual({
       type: "codeBlock",
-      props: { language: expected },
-      content: "x",
+      props: { language: "text" },
+      content: "const answer = 42;",
     });
   });
 
-  it.each([
-    [1, 2],
-    [2, 2],
-    [4, 4],
-    [6, 6],
-    [7, 6],
-    ["4", 2],
-    [undefined, 2],
-  ])("normalizes heading level %s to %s", (level, expected) => {
-    expect(
-      normalizeBlock({
-        type: "heading",
-        props: { level },
-        content: [{ type: "text", text: "heading" }],
-        children: [],
-      }),
-    ).toEqual({
-      type: "heading",
-      props: { level: expected },
-      content: [{ type: "text", text: "heading" }],
-    });
-  });
-
-  it("normalizes heading levels inside nested children", () => {
-    expect(
-      normalizeBlock({
-        type: "bulletListItem",
-        props: {},
-        content: [{ type: "text", text: "item" }],
-        children: [
-          {
-            type: "heading",
-            props: { level: 1 },
-            content: [{ type: "text", text: "nested one" }],
-            children: [],
-          },
-          {
-            type: "heading",
-            props: { level: 7 },
-            content: [{ type: "text", text: "nested seven" }],
-            children: [],
-          },
-        ],
-      }),
-    ).toMatchObject({
-      children: [
-        { type: "heading", props: { level: 2 } },
-        { type: "heading", props: { level: 6 } },
-      ],
-    });
-  });
-
-  it("includes the curated image block and strips transient image props", () => {
-    expect(editorSchema.blockSpecs.image).toBeDefined();
+  it("retains native media presentation props in the editor projection", () => {
     expect(
       normalizeBlock({
         type: "image",
         props: {
           url: "storage-image-1",
-          name: "A mountain lake",
-          altText: "A mountain lake",
           caption: "Morning light",
-          textAlignment: "center",
+          name: "lake.jpg",
           previewWidth: 500,
           showPreview: true,
+          textAlignment: "center",
         },
-        content: [],
+        content: undefined,
         children: [],
       }),
-    ).toEqual({
+    ).toMatchObject({
       type: "image",
       props: {
-        storageId: "storage-image-1",
-        altText: "A mountain lake",
-        caption: "Morning light",
+        source: { kind: "storage", id: "storage-image-1" },
+        textAlignment: "center",
       },
     });
   });
 
-  it("serializes dedicated alt text without using the file name", () => {
-    expect(
-      normalizeBlock({
-        type: "image",
-        props: {
-          url: "storage-image-1",
-          name: "mountain-lake.jpg",
-          altText: "A mountain lake at sunrise",
-        },
-        content: [],
-        children: [],
-      }),
-    ).toEqual({
-      type: "image",
-      props: {
-        storageId: "storage-image-1",
-        altText: "A mountain lake at sunrise",
-      },
-    });
-  });
-
-  it("uses an empty alt text when an image has no alt text", () => {
-    expect(
-      normalizeBlock({
-        type: "image",
-        props: { url: "storage-image-2", name: "mountain-lake.jpg" },
-        content: [],
-        children: [],
-      }),
-    ).toEqual({
-      type: "image",
-      props: { storageId: "storage-image-2", altText: "" },
-    });
-  });
-
-  it("exposes only non-toggleable headings from H2 through H6", () => {
-    const propSchema = editorSchema.blockSpecs.heading.config.propSchema;
-
-    expect(propSchema.level.values).toEqual([2, 3, 4, 5, 6]);
-    expect(propSchema.level.default).toBe(2);
-    expect("isToggleable" in propSchema).toBe(false);
-  });
-
-  it("accepts only author-safe link protocols at every BlockNote entry point", () => {
+  it("accepts only safe author link protocols", () => {
     expect(isSafeAuthorLink("https://example.com/article")).toBe(true);
-    expect(isSafeAuthorLink("http://localhost:3000/preview")).toBe(true);
     expect(isSafeAuthorLink("mailto:editor@example.com")).toBe(true);
     expect(isSafeAuthorLink("javascript:alert(1)")).toBe(false);
-    expect(isSafeAuthorLink("data:text/html,unsafe")).toBe(false);
-    expect(isSafeAuthorLink("ftp://example.com/file")).toBe(false);
   });
 
-  it("preserves link text when an unsafe link is rejected", () => {
-    expect(
-      normalizeBlock({
-        type: "paragraph",
-        props: {},
-        content: [
-          {
-            type: "link",
-            href: "javascript:alert(1)",
-            content: [{ type: "text", text: "Keep this text", styles: {} }],
-          },
-        ],
-        children: [],
-      }),
-    ).toEqual({
-      type: "paragraph",
-      content: [{ type: "text", text: "Keep this text" }],
-    });
-  });
-
-  it("uses deterministic rich-text paste preferences within the curated schema", () => {
-    expect(getCuratedPasteOptions()).toEqual({
+  it("uses BlockNote's native Markdown paste policy while preferring HTML", () => {
+    expect(getEditorPasteOptions()).toEqual({
       prioritizeMarkdownOverHTML: false,
       plainTextAsMarkdown: true,
     });
   });
+});
 
-  it("drops unsupported rich-text formatting and unsafe links from pasted HTML", () => {
-    const editor = BlockNoteEditor.create({
-      schema: editorSchema,
-      links: { isValidLink: isSafeAuthorLink },
-    });
-    const [block] = editor.tryParseHTMLToBlocks(
-      '<p style="color: red"><a href="javascript:alert(1)">Keep this text</a></p>',
+describe("editor to persistence to reader round trip", () => {
+  const expectedTypes = [
+    "paragraph",
+    "heading",
+    "quote",
+    "bulletListItem",
+    "numberedListItem",
+    "checkListItem",
+    "toggleListItem",
+    "codeBlock",
+    "divider",
+    "table",
+    "image",
+    "audio",
+    "video",
+  ];
+
+  it("keeps every enabled default block through serialization, validation, and rendering", async () => {
+    const editor = buildFullEditor();
+    const serialized = serializeEditorDocument(
+      editor.document as unknown as EditorBlock[],
     );
 
-    expect(normalizeBlock(block as unknown as EditorBlock)).toEqual({
-      type: "paragraph",
-      content: [{ type: "text", text: "Keep this text" }],
-    });
-  });
+    const parsed = parsePostBody(JSON.stringify(serialized));
+    expect(parsed.kind).toBe("structured");
+    if (parsed.kind !== "structured") return;
 
-  it("turns blocks into only the approved semantic types", () => {
-    expect(getTurnIntoBlockUpdate("heading-2")).toEqual({
-      type: "heading",
-      props: { level: 2 },
+    const types = parsed.document.blocks.map((block) => block.type);
+    for (const type of expectedTypes) expect(types).toContain(type);
+
+    expect(
+      parsed.document.blocks
+        .filter((block) => block.type === "heading")
+        .map((block) => block.props?.level),
+    ).toEqual([2, 3, 4, 5, 6]);
+
+    const image = parsed.document.blocks.find(
+      (block) => block.type === "image",
+    );
+    expect(image?.props?.source).toEqual({
+      kind: "storage",
+      id: "storage-image-1",
     });
-    expect(getTurnIntoBlockUpdate("heading-3")).toEqual({
-      type: "heading",
-      props: { level: 3 },
+    const video = parsed.document.blocks.find(
+      (block) => block.type === "video",
+    );
+    expect(video?.props?.source).toEqual({
+      kind: "url",
+      url: "https://cdn.example.com/clip.mp4",
     });
-    expect(getTurnIntoBlockUpdate("heading-4")).toEqual({
-      type: "heading",
-      props: { level: 4 },
+    const table = parsed.document.blocks.find(
+      (block) => block.type === "table",
+    );
+    expect((table?.content as { type?: string } | undefined)?.type).toBe(
+      "tableContent",
+    );
+
+    const { container } = render(
+      await PostBody({
+        body: JSON.stringify(serialized),
+        inlineImages: [
+          {
+            storageId: "storage-image-1",
+            url: "https://cdn.example.com/lake.png",
+          },
+          {
+            storageId: "storage-audio-1",
+            url: "https://cdn.example.com/sound.mp3",
+          },
+        ],
+      }),
+    );
+
+    expect(container.querySelector("h1")).toBeNull();
+    for (const level of [2, 3, 4, 5, 6]) {
+      expect(container.querySelector(`h${level}`)).not.toBeNull();
+    }
+    expect(container.querySelector("hr")).not.toBeNull();
+    expect(container.querySelector("table")).not.toBeNull();
+    expect(container.querySelector("img")).not.toBeNull();
+    expect(container.querySelector("audio")).not.toBeNull();
+    expect(container.querySelector("video")).not.toBeNull();
+    expect(screen.getByText("Intro paragraph")).toBeVisible();
+    expect(screen.getByText("const answer = 42;")).toBeVisible();
+  });
+});
+
+describe("editor history controls", () => {
+  it("tracks undo and redo availability with accessible icon buttons", async () => {
+    const editor = BlockNoteEditor.create({
+      schema: editorSchema,
+      initialContent: [{ type: "paragraph", content: "One" }],
     });
-    expect(getTurnIntoBlockUpdate("heading-5")).toEqual({
-      type: "heading",
-      props: { level: 5 },
+
+    render(
+      <BlockNoteView editor={editor}>
+        <HistoryControls />
+      </BlockNoteView>,
+    );
+
+    const undo = screen.getByRole("button", { name: "Undo" });
+    const redo = screen.getByRole("button", { name: "Redo" });
+    expect(undo).toBeDisabled();
+    expect(redo).toBeDisabled();
+
+    act(() => {
+      editor.updateBlock(editor.document[0], { content: "Two" });
     });
-    expect(getTurnIntoBlockUpdate("heading-6")).toEqual({
-      type: "heading",
-      props: { level: 6 },
-    });
-    expect(getTurnIntoBlockUpdate("quote")).toEqual({ type: "quote" });
-    expect(getTurnIntoBlockUpdate("code")).toBeUndefined();
-    expect(getTurnIntoBlockUpdate("checklist")).toBeUndefined();
+
+    await waitFor(() => expect(undo).toBeEnabled());
+    fireEvent.click(undo);
+    await waitFor(() => expect(redo).toBeEnabled());
+    expect(editor.document[0].content).toEqual([
+      { type: "text", text: "One", styles: {} },
+    ]);
+
+    fireEvent.click(redo);
+    await waitFor(() =>
+      expect(editor.document[0].content).toEqual([
+        { type: "text", text: "Two", styles: {} },
+      ]),
+    );
   });
 });

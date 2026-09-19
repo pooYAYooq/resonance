@@ -3,7 +3,7 @@ import { Fragment } from "react";
 import type { PostBlock, PostInlineContent } from "@/lib/post-content";
 import { parsePostBody } from "@/lib/post-content";
 import { DEFAULT_HEADING_LEVEL } from "@/lib/heading";
-import { HighlightedCode } from "./HighlightedCode";
+import { HighlightedCodeClient } from "./HighlightedCodeClient";
 import {
   getHeadingClassName,
   getInlineText,
@@ -12,11 +12,11 @@ import {
   renderInlineContent,
 } from "./post-body-shared";
 
-export type ResolvedInlineImage = { storageId: string; url: string | null };
+export type PreviewInlineImage = { storageId: string; url: string | null };
 
-type PostBodyProps = {
+type PostBodyPreviewProps = {
   body: string;
-  inlineImages?: ResolvedInlineImage[];
+  inlineImages?: PreviewInlineImage[];
 };
 
 function renderContent(block: PostBlock, key: string): ReactNode {
@@ -25,11 +25,11 @@ function renderContent(block: PostBlock, key: string): ReactNode {
     : renderInlineContent(block.content, key);
 }
 
-async function renderMedia(
+function renderMedia(
   block: PostBlock,
   key: string,
   resolved: Map<string, string>,
-): Promise<ReactNode> {
+): ReactNode {
   const url = getMediaUrl(block, resolved);
   if (!url) return null;
   const name = typeof block.props?.name === "string" ? block.props.name : "";
@@ -78,22 +78,22 @@ async function renderMedia(
   return null;
 }
 
-async function renderChildren(
+function renderChildren(
   block: PostBlock,
   key: string,
   resolved: Map<string, string>,
-) {
+): ReactNode {
   return block.children?.length
     ? renderBlocks(block.children, `${key}-children`, resolved)
     : null;
 }
 
-async function renderList(
+function renderList(
   blocks: PostBlock[],
   type: "bulletListItem" | "numberedListItem",
   key: string,
   resolved: Map<string, string>,
-) {
+): ReactNode {
   const List = type === "bulletListItem" ? "ul" : "ol";
   return (
     <List
@@ -104,19 +104,17 @@ async function renderList(
           : "list-decimal space-y-2 pl-6"
       }
     >
-      {await Promise.all(
-        blocks.map(async (block, index) => (
-          <li key={`${key}-${index}`} className={getTextAlignment(block.props)}>
-            {renderContent(block, `${key}-${index}`)}
-            {await renderChildren(block, `${key}-${index}`, resolved)}
-          </li>
-        )),
-      )}
+      {blocks.map((block, index) => (
+        <li key={`${key}-${index}`} className={getTextAlignment(block.props)}>
+          {renderContent(block, `${key}-${index}`)}
+          {renderChildren(block, `${key}-${index}`, resolved)}
+        </li>
+      ))}
     </List>
   );
 }
 
-async function renderTable(block: PostBlock, key: string) {
+function renderTable(block: PostBlock, key: string): ReactNode {
   const table = block.content as unknown as {
     rows?: Array<{
       cells?: Array<{
@@ -161,11 +159,11 @@ async function renderTable(block: PostBlock, key: string) {
   );
 }
 
-async function renderBlock(
+function renderBlock(
   block: PostBlock,
   key: string,
   resolved: Map<string, string>,
-): Promise<ReactNode> {
+): ReactNode {
   if (["image", "audio", "video"].includes(block.type ?? "")) {
     return renderMedia(block, key, resolved);
   }
@@ -173,17 +171,16 @@ async function renderBlock(
   if (block.type === "table") return renderTable(block, key);
   if (block.type === "codeBlock" && typeof block.content === "string") {
     return (
-      <Fragment key={key}>
-        {await HighlightedCode({
-          code: block.content,
-          language: block.props?.language,
-        })}
-      </Fragment>
+      <HighlightedCodeClient
+        key={key}
+        code={block.content}
+        language={block.props?.language}
+      />
     );
   }
 
   const content = renderContent(block, key);
-  const children = await renderChildren(block, key, resolved);
+  const children = renderChildren(block, key, resolved);
   if (block.type === "heading") {
     const level = block.props?.level;
     const Heading =
@@ -256,11 +253,11 @@ async function renderBlock(
   );
 }
 
-async function renderBlocks(
+function renderBlocks(
   blocks: PostBlock[],
   keyPrefix: string,
   resolved: Map<string, string>,
-): Promise<ReactNode[]> {
+): ReactNode[] {
   const nodes: ReactNode[] = [];
   for (let index = 0; index < blocks.length; index += 1) {
     const block = blocks[index];
@@ -270,18 +267,24 @@ async function renderBlocks(
       while (blocks[index]?.type === type) list.push(blocks[index++]);
       index -= 1;
       nodes.push(
-        await renderList(list, type, `${keyPrefix}-list-${index}`, resolved),
+        renderList(list, type, `${keyPrefix}-list-${index}`, resolved),
       );
       continue;
     }
-    nodes.push(
-      await renderBlock(block, `${keyPrefix}-block-${index}`, resolved),
-    );
+    nodes.push(renderBlock(block, `${keyPrefix}-block-${index}`, resolved));
   }
   return nodes;
 }
 
-export async function PostBody({ body, inlineImages = [] }: PostBodyProps) {
+/**
+ * Synchronous public-style renderer for client-side previews (Review). Mirrors
+ * `PostBody`, but renders code blocks without syntax highlighting because the
+ * server highlighter is not available on the client.
+ */
+export function PostBodyPreview({
+  body,
+  inlineImages = [],
+}: PostBodyPreviewProps) {
   const parsed = parsePostBody(body);
   if (parsed.kind !== "structured") return null;
   const resolved = new Map(
@@ -290,8 +293,8 @@ export async function PostBody({ body, inlineImages = [] }: PostBodyProps) {
     ),
   );
   return (
-    <div data-slot="post-body" className="space-y-5 text-lg">
-      {await renderBlocks(parsed.document.blocks, "post", resolved)}
+    <div data-slot="post-body-preview" className="space-y-5 text-lg">
+      {renderBlocks(parsed.document.blocks, "preview", resolved)}
     </div>
   );
 }

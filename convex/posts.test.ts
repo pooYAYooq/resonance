@@ -261,27 +261,46 @@ describe("posts functions", () => {
     ).toEqual([sessionId, "session-2"]);
   });
 
-  it("allows duplicate image references to use one claim", () => {
+  it("allows duplicate local media references to use one claim", () => {
     const imageStorageIds = extractImageStorageIds([
       {
         type: "image",
-        props: { storageId, altText: "First image" },
+        props: {
+          source: { kind: "storage", id: storageId },
+          name: "First image",
+        },
       },
       {
-        type: "image",
-        props: { storageId, altText: "Repeated image" },
+        type: "audio",
+        props: {
+          source: { kind: "storage", id: storageId },
+          name: "Repeated audio",
+        },
+      },
+      {
+        type: "video",
+        props: {
+          source: { kind: "storage", id: secondStorageId },
+          name: "demo.mp4",
+        },
       },
     ]);
 
-    expect(imageStorageIds).toEqual([storageId]);
+    expect(imageStorageIds).toEqual([storageId, secondStorageId]);
     expect(
       validateInlineUploadClaims(
         imageStorageIds as Id<"_storage">[],
-        [claim()],
+        [
+          claim(),
+          claim({
+            _id: "session-2" as Id<"pendingUploads">,
+            storageId: secondStorageId,
+          }),
+        ],
         "author-1",
         50,
       ),
-    ).toEqual([sessionId]);
+    ).toEqual([sessionId, "session-2"]);
   });
 
   it.each([
@@ -1392,7 +1411,7 @@ describe("posts functions", () => {
             blocks: [
               {
                 type: "image",
-                props: { storageId: first, altText: "First" },
+                props: { url: first, name: "First" },
               },
               {
                 type: "bulletListItem",
@@ -1400,13 +1419,13 @@ describe("posts functions", () => {
                 children: [
                   {
                     type: "image",
-                    props: { storageId: second, altText: "Second" },
+                    props: { url: second, name: "Second" },
                   },
                 ],
               },
               {
                 type: "image",
-                props: { storageId: first, altText: "Repeated" },
+                props: { url: first, name: "Repeated" },
               },
             ],
           }),
@@ -1446,7 +1465,7 @@ describe("posts functions", () => {
           blocks: [
             {
               type: "image",
-              props: { storageId, altText: "Missing" },
+              props: { url: storageId, name: "Missing" },
             },
           ],
         }),
@@ -2187,7 +2206,20 @@ describe("atomic discovery lifecycle", () => {
     ).resolves.toMatchObject({
       post: {
         title: boundaryProposal.title,
-        body: boundaryProposal.body,
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "paragraph",
+              props: {
+                backgroundColor: "default",
+                textColor: "default",
+                textAlignment: "left",
+              },
+              content: [{ type: "text", text: boundaryBody }],
+            },
+          ],
+        }),
         tags: boundaryProposal.tags,
       },
       summary: { title: boundaryProposal.title },
