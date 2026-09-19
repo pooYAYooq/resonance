@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
-import type { BlockNoteDocument } from "@/lib/post-content";
+import type { BlockNoteDocument, PostBlock } from "@/lib/post-content";
 import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
 import {
   parseCanonicalDocument,
@@ -15,6 +15,7 @@ import {
   type CanonicalProposal,
 } from "@/lib/write-contract";
 import { clearDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
+import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
@@ -22,6 +23,7 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Suspense,
+  useCallback,
   useTransition,
   useEffect,
   useMemo,
@@ -155,6 +157,46 @@ function readRecoveredDraft(sessionKey: string): {
 }
 
 /**
+ * Replaces or removes a storage-backed media source in a canonical document,
+ * backing the inline-media Retry and Remove actions.
+ */
+function mapDocumentMediaSource(
+  document: BlockNoteDocument,
+  sourceId: string,
+  replacementId: string | null,
+): BlockNoteDocument {
+  const isSource = (value: unknown) =>
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    (value as { kind?: unknown }).kind === "storage" &&
+    (value as { id?: unknown }).id === sourceId;
+
+  const mapBlocks = (blocks: PostBlock[]): PostBlock[] =>
+    blocks.flatMap((block) => {
+      const props = block.props ?? {};
+      if (isSource(props.source)) {
+        if (replacementId === null) return [];
+        return [
+          {
+            ...block,
+            props: {
+              ...props,
+              source: { kind: "storage", id: replacementId },
+            },
+          },
+        ];
+      }
+      if (block.children?.length) {
+        return [{ ...block, children: mapBlocks(block.children) }];
+      }
+      return [block];
+    });
+
+  return { ...document, blocks: mapBlocks(document.blocks) };
+}
+
+/**
  * Resolves storage-backed media in a restored recovery document back to URLs.
  * A refresh drops the client's object URLs, so the server is asked which ids
  * the caller still owns. Unresolved ids become `null`, which `collectInlineMedia`
@@ -223,6 +265,7 @@ export default function CreateRoute() {
 
 function CreateEditor() {
   const convex = useConvex();
+  const { uploadFile } = useBlockNoteFileUpload();
   const [isPending, startTransition] = useTransition();
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
@@ -362,6 +405,23 @@ function CreateEditor() {
   );
   const hydratedSessionKey = useRef<string | undefined>(undefined);
   const activeSessionKeyRef = useRef<string | undefined>(undefined);
+  const claimRecoveredMedia = useCallback(
+    (urls: Record<string, string | null>) => {
+      const sessionId = activeSessionKeyRef.current ?? "new:new";
+      for (const [storageId, url] of Object.entries(urls)) {
+        if (!url) continue;
+        void Promise.resolve(
+          claimSessionMedia({
+            sessionId,
+            storageId: storageId as Id<"_storage">,
+          }),
+        ).catch(() => {
+          // Re-claiming is best effort; the resolved URL still renders.
+        });
+      }
+    },
+    [claimSessionMedia],
+  );
   const requestedTarget = useMemo(
     () =>
       requestedEditorMode.mode === "invalid"
@@ -517,6 +577,7 @@ function CreateEditor() {
           (urls) => {
             if (hydratedSessionKey.current !== sessionKey) return;
             setResolvedImageUrls(urls);
+            claimRecoveredMedia(urls);
             setRecoveryNonce((nonce) => nonce + 1);
           },
         );
@@ -604,6 +665,7 @@ function CreateEditor() {
       ).then((urls) => {
         if (hydratedSessionKey.current !== sessionKey) return;
         setResolvedImageUrls(urls);
+        claimRecoveredMedia(urls);
         setRecoveryNonce((nonce) => nonce + 1);
       });
     } else {
@@ -621,6 +683,7 @@ function CreateEditor() {
     if (editorMode.mode === "draft") setDraftId(target._id);
     hydratedSessionKey.current = sessionKey;
   }, [
+    claimRecoveredMedia,
     convex,
     editorMode.mode,
     form,
@@ -1098,6 +1161,73 @@ function CreateEditor() {
     .filter((entry): entry is [string, string] => typeof entry[1] === "string")
     .map(([storageId, url]) => ({ storageId, url }));
 
+  function retryInlineMedia(storageId: string) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*,audio/*,video/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      void (async () => {
+        try {
+          const nextStorageId = await uploadFile(file);
+          const objectUrl = URL.createObjectURL(file);
+          setResolvedImageUrls((current) => ({
+            ...current,
+            [nextStorageId]: objectUrl,
+          }));
+          const nextContent = mapDocumentMediaSource(
+            watchedValues.content as BlockNoteDocument,
+            storageId,
+            nextStorageId,
+          );
+          form.setValue("content", nextContent, {
+            shouldDirty: true,
+            shouldTouch: true,
+          });
+          setInitialContent(nextContent);
+          dispatchSession({ type: "clearFailedMedia", storageId });
+          void Promise.resolve(
+            claimSessionMedia({
+              sessionId: activeSessionKeyRef.current ?? "new:new",
+              storageId: nextStorageId as Id<"_storage">,
+            }),
+          ).catch(() => {});
+          setRecoveryNonce((nonce) => nonce + 1);
+        } catch {
+          toast.error("Could not replace the media. Try again or remove it.");
+        }
+      })();
+    };
+    input.click();
+  }
+
+  function removeInlineMedia(storageId: string) {
+    const nextContent = mapDocumentMediaSource(
+      watchedValues.content as BlockNoteDocument,
+      storageId,
+      null,
+    );
+    form.setValue("content", nextContent, {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    setInitialContent(nextContent);
+    setResolvedImageUrls((current) => {
+      const next = { ...current };
+      delete next[storageId];
+      return next;
+    });
+    dispatchSession({ type: "clearFailedMedia", storageId });
+    void Promise.resolve(
+      releaseSessionMedia({
+        sessionId: activeSessionKeyRef.current ?? "new:new",
+        storageIds: [storageId as Id<"_storage">],
+      }),
+    ).catch(() => {});
+    setRecoveryNonce((nonce) => nonce + 1);
+  }
+
   function enterReview() {
     if (reviewBlocker) {
       toast.error(REVIEW_BLOCKER_MESSAGES[reviewBlocker]);
@@ -1271,7 +1401,8 @@ function CreateEditor() {
                 form.resetField("image", { defaultValue: undefined });
                 setCoverStorageId(undefined);
               }}
-              onRetry={() => toast.info("Select the image again to retry.")}
+              onRetry={retryInlineMedia}
+              onRemoveInline={removeInlineMedia}
             />
             <Controller
               name="tags"

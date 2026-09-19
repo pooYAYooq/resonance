@@ -24,6 +24,7 @@ export type MediaAuthoringProps = {
   onChooseCover: (file: File) => void;
   onRemoveCover: () => void;
   onRetry: (id: string) => void;
+  onRemoveInline?: (id: string) => void;
   coverInputAriaLabel?: string;
 };
 
@@ -47,9 +48,11 @@ function statusLabel(asset: MediaAsset) {
 function MediaStatusView({
   asset,
   onRetry,
+  onRemove,
 }: {
   asset: MediaAsset;
-  onRetry: () => void;
+  onRetry?: () => void;
+  onRemove?: () => void;
 }) {
   const recoverable = asset.status === "failed" || asset.status === "expired";
 
@@ -68,9 +71,14 @@ function MediaStatusView({
         />
       ) : null}
       <span>{statusLabel(asset)}</span>
-      {recoverable ? (
+      {recoverable && onRetry ? (
         <button type="button" onClick={onRetry}>
           {asset.status === "failed" ? "Retry failed" : "Retry expired"}
+        </button>
+      ) : null}
+      {recoverable && onRemove ? (
+        <button type="button" onClick={onRemove}>
+          Remove media
         </button>
       ) : null}
     </span>
@@ -83,6 +91,7 @@ export default function MediaAuthoring({
   onChooseCover,
   onRemoveCover,
   onRetry,
+  onRemoveInline,
   coverInputAriaLabel,
 }: MediaAuthoringProps) {
   const unresolved = inlineImages.some((asset) => asset.status !== "resolved");
@@ -92,15 +101,19 @@ export default function MediaAuthoring({
       <div className="grid gap-3" aria-label="Inline media">
         {inlineImages.map((asset) => (
           <article key={asset.id}>
-            <MediaStatusView asset={asset} onRetry={() => onRetry(asset.id)} />
+            <MediaStatusView
+              asset={asset}
+              onRetry={() => onRetry(asset.id)}
+              {...(onRemoveInline && {
+                onRemove: () => onRemoveInline(asset.id),
+              })}
+            />
           </article>
         ))}
       </div>
 
       <div className="grid gap-2" aria-label="Cover media">
-        {cover ? (
-          <MediaStatusView asset={cover} onRetry={() => onRetry(cover.id)} />
-        ) : null}
+        {cover ? <MediaStatusView asset={cover} /> : null}
         <label>
           {cover ? "Replace cover image" : "Add cover image"}
           <input

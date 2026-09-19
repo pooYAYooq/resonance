@@ -480,6 +480,36 @@ describe("CreateRoute", () => {
     ).toBeInTheDocument();
   });
 
+  it("removes an unavailable recovered media block", async () => {
+    const user = userEvent.setup();
+    saveDraftRecovery(
+      "new:new",
+      {
+        title: "Recovered media",
+        body: JSON.stringify(inlineEnvelope),
+        tags: [],
+      },
+      Date.now(),
+    );
+    convexQueryMock.mockResolvedValue([
+      { storageId: "storage-inline-1", url: null },
+    ]);
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Recovered media");
+
+    await user.click(
+      await screen.findByRole("button", { name: "Remove media" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove media" })).toBeNull(),
+    );
+    expect(releaseSessionMediaMock).toHaveBeenCalledWith(
+      expect.objectContaining({ storageIds: ["storage-inline-1"] }),
+    );
+  });
+
   it("enters Review and returns to editing with content preserved", async () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
