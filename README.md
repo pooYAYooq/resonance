@@ -101,16 +101,16 @@ This starts the Convex dev server and syncs your schema/functions.
 
 ## Development Commands
 
-| Intent               | Command                                                        |
-| -------------------- | -------------------------------------------------------------- |
-| Dev server           | `pnpm dev`                                                     |
-| Lint                 | `pnpm lint`                                                    |
-| Format               | `pnpm format`                                                  |
-| Typecheck            | `pnpm build` (includes TS type-checking via Next plugin)       |
-| Tests (edge-runtime) | `pnpm test:ci` — Vitest with edge-runtime for Convex functions |
-| Component tests      | `pnpm test:component` — Vitest with jsdom for React components |
-| Single test file     | `pnpm test -- <path>`                                          |
-| Build                | `pnpm build`                                                   |
+| Intent               | Command                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| Dev server           | `pnpm dev`                                                                              |
+| Lint                 | `pnpm lint`                                                                             |
+| Format               | `pnpm format`                                                                           |
+| Typecheck            | `pnpm build` (includes TS type-checking via Next plugin)                                |
+| Tests (edge-runtime) | `pnpm test:ci` — Vitest on edge-runtime: Convex, `app`, `lib`, and `schemas` unit tests |
+| Component tests      | `pnpm test:component` — Vitest with jsdom for React components                          |
+| Single test file     | `pnpm test -- <path>`                                                                   |
+| Build                | `pnpm build`                                                                            |
 
 ---
 

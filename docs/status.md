@@ -28,8 +28,8 @@ conformance test drives one of every enabled default block through editor
 serialization → `parsePostBody` → `PostBody`. Before the repair, media, table,
 and divider blocks were rejected on save.
 
-Manual browser acceptance then passed the heading, paste, table/list/code,
-publish/reader, and layout journeys, and surfaced two gaps that are now fixed:
+Manual browser acceptance then passed the heading, paste, table/list/code, and
+publish/reader journeys, and surfaced two gaps that are now fixed:
 `resolveFileUrl` returned an empty string for remote Embed URLs (so native
 remote image/video embeds broke), and the reset had removed the visible
 Undo/Redo controls. Remote safe HTTP(S) URLs now pass through unchanged, and a
@@ -51,16 +51,16 @@ page's author identity and engagement controls.
 
 ## Baseline status (committed on this branch)
 
-- Three new commits on `feature/media-authoring` (the branch is four ahead of
-  `origin/main` in total) are **not pushed**: the local-notes ignore, the
-  standard-BlockNote authoring and review flow, and the docs reconciliation.
+- Local commits on `feature/media-authoring` are **not pushed**: the local-notes
+  ignore, the standard-BlockNote authoring and review flow, and the docs
+  reconciliation.
 - Automated gate green at commit time: `pnpm lint`, `pnpm exec tsc --noEmit`,
   `pnpm build`, targeted Prettier, and `git diff --check`.
 - `pnpm test:ci` — 33 files, 440 tests. `pnpm test:component` — 74 files, 391
   tests.
 - Manual browser acceptance: headings, paste with single undo, table/lists/code,
-  publish/reader, layout, remote embeds, visible Undo/Redo, and silent recovery
-  are accepted. Review is browser-tested with follow-ups open.
+  publish/reader, remote embeds, visible Undo/Redo, and silent recovery are
+  accepted. Review and layout are browser-tested with follow-ups open.
 - Nothing is pushed and no PR is open. Per `AGENTS.md`, pushing and opening a PR
   each require separate explicit human approval; `docs/superpowers/**` stays
   untracked.
@@ -94,18 +94,17 @@ high-confidence items:
 Close the follow-up backlog above in small focused batches; those issues are the
 gap between the implemented Review slice and its full acceptance.
 
-1. `d822fe0a` — `MediaAuthoring.tsx`: media authoring and Review readiness.
-   Done in code; wording and per-row affordances remain in the backlog.
-2. `00a0c6fa` — `ReviewSurface.tsx`: Review, publish, and update flows. Implemented
-   and browser-tested; close the follow-ups before calling it complete.
-3. `cc147179` — `authoring-journeys.md`: capture the authoring browser journey
-   evidence once the fixes land.
+1. Media authoring and Review readiness — done in code; wording and per-row
+   affordances remain in the backlog.
+2. Review, publish, and update flows — implemented and browser-tested; close the
+   follow-ups before calling the slice complete.
+3. Authoring browser journey evidence — capture the journeys once the fixes
+   land.
 
-After Track 1 and Track 4, the Phase 3A.3 release tasks apply (`roadmap.md`
-acceptance matrix, `FEATURES.md` sync, `package.json` release checks, human review
-checklist, PR, worktree cleanup). Track 4 (management, deletion, exit guards,
-accessibility evidence) is separate. The branch is ready to rename, push, and
-open as a PR on approval.
+After Track 1 and Track 4, the Phase 3A.3 release tasks apply: the `FEATURES.md`
+acceptance matrix, `package.json` release checks, human review checklist, PR, and
+worktree cleanup. Track 4 (management, deletion, exit guards, accessibility
+evidence) is separate. The branch is ready to push and open as a PR on approval.
 
 ## Authoritative direction
 
