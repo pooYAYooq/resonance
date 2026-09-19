@@ -744,10 +744,20 @@ describe("CreateRoute", () => {
     view.rerender(<CreateRoute />);
 
     expect(screen.getByDisplayValue("Unsaved post one")).toBeInTheDocument();
+    saveDraftRecovery(
+      "published-edit:post-1",
+      {
+        title: "Unsaved post one",
+        body: JSON.stringify(validEnvelope),
+        tags: ["Technology"],
+      },
+      Date.now(),
+    );
     await user.click(
       screen.getByRole("button", { name: "Load requested document" }),
     );
     expect(await screen.findByDisplayValue("Post two")).toBeInTheDocument();
+    expect(readDraftRecovery("published-edit:post-1")).toBeNull();
   });
 
   it("clears a pending target when navigation becomes invalid", async () => {

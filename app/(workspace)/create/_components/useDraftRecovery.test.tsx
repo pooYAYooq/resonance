@@ -94,6 +94,27 @@ describe("useDraftRecovery", () => {
     expect(readDraftRecovery("draft:1")).not.toBeNull();
   });
 
+  it("clears the abandoned session's snapshot when the key changes", () => {
+    saveDraftRecovery("new:new", proposal, 1);
+
+    const { rerender } = renderHook(
+      ({ sessionKey }: { sessionKey: string }) =>
+        useDraftRecovery({
+          sessionKey,
+          ready: true,
+          dirty: true,
+          proposal,
+        }),
+      { initialProps: { sessionKey: "new:new" } },
+    );
+
+    expect(readDraftRecovery("new:new")).not.toBeNull();
+
+    rerender({ sessionKey: "draft:1" });
+
+    expect(readDraftRecovery("new:new")).toBeNull();
+  });
+
   it("flushes the latest proposal on pagehide while dirty", () => {
     renderHook(() =>
       useDraftRecovery({

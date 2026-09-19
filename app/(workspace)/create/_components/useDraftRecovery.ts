@@ -50,6 +50,11 @@ export function useDraftRecovery({
   useEffect(() => {
     const previous = sessionDirtyRef.current;
     if (previous.key !== sessionKey) {
+      // A key change only happens when the reducer adopts a target, either
+      // because the session was clean or because the author confirmed a
+      // discard. Clear the abandoned key's snapshot so a confirmed discard is
+      // not silently restored later.
+      clearDraftRecovery(previous.key);
       sessionDirtyRef.current = { key: sessionKey, dirty };
       return;
     }
