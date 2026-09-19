@@ -72,19 +72,23 @@ editor with native menus, file controls including remote embeds, code language
 selection, Shiki highlighting, and persistent visible Undo/Redo controls. Its
 safe canonical document contract supports the default text, media, table, and
 presentation features, and the public reader renders that same contract without
-injected HTML. Every enabled block is now proven to survive editor
-serialization, server validation, and reader rendering; previously the canonical
-projection was bypassed and non-text blocks were rejected on save. Headings
-reserve H1 for the post title and offer H2 through H6 with toggle headings
-disabled. Unsaved work is kept in a silent local draft and reloaded on return,
-so a refresh or navigation no longer loses content. Publication now goes through
-an explicit Review step: the frozen canonical post renders in a read-only
-surface, Publish/Update reuse the existing save path, and Review is blocked while
-inline media is unresolved. The author has accepted the editor, embeds, history
-controls, and recovery in the browser. Review is browser-tested; a follow-up
-backlog (editor title sizing, media-state wording and affordances, layout
-consistency, reader typography, and reader author identity) is open before the
-slice is called complete.
+injected HTML. Every enabled block is proven to survive editor serialization,
+server validation, and reader rendering; previously the canonical projection was
+bypassed and non-text blocks were rejected on save. Headings reserve H1 for the
+post title and offer H2 through H6 with toggle headings disabled. Unsaved work is
+kept in a silent local draft and reloaded on return, so a refresh or navigation
+no longer loses content. Publication goes through an explicit Review step: the
+frozen canonical post renders in a read-only surface, Publish/Update reuse the
+existing save path, and Review is blocked while inline media is unresolved.
+
+This authoring and Review baseline is merged to `main` in PR #72 (merge commit
+`1bc54ef`); all PR-review findings are closed. The author has accepted the
+editor, embeds, history controls, and recovery in the browser, and Review is
+browser-tested. Track 1 is not yet complete: an open follow-up backlog (editor
+title sizing, media-state wording and affordances, layout consistency, reader
+typography, and reader author identity) must be re-verified and closed before
+the slice is called done; several items were already addressed in the PR #72
+review pass.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes

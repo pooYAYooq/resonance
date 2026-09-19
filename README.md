@@ -37,8 +37,10 @@ Feature statuses are:
 - **Shipped** — available in the product.
 
 The short resume point is [`docs/status.md`](docs/status.md). The author
-dashboard, published post editing, analytics dashboard, and Discover Foundations
-are shipped. Phase 3A.3 — Writing & Management is the next focus.
+dashboard, published post editing, analytics dashboard, Discover Foundations,
+and the standard-BlockNote authoring and Review baseline are shipped. Phase
+3A.3 — Writing & Management is the active focus, with authoring UI/UX follow-ups
+open before the slice is called complete.
 
 ---
 

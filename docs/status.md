@@ -8,28 +8,30 @@ bounded section at the end and in the tracked plan/commit record.
 
 Phase 3A.3 — Writing & Management — current.
 
-Track 2 (persistence, retry, session, and media safety) and Track 3 (long-form
-content and discovery) and Phase 3A.0–3A.2 are shipped. Track 1 (authoring
-workspace and BlockNote experience) is the active track.
+Track 2 (persistence, retry, session, and media safety), Track 3 (long-form
+content and discovery), and Phase 3A.0–3A.2 are shipped. Track 1 (authoring
+workspace and BlockNote experience) shipped its standard-editor and Review
+baseline to `main` in PR #72; the track remains open on the UI/UX follow-up
+backlog below.
 
 ## Current focus
 
-Track 1 — Authoring Workspace and BlockNote Experience.
+Track 1 — Authoring Workspace and BlockNote Experience (post-merge follow-ups).
 
 The authoring surface is the installed standard Shadcn BlockNote editor with a
 safe canonical `blocknote@1` document contract and a React-only public reader.
 Headings reserve H1 for the post title: body headings are H2–H6, default H2, and
 toggle headings are disabled.
 
-The serialization seam was repaired in this working tree. Editor-only block
-identity (`id`) no longer bypasses the canonical contract, native unset table
-column widths are accepted and normalized to `null`, and a round-trip
-conformance test drives one of every enabled default block through editor
-serialization → `parsePostBody` → `PostBody`. Before the repair, media, table,
-and divider blocks were rejected on save.
+The serialization seam is repaired and shipped. Editor-only block identity (`id`)
+no longer bypasses the canonical contract, native unset table column widths are
+accepted and normalized to `null`, and a round-trip conformance test drives one
+of every enabled default block through editor serialization → `parsePostBody` →
+`PostBody`. Before the repair, media, table, and divider blocks were rejected on
+save.
 
-Manual browser acceptance then passed the heading, paste, table/list/code, and
-publish/reader journeys, and surfaced two gaps that are now fixed:
+Manual browser acceptance passed the heading, paste, table/list/code, and
+publish/reader journeys, and surfaced two gaps that are now fixed and shipped:
 `resolveFileUrl` returned an empty string for remote Embed URLs (so native
 remote image/video embeds broke), and the reset had removed the visible
 Undo/Redo controls. Remote safe HTTP(S) URLs now pass through unchanged, and a
@@ -43,26 +45,29 @@ effectively-empty snapshots are ignored, so removed content does not resurrect.
 There is no `beforeunload` warning. Browser-confirmed by the author. An
 always-available in-page Discard/Cancel button remains deferred.
 
-The Review slice is implemented and browser-tested. The browser run confirmed the
-frozen preview, the media gate, and Publish/Update, and surfaced authoring issues
-now tracked as a follow-up backlog (below): editor title sizing, media-state
-wording and affordances, layout consistency, reader typography, and the reader
-page's author identity and engagement controls.
+The Review slice is implemented, browser-tested, and shipped in PR #72. The
+browser run confirmed the frozen preview, the media gate, and Publish/Update,
+and surfaced authoring issues tracked as the follow-up backlog below: editor
+title sizing, media-state wording and affordances, layout consistency, reader
+typography, and the reader page's author identity and engagement controls.
 
-## Baseline status (committed on this branch)
+## Baseline status (merged to `main`)
 
-- Local commits on `feature/media-authoring` are **not pushed**: the local-notes
-  ignore, the standard-BlockNote authoring and review flow, and the docs
-  reconciliation.
-- Automated gate green at commit time: `pnpm lint`, `pnpm exec tsc --noEmit`,
-  `pnpm build`, targeted Prettier, and `git diff --check`.
-- `pnpm test:ci` — 33 files, 440 tests. `pnpm test:component` — 74 files, 391
+- The standard-BlockNote authoring and review flow, the authoring baseline
+  recovery, and the documentation reconciliation are merged to `main` in PR #72
+  (merge commit `1bc54ef`). `origin/main` is the source of truth.
+- PR review is closed: every Codex P1/P2, Qodo High/Medium, and CodeRabbit
+  finding was addressed before the merge. Reviewer dispositions that did not
+  change code are recorded in the PR thread.
+- Automated gate green at merge time: `pnpm lint`, `pnpm build`, targeted
+  Prettier, and `git diff --check`.
+- `pnpm test:ci` — 33 files, 457 tests. `pnpm test:component` — 75 files, 409
   tests.
 - Manual browser acceptance: headings, paste with single undo, table/lists/code,
   publish/reader, remote embeds, visible Undo/Redo, and silent recovery are
   accepted. Review and layout are browser-tested with follow-ups open.
-- Nothing is pushed and no PR is open. Per `AGENTS.md`, pushing and opening a PR
-  each require separate explicit human approval; `docs/superpowers/**` stays
+- `feature/media-authoring` was deleted locally and remotely after the merge.
+  Work continues on `docs/sync-project-state`. `docs/superpowers/**` stays
   untracked.
 - Repository-wide `pnpm format:check` still reports the known pre-existing
   baseline of unrelated files; every file changed by this work passes targeted
@@ -71,7 +76,10 @@ page's author identity and engagement controls.
 ## Open authoring follow-ups (browser audit)
 
 The Review browser pass produced a 29-item audit. The code-rooted,
-high-confidence items:
+high-confidence items are listed below; several (reader typography, media
+thumbnails, Remove-cover behaviour, the H3/Divider gap) were addressed during
+the PR #72 review pass and need re-verification in a fresh browser run before
+they are closed. The reader/editor contract items:
 
 - Editor title renders at body size: the shared `Input` base ships `md:text-sm`,
   which overrides the title's `sm:text-5xl` at desktop widths.
@@ -92,11 +100,12 @@ high-confidence items:
 ## Next focus
 
 Close the follow-up backlog above in small focused batches; those issues are the
-gap between the implemented Review slice and its full acceptance.
+gap between the shipped Review slice and its full acceptance. Re-verify the
+likely-already-fixed items in a fresh browser run before opening issues.
 
-1. Media authoring and Review readiness — done in code; wording and per-row
+1. Media authoring and Review readiness — shipped in code; wording and per-row
    affordances remain in the backlog.
-2. Review, publish, and update flows — implemented and browser-tested; close the
+2. Review, publish, and update flows — shipped and browser-tested; close the
    follow-ups before calling the slice complete.
 3. Authoring browser journey evidence — capture the journeys once the fixes
    land.
@@ -104,7 +113,8 @@ gap between the implemented Review slice and its full acceptance.
 After Track 1 and Track 4, the Phase 3A.3 release tasks apply: the `FEATURES.md`
 acceptance matrix, `package.json` release checks, human review checklist, PR, and
 worktree cleanup. Track 4 (management, deletion, exit guards, accessibility
-evidence) is separate. The branch is ready to push and open as a PR on approval.
+evidence) is separate. The merged baseline is on `main`; docs-sync and follow-up
+work proceed on non-`main` branches under PR review.
 
 ## Authoritative direction
 
@@ -184,10 +194,10 @@ evidence) is separate. The branch is ready to push and open as a PR on approval.
   BlockNote UI to adopt the full default authoring experience. The curated
   editor contract and its plans are now superseded, and the standard-editor
   direction was written up as the 2026-09-18 full-BlockNote design and plan.
-- The authoring baseline recovery (this working tree) fixes the serialization
-  seam, adds the all-block round-trip conformance test, and reconciles the
-  conflicting documentation direction. Browser acceptance and the human commit
-  gate remain.
+- The authoring baseline recovery fixed the serialization seam, added the
+  all-block round-trip conformance test, and reconciled the conflicting
+  documentation direction. It shipped to `main` in PR #72 (`1bc54ef`) together
+  with the standard-BlockNote authoring and Review flow.
 - The standard-editor adoption also surfaced two runtime defects that are now
   fixed: the Shadcn/Base UI drag handle opened its menu on mousedown (replaced
   with a drag-safe click-opened handle), and the session-media cleanup helpers
@@ -197,6 +207,10 @@ evidence) is separate. The branch is ready to push and open as a PR on approval.
 - Authoring resilience shipped as silent local autosave and auto-load after an
   explicit restore/discard prompt proved noisy and a `beforeunload` warning was
   intrusive. The remote-embed and Undo/Redo follow-ups are browser-accepted.
+- PR #72 ("Adopt the standard BlockNote authoring and review flow") merged the
+  authoring baseline, silent recovery, drag-safe handle, remote embeds, visible
+  Undo/Redo, and the Review surface to `main`. `feature/media-authoring` was
+  deleted locally and remotely afterwards.
 
 ## Where to continue
 

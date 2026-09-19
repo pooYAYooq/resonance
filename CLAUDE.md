@@ -1,3 +1,7 @@
+> Project setup, commands, routing, Convex/Better Auth, UI, documentation, commit,
+> and Git workflow conventions are authoritative in [`AGENTS.md`](AGENTS.md).
+> Read it before changing the repo.
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.

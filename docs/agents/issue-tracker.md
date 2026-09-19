@@ -1,20 +1,23 @@
-# Issue tracker: GitHub
+# Issue tracker: none (in-repo docs)
 
-Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
+This is a small personal project worked by a human and two agents, so there is
+no external issue tracker. Opening a GitHub issue would be overkill. Work is
+tracked in-repo instead:
 
-## Conventions
+- `docs/status.md` — resume point, current focus, and the active backlog.
+- `FEATURES.md` — roadmap/status board and the idea backlog.
+- `docs/PHASE_3A.md` — approved target direction, slices, and deferrals.
+- The PR description — scope, verification evidence, and known limitations for
+  a change.
 
-- **Create an issue**: `gh issue create --title "..." --body "..."`.
-- **Read an issue**: `gh issue view <number> --comments`.
-- **List issues**: use `gh issue list` with appropriate `--label` and `--state` filters.
-- **Comment on an issue**: `gh issue comment <number> --body "..."`.
-- **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`.
-- **Close**: `gh issue close <number> --comment "..."`.
+## When a skill says "publish to the issue tracker"
+
+Do not open a GitHub issue. Record the item in `docs/status.md` for active work,
+or in `FEATURES.md` for roadmap/backlog ideas, instead.
 
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.**
 
-## When a skill says "publish to the issue tracker"
-
-Create a GitHub issue.
+PRs remain the review and merge surface; the local procedure is in
+`docs/PR_CHECKLIST.md`, and the mandatory human gates are in `docs/PHASE_3A.md`.

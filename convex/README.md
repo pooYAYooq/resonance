@@ -1,90 +1,57 @@
-# Welcome to your Convex functions directory!
+# Convex Backend
 
-Write your Convex functions here.
-See https://docs.convex.dev/functions for more.
+This directory is the Resonance backend: the database, server functions, auth,
+scheduled jobs, and file storage all live here. Next.js talks to it through the
+generated `api`/`internal` clients.
 
-A query function that takes two arguments looks like:
+**Before writing Convex code, read `convex/_generated/ai/guidelines.md`.** It
+overrides anything you may have learned about Convex elsewhere.
 
-```ts
-// convex/myFunctions.ts
-import { query } from "./_generated/server";
-import { v } from "convex/values";
+## Layout
 
-export const myQueryFunction = query({
-  // Validators for arguments.
-  args: {
-    first: v.number(),
-    second: v.string(),
-  },
+| Area                   | Files                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| Schema and config      | `schema.ts`, `convex.config.ts`, `tsconfig.json`                                 |
+| Auth                   | `auth.ts` (Better Auth), `auth.config.ts`, `http.ts` (HTTP router)               |
+| Posts and lifecycle    | `posts.ts`, `postLifecycle.ts`, `postDeletion.ts`, `postSummary.ts`              |
+| Authoring media safety | `pendingUploads.ts`, `sessionMediaClaims.ts`, `writeAttempts.ts`                 |
+| Discover projections   | `discover.ts`, `discoverProjection.ts`                                           |
+| Engagement             | `likes.ts`, `comments.ts`, `bookmarks.ts`, `follows.ts`                          |
+| Reader/author surfaces | `feed.ts`, `notifications.ts`, `analytics.ts`, `profilePostCount.ts`, `stats.ts` |
+| Scheduled jobs         | `crons.ts`                                                                       |
 
-  // Function implementation.
-  handler: async (ctx, args) => {
-    // Read the database as many times as you need here.
-    // See https://docs.convex.dev/database/reading-data.
-    const documents = await ctx.db.query("tablename").collect();
+Each non-generated module has a co-located `*.test.ts` run by `pnpm test:ci`
+(edge-runtime). See `AGENTS.md` for the full command list.
 
-    // Arguments passed from the client are properties of the args object.
-    console.log(args.first, args.second);
+## Schema Overview
 
-    // Write arbitrary JavaScript here: filter, aggregate, build derived data,
-    // remove non-public properties, or create new objects.
-    return documents;
-  },
-});
-```
+- `users` — app-level identity bridged from Better Auth; denormalized follower
+  counts. `posts` is the source of truth for authored content and holds the
+  canonical `blocknote@1` body plus denormalized `commentCount`/`likeCount`.
+- Engagement tables record one row per relationship and are indexed by both
+  directions: `likes`, `commentLikes`, `bookmarks`, `follows`.
+- Derived read models are maintained transactionally with the published-post
+  lifecycle: `discoverPosts`, `discoverPostSearch`, `discoverPostTopics`,
+  `topicStats`, `feed`, `notifications`, and `postSummary` helpers.
+- Analytics uses `postViews` (one signed-in unique view per viewer key),
+  `authorAnalytics`, and `followerGrowthDays`.
+- Operational tables make storage safe and bounded: `pendingUploads`,
+  `sessionMediaClaims`, `pendingUploadCleanupLocks`, `writeAttempts`,
+  `postDeletionJobs`, `draftUploadCleanupJobs`, and the `stats` counter table.
 
-Using this query function in a React component looks like:
+## Conventions
 
-```ts
-const data = useQuery(api.myFunctions.myQueryFunction, {
-  first: 10,
-  second: "hello",
-});
-```
+- Functions use the object-form `query`/`mutation`/`action` API with explicit
+  `args` validators. Public functions are owner- and viewer-checked; internal
+  helpers use `internalMutation`/`internalQuery`.
+- Published deletion is a bounded lifecycle operation across dependent tables
+  and counters, not a single `posts` delete. It runs in scheduled batches with
+  stale-job recovery.
+- Never call `.paginate()` inside an already-paginated mutation (Convex rejects
+  it at runtime); use bounded `.take()` reads in those paths.
+- Media uploads flow through the owner/session-bound claim lifecycle so
+  abandoned uploads are cleaned up without deleting live content.
 
-A mutation function looks like:
-
-```ts
-// convex/myFunctions.ts
-import { mutation } from "./_generated/server";
-import { v } from "convex/values";
-
-export const myMutationFunction = mutation({
-  // Validators for arguments.
-  args: {
-    first: v.string(),
-    second: v.string(),
-  },
-
-  // Function implementation.
-  handler: async (ctx, args) => {
-    // Insert or modify documents in the database here.
-    // Mutations can also read from the database like queries.
-    // See https://docs.convex.dev/database/writing-data.
-    const message = { body: args.first, author: args.second };
-    const id = await ctx.db.insert("messages", message);
-
-    // Optionally, return a value from your mutation.
-    return await ctx.db.get("messages", id);
-  },
-});
-```
-
-Using this mutation function in a React component looks like:
-
-```ts
-const mutation = useMutation(api.myFunctions.myMutationFunction);
-function handleButtonPress() {
-  // fire and forget, the most common way to use mutations
-  mutation({ first: "Hello!", second: "me" });
-  // OR
-  // use the result once the mutation has completed
-  mutation({ first: "Hello!", second: "me" }).then((result) =>
-    console.log(result),
-  );
-}
-```
-
-Use the Convex CLI to push your functions to a deployment. See everything
-the Convex CLI can do by running `npx convex -h` in your project root
-directory. To learn more, launch the docs with `npx convex docs`.
+Push functions to the configured deployment with `npx convex dev` (or `npx
+convex deploy` in CI). `SITE_URL` and Better Auth secrets live in the Convex
+dashboard environment, not `.env.local`.
