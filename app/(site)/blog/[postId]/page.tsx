@@ -1,8 +1,8 @@
 /**
  * Renders a single blog post by its Convex document ID.
  * Fetches the post server-side and handles the "not found" case inline.
- * Images are resolved server-side; posts without a custom image fall back
- * to a default cover image.
+ * Images are resolved server-side; posts without a custom image render the
+ * blank transparent fallback, which loads no image.
  */
 
 import type { Metadata } from "next";
@@ -10,7 +10,6 @@ import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import { fetchQuery } from "convex/nextjs";
 import { fetchAuthQuery } from "@/lib/auth-server";
 import { api } from "@/convex/_generated/api";
@@ -23,6 +22,7 @@ import { truncateForDescription } from "@/lib/constants/seo";
 import { TagPill } from "@/components/web/TagPill";
 import { PostBody } from "@/components/web/PostBody";
 import { PostViewTracker } from "@/components/web/PostViewTracker";
+import { CoverImage } from "@/components/web/CoverImage";
 import { extractPlainText, parsePostBody } from "@/lib/post-content";
 
 /** Props received by the dynamic blog post route. */
@@ -116,14 +116,11 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
         <ArrowLeft className="size-4" />
         Back to blog page
       </Link>
-      <div className="relative w-full h-100 mt-8 rounded-xl overflow-hidden shadow-sm">
-        <Image
-          src={
-            post.imageUrl ??
-            "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
-          }
+      <div className="relative aspect-[3/2] w-full mt-8 rounded-xl overflow-hidden shadow-sm">
+        <CoverImage
+          src={post.imageUrl}
           alt={post.title}
-          fill
+          sizes="(max-width: 1024px) 100vw, 768px"
           className="object-cover hover:scale-102 transition-transform duration-800 ease-in-out"
           priority
         />

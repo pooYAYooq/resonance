@@ -215,6 +215,10 @@ resonance/
 │       ├── PostCard.tsx         # Reusable post card with optional linked tags. Title is an <h2> so the
 │       │                        # page-level <h1> remains unique per page. Derives excerpts from
 │       │                        # stored bodies via lib/post-content so serialized JSON never leaks.
+│       ├── CoverImage.tsx       # Shared cover: renders the resolved custom URL or a
+│       │                        # blank transparent fallback surface with a subtle
+│       │                        # bottom border. Cards and the reader agree; Review
+│       │                        # adopts it in a follow-up. Server-component safe.
 │       ├── PostBody.tsx         # Pure Server Component renderer for structured bodies,
 │       │                         # including hydrated inline images.
 │       │                        # No "use client", no dangerouslySetInnerHTML, no sanitizer dep.
@@ -275,6 +279,7 @@ resonance/
     │                           # PostBody. Never imports BlockNote packages.
     ├── code-languages.ts       # Canonical code-block IDs, labels, aliases, and Shiki grammars.
     ├── safe-link.ts            # Shared http/https/mailto author-link validator.
+    ├── cover.ts                # Shared cover URL resolver; null renders the blank fallback.
     ├── use-inline-image-upload.ts # Owner-bound BlockNote file upload and preview lifecycle hook.
     ├── shiki/
     │   ├── code-highlighter.generated.ts # Generated editor grammars and themes.
@@ -365,7 +370,7 @@ components/
     │
     ├── PostCard.tsx
     │     Reusable post card used in `/blog` and on author profile pages.
-    │     Renders cover image (aspect-video), an author row (avatar + name
+    │     Renders cover image (3:2), an author row (avatar + name
     │     → profile), title as an <h2>, body excerpt, and a single-row
     │     footer with comment count, date, and a "Read More" link. The
     │     card has a hover-lift treatment (`-translate-y-0.5` + shadow).

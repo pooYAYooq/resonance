@@ -26,14 +26,11 @@ import { BookmarkButton } from "./BookmarkButton";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MessageSquare } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import type { Id } from "@/convex/_generated/dataModel";
 import { TagPill } from "./TagPill";
+import { CoverImage } from "./CoverImage";
 import { extractPlainText, parsePostBody } from "@/lib/post-content";
-
-const DEFAULT_COVER_IMAGE =
-  "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg";
 
 interface PostCardProps {
   /** Convex document ID of the post; used to build the detail page link. */
@@ -42,7 +39,7 @@ interface PostCardProps {
   title: string;
   /** Full post body. The card displays a `line-clamp-3` excerpt. */
   body: string;
-  /** Server-resolved image URL. Falls back to a default cover image. */
+  /** Server-resolved image URL. Without one, the blank fallback renders. */
   imageUrl?: string | null;
   /** Pre-computed comment count to display in the footer. */
   commentCount: number;
@@ -102,11 +99,10 @@ export function PostCard({
 
   return (
     <Card className="pt-0 gap-0 flex flex-col h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="relative aspect-video w-full overflow-hidden">
-        <Image
-          src={imageUrl ?? DEFAULT_COVER_IMAGE}
+      <div className="relative aspect-[3/2] w-full overflow-hidden">
+        <CoverImage
+          src={imageUrl}
           alt={title}
-          fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover"
         />

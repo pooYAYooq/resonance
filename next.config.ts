@@ -6,20 +6,6 @@
 import type { NextConfig } from "next";
 
 /**
- * Static, environment-independent remote image patterns.
- * These are allowlisted CDNs that serve fixed image sources for the app,
- * separated from dynamic Convex patterns to avoid env var dependency for unchanging sources.
- */
-const basePatterns = [
-  {
-    protocol: "https" as const, // Cast to literal type to satisfy Next.js RemotePattern protocol type requirement
-    hostname: "w.wallhaven.cc",
-    port: "", // Empty string matches all ports for this hostname
-    pathname: "/full/**", // Matches full-resolution wallpaper image paths from Wallhaven CDN
-  },
-];
-
-/**
  * Dynamically extracted Convex deployment hostname for image remote patterns.
  * Derived from NEXT_PUBLIC_CONVEX_URL to avoid hardcoding deployment-specific URLs,
  * ensuring the config works across dev, staging, and production environments automatically.
@@ -39,9 +25,8 @@ if (process.env.NEXT_PUBLIC_CONVEX_URL) {
 
 /**
  * Next.js configuration object.
- * Configures image optimization to allow remote images from:
- * 1. Static allowlisted CDNs (basePatterns: Wallhaven)
- * 2. The active Convex deployment (dynamically derived from env vars)
+ * Configures image optimization to allow remote images from the active Convex
+ * deployment, derived dynamically from env vars.
  *
  * Next.js requires all external image sources to be explicitly allowlisted in
  * `images.remotePatterns` to enable its built-in image optimization and prevent
@@ -50,7 +35,6 @@ if (process.env.NEXT_PUBLIC_CONVEX_URL) {
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      ...basePatterns,
       // Conditionally add Convex deployment pattern only if hostname was successfully parsed
       ...(convexHostname
         ? [

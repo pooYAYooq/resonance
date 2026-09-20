@@ -68,8 +68,12 @@ export function BlogPostList({ mode }: BlogPostListProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-6">
-        {results.map((post) => (
-          <DiscoverPostSummary key={post._id} post={post} />
+        {results.map((post, index) => (
+          <DiscoverPostSummary
+            key={post._id}
+            post={post}
+            priority={index === 0}
+          />
         ))}
       </div>
       {status === "CanLoadMore" || status === "LoadingMore" ? (
