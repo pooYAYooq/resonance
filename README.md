@@ -218,6 +218,7 @@ components/
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
+    CoverImage.tsx            # Shared cover with a local default (custom URL or designed default)
     PostBody.tsx              # Pure Server Component renderer for structured post bodies
     PostBodyPreview.tsx       # Synchronous client preview renderer used by Review
     HighlightedCode.tsx       # Server-rendered Shiki token spans with plain-text fallback
@@ -253,6 +254,7 @@ lib/
   heading.ts                  # Shared H2-H6 body-heading normalization; title owns H1
   code-languages.ts           # Canonical code-block IDs, labels, aliases, and Shiki grammars
   safe-link.ts                # Shared http/https/mailto author-link validator
+  cover.ts                    # Shared cover URL resolver; null renders the local default
   draft-recovery.ts           # Versioned localStorage snapshot for unsaved authoring work
   use-inline-image-upload.ts  # Owner-bound BlockNote file upload and preview lifecycle hook
   shiki/                      # Generated editor grammars and server-side highlighting adapter

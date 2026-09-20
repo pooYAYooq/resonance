@@ -215,6 +215,10 @@ resonance/
 │       ├── PostCard.tsx         # Reusable post card with optional linked tags. Title is an <h2> so the
 │       │                        # page-level <h1> remains unique per page. Derives excerpts from
 │       │                        # stored bodies via lib/post-content so serialized JSON never leaks.
+│       ├── CoverImage.tsx       # Shared cover with a local designed default: renders
+│       │                        # the resolved custom URL or the default, so cards
+│       │                        # and the reader agree. Review adopts it in a
+│       │                        # follow-up. Server-component safe.
 │       ├── PostBody.tsx         # Pure Server Component renderer for structured bodies,
 │       │                         # including hydrated inline images.
 │       │                        # No "use client", no dangerouslySetInnerHTML, no sanitizer dep.
@@ -275,6 +279,7 @@ resonance/
     │                           # PostBody. Never imports BlockNote packages.
     ├── code-languages.ts       # Canonical code-block IDs, labels, aliases, and Shiki grammars.
     ├── safe-link.ts            # Shared http/https/mailto author-link validator.
+    ├── cover.ts                # Shared cover URL resolver; null renders the local default.
     ├── use-inline-image-upload.ts # Owner-bound BlockNote file upload and preview lifecycle hook.
     ├── shiki/
     │   ├── code-highlighter.generated.ts # Generated editor grammars and themes.
