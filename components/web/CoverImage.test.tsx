@@ -19,7 +19,7 @@ describe("CoverImage", () => {
     expect(screen.queryByAltText("Post cover")).toBeNull();
   });
 
-  it("renders the default cover for an empty string source", () => {
+  it("renders the blank fallback for an empty string source", () => {
     render(<CoverImage src="" alt="Post cover" />);
 
     expect(screen.getByTestId("default-cover")).toBeVisible();

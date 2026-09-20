@@ -249,7 +249,7 @@ describe("PostCard", () => {
     expect(card).toHaveClass("hover:shadow-md");
   });
 
-  it("renders the local default cover when imageUrl is null", () => {
+  it("renders the blank fallback when imageUrl is null", () => {
     render(<PostCard {...basePost} imageUrl={null} />);
     expect(screen.getByTestId("default-cover")).toBeVisible();
     expect(screen.queryByAltText("Echoes in the Static")).toBeNull();

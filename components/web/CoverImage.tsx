@@ -11,8 +11,8 @@ type CoverImageProps = {
 };
 
 /**
- * Renders a custom cover or the local default. Server-component safe: no hooks,
- * no client directive. The default is decorative and never persisted.
+ * Renders a custom cover or the blank fallback. Server-component safe: no hooks,
+ * no client directive. The fallback loads no image and is never persisted.
  */
 export function CoverImage({
   src,

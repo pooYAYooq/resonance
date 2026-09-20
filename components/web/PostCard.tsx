@@ -39,7 +39,7 @@ interface PostCardProps {
   title: string;
   /** Full post body. The card displays a `line-clamp-3` excerpt. */
   body: string;
-  /** Server-resolved image URL. Without one, the local default cover renders. */
+  /** Server-resolved image URL. Without one, the blank fallback renders. */
   imageUrl?: string | null;
   /** Pre-computed comment count to display in the footer. */
   commentCount: number;

@@ -2,7 +2,7 @@
  * Renders a single blog post by its Convex document ID.
  * Fetches the post server-side and handles the "not found" case inline.
  * Images are resolved server-side; posts without a custom image render the
- * shared local default cover.
+ * blank transparent fallback, which loads no image.
  */
 
 import type { Metadata } from "next";
