@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { MessageSquare, Heart } from "lucide-react";
+import { CoverImage } from "@/components/web/CoverImage";
 import {
   Card,
   CardContent,
@@ -19,22 +19,23 @@ export type DiscoverPost = FunctionReturnType<
 
 interface DiscoverPostSummaryProps {
   post: DiscoverPost;
+  priority?: boolean;
 }
 
 // Summaries render only the discover projection, so BlockNote JSON never reaches the reader UI.
-export function DiscoverPostSummary({ post }: DiscoverPostSummaryProps) {
+export function DiscoverPostSummary({
+  post,
+  priority = false,
+}: DiscoverPostSummaryProps) {
   return (
     <Card className="overflow-hidden">
-      <div className="relative aspect-video w-full bg-muted">
-        <Image
-          src={
-            post.imageUrl ??
-            "https://w.wallhaven.cc/full/k7/wallhaven-k7k9j7.jpg"
-          }
+      <div className="relative aspect-[3/2] w-full">
+        <CoverImage
+          src={post.imageUrl}
           alt={post.title}
-          fill
           sizes="(max-width: 768px) 100vw, 66vw"
           className="object-cover"
+          priority={priority}
         />
       </div>
       <CardHeader data-testid="discover-card-header">

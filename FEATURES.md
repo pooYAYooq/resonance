@@ -88,7 +88,10 @@ browser-tested. Track 1 is not yet complete: an open follow-up backlog (editor
 title sizing, media-state wording and affordances, layout consistency, reader
 typography, and reader author identity) must be re-verified and closed before
 the slice is called done; several items were already addressed in the PR #72
-review pass.
+review pass. Follow-up batch 1 (`fix/consistent-cover-display`, unmerged)
+replaces the duplicated hotlinked cover fallback with a shared local default on
+cards and the reader; adopting the same component in Review is pending in the
+frozen-Review batch.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes

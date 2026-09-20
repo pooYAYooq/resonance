@@ -218,7 +218,7 @@ components/
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
-    CoverImage.tsx            # Shared cover with a local default (custom URL or designed default)
+    CoverImage.tsx            # Shared cover with a local default (custom URL or blank default)
     PostBody.tsx              # Pure Server Component renderer for structured post bodies
     PostBodyPreview.tsx       # Synchronous client preview renderer used by Review
     HighlightedCode.tsx       # Server-rendered Shiki token spans with plain-text fallback

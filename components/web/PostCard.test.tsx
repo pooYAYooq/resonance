@@ -237,8 +237,8 @@ describe("PostCard", () => {
     // Next.js Image rewrites the src to the local optimization endpoint; verify
     // the original URL is preserved in the encoded query string.
     expect(img.getAttribute("src") ?? "").toContain("example.com%2Fcover.png");
-    // The cover wrapper should use the consistent 16:9 aspect ratio.
-    const coverWrapper = container.querySelector(".aspect-video");
+    // The cover wrapper should use the consistent editorial 3:2 ratio.
+    const coverWrapper = container.querySelector(".aspect-\\[3\\/2\\]");
     expect(coverWrapper).toBeInTheDocument();
   });
 
@@ -249,11 +249,10 @@ describe("PostCard", () => {
     expect(card).toHaveClass("hover:shadow-md");
   });
 
-  it("falls back to a default cover image when imageUrl is null", () => {
+  it("renders the local default cover when imageUrl is null", () => {
     render(<PostCard {...basePost} imageUrl={null} />);
-    const img = screen.getByAltText("Echoes in the Static");
-    expect(img).toBeInTheDocument();
-    expect(img.getAttribute("src")).toBeTruthy();
+    expect(screen.getByTestId("default-cover")).toBeVisible();
+    expect(screen.queryByAltText("Echoes in the Static")).toBeNull();
   });
 
   it("renders the author name and links it to the profile page", () => {

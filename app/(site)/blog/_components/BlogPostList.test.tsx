@@ -8,12 +8,27 @@ const {
   paginatedState,
   paginatedQuery,
   paginatedArgs,
+  discoverSummary,
 } = vi.hoisted(() => ({
   discoverPostsQuery: { name: "getDiscoverPosts" },
   topicPostsQuery: { name: "getTopicPosts" },
   paginatedState: vi.fn(),
   paginatedQuery: vi.fn(),
   paginatedArgs: vi.fn(),
+  discoverSummary: vi.fn(
+    ({
+      post: summaryPost,
+      priority,
+    }: {
+      post: { _id: string; title: string; bodyText: string };
+      priority?: boolean;
+    }) => (
+      <article data-priority={String(Boolean(priority))}>
+        {summaryPost.title}
+        <span>{summaryPost.bodyText}</span>
+      </article>
+    ),
+  ),
 }));
 
 vi.mock("convex/react", () => ({
@@ -30,6 +45,9 @@ vi.mock("@/convex/_generated/api", () => ({
       getTopicPosts: topicPostsQuery,
     },
   },
+}));
+vi.mock("./DiscoverPostSummary", () => ({
+  DiscoverPostSummary: discoverSummary,
 }));
 
 import { BlogPostList } from "./BlogPostList";
@@ -52,6 +70,7 @@ describe("BlogPostList", () => {
     paginatedState.mockReset();
     paginatedQuery.mockReset();
     paginatedArgs.mockReset();
+    discoverSummary.mockClear();
   });
 
   it("uses the latest discover query and loads the next page", async () => {
@@ -70,6 +89,26 @@ describe("BlogPostList", () => {
     expect(paginatedArgs).toHaveBeenCalledWith({ mode: "latest" });
     await userEvent.click(screen.getByRole("button", { name: /load more/i }));
     expect(loadMore).toHaveBeenCalledWith(12);
+  });
+
+  it("prioritizes only the first Discover cover for LCP", () => {
+    paginatedState.mockReturnValue({
+      results: [post, { ...post, _id: "post-2", title: "Second post" }],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    render(<BlogPostList mode={{ mode: "latest" }} />);
+
+    expect(screen.getByText("Latest post")).toHaveAttribute(
+      "data-priority",
+      "true",
+    );
+    expect(screen.getByText("Second post")).toHaveAttribute(
+      "data-priority",
+      "false",
+    );
   });
 
   it("keeps Load more visible and disabled while loading another page", () => {

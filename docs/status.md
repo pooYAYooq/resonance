@@ -51,6 +51,12 @@ and surfaced authoring issues tracked as the follow-up backlog below: editor
 title sizing, media-state wording and affordances, layout consistency, reader
 typography, and the reader page's author identity and engagement controls.
 
+The follow-ups are executing as small batched PRs. Batch 1
+(`fix/consistent-cover-display`, in progress, unmerged) replaces the duplicated
+hotlinked cover fallback with a shared local default on cards and the reader;
+adopting the same cover component in Review is deferred to the frozen-Review
+batch, so card/Review/reader parity is not claimed yet.
+
 ## Baseline status (merged to `main`)
 
 - The standard-BlockNote authoring and review flow, the authoring baseline
@@ -102,6 +108,10 @@ they are closed. The reader/editor contract items:
 Close the follow-up backlog above in small focused batches; those issues are the
 gap between the shipped Review slice and its full acceptance. Re-verify the
 likely-already-fixed items in a fresh browser run before opening issues.
+
+Batch 1 (shared local default cover on cards and the reader) is in progress on
+`fix/consistent-cover-display`; the media-panel and frozen-Review batches follow
+and adopt the same cover component in Review.
 
 1. Media authoring and Review readiness — shipped in code; wording and per-row
    affordances remain in the backlog.

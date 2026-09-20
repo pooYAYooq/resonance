@@ -11,10 +11,11 @@ describe("CoverImage", () => {
     expect(screen.queryByTestId("default-cover")).toBeNull();
   });
 
-  it("renders the local default cover when no source is given", () => {
+  it("renders the blank fallback when no source is given", () => {
     render(<CoverImage src={null} alt="Post cover" />);
 
-    expect(screen.getByTestId("default-cover")).toBeVisible();
+    const defaultCover = screen.getByTestId("default-cover");
+    expect(defaultCover).toBeVisible();
     expect(screen.queryByAltText("Post cover")).toBeNull();
   });
 

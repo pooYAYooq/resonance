@@ -8,7 +8,6 @@ type CoverImageProps = {
   sizes?: string;
   className?: string;
   priority?: boolean;
-  wordmark?: string;
 };
 
 /**
@@ -21,7 +20,6 @@ export function CoverImage({
   sizes = "100vw",
   className,
   priority = false,
-  wordmark = "Resonance",
 }: CoverImageProps) {
   const resolved = resolveCoverUrl(src);
 
@@ -42,14 +40,7 @@ export function CoverImage({
     <div
       aria-hidden="true"
       data-testid="default-cover"
-      className={cn(
-        "absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-accent",
-        className,
-      )}
-    >
-      <span className="text-sm font-medium uppercase tracking-[0.3em] text-muted-foreground">
-        {wordmark}
-      </span>
-    </div>
+      className={cn("absolute inset-0 border-b border-border", className)}
+    />
   );
 }
