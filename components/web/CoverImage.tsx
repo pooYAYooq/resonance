@@ -1,6 +1,5 @@
 import Image from "next/image";
 import { resolveCoverUrl } from "@/lib/cover";
-import { cn } from "@/lib/utils";
 
 type CoverImageProps = {
   src?: string | null;
@@ -12,7 +11,9 @@ type CoverImageProps = {
 
 /**
  * Renders a custom cover or the blank fallback. Server-component safe: no hooks,
- * no client directive. The fallback loads no image and is never persisted.
+ * no client directive. `className` applies to the custom image only; the
+ * fallback is always a static blank surface that loads no image and is never
+ * persisted.
  */
 export function CoverImage({
   src,
@@ -40,7 +41,7 @@ export function CoverImage({
     <div
       aria-hidden="true"
       data-testid="default-cover"
-      className={cn("absolute inset-0 border-b border-border", className)}
+      className="absolute inset-0 border-b border-border"
     />
   );
 }
