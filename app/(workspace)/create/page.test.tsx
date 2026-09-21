@@ -557,7 +557,7 @@ describe("CreateRoute", () => {
 
     expect(screen.queryByTestId("review-surface")).toBeNull();
     expect(toastErrorMock).toHaveBeenCalledWith(
-      "Some media is still uploading. Wait for it to finish before reviewing.",
+      "Some media is still uploading. Wait for it to finish before publishing.",
     );
   });
 

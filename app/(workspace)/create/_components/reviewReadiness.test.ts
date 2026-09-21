@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getReviewBlocker, REVIEW_BLOCKER_MESSAGES } from "./reviewReadiness";
+import {
+  getReviewBlocker,
+  getReviewSubmitBlock,
+  REVIEW_BLOCKER_MESSAGES,
+} from "./reviewReadiness";
 
 const media = (
   overrides: Partial<{
@@ -43,5 +47,47 @@ describe("getReviewBlocker", () => {
     const message = REVIEW_BLOCKER_MESSAGES["failed-media"];
     expect(message).toMatch(/replace/i);
     expect(message).not.toMatch(/retry/i);
+  });
+});
+
+describe("getReviewSubmitBlock", () => {
+  it("blocks while a write is in flight", () => {
+    expect(
+      getReviewSubmitBlock({
+        isPending: true,
+        hasPendingTarget: false,
+        blocker: null,
+      }),
+    ).toBe("operation-in-flight");
+  });
+
+  it("blocks while a target switch is pending", () => {
+    expect(
+      getReviewSubmitBlock({
+        isPending: false,
+        hasPendingTarget: true,
+        blocker: null,
+      }),
+    ).toBe("target-switching");
+  });
+
+  it("blocks when media is not ready", () => {
+    expect(
+      getReviewSubmitBlock({
+        isPending: false,
+        hasPendingTarget: false,
+        blocker: "failed-media",
+      }),
+    ).toBe("media-not-ready");
+  });
+
+  it("allows submission when nothing blocks", () => {
+    expect(
+      getReviewSubmitBlock({
+        isPending: false,
+        hasPendingTarget: false,
+        blocker: null,
+      }),
+    ).toBeNull();
   });
 });
