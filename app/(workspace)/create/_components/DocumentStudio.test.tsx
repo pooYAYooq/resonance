@@ -123,4 +123,34 @@ describe("DocumentStudio", () => {
     expect(screen.queryByRole("textbox", { name: "Blog title" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Save Draft" })).toBeNull();
   });
+
+  it("hides the details disclosure when detailsHidden is set", () => {
+    render(
+      <DocumentStudio
+        mode="new"
+        detailsHidden
+        title={<input aria-label="Blog title" />}
+        body={<div data-testid="body-canvas">Body canvas</div>}
+        details={<div>Cover and topics</div>}
+      />,
+    );
+
+    expect(screen.queryByText("Post details")).toBeNull();
+    expect(screen.queryByText("Cover and topics")).toBeNull();
+    expect(screen.getByTestId("body-canvas")).toBeVisible();
+  });
+
+  it("uses a modeLabel override in place of the mode name", () => {
+    render(
+      <DocumentStudio
+        mode="new"
+        modeLabel="Reviewing new post"
+        title={<input aria-label="Blog title" />}
+        body={<div>Body canvas</div>}
+      />,
+    );
+
+    expect(screen.getByText("Reviewing new post")).toBeVisible();
+    expect(screen.queryByText("New post")).toBeNull();
+  });
 });

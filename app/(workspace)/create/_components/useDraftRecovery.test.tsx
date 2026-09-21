@@ -22,6 +22,18 @@ afterEach(() => {
 });
 
 describe("useDraftRecovery", () => {
+  it("never persists published edits and clears an existing recovery snapshot", () => {
+    const sessionKey = "published-edit:post-1";
+    saveDraftRecovery(sessionKey, proposal, 1);
+    renderHook(() =>
+      useDraftRecovery({ sessionKey, ready: true, dirty: true, proposal }),
+    );
+    act(() => {
+      vi.advanceTimersByTime(DRAFT_RECOVERY_DEBOUNCE_MS * 2);
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    expect(readDraftRecovery(sessionKey)).toBeNull();
+  });
   it("writes a dirty proposal only after the debounce", () => {
     renderHook(() =>
       useDraftRecovery({

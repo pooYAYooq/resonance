@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getReviewBlocker, REVIEW_BLOCKER_MESSAGES } from "./reviewReadiness";
+import {
+  getCoverRecoveryBlocker,
+  getReviewBlocker,
+  getReviewSubmitBlock,
+  REVIEW_BLOCKER_MESSAGES,
+} from "./reviewReadiness";
 
 const media = (
   overrides: Partial<{
@@ -43,5 +48,88 @@ describe("getReviewBlocker", () => {
     const message = REVIEW_BLOCKER_MESSAGES["failed-media"];
     expect(message).toMatch(/replace/i);
     expect(message).not.toMatch(/retry/i);
+  });
+});
+
+describe("getReviewSubmitBlock", () => {
+  it("blocks while a write is in flight", () => {
+    expect(
+      getReviewSubmitBlock({
+        isPending: true,
+        hasPendingTarget: false,
+        blocker: null,
+      }),
+    ).toBe("operation-in-flight");
+  });
+
+  it("blocks while a target switch is pending", () => {
+    expect(
+      getReviewSubmitBlock({
+        isPending: false,
+        hasPendingTarget: true,
+        blocker: null,
+      }),
+    ).toBe("target-switching");
+  });
+
+  it("blocks when media is not ready", () => {
+    expect(
+      getReviewSubmitBlock({
+        isPending: false,
+        hasPendingTarget: false,
+        blocker: "failed-media",
+      }),
+    ).toBe("media-not-ready");
+  });
+
+  it("allows submission when nothing blocks", () => {
+    expect(
+      getReviewSubmitBlock({
+        isPending: false,
+        hasPendingTarget: false,
+        blocker: null,
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("getCoverRecoveryBlocker", () => {
+  it("blocks while a recovered cover is resolving", () => {
+    expect(getCoverRecoveryBlocker("resolving")).toBe("cover-resolving");
+  });
+
+  it("blocks when a recovered cover could not be loaded", () => {
+    expect(getCoverRecoveryBlocker("failed")).toBe("cover-load-failed");
+  });
+
+  it("does not block without a recovery hold", () => {
+    expect(getCoverRecoveryBlocker(null)).toBeNull();
+    expect(getCoverRecoveryBlocker(undefined)).toBeNull();
+  });
+
+  it("keeps the cover-recovery submit blocker inside the shared union", () => {
+    expect(
+      getReviewSubmitBlock({
+        isPending: false,
+        hasPendingTarget: false,
+        blocker: "cover-resolving",
+      }),
+    ).toBe("media-not-ready");
+    expect(
+      getReviewSubmitBlock({
+        isPending: false,
+        hasPendingTarget: false,
+        blocker: "cover-load-failed",
+      }),
+    ).toBe("media-not-ready");
+  });
+
+  it("uses author-facing copy for both cover recovery states", () => {
+    expect(REVIEW_BLOCKER_MESSAGES["cover-resolving"]).toBe(
+      "Loading your saved cover. Review will be available when it finishes.",
+    );
+    expect(REVIEW_BLOCKER_MESSAGES["cover-load-failed"]).toBe(
+      "Your saved cover could not be loaded. Replace it or remove it to continue to Review.",
+    );
   });
 });

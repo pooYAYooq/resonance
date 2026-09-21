@@ -84,18 +84,25 @@ existing save path, and Review is blocked while inline media is unresolved.
 This authoring and Review baseline is merged to `main` in PR #72 (merge commit
 `1bc54ef`); all PR-review findings are closed. The author has accepted the
 editor, embeds, history controls, and recovery in the browser, and Review is
-browser-tested. Track 1 is not yet complete: an open follow-up backlog (editor
-title sizing, media-state wording and affordances, layout consistency, reader
-typography, and reader author identity) must be re-verified and closed before
-the slice is called done; several items were already addressed in the PR #72
-review pass. Follow-up batch 1 delivers the shared blank cover fallback across
+browser-tested. Track 1 is not yet complete: the remaining follow-up backlog
+(editor title sizing, published-edit code highlighting, layout and reader width,
+reader author identity and engagement controls, tag grid, and dark-mode polish)
+must be re-verified and closed before the slice is called done. Follow-up
+batch 1 delivers the shared blank cover fallback across
 cards, Discover summaries, and the reader; a missing cover renders a blank
 transparent surface with a subtle bottom border. Follow-up batch 2 delivers the
 authoring media panel: rows name their kind and type, audio and video render
 glyph tiles, lifecycle wording is plain, failed inline rows expose Replace and
 Remove, and cover controls use styled Add, Replace, and Remove buttons with
-same-file reselection. Adopting the same component in Review is pending in the
-frozen-Review batch.
+same-file reselection. Follow-up batch 3 freezes Review and submits what the
+author reviewed: entering Review validates the publication schema and captures
+an immutable snapshot of the content, tags, cover intent, cover preview, and
+resolved inline media; Review renders only that snapshot, hides Post details,
+and moves Back plus Publish/Update into the header under a Review label.
+Submission validates and publishes the snapshot, guarded against an in-flight
+write, a pending target switch, and a media blocker. Card, Review, and reader
+now share the blank cover fallback. The remaining audit items stay open for a
+later batch.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes

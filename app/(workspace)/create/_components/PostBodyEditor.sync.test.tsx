@@ -19,6 +19,9 @@ const { editor, replaceBlocks, setDocument, viewProps } = vi.hoisted(() => {
       },
       focus: vi.fn(),
       replaceBlocks,
+      transact: (
+        callback: (transaction: { setMeta: ReturnType<typeof vi.fn> }) => void,
+      ) => callback({ setMeta: vi.fn() }),
       getExtension: () => undefined,
       canExec: () => false,
       undo: vi.fn(),

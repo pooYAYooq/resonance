@@ -211,4 +211,50 @@ describe("MediaAuthoring", () => {
       expect(button.className).toContain("hover:bg-accent");
     }
   });
+
+  it("holds Review with visible text while a recovered cover loads", () => {
+    renderMedia({
+      cover: {
+        id: "cover-1",
+        kind: "cover",
+        mediaType: "image",
+        status: "resolved",
+        statusNote: "Loading cover preview",
+        fileName: "Saved cover",
+      },
+      coverRecovery: "resolving",
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Loading your saved cover. Review will be available when it finishes.",
+    );
+    expect(screen.getByText("Saved cover")).toBeVisible();
+    expect(screen.getByText("Loading cover preview")).toBeVisible();
+  });
+
+  it("shows an accessible alert and recovery actions for a failed recovered cover", async () => {
+    const user = userEvent.setup();
+    const file = new File(["cover"], "cover.png", { type: "image/png" });
+    const { props } = renderMedia({
+      cover: {
+        id: "cover-1",
+        kind: "cover",
+        mediaType: "image",
+        status: "resolved",
+        statusNote: "Cover preview unavailable",
+        fileName: "Saved cover",
+      },
+      coverRecovery: "failed",
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Your saved cover could not be loaded. Replace it or remove it to continue to Review.",
+    );
+
+    await user.upload(screen.getByLabelText("Replace cover image"), file);
+    await user.click(screen.getByRole("button", { name: "Remove cover" }));
+
+    expect(props.onChooseCover).toHaveBeenCalledWith(file);
+    expect(props.onRemoveCover).toHaveBeenCalledTimes(1);
+  });
 });

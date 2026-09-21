@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import ReviewSurface from "./ReviewSurface";
 
 const proposal = {
@@ -25,20 +25,14 @@ const proposal = {
 function renderSurface(
   overrides: Partial<ComponentProps<typeof ReviewSurface>> = {},
 ) {
-  const onBack = vi.fn();
-  const onSubmit = vi.fn();
   render(
     <ReviewSurface
       mode="new"
       proposal={proposal}
       inlineImages={[]}
-      pending={false}
-      onBack={onBack}
-      onSubmit={onSubmit}
       {...overrides}
     />,
   );
-  return { onBack, onSubmit };
 }
 
 describe("ReviewSurface", () => {
@@ -51,53 +45,55 @@ describe("ReviewSurface", () => {
     expect(screen.getByText("Reviewed body")).toBeVisible();
   });
 
-  it("labels the primary action for the mode", () => {
-    const { unmount } = render(
-      <ReviewSurface
-        mode="published-edit"
-        proposal={proposal}
-        inlineImages={[]}
-        pending={false}
-        onBack={vi.fn()}
-        onSubmit={vi.fn()}
-      />,
-    );
-    expect(screen.getByRole("button", { name: "Update Post" })).toBeVisible();
-    unmount();
+  it("renders no action bar; actions live in the studio header", () => {
     renderSurface();
-    expect(screen.getByRole("button", { name: "Publish" })).toBeVisible();
-  });
 
-  it("calls back and submit handlers", () => {
-    const { onBack, onSubmit } = renderSurface();
-
-    fireEvent.click(screen.getByRole("button", { name: "Back to editing" }));
-    fireEvent.click(screen.getByRole("button", { name: "Publish" }));
-
-    expect(onBack).toHaveBeenCalledTimes(1);
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-  });
-
-  it("disables publishing while pending", () => {
-    renderSurface({ pending: true });
-
+    expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Publishing..." }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "Back to editing" }),
+    ).toBeNull();
   });
 
-  it("labels the pending update action for published edits", () => {
-    renderSurface({ mode: "published-edit", pending: true });
+  it("renders the reviewed tags", () => {
+    renderSurface({
+      proposal: { ...proposal, tags: ["Technology", "Design"] },
+    });
 
-    expect(screen.getByRole("button", { name: "Updating..." })).toBeDisabled();
+    expect(screen.getByText("Technology")).toBeVisible();
+    expect(screen.getByText("Design")).toBeVisible();
   });
 
-  it("surfaces a blocker and disables publishing", () => {
-    renderSurface({ blockerMessage: "Media is still uploading." });
+  it("does not render a tag row when there are no tags", () => {
+    renderSurface();
+
+    expect(screen.queryByText("Technology")).toBeNull();
+  });
+
+  it("renders the blank fallback when no cover url is given", () => {
+    renderSurface();
+
+    expect(screen.getByTestId("default-cover")).toBeVisible();
+  });
+
+  it("renders a custom cover when a cover url is given", () => {
+    renderSurface({ coverUrl: "https://cdn.example/cover.png" });
+
+    expect(screen.queryByTestId("default-cover")).toBeNull();
+    const img = screen.getByAltText("Review title");
+    expect(img.getAttribute("src") ?? "").toContain("cdn.example%2Fcover.png");
+  });
+
+  it("surfaces the blocker alert", () => {
+    renderSurface({ blockerMessage: "Some media is still uploading." });
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Media is still uploading.",
+      "Some media is still uploading.",
     );
-    expect(screen.getByRole("button", { name: "Publish" })).toBeDisabled();
+  });
+
+  it("does not render an alert without a blocker", () => {
+    renderSurface();
+
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

@@ -380,6 +380,44 @@ describe("editor to persistence to reader round trip", () => {
 });
 
 describe("editor history controls", () => {
+  it("starts a fresh undo history after a successful save without replacing content", async () => {
+    const editor = BlockNoteEditor.create({
+      schema: editorSchema,
+      initialContent: [{ type: "paragraph", content: "Saved" }],
+    });
+    const view = render(
+      <BlockNoteView editor={editor}>
+        <HistoryControls resetKey={0} />
+      </BlockNoteView>,
+    );
+    act(() => {
+      editor.updateBlock(editor.document[0], { content: "Updated" });
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Undo" })).toBeEnabled(),
+    );
+    const blockId = editor.document[0].id;
+    view.rerender(
+      <BlockNoteView editor={editor}>
+        <HistoryControls resetKey={1} />
+      </BlockNoteView>,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled(),
+    );
+    expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
+    expect(editor.document[0].id).toBe(blockId);
+    act(() => {
+      editor.updateBlock(editor.document[0], { content: "Next edit" });
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Undo" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(editor.document[0].content).toEqual([
+      { type: "text", text: "Updated", styles: {} },
+    ]);
+  });
   it("tracks undo and redo availability with accessible icon buttons", async () => {
     const editor = BlockNoteEditor.create({
       schema: editorSchema,

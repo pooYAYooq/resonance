@@ -37,13 +37,27 @@ remote image/video embeds broke), and the reset had removed the visible
 Undo/Redo controls. Remote safe HTTP(S) URLs now pass through unchanged, and a
 persistent icon-based history control renders above the editor.
 
-Authoring resilience now works silently: while a session is dirty the canonical
+Authoring resilience now works silently: while a new-post or draft session is dirty the canonical
 proposal is snapshotted to `localStorage` (debounced, flushed on `pagehide`),
 and a stored snapshot is loaded back into the form and editor during hydration
 with no prompt. The snapshot is cleared when the session turns clean, and
 effectively-empty snapshots are ignored, so removed content does not resurrect.
 There is no `beforeunload` warning. Browser-confirmed by the author. An
 always-available in-page Discard/Cancel button remains deferred.
+
+Browser follow-up fixes are implemented: published edits now stay in page
+memory and clear stale local recovery snapshots; media availability no longer
+feeds failed claim state back into the display; upload protection retries remain
+internal. Saved-content hydration is excluded from undo history, and successful
+saves reset history when no later body edits are present. Later in-flight edits
+keep their history. The overlapping BlockNote tooltip arrow is hidden in both
+themes. Browser acceptance passed for tooltips, existing published images,
+abandoning edits, and Undo/Redo after saving; the fixes are committed and
+pushed on the open PR.
+Automated verification: lint, TypeScript, targeted Prettier, and diff checks
+pass; edge tests pass (36 files / 484 tests), and component tests pass (76 files /
+458 tests). The production build passes with network access for Google Fonts;
+the initial restricted-network attempt could not fetch the fonts.
 
 The Review slice is implemented, browser-tested, and shipped in PR #72. The
 browser run confirmed the frozen preview, the media gate, and Publish/Update,
@@ -65,7 +79,20 @@ rows expose Replace and Remove while resolved inline media stays editable in
 BlockNote; and the cover controls are styled Add, Replace, and Remove buttons
 with same-file reselection. A selected cover states that it uploads on save or
 publish, and an empty cover states that the post will show without a cover
-image. Review freezing and preview parity remain pending.
+image.
+
+Batch 3 freezes Review and submits what the author reviewed. Entering Review
+validates the publication schema and captures an immutable snapshot of the
+title, body, tags, cover intent, cover preview, and resolved inline media;
+Review renders only that snapshot, Post details are hidden, and Back plus
+Publish/Update move into the header under a Review label. Submission validates
+and publishes the snapshot rather than the live form, guarded against an
+in-flight write, a pending target switch, and a media blocker. A recovered
+saved cover keeps its stored intent: it holds Review and publish/update while it
+resolves or is unavailable, shows a loading or failure message with Replace and
+Remove in the cover area, and never drops the cover silently. A media failure
+while Review is open surfaces the blocker alert and disables publishing, and
+cards, Review, and the reader now share the blank cover fallback.
 
 ## Baseline status (merged to `main`)
 
@@ -91,27 +118,26 @@ image. Review freezing and preview parity remain pending.
 
 ## Open authoring follow-ups (browser audit)
 
-The Review browser pass produced a 29-item audit. The code-rooted,
-high-confidence items are listed below; several (reader typography, media
-thumbnails, Remove-cover behaviour, the H3/Divider gap) were addressed during
-the PR #72 review pass and need re-verification in a fresh browser run before
-they are closed. The reader/editor contract items:
+The Review browser pass produced a 29-item audit. Batches 1 to 3 delivered the
+cover, media-panel, and frozen-Review slices. A static re-verification pass
+confirmed the first-publish cover and code block, reader typography, remove
+cover, action hierarchy, undo/redo placement, the editor canvas border, the
+sidebar glyph, and the dark-mode tokens were already fixed, so they are no
+longer tracked here.
+
+Still open after the three batches:
 
 - Editor title renders at body size: the shared `Input` base ships `md:text-sm`,
   which overrides the title's `sm:text-5xl` at desktop widths.
-- Broken inline image in the published-edit editor; the code block loses syntax
-  highlighting there while New Post and Review highlight it.
-- Review exposes editable Post details and unresolved media state ("Ready to
-  upload") beside Publish; media rows do not identify cover versus inline and
-  offer no per-row remove/replace; "Ready"/"Finalizing" wording is unclear.
-- Unstyled cover file input; tiny media thumbnails with weak affordances.
-- Undo/Redo controls sit at the bottom of the editor canvas.
-- Reader: first publish dropped the cover and possibly the code block; heading,
-  body, and caption sizes are inconsistent; links are not visually distinct;
-  content is too narrow on wide screens; the post page has no author identity.
-- Design system: unstyled tag checkbox grid, dark-mode contrast and focus,
-  weak action hierarchy, small reaction/bookmark/comment controls, a stray
-  sidebar collapse glyph.
+- Code blocks lose syntax highlighting in the published-edit editor while New
+  Post and Review highlight them.
+- Editor, Review, and reader use inconsistent widths and spacing; reader
+  content is too narrow on wide screens.
+- Reader links are not visually distinct; the post page has no author identity;
+  reaction, bookmark, and comment controls are small and low-emphasis.
+- Design system: unstyled tag checkbox grid, dark-mode contrast and focus, the
+  H3/Divider gap (which needs a content check rather than a code fix), and the
+  remaining ratio consistency between cards and the reader.
 
 ## Next focus
 
@@ -120,15 +146,17 @@ gap between the shipped Review slice and its full acceptance. Re-verify the
 likely-already-fixed items in a fresh browser run before opening issues.
 
 Batch 1 (shared blank cover fallback across cards, Discover summaries, and the
-reader) is complete; batch 2 delivers the authoring media panel. The
-frozen-Review batch follows and adopts the same cover component in Review.
+reader) is complete; batch 2 delivers the authoring media panel; batch 3
+delivers the frozen Review and snapshot submission. The remaining browser-audit
+items above stay open.
 
-1. Media authoring and Review readiness — shipped in code; wording and per-row
-   affordances remain in the backlog.
-2. Review, publish, and update flows — shipped and browser-tested; close the
-   follow-ups before calling the slice complete.
-3. Authoring browser journey evidence — capture the journeys once the fixes
-   land.
+1. Media authoring, Review readiness, frozen Review, and snapshot submission —
+   delivered in the three batched changes; prior browser acceptance is complete,
+   and the follow-up review fixes passed a fresh browser verification on the
+   open PR.
+2. Remaining editor, reader, and design-system audit items — still open.
+3. Authoring browser journey evidence — capture the journeys once the remaining
+   fixes land.
 
 After Track 1 and Track 4, the Phase 3A.3 release tasks apply: the `FEATURES.md`
 acceptance matrix, `package.json` release checks, human review checklist, PR, and

@@ -104,9 +104,25 @@ export function BodyFormattingToolbar() {
  * undo/redo buttons, so Resonance renders icon buttons driven by the native
  * history extension. Keyboard undo/redo remains untouched.
  */
-export function HistoryControls() {
+export function HistoryControls({ resetKey = 0 }: { resetKey?: number }) {
   const editor = useBlockNoteEditor(editorSchema);
   const [, refreshHistory] = useState(0);
+  const previousResetKey = useRef(resetKey);
+  useEffect(() => {
+    if (previousResetKey.current === resetKey) return;
+    previousResetKey.current = resetKey;
+    // Drop only native history, not the editor or its live uploaded-image URLs.
+    editor.unregisterExtension(HistoryExtension);
+    editor.registerExtension(HistoryExtension());
+    let active = true;
+    // Extension reconfiguration does not emit a document-change event.
+    queueMicrotask(() => {
+      if (active) refreshHistory((value) => value + 1);
+    });
+    return () => {
+      active = false;
+    };
+  }, [editor, resetKey]);
   const history = editor.getExtension(HistoryExtension);
   const canUndo = history ? editor.canExec(history.undoCommand) : false;
   const canRedo = history ? editor.canExec(history.redoCommand) : false;
@@ -301,6 +317,7 @@ export function serializeEditorDocument(
 }
 
 export type PostBodyEditorProps = {
+  historyResetKey?: number;
   onChange: (value: BlockNoteDocument) => void;
   onBlur: () => void;
   invalid?: boolean;
@@ -362,6 +379,7 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
       isDirty = false,
       labelledBy,
       initialContent,
+      historyResetKey = 0,
       resolvedImageUrls = {},
       onUploadSessionCreated,
     },
@@ -415,10 +433,13 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
         appliedInitialContentKey.current = hydrationKey;
         return;
       }
-      void editor.replaceBlocks(
-        editor.document,
-        (getInitialEditorContent(initialContent) ?? []) as never,
-      );
+      editor.transact((transaction) => {
+        transaction.setMeta("addToHistory", false);
+        editor.replaceBlocks(
+          editor.document,
+          (getInitialEditorContent(initialContent) ?? []) as never,
+        );
+      });
       appliedInitialContentKey.current = hydrationKey;
     }, [editor, initialContent, isDirty]);
 
@@ -445,7 +466,7 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
           }
           onBlur={onBlur}
         >
-          <HistoryControls />
+          <HistoryControls resetKey={historyResetKey} />
           <FormattingToolbarController
             formattingToolbar={BodyFormattingToolbar}
           />
