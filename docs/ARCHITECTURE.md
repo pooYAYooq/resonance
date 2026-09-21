@@ -60,7 +60,8 @@ resonance/
 │   │   │       │                        # Never imported by server bundles.
 │   │   │       ├── AuthoringSideMenu.tsx # Drag-safe block side menu (custom)
 │   │   │       ├── BlockHandleMenu.tsx   # Click-opened handle menu; kept off the client entry
-│   │   │       ├── MediaAuthoring.tsx    # Details-level media status/retry/cover/alt-text
+│   │   │       ├── MediaAuthoring.tsx    # Details-level media status, thumbnails or
+│   │   │       │                         # glyphs, replace/remove recovery, and cover
 │   │   │       ├── ReviewSurface.tsx     # Frozen read-only preview + Publish/Update
 │   │   │       ├── reviewReadiness.ts    # Blocks Review while inline media is unresolved
 │   │   │       └── useDraftRecovery.ts   # Silent localStorage authoring snapshot
@@ -548,8 +549,9 @@ submit uploads it. Review renders the frozen canonical proposal through
 `post-body-shared.tsx` with the server renderer and highlights code through
 `HighlightedCodeClient.tsx`. The editor stays mounted but `hidden`/`inert` so
 its instance, history, and selection survive; Publish/Update reuse the existing
-attempt and save paths. `MediaAuthoring.tsx` reports media status, retry, cover
-selection, and a preview thumbnail.
+attempt and save paths. `MediaAuthoring.tsx` reports media status, renders image
+thumbnails or audio/video glyphs, and offers replace or remove recovery plus
+cover selection.
 
 - **`lib/blocknote-contract.ts`** defines the finite `blocknote@1` projection
   for BlockNote's default text, list, checklist, toggle, code, divider, table,
