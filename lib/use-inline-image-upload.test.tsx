@@ -54,6 +54,24 @@ describe("useInlineImageUpload", () => {
     ).resolves.toBe("");
   });
 
+  it("resolves hydrated URLs through a resolver captured before the map loaded", async () => {
+    const { result, rerender } = renderHook(
+      ({ urls }: { urls: Record<string, string> }) =>
+        useInlineImageUpload({ resolvedImageUrls: urls }),
+      { initialProps: { urls: {} as Record<string, string> } },
+    );
+
+    // BlockNote captures the first resolver when the editor is created; it must
+    // still see storage URLs that hydrate after mount.
+    const capturedResolver = result.current.resolveFileUrl;
+
+    rerender({ urls: { storage123: "https://cdn.example/late.png" } });
+
+    await expect(capturedResolver("storage123")).resolves.toBe(
+      "https://cdn.example/late.png",
+    );
+  });
+
   it("revokes an object URL created after the hook unmounts", async () => {
     const createPendingUpload = vi.fn().mockResolvedValue({
       sessionId: "session123",

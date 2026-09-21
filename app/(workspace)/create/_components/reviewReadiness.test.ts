@@ -38,4 +38,10 @@ describe("getReviewBlocker", () => {
       expect(message.length).toBeGreaterThan(0);
     }
   });
+
+  it("points failed media at replace or remove, never retry", () => {
+    const message = REVIEW_BLOCKER_MESSAGES["failed-media"];
+    expect(message).toMatch(/replace/i);
+    expect(message).not.toMatch(/retry/i);
+  });
 });

@@ -92,6 +92,12 @@ function collectInlineMedia(
         assets.push({
           id: storageId,
           kind: "inline",
+          mediaType:
+            block.type === "audio"
+              ? "audio"
+              : block.type === "video"
+                ? "video"
+                : "image",
           status:
             claimFailed || unavailable
               ? "failed"
@@ -376,6 +382,7 @@ function CreateEditor() {
       return {
         id: "cover-selection",
         kind: "cover",
+        mediaType: "image",
         status: "choosing",
         fileName: selected.name,
         ...(coverImageUrl && { url: coverImageUrl }),
@@ -385,6 +392,7 @@ function CreateEditor() {
     return {
       id: coverStorageId,
       kind: "cover",
+      mediaType: "image",
       status: "resolved",
       ...(coverImageUrl && { url: coverImageUrl }),
     };
@@ -735,9 +743,7 @@ function CreateEditor() {
       )
       .map((asset) => asset.id);
     const failed = inlineMedia
-      .filter(
-        (asset) => asset.status === "failed" || asset.status === "expired",
-      )
+      .filter((asset) => asset.status === "failed")
       .map((asset) => asset.id);
     const coverSelected = Boolean(watchedValues.image);
     if (
@@ -1176,7 +1182,7 @@ function CreateEditor() {
     .filter((entry): entry is [string, string] => typeof entry[1] === "string")
     .map(([storageId, url]) => ({ storageId, url }));
 
-  function retryInlineMedia(storageId: string) {
+  function replaceInlineMedia(storageId: string) {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*,audio/*,video/*";
@@ -1416,8 +1422,13 @@ function CreateEditor() {
                 form.resetField("image", { defaultValue: undefined });
                 setCoverStorageId(undefined);
               }}
-              onRetry={retryInlineMedia}
+              onReplaceMedia={replaceInlineMedia}
               onRemoveInline={removeInlineMedia}
+              coverNote={
+                editorMode.mode === "published-edit"
+                  ? "Uploads when you update"
+                  : "Uploads when you save or publish"
+              }
             />
             <Controller
               name="tags"

@@ -136,7 +136,7 @@ app/
         PostBodyEditor.tsx    # Browser-only standard BlockNote adapter (ssr:false); uses the shared upload hook
         AuthoringSideMenu.tsx # Drag-safe block side menu; click-only handle menu over a Radix popover
         BlockHandleMenu.tsx   # Handle menu body; kept off the "use client" entry file
-        MediaAuthoring.tsx    # Details-level media status, retry, cover selection, and thumbnails
+        MediaAuthoring.tsx    # Details-level media status, thumbnails or glyphs, replace/remove recovery, and cover
         ReviewSurface.tsx     # Frozen read-only review preview with Back and Publish/Update
         reviewReadiness.ts    # Media gate: blocks Review while inline media is unresolved
         useDraftRecovery.ts   # Silent localStorage authoring snapshot: debounced write, pagehide flush, clear on save
