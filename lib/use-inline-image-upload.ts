@@ -1,5 +1,5 @@
 import { useMutation } from "convex/react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { isSafeEmbeddedMediaUrl } from "@/lib/blocknote-contract";
@@ -46,10 +46,18 @@ export function useBlockNoteFileUpload({
   const objectUrls = useRef(new Map<string, string>());
   const disposed = useRef(false);
   const onUploadSessionCreatedRef = useRef(onUploadSessionCreated);
+  // BlockNote captures resolveFileUrl once when the editor is created, so the
+  // resolver must read the latest hydrated URL map at call time instead of the
+  // map that was current on first render.
+  const resolvedImageUrlsRef = useRef(resolvedImageUrls);
 
   useEffect(() => {
     onUploadSessionCreatedRef.current = onUploadSessionCreated;
   }, [onUploadSessionCreated]);
+
+  useEffect(() => {
+    resolvedImageUrlsRef.current = resolvedImageUrls;
+  }, [resolvedImageUrls]);
 
   useEffect(() => {
     disposed.current = false;
@@ -130,11 +138,12 @@ export function useBlockNoteFileUpload({
   // BlockNote resolves every media `url` prop through this hook. Storage bytes
   // resolve through an object URL or the server-resolved URL; a remote Embed
   // URL must pass through unchanged so native embeds render.
-  const resolveFileUrl = async (value: string): Promise<string> => {
-    const resolved = objectUrls.current.get(value) ?? resolvedImageUrls[value];
+  const resolveFileUrl = useCallback(async (value: string): Promise<string> => {
+    const resolved =
+      objectUrls.current.get(value) ?? resolvedImageUrlsRef.current[value];
     if (resolved) return resolved;
     return isSafeEmbeddedMediaUrl(value) ? value : "";
-  };
+  }, []);
 
   return { uploadFile, resolveFileUrl };
 }
