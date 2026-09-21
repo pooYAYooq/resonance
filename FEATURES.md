@@ -92,10 +92,10 @@ review pass. Follow-up batch 1 delivers the shared blank cover fallback across
 cards, Discover summaries, and the reader; a missing cover renders a blank
 transparent surface with a subtle bottom border. Follow-up batch 2 delivers the
 authoring media panel: rows name their kind and type, audio and video render
-glyph tiles, lifecycle wording is plain, failed or expired inline rows expose
-Replace and Remove, and cover controls use styled Add, Replace, and Remove
-buttons with same-file reselection. Adopting the same component in Review is
-pending in the frozen-Review batch.
+glyph tiles, lifecycle wording is plain, failed inline rows expose Replace and
+Remove, and cover controls use styled Add, Replace, and Remove buttons with
+same-file reselection. Adopting the same component in Review is pending in the
+frozen-Review batch.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes

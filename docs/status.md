@@ -60,12 +60,12 @@ card/Review/reader parity is not claimed yet.
 Batch 2 delivers the authoring media panel: inline rows carry their media type,
 so images show thumbnails while audio and video show recognizable glyphs
 instead of broken images; lifecycle labels are plain (Selected, Uploading...,
-Finishing upload..., Ready to publish, Expired. Replace media); failed or
-expired inline rows expose Replace and Remove while resolved inline media stays
-editable in BlockNote; and the cover controls are styled Add, Replace, and
-Remove buttons with same-file reselection. A selected cover states that it
-uploads on save or publish, and an empty cover states that the post will show
-without a cover image. Review freezing and preview parity remain pending.
+Finishing upload..., Ready to publish, or the specific error); failed inline
+rows expose Replace and Remove while resolved inline media stays editable in
+BlockNote; and the cover controls are styled Add, Replace, and Remove buttons
+with same-file reselection. A selected cover states that it uploads on save or
+publish, and an empty cover states that the post will show without a cover
+image. Review freezing and preview parity remain pending.
 
 ## Baseline status (merged to `main`)
 
