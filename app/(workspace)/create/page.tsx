@@ -1202,13 +1202,16 @@ function CreateEditor() {
         }
         if (isCurrentSession) {
           // Never erase edits made while the submitted save was in flight.
-          if (
+          // Re-hydrate only when the live body still matches the submission;
+          // otherwise the editor keeps the newer content and the baseline
+          // adoption marks the session dirty again.
+          const liveMatchesSubmission =
             JSON.stringify(form.getValues("content")) ===
-            JSON.stringify(submission.content)
-          ) {
+            JSON.stringify(submission.content);
+          if (liveMatchesSubmission) {
             setHistoryResetKey((key) => key + 1);
+            setInitialContent(submission.content);
           }
-          setInitialContent(submission.content);
           setReviewSnapshot(null);
         }
         dispatchSession({

@@ -2611,4 +2611,37 @@ describe("CreateRoute", () => {
       ),
     );
   });
+
+  it("does not hydrate the submitted body over edits made while saving", async () => {
+    const user = userEvent.setup();
+    let resolveSave: (value: unknown) => void = () => {};
+    saveDraftMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    expect(screen.getByText(JSON.stringify(emptyDocument))).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Set short blog content" }),
+    );
+
+    resolveSave({ postId: "draft-1", updatedAt: 1, status: "draft" });
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalled());
+
+    // The stale submitted body must not replace the editor content that was
+    // typed while the save was in flight.
+    expect(screen.queryByText(JSON.stringify(validEnvelope))).toBeNull();
+    expect(screen.getByText(JSON.stringify(emptyDocument))).toBeInTheDocument();
+  });
 });
