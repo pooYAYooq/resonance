@@ -2232,7 +2232,7 @@ describe("CreateRoute", () => {
     await screen.findByDisplayValue("Post two");
 
     await enterReview(user, "Review Update");
-    const cover = await screen.findByAltText("Cover");
+    const cover = await screen.findByAltText("Post two");
     expect(cover.getAttribute("src") ?? "").toContain(
       "cover.example%2Ftwo.png",
     );
@@ -2297,7 +2297,7 @@ describe("CreateRoute", () => {
     await waitFor(() => expect(screen.queryByText(hold)).toBeNull());
 
     await enterReview(user);
-    const cover = await screen.findByAltText("Cover");
+    const cover = await screen.findByAltText("Recovered title");
     expect(cover.getAttribute("src") ?? "").toContain(
       "cover.example%2Fone.png",
     );
@@ -2596,7 +2596,7 @@ describe("CreateRoute", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     await enterReview(user);
-    const cover = await screen.findByAltText("Cover");
+    const cover = await screen.findByAltText("Second draft");
     expect(cover.getAttribute("src") ?? "").toContain(
       "cover.example%2Ftwo.png",
     );

@@ -38,7 +38,7 @@ export default function ReviewSurface({
         <div className="relative aspect-[3/2] w-full overflow-hidden rounded-md border">
           <CoverImage
             src={coverUrl}
-            alt="Cover"
+            alt={proposal.title}
             sizes="(max-width: 1024px) 100vw, 768px"
             className="object-cover"
           />

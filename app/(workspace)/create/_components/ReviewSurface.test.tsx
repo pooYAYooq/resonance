@@ -79,7 +79,7 @@ describe("ReviewSurface", () => {
     renderSurface({ coverUrl: "https://cdn.example/cover.png" });
 
     expect(screen.queryByTestId("default-cover")).toBeNull();
-    const img = screen.getByAltText("Cover");
+    const img = screen.getByAltText("Review title");
     expect(img.getAttribute("src") ?? "").toContain("cdn.example%2Fcover.png");
   });
 
