@@ -38,9 +38,16 @@ import DocumentStudio from "./_components/DocumentStudio";
 import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
 import {
   getReviewBlocker,
+  getReviewSubmitBlock,
   REVIEW_BLOCKER_MESSAGES,
 } from "./_components/reviewReadiness";
 import ReviewSurface from "./_components/ReviewSurface";
+import {
+  buildSnapshotSubmission,
+  captureReviewedSnapshot,
+  type ReviewedSnapshot,
+  type ReviewSubmission,
+} from "./_components/reviewSnapshot";
 import { useDraftRecovery } from "./_components/useDraftRecovery";
 import {
   useWritingSession,
@@ -63,6 +70,20 @@ const RESOLVE_MEDIA_BATCH = 100;
 type PostFormInput = z.input<typeof draftPostSchema>;
 type PostFormOutput = z.output<typeof draftPostSchema>;
 type SubmitMode = "draft" | "publish";
+
+function toLiveSubmission(
+  values: PostFormOutput,
+  coverStorageId?: string,
+): ReviewSubmission {
+  return {
+    title: values.title,
+    body: JSON.stringify(values.content),
+    content: values.content,
+    tags: [...values.tags],
+    ...(values.image && { coverFile: values.image }),
+    ...(coverStorageId && { existingCoverStorageId: coverStorageId }),
+  };
+}
 
 function collectInlineMedia(
   blocks: BlockNoteDocument["blocks"],
@@ -276,6 +297,10 @@ function CreateEditor() {
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
   const [coverImageUrl, setCoverImageUrl] = useState<string | undefined>();
+  const [reviewSnapshot, setReviewSnapshot] = useState<ReviewedSnapshot | null>(
+    null,
+  );
+  const [coverRemoved, setCoverRemoved] = useState(false);
   const coverObjectUrlRef = useRef<string | undefined>(undefined);
   const [acceptedTargetError, setAcceptedTargetError] = useState<{
     targetKey: string;
@@ -491,6 +516,7 @@ function CreateEditor() {
         resetCoverSelectionRefs();
         setCoverStorageId(undefined);
         setCoverImageUrl(undefined);
+        setCoverRemoved(false);
         setInitialContent(emptyDocument);
         setResolvedImageUrls({});
         hydratedSessionKey.current = pendingSessionKey;
@@ -595,6 +621,7 @@ function CreateEditor() {
           recovered.proposal.imageStorageId as Id<"_storage"> | undefined,
         );
         setCoverImageUrl(undefined);
+        setCoverRemoved(false);
         setInitialContent(recovered.document);
         void resolveRecoveredMediaUrls(convex, recovered.document, {}).then(
           (urls) => {
@@ -613,6 +640,7 @@ function CreateEditor() {
         });
         setCoverStorageId(undefined);
         setCoverImageUrl(undefined);
+        setCoverRemoved(false);
         setInitialContent(emptyDocument);
         setResolvedImageUrls({});
       }
@@ -680,6 +708,7 @@ function CreateEditor() {
         recovered.proposal.imageStorageId as Id<"_storage"> | undefined,
       );
       setCoverImageUrl(undefined);
+      setCoverRemoved(false);
       setInitialContent(recovered.document);
       void resolveRecoveredMediaUrls(
         convex,
@@ -918,22 +947,29 @@ function CreateEditor() {
     }
   }
 
-  function onSubmit(values: PostFormOutput, mode: SubmitMode) {
+  function onSubmit(submission: ReviewSubmission, mode: SubmitMode) {
     if (sessionState.pendingTarget) return;
     if (editorMode.mode === "published-edit") mode = "publish";
     if (mode === "publish") {
-      const publishValues = publishPostSchema.safeParse(values);
+      const publishValues = publishPostSchema.safeParse({
+        title: submission.title,
+        content: submission.content,
+        tags: submission.tags,
+        image: submission.coverFile,
+      });
       if (!publishValues.success) {
         const issue = publishValues.error.issues[0];
         const field = issue?.path[0];
         if (field === "title" || field === "content") {
           form.setError(field, { message: issue.message });
+        } else if (issue) {
+          toast.error(issue.message);
         }
         return;
       }
     }
 
-    const submittedImage = values.image;
+    const submittedImage = submission.coverFile;
     const operationSessionKey = `${sessionState.editorMode}:${
       sessionState.targetId ?? "new"
     }`;
@@ -950,14 +986,14 @@ function CreateEditor() {
       try {
         let storageId: Id<"_storage"> | undefined;
 
-        if (values.image) {
+        if (submittedImage) {
           const session = await createPendingUpload({});
           const uploadResult = await fetch(session.uploadUrl, {
             method: "POST",
             headers: {
-              "Content-Type": values.image.type,
+              "Content-Type": submittedImage.type,
             },
-            body: values.image,
+            body: submittedImage,
           });
 
           if (!uploadResult.ok) {
@@ -984,9 +1020,10 @@ function CreateEditor() {
           claimedMedia.current.add(storageId);
         }
 
-        const savedCoverStorageId = storageId ?? coverStorageId;
+        const savedCoverStorageId = (storageId ??
+          submission.existingCoverStorageId) as Id<"_storage"> | undefined;
         const referencedStorageIds = new Set([
-          ...extractImageStorageIds(values.content.blocks),
+          ...extractImageStorageIds(submission.content.blocks),
           ...(savedCoverStorageId ? [savedCoverStorageId] : []),
         ]);
         unconsumedUploads = [...submitSessions.entries()]
@@ -1000,9 +1037,9 @@ function CreateEditor() {
           }));
 
         const proposal = {
-          title: values.title,
-          body: JSON.stringify(values.content),
-          tags: values.tags,
+          title: submission.title,
+          body: submission.body,
+          tags: submission.tags,
           ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
         };
         const operationKind =
@@ -1057,9 +1094,9 @@ function CreateEditor() {
           throw new Error(result.message);
         }
         const persistedProposal: CanonicalProposal = {
-          title: values.title,
-          body: JSON.stringify(values.content),
-          tags: [...values.tags],
+          title: submission.title,
+          body: submission.body,
+          tags: [...submission.tags],
           ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
         };
         const isCurrentSession =
@@ -1071,9 +1108,15 @@ function CreateEditor() {
         ) {
           clearedCoverSelection.current = submittedImage;
           selectedCoverRef.current = undefined;
-          form.resetField("image", { defaultValue: undefined });
+          form.setValue("image", undefined, {
+            shouldDirty: true,
+            shouldTouch: true,
+          });
         }
-        if (isCurrentSession) setInitialContent(values.content);
+        if (isCurrentSession) {
+          setInitialContent(submission.content);
+          setReviewSnapshot(null);
+        }
         dispatchSession({
           type: "finishOperation",
           attemptId: reservation.attemptId,
@@ -1177,6 +1220,12 @@ function CreateEditor() {
   }
 
   const reviewing = sessionState.presentation === "review";
+  const reviewModeLabel =
+    editorMode.mode === "published-edit"
+      ? "Reviewing update"
+      : editorMode.mode === "draft"
+        ? "Reviewing draft"
+        : "Reviewing new post";
   const reviewBlocker = getReviewBlocker(sessionState.media);
   const reviewInlineImages = Object.entries(resolvedImageUrls)
     .filter((entry): entry is [string, string] => typeof entry[1] === "string")
@@ -1261,15 +1310,53 @@ function CreateEditor() {
         const field = issue?.path[0];
         if (field === "title" || field === "content") {
           form.setError(field, { message: issue.message });
+        } else if (issue) {
+          toast.error(issue.message);
         }
         return;
       }
+      const reviewedProposal: CanonicalProposal = {
+        title: publishValues.data.title,
+        body: JSON.stringify(publishValues.data.content),
+        tags: [...publishValues.data.tags],
+      };
+      setReviewSnapshot(
+        captureReviewedSnapshot(
+          reviewedProposal,
+          {
+            selectedFile: selectedCoverRef.current,
+            existingStorageId: coverStorageId,
+            removed: coverRemoved,
+          },
+          {
+            ...(coverImageUrl && { coverPreviewUrl: coverImageUrl }),
+            inlineImages: reviewInlineImages,
+          },
+        ),
+      );
       dispatchSession({ type: "enterReview" });
     })();
   }
 
+  function backToEditing() {
+    setReviewSnapshot(null);
+    dispatchSession({ type: "returnToEdit" });
+  }
+
   function submitFromReview() {
-    void form.handleSubmit((values) => onSubmit(values, "publish"))();
+    const snapshot = reviewSnapshot;
+    if (!snapshot) return;
+    const blocker = getReviewBlocker(sessionState.media);
+    const block = getReviewSubmitBlock({
+      isPending,
+      hasPendingTarget: Boolean(sessionState.pendingTarget),
+      blocker,
+    });
+    if (block) {
+      if (blocker) toast.error(REVIEW_BLOCKER_MESSAGES[blocker]);
+      return;
+    }
+    onSubmit(buildSnapshotSubmission(snapshot), "publish");
   }
 
   return (
@@ -1280,6 +1367,8 @@ function CreateEditor() {
     >
       <DocumentStudio
         mode={editorMode.mode}
+        detailsHidden={reviewing}
+        modeLabel={reviewing ? reviewModeLabel : undefined}
         notice={transitionNotice}
         heading={
           reviewing
@@ -1374,15 +1463,21 @@ function CreateEditor() {
                 )}
               />
             </div>
-            {reviewing && sessionState.proposal && (
+            {reviewing && reviewSnapshot && (
               <ReviewSurface
                 mode={editorMode.mode}
-                proposal={sessionState.proposal}
-                inlineImages={reviewInlineImages}
-                coverUrl={coverImageUrl}
-                pending={isPending}
-                onBack={() => dispatchSession({ type: "returnToEdit" })}
-                onSubmit={submitFromReview}
+                proposal={{
+                  title: reviewSnapshot.title,
+                  body: reviewSnapshot.body,
+                  tags: reviewSnapshot.tags,
+                }}
+                inlineImages={reviewSnapshot.inlineImages}
+                coverUrl={reviewSnapshot.coverPreviewUrl}
+                blockerMessage={
+                  reviewBlocker
+                    ? REVIEW_BLOCKER_MESSAGES[reviewBlocker]
+                    : undefined
+                }
               />
             )}
           </>
@@ -1402,6 +1497,7 @@ function CreateEditor() {
                   const objectUrl = URL.createObjectURL(file);
                   coverObjectUrlRef.current = objectUrl;
                   setCoverImageUrl(objectUrl);
+                  setCoverRemoved(false);
                   form.setValue("image", file, {
                     shouldDirty: true,
                     shouldTouch: true,
@@ -1419,7 +1515,11 @@ function CreateEditor() {
                   coverObjectUrlRef.current = undefined;
                 }
                 setCoverImageUrl(undefined);
-                form.resetField("image", { defaultValue: undefined });
+                setCoverRemoved(true);
+                form.setValue("image", undefined, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                });
                 setCoverStorageId(undefined);
               }}
               onReplaceMedia={replaceInlineMedia}
@@ -1430,6 +1530,9 @@ function CreateEditor() {
                   : "Uploads when you save or publish"
               }
             />
+            {form.formState.errors.image && (
+              <FieldError errors={[form.formState.errors.image]} />
+            )}
             <Controller
               name="tags"
               control={form.control}
@@ -1443,7 +1546,31 @@ function CreateEditor() {
           </FieldGroup>
         }
         actions={
-          reviewing ? undefined : (
+          reviewing ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isPending}
+                onClick={backToEditing}
+              >
+                Back to editing
+              </Button>
+              <Button
+                type="button"
+                disabled={isPending || Boolean(reviewBlocker)}
+                onClick={submitFromReview}
+              >
+                {isPending
+                  ? editorMode.mode === "published-edit"
+                    ? "Updating..."
+                    : "Publishing..."
+                  : editorMode.mode === "published-edit"
+                    ? "Update Post"
+                    : "Publish"}
+              </Button>
+            </>
+          ) : (
             <>
               {capabilities.canSaveDraft && (
                 <Button
@@ -1452,7 +1579,10 @@ function CreateEditor() {
                   disabled={isPending || Boolean(sessionState.pendingTarget)}
                   onClick={() => {
                     void form.handleSubmit((values) =>
-                      onSubmit(values, "draft"),
+                      onSubmit(
+                        toLiveSubmission(values, coverStorageId),
+                        "draft",
+                      ),
                     )();
                   }}
                 >

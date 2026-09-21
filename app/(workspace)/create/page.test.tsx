@@ -1848,4 +1848,307 @@ describe("CreateRoute", () => {
     expect(createPendingUploadMock).not.toHaveBeenCalled();
     expect(saveDraftMock).not.toHaveBeenCalled();
   });
+
+  it("shows the Review state and hides Post details", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await enterReview(user);
+
+    await screen.findByTestId("review-surface");
+    expect(screen.getByText("Reviewing new post")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Back to editing" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Publish" })).toBeVisible();
+    expect(screen.queryByText("Post details")).toBeNull();
+  });
+
+  it("keeps the reviewed preview and submission when live fields drift", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewed title",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    // Capture the editor control while it is visible; after entering Review it
+    // is hidden, so re-dispatch against this reference to simulate drift.
+    const shortContentButton = screen.getByRole("button", {
+      name: "Set short blog content",
+    });
+    await enterReview(user);
+    await screen.findByTestId("review-surface");
+
+    fireEvent.change(screen.getByLabelText("Blog title"), {
+      target: { value: "Drifted title" },
+    });
+    fireEvent.click(shortContentButton);
+
+    const surface = screen.getByTestId("review-surface");
+    expect(surface).toHaveTextContent("Reviewed title");
+    expect(surface).toHaveTextContent("This is enough content for the body.");
+    expect(surface).not.toHaveTextContent("short");
+
+    await submitFromReview(user);
+
+    await waitFor(() =>
+      expect(reserveAttemptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operationKind: "publish",
+          proposal: expect.objectContaining({
+            title: "Reviewed title",
+            body: expect.stringContaining(
+              "This is enough content for the body.",
+            ),
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("publishes the tags captured at Review entry", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await user.click(screen.getByLabelText("Technology"));
+    await enterReview(user);
+
+    expect(await screen.findByTestId("review-surface")).toHaveTextContent(
+      "Technology",
+    );
+
+    await submitFromReview(user);
+
+    await waitFor(() =>
+      expect(reserveAttemptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proposal: expect.objectContaining({ tags: ["Technology"] }),
+        }),
+      ),
+    );
+  });
+
+  it("uploads the cover selected before Review", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ storageId: "storage-cover" }),
+    });
+    const cover = new File(["cover"], "cover.png", { type: "image/png" });
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await user.upload(screen.getByLabelText("Image (optional)"), cover);
+    await enterReview(user);
+    await submitFromReview(user);
+
+    await waitFor(() =>
+      expect(reserveAttemptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proposal: expect.objectContaining({
+            imageStorageId: "storage-cover",
+          }),
+        }),
+      ),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://upload.url",
+      expect.objectContaining({ body: cover }),
+    );
+    await waitFor(() => expect(screen.queryByText("Selected")).toBeNull());
+  });
+
+  it("clears a selected cover when Remove cover is clicked", async () => {
+    const user = userEvent.setup();
+    const cover = new File(["cover"], "cover.png", { type: "image/png" });
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await user.upload(screen.getByLabelText("Image (optional)"), cover);
+    expect(screen.getByText("Selected")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Remove cover" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          "No cover selected. Your post will show without a cover image.",
+        ),
+      ).toBeVisible(),
+    );
+    expect(screen.queryByText("Selected")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Replace cover" })).toBeNull();
+
+    await enterReview(user);
+    await submitFromReview(user);
+
+    await waitFor(() => expect(reserveAttemptMock).toHaveBeenCalled());
+    const call = reserveAttemptMock.mock.calls.at(-1)?.[0] as {
+      proposal: { imageStorageId?: string };
+    };
+    expect(call.proposal.imageStorageId).toBeUndefined();
+    expect(createPendingUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a rejected cover file when entering Review", async () => {
+    const user = userEvent.setup();
+    const oversized = new File([new Uint8Array(6 * 1024 * 1024)], "big.png", {
+      type: "image/png",
+    });
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await user.upload(screen.getByLabelText("Image (optional)"), oversized);
+    await enterReview(user);
+
+    expect(
+      await screen.findByText("Image must be 5MB or smaller."),
+    ).toBeVisible();
+    expect(screen.queryByTestId("review-surface")).toBeNull();
+  });
+
+  it("reuses an existing cover on publish", async () => {
+    const user = userEvent.setup();
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Resumed title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: "cover-1",
+      imageUrl: "https://cover.example/image.png",
+      inlineImages: [],
+      updatedAt: 123,
+    });
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Resumed title");
+    await enterReview(user);
+    await submitFromReview(user);
+
+    await waitFor(() =>
+      expect(reserveAttemptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proposal: expect.objectContaining({ imageStorageId: "cover-1" }),
+        }),
+      ),
+    );
+  });
+
+  it("publishes without a cover after removing an existing cover", async () => {
+    const user = userEvent.setup();
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Resumed title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: "cover-1",
+      imageUrl: "https://cover.example/image.png",
+      inlineImages: [],
+      updatedAt: 123,
+    });
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Resumed title");
+    await user.click(screen.getByRole("button", { name: "Remove cover" }));
+    await enterReview(user);
+    await submitFromReview(user);
+
+    await waitFor(() => expect(reserveAttemptMock).toHaveBeenCalled());
+    const call = reserveAttemptMock.mock.calls.at(-1)?.[0] as {
+      proposal: { imageStorageId?: string };
+    };
+    expect(call.proposal.imageStorageId).toBeUndefined();
+  });
+
+  it("disables Publish when media fails after Review is entered", async () => {
+    const user = userEvent.setup();
+    let rejectClaim!: (reason?: unknown) => void;
+    claimSessionMediaMock.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectClaim = reject;
+        }),
+    );
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Register inline upload" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Edit inline content" }),
+    );
+    await enterReview(user);
+    await screen.findByTestId("review-surface");
+
+    rejectClaim(new Error("claim failed"));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Some media failed to upload. Replace or remove it before publishing.",
+    );
+    expect(screen.getByRole("button", { name: "Publish" })).toBeDisabled();
+  });
+
+  it("ignores a second publish while the first is in flight", async () => {
+    const user = userEvent.setup();
+    reserveAttemptMock.mockReturnValue(new Promise(() => {}));
+    render(<CreateRoute />);
+
+    await user.type(
+      screen.getByPlaceholderText("Give your thought a name"),
+      "Reviewable",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await enterReview(user);
+
+    const publish = await screen.findByRole("button", { name: "Publish" });
+    await user.click(publish);
+    await user.click(publish);
+
+    expect(reserveAttemptMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,11 +1,11 @@
 "use client";
 
 import type { CanonicalProposal } from "@/lib/write-contract";
-import { Button } from "@/components/ui/button";
 import {
   PostBodyPreview,
   type PreviewInlineImage,
 } from "@/components/web/PostBodyPreview";
+import { CoverImage } from "@/components/web/CoverImage";
 import type { EditorMode } from "../editorMode";
 
 type ReviewSurfaceProps = {
@@ -13,26 +13,21 @@ type ReviewSurfaceProps = {
   proposal: CanonicalProposal;
   inlineImages: PreviewInlineImage[];
   coverUrl?: string;
-  pending: boolean;
   blockerMessage?: string;
-  onBack: () => void;
-  onSubmit: () => void;
 };
 
+/**
+ * A frozen preview. It renders only the values handed to it, so the page can
+ * pass the reviewed snapshot rather than live form state. Actions live in the
+ * studio header.
+ */
 export default function ReviewSurface({
   mode,
   proposal,
   inlineImages,
   coverUrl,
-  pending,
   blockerMessage,
-  onBack,
-  onSubmit,
 }: ReviewSurfaceProps) {
-  const submitLabel = mode === "published-edit" ? "Update Post" : "Publish";
-  const pendingLabel =
-    mode === "published-edit" ? "Updating..." : "Publishing...";
-
   return (
     <section
       data-testid="review-surface"
@@ -40,19 +35,29 @@ export default function ReviewSurface({
       className="flex flex-col gap-6"
     >
       <article className="flex flex-col gap-6">
-        {coverUrl && (
-          // Resolved storage URLs, object URLs, and validated HTTP(S) URLs are safe attributes.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+        <div className="relative aspect-[3/2] w-full overflow-hidden rounded-md border">
+          <CoverImage
             src={coverUrl}
-            alt=""
-            data-testid="review-cover"
-            className="max-h-80 w-full rounded-md border object-cover"
+            alt="Cover"
+            sizes="(max-width: 1024px) 100vw, 768px"
+            className="object-cover"
           />
-        )}
+        </div>
         <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
           {proposal.title}
         </h1>
+        {proposal.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {proposal.tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
         <PostBodyPreview body={proposal.body} inlineImages={inlineImages} />
       </article>
 
@@ -64,19 +69,6 @@ export default function ReviewSurface({
           {blockerMessage}
         </p>
       )}
-
-      <div className="flex flex-wrap items-center gap-2 border-t pt-5">
-        <Button type="button" variant="outline" onClick={onBack}>
-          Back to editing
-        </Button>
-        <Button
-          type="button"
-          disabled={pending || Boolean(blockerMessage)}
-          onClick={onSubmit}
-        >
-          {pending ? pendingLabel : submitLabel}
-        </Button>
-      </div>
     </section>
   );
 }

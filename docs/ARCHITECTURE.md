@@ -545,14 +545,20 @@ No stored-data migration is included for disposable development content.
 Publication goes through an explicit Review step. Header entry validates the
 publication schema and is blocked while inline media is unresolved
 (`reviewReadiness.ts`); a selected-but-unuploaded cover does not block, because
-submit uploads it. Review renders the frozen canonical proposal through
+submit uploads it. On entry, `reviewSnapshot.ts` captures an immutable snapshot
+of the reviewed title, serialized body, tags, cover intent, cover preview URL,
+and resolved inline images. Review renders only that snapshot through
 `PostBodyPreview.tsx`, a synchronous client renderer that shares
 `post-body-shared.tsx` with the server renderer and highlights code through
-`HighlightedCodeClient.tsx`. The editor stays mounted but `hidden`/`inert` so
-its instance, history, and selection survive; Publish/Update reuse the existing
-attempt and save paths. `MediaAuthoring.tsx` reports media status, renders image
-thumbnails or audio/video glyphs, and offers replace or remove recovery plus
-cover selection.
+`HighlightedCodeClient.tsx`, so the preview and the published output cannot
+diverge. Post details are hidden during Review, and Back plus Publish/Update
+move into the studio header behind `getReviewSubmitBlock`, which rejects an
+in-flight write, a pending target switch, or a media blocker. A media failure
+while Review is open shows the blocker alert and disables publishing. The
+editor stays mounted but `hidden`/`inert` so its instance, history, and
+selection survive; Publish/Update reuse the existing attempt and save paths.
+`MediaAuthoring.tsx` reports media status, renders image thumbnails or
+audio/video glyphs, and offers replace or remove recovery plus cover selection.
 
 - **`lib/blocknote-contract.ts`** defines the finite `blocknote@1` projection
   for BlockNote's default text, list, checklist, toggle, code, divider, table,
