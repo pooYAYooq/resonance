@@ -18,6 +18,8 @@ type DocumentStudioProps = {
   title?: ReactNode;
   body?: ReactNode;
   details?: ReactNode;
+  detailsHidden?: boolean;
+  modeLabel?: ReactNode;
   actions?: ReactNode;
 };
 
@@ -38,6 +40,8 @@ export default function DocumentStudio({
   title,
   body,
   details,
+  detailsHidden,
+  modeLabel,
   actions,
 }: DocumentStudioProps) {
   const isReady = state === "ready";
@@ -55,7 +59,7 @@ export default function DocumentStudio({
             <header className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  {modeLabels[mode]}
+                  {modeLabel ?? modeLabels[mode]}
                 </p>
               </div>
               <div
@@ -85,12 +89,14 @@ export default function DocumentStudio({
               {body}
             </main>
 
-            <details open className="mx-auto w-full max-w-5xl border-t pt-5">
-              <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
-                Post details
-              </summary>
-              <div className="mt-5 flex flex-col gap-6">{details}</div>
-            </details>
+            {!detailsHidden && (
+              <details open className="mx-auto w-full max-w-5xl border-t pt-5">
+                <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                  Post details
+                </summary>
+                <div className="mt-5 flex flex-col gap-6">{details}</div>
+              </details>
+            )}
           </>
         ) : (
           <div
