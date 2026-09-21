@@ -89,6 +89,20 @@ describe("MediaAuthoring", () => {
     },
   );
 
+  it.each([
+    ["audio", "Audio"],
+    ["video", "Video"],
+    ["image", "Image"],
+  ] as const)("announces the %s media type", (mediaType, label) => {
+    renderMedia({
+      inlineImages: [
+        { id: mediaType, kind: "inline", status: "resolved", mediaType },
+      ],
+    });
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
   it("keeps Review unavailable while required media is unresolved", () => {
     renderMedia({
       inlineImages: [{ id: "p", kind: "inline", status: "finalizing" }],

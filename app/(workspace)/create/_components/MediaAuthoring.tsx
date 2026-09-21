@@ -98,6 +98,13 @@ function MediaRow({
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
             {asset.kind === "cover" ? "Cover" : "Inline"}
           </span>
+          <span className="sr-only">
+            {asset.mediaType === "audio"
+              ? "Audio"
+              : asset.mediaType === "video"
+                ? "Video"
+                : "Image"}
+          </span>
           {asset.fileName ? (
             <span className="truncate">{asset.fileName}</span>
           ) : null}
