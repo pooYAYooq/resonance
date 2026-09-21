@@ -1,6 +1,7 @@
 "use client";
 
 export type MediaKind = "inline" | "cover";
+export type MediaType = "image" | "audio" | "video";
 export type MediaStatus =
   | "choosing"
   | "uploading"
@@ -12,6 +13,7 @@ export type MediaStatus =
 export type MediaAsset = {
   id: string;
   kind: MediaKind;
+  mediaType?: MediaType;
   status: MediaStatus;
   url?: string;
   error?: string;

@@ -92,6 +92,12 @@ function collectInlineMedia(
         assets.push({
           id: storageId,
           kind: "inline",
+          mediaType:
+            block.type === "audio"
+              ? "audio"
+              : block.type === "video"
+                ? "video"
+                : "image",
           status:
             claimFailed || unavailable
               ? "failed"
@@ -376,6 +382,7 @@ function CreateEditor() {
       return {
         id: "cover-selection",
         kind: "cover",
+        mediaType: "image",
         status: "choosing",
         fileName: selected.name,
         ...(coverImageUrl && { url: coverImageUrl }),
@@ -385,6 +392,7 @@ function CreateEditor() {
     return {
       id: coverStorageId,
       kind: "cover",
+      mediaType: "image",
       status: "resolved",
       ...(coverImageUrl && { url: coverImageUrl }),
     };
