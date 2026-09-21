@@ -4,7 +4,7 @@ export type ReviewBlocker = "failed-media" | "pending-media";
 
 export const REVIEW_BLOCKER_MESSAGES: Record<ReviewBlocker, string> = {
   "failed-media":
-    "Some media failed to upload. Retry or remove it in Post details before reviewing.",
+    "Some media failed to upload. Replace or remove it in Post details before reviewing.",
   "pending-media":
     "Some media is still uploading. Wait for it to finish before reviewing.",
 };
