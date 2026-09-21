@@ -498,12 +498,10 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
     await screen.findByDisplayValue("Recovered media");
 
-    await user.click(
-      await screen.findByRole("button", { name: "Remove media" }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Remove" }));
 
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Remove media" })).toBeNull(),
+      expect(screen.queryByRole("button", { name: "Remove" })).toBeNull(),
     );
     expect(releaseSessionMediaMock).toHaveBeenCalledWith(
       expect.objectContaining({ storageIds: ["storage-inline-1"] }),

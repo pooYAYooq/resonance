@@ -57,6 +57,16 @@ cover renders a blank transparent surface with a subtle bottom border. Adopting
 the same cover component in Review is deferred to the frozen-Review batch, so
 card/Review/reader parity is not claimed yet.
 
+Batch 2 delivers the authoring media panel: inline rows carry their media type,
+so images show thumbnails while audio and video show recognizable glyphs
+instead of broken images; lifecycle labels are plain (Selected, Uploading...,
+Finishing upload..., Ready to publish, Expired. Replace media); failed or
+expired inline rows expose Replace and Remove while resolved inline media stays
+editable in BlockNote; and the cover controls are styled Add, Replace, and
+Remove buttons with same-file reselection. A selected cover states that it
+uploads on save or publish, and an empty cover states that the post will show
+without a cover image. Review freezing and preview parity remain pending.
+
 ## Baseline status (merged to `main`)
 
 - The standard-BlockNote authoring and review flow, the authoring baseline
@@ -110,8 +120,8 @@ gap between the shipped Review slice and its full acceptance. Re-verify the
 likely-already-fixed items in a fresh browser run before opening issues.
 
 Batch 1 (shared blank cover fallback across cards, Discover summaries, and the
-reader) is complete; the media-panel and frozen-Review batches follow and adopt
-the same cover component in Review.
+reader) is complete; batch 2 delivers the authoring media panel. The
+frozen-Review batch follows and adopts the same cover component in Review.
 
 1. Media authoring and Review readiness — shipped in code; wording and per-row
    affordances remain in the backlog.
