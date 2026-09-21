@@ -34,6 +34,10 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 import { getEditorCapabilities, resolveEditorMode } from "./editorMode";
+import {
+  coverRetryDelayMs,
+  type CoverLookup,
+} from "./_components/coverResolution";
 import DocumentStudio from "./_components/DocumentStudio";
 import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
 import {
@@ -269,18 +273,21 @@ async function resolveRecoveredMediaUrls(
  * server cannot resolve it, so a recovered cover can surface an explicit
  * failure instead of silently disappearing.
  */
-async function resolveOwnedMediaUrl(
+async function lookupOwnedCoverUrl(
   convex: ReturnType<typeof useConvex>,
   storageId: Id<"_storage">,
-): Promise<string | null> {
+): Promise<CoverLookup> {
   try {
     const resolved = await convex.query(
       api.sessionMediaClaims.getOwnedMediaUrls,
       { storageIds: [storageId] },
     );
-    return resolved[0]?.url ?? null;
+    const url = resolved[0]?.url ?? null;
+    return url ? { status: "resolved", url } : { status: "missing" };
   } catch {
-    return null;
+    // A rejected query says nothing about the file. Treat it as transient so
+    // the caller retries instead of declaring the cover broken.
+    return { status: "unavailable" };
   }
 }
 
@@ -316,6 +323,11 @@ function CreateEditor() {
     null,
   );
   const coverResolutionGeneration = useRef(0);
+  const coverRetryRef = useRef<{
+    storageId: Id<"_storage">;
+    sessionKey: string;
+    timer?: ReturnType<typeof setTimeout>;
+  } | null>(null);
   const [reviewSnapshot, setReviewSnapshot] = useState<ReviewedSnapshot | null>(
     null,
   );
@@ -482,27 +494,78 @@ function CreateEditor() {
     [claimSessionMedia],
   );
   /**
-   * Resolves a recovered cover URL under an explicit hold. The generation guard
-   * makes a late result a no-op after any later target adoption, cover
-   * selection, or removal, and the session guard covers a target change.
+   * Resolves a recovered cover URL under an explicit hold. A missing file
+   * fails immediately; a rejected query is treated as transient and retried
+   * with backoff, and again on focus or reconnect. The generation guard makes a
+   * late result a no-op after any later target adoption, cover selection, or
+   * removal, and the session guard covers a target change.
    */
-  const startRecoveredCoverResolution = useCallback(
-    (storageId: Id<"_storage">, sessionKey: string) => {
-      const generation = ++coverResolutionGeneration.current;
-      setCoverRecovery("resolving");
-      void resolveOwnedMediaUrl(convex, storageId).then((url) => {
+  const clearCoverRetry = useCallback(() => {
+    const retry = coverRetryRef.current;
+    if (retry?.timer !== undefined) clearTimeout(retry.timer);
+    coverRetryRef.current = null;
+  }, []);
+
+  const runCoverLookup = useCallback(
+    (storageId: Id<"_storage">, sessionKey: string, attempt: number) => {
+      const generation = coverResolutionGeneration.current;
+      void lookupOwnedCoverUrl(convex, storageId).then((result) => {
         if (coverResolutionGeneration.current !== generation) return;
         if (hydratedSessionKey.current !== sessionKey) return;
-        if (url) {
-          setCoverImageUrl(url);
+        if (result.status === "resolved") {
+          clearCoverRetry();
+          setCoverImageUrl(result.url);
           setCoverRecovery(null);
-        } else {
-          setCoverRecovery("failed");
+          return;
         }
+        if (result.status === "missing") {
+          clearCoverRetry();
+          setCoverRecovery("failed");
+          return;
+        }
+        const delay = coverRetryDelayMs(attempt);
+        if (delay === null) {
+          clearCoverRetry();
+          setCoverRecovery("failed");
+          return;
+        }
+        const timer = setTimeout(() => {
+          runCoverLookup(storageId, sessionKey, attempt + 1);
+        }, delay);
+        coverRetryRef.current = { storageId, sessionKey, timer };
       });
     },
-    [convex],
+    [clearCoverRetry, convex],
   );
+
+  const startRecoveredCoverResolution = useCallback(
+    (storageId: Id<"_storage">, sessionKey: string) => {
+      clearCoverRetry();
+      coverResolutionGeneration.current += 1;
+      setCoverRecovery("resolving");
+      coverRetryRef.current = { storageId, sessionKey };
+      runCoverLookup(storageId, sessionKey, 0);
+    },
+    [clearCoverRetry, runCoverLookup],
+  );
+
+  useEffect(() => {
+    if (coverRecovery !== "resolving") return;
+    const retryNow = () => {
+      const context = coverRetryRef.current;
+      if (!context) return;
+      if (context.timer !== undefined) clearTimeout(context.timer);
+      runCoverLookup(context.storageId, context.sessionKey, 0);
+    };
+    window.addEventListener("focus", retryNow);
+    window.addEventListener("online", retryNow);
+    return () => {
+      window.removeEventListener("focus", retryNow);
+      window.removeEventListener("online", retryNow);
+    };
+  }, [coverRecovery, runCoverLookup]);
+
+  useEffect(() => clearCoverRetry, [clearCoverRetry]);
   const requestedTarget = useMemo(
     () =>
       requestedEditorMode.mode === "invalid"
@@ -543,6 +606,7 @@ function CreateEditor() {
       // Any target adoption invalidates an in-flight recovered-cover lookup so
       // a late result cannot overwrite the newly loaded cover state.
       coverResolutionGeneration.current += 1;
+      clearCoverRetry();
       setCoverRecovery(null);
     };
 
@@ -802,6 +866,7 @@ function CreateEditor() {
   }, [
     claimRecoveredMedia,
     startRecoveredCoverResolution,
+    clearCoverRetry,
     convex,
     editorMode.mode,
     form,
@@ -1625,6 +1690,7 @@ function CreateEditor() {
                   coverObjectUrlRef.current = objectUrl;
                   setCoverImageUrl(objectUrl);
                   coverResolutionGeneration.current += 1;
+                  clearCoverRetry();
                   setCoverRecovery(null);
                   dispatchSession({ type: "setCoverRemoved", removed: false });
                   form.setValue("image", file, {
@@ -1645,6 +1711,7 @@ function CreateEditor() {
                 }
                 setCoverImageUrl(undefined);
                 coverResolutionGeneration.current += 1;
+                clearCoverRetry();
                 setCoverRecovery(null);
                 dispatchSession({ type: "setCoverRemoved", removed: true });
                 form.setValue("image", undefined, {

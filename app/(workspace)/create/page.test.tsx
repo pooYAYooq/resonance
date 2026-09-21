@@ -2366,7 +2366,7 @@ describe("CreateRoute", () => {
     expect(call.proposal.imageStorageId).toBeUndefined();
   });
 
-  it("treats a rejected recovered cover lookup as a load failure", async () => {
+  it("keeps the hold and retries a transient recovered cover lookup", async () => {
     draftIdParam.value = "draft-1";
     getDraftByIdMock.mockReturnValue({
       _id: "draft-1",
@@ -2388,7 +2388,63 @@ describe("CreateRoute", () => {
       },
       Date.now(),
     );
-    convexQueryMock.mockRejectedValue(new Error("network"));
+    convexQueryMock
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValueOnce([
+        { storageId: "cover-1", url: "https://cover.example/one.png" },
+      ]);
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Recovered title");
+    await waitFor(() => expect(convexQueryMock).toHaveBeenCalledTimes(1));
+
+    // A rejected lookup is transient: keep the hold and never show the alert.
+    expect(
+      screen.getByText(
+        "Loading your saved cover. Review will be available when it finishes.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    fireEvent(window, new Event("focus"));
+
+    const preview = await screen.findByTestId("media-preview");
+    expect(preview.getAttribute("src") ?? "").toContain(
+      "cover.example/one.png",
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByText(
+          "Loading your saved cover. Review will be available when it finishes.",
+        ),
+      ).toBeNull(),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows the alert for a missing recovered cover without retrying", async () => {
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Resumed title",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: "cover-1",
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    saveDraftRecovery(
+      "draft:draft-1",
+      {
+        title: "Recovered title",
+        body: JSON.stringify(validEnvelope),
+        tags: ["Technology"],
+        imageStorageId: "cover-1" as Id<"_storage">,
+      },
+      Date.now(),
+    );
+    convexQueryMock.mockResolvedValue([{ storageId: "cover-1", url: null }]);
 
     render(<CreateRoute />);
     await screen.findByDisplayValue("Recovered title");
@@ -2396,6 +2452,7 @@ describe("CreateRoute", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Your saved cover could not be loaded. Replace it or remove it to continue to Review.",
     );
+    expect(convexQueryMock).toHaveBeenCalledTimes(1);
   });
 
   it("ignores a late recovered cover result after the author replaces it", async () => {
