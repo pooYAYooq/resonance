@@ -62,10 +62,10 @@ resonance/
 │   │   │       ├── BlockHandleMenu.tsx   # Click-opened handle menu; kept off the client entry
 │   │   │       ├── MediaAuthoring.tsx    # Details-level media status, thumbnails or
 │   │   │       │                         # glyphs, replace/remove recovery, and cover
-│   │   │       ├── ReviewSurface.tsx     # Frozen read-only preview + Publish/Update
-│   │   │       ├── reviewReadiness.ts    # Blocks Review while inline media is unresolved
+│   │   │       ├── ReviewSurface.tsx     # Frozen read-only preview; header owns Back and Publish/Update
+│   │   │       ├── reviewReadiness.ts    # Blocks Review while inline media or a recovered cover is unresolved
 │   │   │       ├── reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders
-│   │   │       └── useDraftRecovery.ts   # Silent localStorage authoring snapshot
+│   │   │       └── useDraftRecovery.ts   # New/draft local recovery; published edits stay page-local
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx      # Metadata-only child layout under WorkspaceShell.
 │   │   │   ├── page.tsx        # Dashboard root with independent drafts and published-post previews.
@@ -524,13 +524,23 @@ block through that path and fails if any block is discarded or rejected.
 
 Body headings use H2 through H6; the separate page title is the only H1.
 
-Unsaved authoring work is kept in a per-session `localStorage` snapshot
+Unsaved new-post and draft work is kept in a per-session `localStorage` snapshot
 (`lib/draft-recovery.ts`, driven by `useDraftRecovery`). It is written while the
 session is dirty (debounced, flushed on `pagehide`) and loaded back into the
 form and editor during hydration with no prompt. The snapshot is cleared when
 the session turns clean, so removed content never resurrects; effectively-empty
 snapshots are ignored. Recovery is best effort and never blocks editing when
 storage is unavailable.
+Published edits are page-local until Review and Update Post succeed. They do
+not read or write recovery snapshots; stale published-edit snapshots are cleared.
+Existing saved media remains part of the saved post while edits are in progress.
+Media availability is derived from resolved URLs, not from failed claim
+bookkeeping. New upload claim failures retry in the background and on focus or
+renewal without falsely marking a usable image unavailable.
+Loading saved content does not add an undo entry. Successful saves reset native
+history when the editor still matches the submitted body, without remounting the
+editor or revoking its live image URLs. Edits made during an in-flight save retain
+their history. Edit/Review transitions retain history until a successful save.
 `lib/heading.ts` supplies the shared recursive normalization used by paste,
 hydration, serialization, and the canonical contract: H1 becomes H2, levels
 above 6 become H6, and missing or non-integer levels become H2. Valid levels
@@ -543,11 +553,12 @@ and storing the canonical body. The reader renders matching h2-h6 elements.
 No stored-data migration is included for disposable development content.
 
 Publication goes through an explicit Review step. Header entry validates the
-publication schema and is blocked while inline media is unresolved
-(`reviewReadiness.ts`); a selected-but-unuploaded cover does not block, because
-submit uploads it. On entry, `reviewSnapshot.ts` captures an immutable snapshot
-of the reviewed title, serialized body, tags, cover intent, cover preview URL,
-and resolved inline images. Review renders only that snapshot through
+publication schema and is blocked while inline media is unresolved or a
+recovered cover is still resolving or unavailable (`reviewReadiness.ts`); a
+selected-but-unuploaded cover does not block, because submit uploads it. On
+entry, `reviewSnapshot.ts` captures an immutable snapshot of the reviewed
+title, serialized body, tags, cover intent, cover preview URL, and resolved
+inline images. Review renders only that snapshot through
 `PostBodyPreview.tsx`, a synchronous client renderer that shares
 `post-body-shared.tsx` with the server renderer and highlights code through
 `HighlightedCodeClient.tsx`, so the preview and the published output cannot

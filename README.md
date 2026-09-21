@@ -137,10 +137,10 @@ app/
         AuthoringSideMenu.tsx # Drag-safe block side menu; click-only handle menu over a Radix popover
         BlockHandleMenu.tsx   # Handle menu body; kept off the "use client" entry file
         MediaAuthoring.tsx    # Details-level media status, thumbnails or glyphs, replace/remove recovery, and cover
-        ReviewSurface.tsx     # Frozen read-only review preview with Back and Publish/Update
-        reviewReadiness.ts    # Media gate: blocks Review while inline media is unresolved
+        ReviewSurface.tsx     # Frozen read-only review preview; the studio header owns Back and Publish/Update
+        reviewReadiness.ts    # Media gate: blocks Review while inline media or a recovered cover is unresolved
         reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders for frozen Review
-        useDraftRecovery.ts   # Silent localStorage authoring snapshot: debounced write, pagehide flush, clear on save
+        useDraftRecovery.ts   # New/draft local recovery; published edits stay page-local
     dashboard/
       layout.tsx              # Metadata-only child layout
       page.tsx                # Dashboard root with drafts and published-post previews
@@ -256,7 +256,7 @@ lib/
   code-languages.ts           # Canonical code-block IDs, labels, aliases, and Shiki grammars
   safe-link.ts                # Shared http/https/mailto author-link validator
   cover.ts                    # Shared cover URL resolver; null renders the blank fallback
-  draft-recovery.ts           # Versioned localStorage snapshot for unsaved authoring work
+  draft-recovery.ts           # Versioned localStorage snapshot for unsaved new posts and drafts
   use-inline-image-upload.ts  # Owner-bound BlockNote file upload and preview lifecycle hook
   shiki/                      # Generated editor grammars and server-side highlighting adapter
   discover.ts                 # Discover URL normalization and mode-switch links
