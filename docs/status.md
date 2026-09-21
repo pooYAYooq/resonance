@@ -55,8 +55,8 @@ themes. Browser acceptance passed for tooltips, existing published images,
 abandoning edits, and Undo/Redo after saving; the fixes are committed and
 pushed on the open PR.
 Automated verification: lint, TypeScript, targeted Prettier, and diff checks
-pass; edge tests pass (35 files / 481 tests), and component tests pass (76 files /
-457 tests). The production build passes with network access for Google Fonts;
+pass; edge tests pass (36 files / 484 tests), and component tests pass (76 files /
+458 tests). The production build passes with network access for Google Fonts;
 the initial restricted-network attempt could not fetch the fonts.
 
 The Review slice is implemented, browser-tested, and shipped in PR #72. The
