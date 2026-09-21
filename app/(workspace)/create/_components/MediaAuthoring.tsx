@@ -222,6 +222,7 @@ export default function MediaAuthoring({
           ref={coverInputRef}
           type="file"
           accept="image/*"
+          tabIndex={-1}
           className="sr-only"
           aria-label={
             coverInputAriaLabel ??

@@ -126,6 +126,15 @@ describe("MediaAuthoring", () => {
     expect(screen.getByRole("button", { name: "Add cover" })).toBeVisible();
   });
 
+  it("keeps the hidden cover input out of the tab order", () => {
+    renderMedia();
+
+    expect(screen.getByLabelText("Add cover image")).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+  });
+
   it("offers Replace cover and Remove cover for an existing cover", async () => {
     const user = userEvent.setup();
     const file = new File(["cover"], "cover.png", { type: "image/png" });
