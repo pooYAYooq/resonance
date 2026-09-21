@@ -90,10 +90,8 @@ function toLiveSubmission(
 function collectInlineMedia(
   blocks: BlockNoteDocument["blocks"],
   resolvedImageUrls: Record<string, string | null>,
-  failedIds: readonly string[] = [],
 ): MediaAsset[] {
   const assets: MediaAsset[] = [];
-  const failed = new Set(failedIds);
   const visit = (items: BlockNoteDocument["blocks"]) => {
     for (const block of items) {
       const source = block.props?.source;
@@ -110,7 +108,6 @@ function collectInlineMedia(
         const storageId = (source as { id: string }).id;
         const url = resolvedImageUrls[storageId];
         const props = block.props ?? {};
-        const claimFailed = failed.has(storageId);
         const unavailable = url === null;
         assets.push({
           id: storageId,
@@ -121,18 +118,10 @@ function collectInlineMedia(
               : block.type === "video"
                 ? "video"
                 : "image",
-          status:
-            claimFailed || unavailable
-              ? "failed"
-              : url
-                ? "resolved"
-                : "finalizing",
-          ...(claimFailed && { error: "Media claim failed" }),
-          ...(unavailable &&
-            !claimFailed && {
-              error:
-                "This media is no longer available. Re-upload or remove it.",
-            }),
+          status: unavailable ? "failed" : url ? "resolved" : "finalizing",
+          ...(unavailable && {
+            error: "This media is no longer available. Re-upload or remove it.",
+          }),
           ...(url && { url }),
           fileName: typeof props.name === "string" ? props.name : "",
         });
@@ -170,6 +159,10 @@ function readRecoveredDraft(sessionKey: string): {
   proposal: CanonicalProposal;
   savedAt: number;
 } | null {
+  if (sessionKey.startsWith("published-edit:")) {
+    clearDraftRecovery(sessionKey);
+    return null;
+  }
   const snapshot = readDraftRecovery(sessionKey);
   if (!snapshot) return null;
   if (isEffectivelyEmptyProposal(snapshot.proposal)) {
@@ -247,7 +240,7 @@ async function resolveRecoveredMediaUrls(
   // leaving it "finalizing" and blocking Review forever.
   const urls: Record<string, string | null> = { ...base };
   for (const storageId of storageIds) {
-    urls[storageId] = null;
+    urls[storageId] = base[storageId] ?? null;
   }
 
   try {
@@ -365,7 +358,9 @@ function CreateEditor() {
   const clearedCoverSelection = useRef<File | undefined>(undefined);
   const selectedCoverRef = useRef<File | undefined>(undefined);
   const claimedMedia = useRef(new Set<Id<"_storage">>());
+  const pendingClaims = useRef(new Set<Id<"_storage">>());
   const [recoveryNonce, setRecoveryNonce] = useState(0);
+  const [historyResetKey, setHistoryResetKey] = useState(0);
 
   const form = useForm<PostFormInput, undefined, PostFormOutput>({
     resolver: zodResolver(draftPostSchema),
@@ -422,9 +417,8 @@ function CreateEditor() {
       collectInlineMedia(
         watchedValues.content?.blocks ?? [],
         resolvedImageUrls,
-        sessionState.media.failed,
       ),
-    [resolvedImageUrls, sessionState.media.failed, watchedValues.content],
+    [resolvedImageUrls, watchedValues.content],
   );
   const coverMedia = useMemo<MediaAsset | null>(() => {
     const selected = watchedValues.image;
@@ -905,6 +899,17 @@ function CreateEditor() {
       const isVisible = document.visibilityState === "visible";
       const isActive = document.hasFocus();
       if (!isVisible || !isActive) return;
+      // A transient initial claim failure is retried on focus and renewal,
+      // independently of the content's actual availability.
+      for (const storageId of pendingClaims.current) {
+        if (!claimedMedia.current.has(storageId)) continue;
+        void claimSessionMedia({ sessionId: sessionKey, storageId })
+          .then(() => {
+            if (activeSessionKeyRef.current === sessionKey)
+              pendingClaims.current.delete(storageId);
+          })
+          .catch(() => undefined);
+      }
       void Promise.resolve(
         renewSessionMedia({
           sessionId: sessionKey,
@@ -918,6 +923,7 @@ function CreateEditor() {
     document.addEventListener("visibilitychange", renew);
     window.addEventListener("focus", renew);
     const claimedStorageIds = claimedMedia.current;
+    const pendingStorageIds = pendingClaims.current;
     return () => {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", renew);
@@ -928,8 +934,14 @@ function CreateEditor() {
         releaseSessionMedia({ sessionId: sessionKey, storageIds }),
       ).catch(() => undefined);
       claimedStorageIds.clear();
+      pendingStorageIds.clear();
     };
-  }, [activeSessionKey, releaseSessionMedia, renewSessionMedia]);
+  }, [
+    activeSessionKey,
+    claimSessionMedia,
+    releaseSessionMedia,
+    renewSessionMedia,
+  ]);
 
   if (requestedEditorMode.mode === "invalid" && !sessionState.dirty) {
     return (
@@ -1189,6 +1201,13 @@ function CreateEditor() {
           });
         }
         if (isCurrentSession) {
+          // Never erase edits made while the submitted save was in flight.
+          if (
+            JSON.stringify(form.getValues("content")) ===
+            JSON.stringify(submission.content)
+          ) {
+            setHistoryResetKey((key) => key + 1);
+          }
           setInitialContent(submission.content);
           setReviewSnapshot(null);
         }
@@ -1236,6 +1255,8 @@ function CreateEditor() {
             referencedStorageIds.has(storageId)
           ) {
             inlineSessions.current.delete(sessionId);
+            claimedMedia.current.delete(storageId);
+            pendingClaims.current.delete(storageId);
           }
         }
         if (!isCurrentSession) return;
@@ -1351,6 +1372,8 @@ function CreateEditor() {
   }
 
   function removeInlineMedia(storageId: string) {
+    claimedMedia.current.delete(storageId as Id<"_storage">);
+    pendingClaims.current.delete(storageId as Id<"_storage">);
     const nextContent = mapDocumentMediaSource(
       watchedValues.content as BlockNoteDocument,
       storageId,
@@ -1502,6 +1525,7 @@ function CreateEditor() {
                       Blog content
                     </span>
                     <PostBodyEditor
+                      historyResetKey={historyResetKey}
                       key={`${editorMode.mode}:${editorMode.id ?? "new"}:${recoveryNonce}`}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
@@ -1521,17 +1545,38 @@ function CreateEditor() {
                           [storageId]: objectUrl,
                         }));
                         claimedMedia.current.add(storageId);
+                        pendingClaims.current.add(storageId);
+                        const sessionKey = activeSessionKey;
                         void Promise.resolve(
                           claimSessionMedia({
-                            sessionId: activeSessionKeyRef.current ?? "new:new",
+                            sessionId: sessionKey,
                             storageId,
                           }),
-                        ).catch(() => {
-                          dispatchSession({
-                            type: "appendFailedMedia",
-                            storageId,
+                        )
+                          .then(() => {
+                            if (activeSessionKeyRef.current === sessionKey)
+                              pendingClaims.current.delete(storageId);
+                          })
+                          .catch(() => {
+                            // Protection bookkeeping must not turn a usable image
+                            // into failed content. Retry only for this live upload.
+                            if (
+                              activeSessionKeyRef.current !== sessionKey ||
+                              inlineSessions.current.get(sessionId) !==
+                                storageId ||
+                              !claimedMedia.current.has(storageId)
+                            )
+                              return;
+                            void claimSessionMedia({
+                              sessionId: sessionKey,
+                              storageId,
+                            })
+                              .then(() => {
+                                if (activeSessionKeyRef.current === sessionKey)
+                                  pendingClaims.current.delete(storageId);
+                              })
+                              .catch(() => undefined);
                           });
-                        });
                       }}
                     />
                     {fieldState.invalid && (

@@ -110,6 +110,33 @@ function getEditor(container: HTMLElement) {
 }
 
 describe("PostBodyEditor standard BlockNote integration", () => {
+  it("loads an existing post without making its content undoable", async () => {
+    const onChange = vi.fn();
+    const view = render(
+      <PostBodyEditor onChange={onChange} onBlur={() => {}} />,
+    );
+    const saved = {
+      format: "blocknote@1" as const,
+      blocks: [{ type: "paragraph", content: "Saved article" }],
+    };
+    view.rerender(
+      <PostBodyEditor
+        initialContent={saved}
+        onChange={onChange}
+        onBlur={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(getEditor(view.container)).toHaveTextContent("Saved article"),
+    );
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    fireEvent.keyDown(getEditor(view.container), {
+      key: "z",
+      code: "KeyZ",
+      ctrlKey: true,
+    });
+    expect(getEditor(view.container)).toHaveTextContent("Saved article");
+  });
   it.each(["text/plain", "text/html"])(
     "normalizes %s heading paste in the editor and emitted document with one undo",
     async (mimeType) => {

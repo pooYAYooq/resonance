@@ -14,7 +14,7 @@ type UseDraftRecoveryOptions = {
 };
 
 /**
- * Persists unsaved authoring work so a refresh or close does not lose it.
+ * Persists unsaved new-post/draft work; published edits remain page-local.
  *
  * Keeps a local snapshot while the session is dirty (debounced, flushed on
  * `pagehide`) and clears the snapshot after a successful save or publish. There
@@ -27,6 +27,11 @@ export function useDraftRecovery({
   dirty,
   proposal,
 }: UseDraftRecoveryOptions): void {
+  // Published edits are deliberately page-local until Update Post succeeds.
+  const recoverable = !sessionKey.startsWith("published-edit:");
+  useEffect(() => {
+    if (!recoverable) clearDraftRecovery(sessionKey);
+  }, [recoverable, sessionKey]);
   // Latest values for the unload listener, synced in an effect (not during
   // render) so the listener can register with a stable dependency.
   const latestRef = useRef({ sessionKey, ready, dirty, proposal });
@@ -36,12 +41,12 @@ export function useDraftRecovery({
 
   // Persist dirty proposals, debounced to one write per pause in editing.
   useEffect(() => {
-    if (!ready || !dirty) return;
+    if (!recoverable || !ready || !dirty) return;
     const timer = window.setTimeout(() => {
       saveDraftRecovery(sessionKey, proposal);
     }, DRAFT_RECOVERY_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [dirty, proposal, ready, sessionKey]);
+  }, [dirty, proposal, ready, sessionKey, recoverable]);
 
   // A dirty session that turns clean means the work was saved, or the author
   // reverted it, or it was emptied. Either way the local snapshot is stale and
@@ -72,7 +77,11 @@ export function useDraftRecovery({
   useEffect(() => {
     const flush = () => {
       const latest = latestRef.current;
-      if (latest.ready && latest.dirty) {
+      if (
+        latest.ready &&
+        latest.dirty &&
+        !latest.sessionKey.startsWith("published-edit:")
+      ) {
         saveDraftRecovery(latest.sessionKey, latest.proposal);
       }
     };

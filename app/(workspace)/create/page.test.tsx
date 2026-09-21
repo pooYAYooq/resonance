@@ -848,6 +848,44 @@ describe("CreateRoute", () => {
     );
   });
 
+  it("opens the saved published post rather than an abandoned local edit", async () => {
+    editPostIdParam.value = "post-1";
+    saveDraftRecovery(
+      "published-edit:post-1",
+      {
+        title: "Abandoned edit",
+        body: JSON.stringify(inlineEnvelope),
+        tags: [],
+      },
+      Date.now(),
+    );
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Saved article",
+      body: JSON.stringify(inlineEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [
+        { storageId: "storage-inline-1", url: "https://example.com/saved.png" },
+      ],
+      publishedAt: 100,
+      updatedAt: 101,
+    });
+    render(<CreateRoute />);
+    expect(
+      await screen.findByDisplayValue("Saved article"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue("Abandoned edit"),
+    ).not.toBeInTheDocument();
+    expect(readDraftRecovery("published-edit:post-1")).toBeNull();
+    expect(screen.getByRole("img", { name: "Inline image" })).toHaveAttribute(
+      "src",
+      "https://example.com/saved.png",
+    );
+    expect(claimSessionMediaMock).not.toHaveBeenCalled();
+  });
+
   it("loads a requested target only after explicit confirmation", async () => {
     const user = userEvent.setup();
     editPostIdParam.value = "post-1";
@@ -2099,7 +2137,7 @@ describe("CreateRoute", () => {
     expect(call.proposal.imageStorageId).toBeUndefined();
   });
 
-  it("disables Publish when media fails after Review is entered", async () => {
+  it("keeps uploaded media reviewable when its background protection request fails", async () => {
     const user = userEvent.setup();
     let rejectClaim!: (reason?: unknown) => void;
     claimSessionMediaMock.mockImplementation(
@@ -2125,11 +2163,13 @@ describe("CreateRoute", () => {
 
     rejectClaim(new Error("claim failed"));
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(
-      "Some media failed to upload. Replace or remove it before publishing.",
-    );
-    expect(screen.getByRole("button", { name: "Publish" })).toBeDisabled();
+    await waitFor(() => expect(claimSessionMediaMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
+    rejectClaim(new Error("still offline"));
+    await user.click(screen.getByRole("button", { name: "Back to editing" }));
+    fireEvent(window, new Event("focus"));
+    await waitFor(() => expect(claimSessionMediaMock).toHaveBeenCalledTimes(3));
   });
 
   it("ignores a second publish while the first is in flight", async () => {
