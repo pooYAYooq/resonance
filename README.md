@@ -139,6 +139,7 @@ app/
         MediaAuthoring.tsx    # Details-level media status, thumbnails or glyphs, replace/remove recovery, and cover
         ReviewSurface.tsx     # Frozen read-only review preview with Back and Publish/Update
         reviewReadiness.ts    # Media gate: blocks Review while inline media is unresolved
+        reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders for frozen Review
         useDraftRecovery.ts   # Silent localStorage authoring snapshot: debounced write, pagehide flush, clear on save
     dashboard/
       layout.tsx              # Metadata-only child layout

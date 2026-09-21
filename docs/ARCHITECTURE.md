@@ -64,6 +64,7 @@ resonance/
 │   │   │       │                         # glyphs, replace/remove recovery, and cover
 │   │   │       ├── ReviewSurface.tsx     # Frozen read-only preview + Publish/Update
 │   │   │       ├── reviewReadiness.ts    # Blocks Review while inline media is unresolved
+│   │   │       ├── reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders
 │   │   │       └── useDraftRecovery.ts   # Silent localStorage authoring snapshot
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx      # Metadata-only child layout under WorkspaceShell.
