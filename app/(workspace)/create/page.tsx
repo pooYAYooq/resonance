@@ -37,9 +37,11 @@ import { getEditorCapabilities, resolveEditorMode } from "./editorMode";
 import DocumentStudio from "./_components/DocumentStudio";
 import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
 import {
+  getCoverRecoveryBlocker,
   getReviewBlocker,
   getReviewSubmitBlock,
   REVIEW_BLOCKER_MESSAGES,
+  type CoverRecoveryState,
 } from "./_components/reviewReadiness";
 import ReviewSurface from "./_components/ReviewSurface";
 import {
@@ -270,6 +272,26 @@ async function resolveRecoveredMediaUrls(
 }
 
 /**
+ * Resolves one owned storage id to its display URL. Returns null when the
+ * server cannot resolve it, so a recovered cover can surface an explicit
+ * failure instead of silently disappearing.
+ */
+async function resolveOwnedMediaUrl(
+  convex: ReturnType<typeof useConvex>,
+  storageId: Id<"_storage">,
+): Promise<string | null> {
+  try {
+    const resolved = await convex.query(
+      api.sessionMediaClaims.getOwnedMediaUrls,
+      { storageIds: [storageId] },
+    );
+    return resolved[0]?.url ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Renders the authenticated blog post creation page.
  *
  * Redirects unauthenticated users to the login page and displays a loading state while authentication is unresolved.
@@ -297,10 +319,13 @@ function CreateEditor() {
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
   const [coverImageUrl, setCoverImageUrl] = useState<string | undefined>();
+  const [coverRecovery, setCoverRecovery] = useState<CoverRecoveryState | null>(
+    null,
+  );
+  const coverResolutionGeneration = useRef(0);
   const [reviewSnapshot, setReviewSnapshot] = useState<ReviewedSnapshot | null>(
     null,
   );
-  const [coverRemoved, setCoverRemoved] = useState(false);
   const coverObjectUrlRef = useRef<string | undefined>(undefined);
   const [acceptedTargetError, setAcceptedTargetError] = useState<{
     targetKey: string;
@@ -420,8 +445,15 @@ function CreateEditor() {
       mediaType: "image",
       status: "resolved",
       ...(coverImageUrl && { url: coverImageUrl }),
+      ...(coverRecovery && {
+        fileName: "Saved cover",
+        statusNote:
+          coverRecovery === "resolving"
+            ? "Loading cover preview"
+            : "Cover preview unavailable",
+      }),
     };
-  }, [coverImageUrl, coverStorageId, watchedValues.image]);
+  }, [coverImageUrl, coverRecovery, coverStorageId, watchedValues.image]);
   const proposal = useMemo<CanonicalProposal>(
     () => ({
       title: watchedValues.title ?? "",
@@ -454,6 +486,28 @@ function CreateEditor() {
       }
     },
     [claimSessionMedia],
+  );
+  /**
+   * Resolves a recovered cover URL under an explicit hold. The generation guard
+   * makes a late result a no-op after any later target adoption, cover
+   * selection, or removal, and the session guard covers a target change.
+   */
+  const startRecoveredCoverResolution = useCallback(
+    (storageId: Id<"_storage">, sessionKey: string) => {
+      const generation = ++coverResolutionGeneration.current;
+      setCoverRecovery("resolving");
+      void resolveOwnedMediaUrl(convex, storageId).then((url) => {
+        if (coverResolutionGeneration.current !== generation) return;
+        if (hydratedSessionKey.current !== sessionKey) return;
+        if (url) {
+          setCoverImageUrl(url);
+          setCoverRecovery(null);
+        } else {
+          setCoverRecovery("failed");
+        }
+      });
+    },
+    [convex],
   );
   const requestedTarget = useMemo(
     () =>
@@ -492,6 +546,10 @@ function CreateEditor() {
         URL.revokeObjectURL(coverObjectUrlRef.current);
         coverObjectUrlRef.current = undefined;
       }
+      // Any target adoption invalidates an in-flight recovered-cover lookup so
+      // a late result cannot overwrite the newly loaded cover state.
+      coverResolutionGeneration.current += 1;
+      setCoverRecovery(null);
     };
 
     if (pendingTarget && pendingSessionKey !== activeSessionKey) {
@@ -516,7 +574,6 @@ function CreateEditor() {
         resetCoverSelectionRefs();
         setCoverStorageId(undefined);
         setCoverImageUrl(undefined);
-        setCoverRemoved(false);
         setInitialContent(emptyDocument);
         setResolvedImageUrls({});
         hydratedSessionKey.current = pendingSessionKey;
@@ -617,11 +674,14 @@ function CreateEditor() {
           tags: recovered.proposal.tags as PostFormInput["tags"],
           image: undefined,
         });
-        setCoverStorageId(
-          recovered.proposal.imageStorageId as Id<"_storage"> | undefined,
-        );
+        const recoveredCoverStorageId = recovered.proposal.imageStorageId as
+          | Id<"_storage">
+          | undefined;
+        setCoverStorageId(recoveredCoverStorageId);
         setCoverImageUrl(undefined);
-        setCoverRemoved(false);
+        if (recoveredCoverStorageId) {
+          startRecoveredCoverResolution(recoveredCoverStorageId, sessionKey);
+        }
         setInitialContent(recovered.document);
         void resolveRecoveredMediaUrls(convex, recovered.document, {}).then(
           (urls) => {
@@ -640,7 +700,6 @@ function CreateEditor() {
         });
         setCoverStorageId(undefined);
         setCoverImageUrl(undefined);
-        setCoverRemoved(false);
         setInitialContent(emptyDocument);
         setResolvedImageUrls({});
       }
@@ -704,11 +763,23 @@ function CreateEditor() {
         tags: recovered.proposal.tags as PostFormInput["tags"],
         image: undefined,
       });
-      setCoverStorageId(
-        recovered.proposal.imageStorageId as Id<"_storage"> | undefined,
-      );
+      const recoveredCoverStorageId = recovered.proposal.imageStorageId as
+        | Id<"_storage">
+        | undefined;
+      setCoverStorageId(recoveredCoverStorageId);
       setCoverImageUrl(undefined);
-      setCoverRemoved(false);
+      if (recoveredCoverStorageId) {
+        const reusedCoverUrl =
+          recoveredCoverStorageId === target.imageStorageId &&
+          typeof target.imageUrl === "string"
+            ? target.imageUrl
+            : null;
+        if (reusedCoverUrl) {
+          setCoverImageUrl(reusedCoverUrl);
+        } else {
+          startRecoveredCoverResolution(recoveredCoverStorageId, sessionKey);
+        }
+      }
       setInitialContent(recovered.document);
       void resolveRecoveredMediaUrls(
         convex,
@@ -736,6 +807,7 @@ function CreateEditor() {
     hydratedSessionKey.current = sessionKey;
   }, [
     claimRecoveredMedia,
+    startRecoveredCoverResolution,
     convex,
     editorMode.mode,
     form,
@@ -950,6 +1022,9 @@ function CreateEditor() {
   function onSubmit(submission: ReviewSubmission, mode: SubmitMode) {
     if (sessionState.pendingTarget) return;
     if (editorMode.mode === "published-edit") mode = "publish";
+    // A recovered cover that is still resolving or failed blocks publishing
+    // and updating. Draft saves stay available so the intent is never lost.
+    if (mode === "publish" && coverRecovery) return;
     if (mode === "publish") {
       const publishValues = publishPostSchema.safeParse({
         title: submission.title,
@@ -1220,13 +1295,16 @@ function CreateEditor() {
   }
 
   const reviewing = sessionState.presentation === "review";
+  const coverRemoved = sessionState.coverRemoved;
   const reviewModeLabel =
     editorMode.mode === "published-edit"
       ? "Reviewing update"
       : editorMode.mode === "draft"
         ? "Reviewing draft"
         : "Reviewing new post";
-  const reviewBlocker = getReviewBlocker(sessionState.media);
+  const reviewBlocker =
+    getReviewBlocker(sessionState.media) ??
+    getCoverRecoveryBlocker(coverRecovery);
   const reviewInlineImages = Object.entries(resolvedImageUrls)
     .filter((entry): entry is [string, string] => typeof entry[1] === "string")
     .map(([storageId, url]) => ({ storageId, url }));
@@ -1346,7 +1424,7 @@ function CreateEditor() {
   function submitFromReview() {
     const snapshot = reviewSnapshot;
     if (!snapshot) return;
-    const blocker = getReviewBlocker(sessionState.media);
+    const blocker = reviewBlocker;
     const block = getReviewSubmitBlock({
       isPending,
       hasPendingTarget: Boolean(sessionState.pendingTarget),
@@ -1488,6 +1566,7 @@ function CreateEditor() {
               inlineImages={inlineMedia}
               cover={coverMedia}
               coverInputAriaLabel="Image (optional)"
+              coverRecovery={coverRecovery}
               onChooseCover={(file) =>
                 (() => {
                   selectedCoverRef.current = file;
@@ -1497,7 +1576,9 @@ function CreateEditor() {
                   const objectUrl = URL.createObjectURL(file);
                   coverObjectUrlRef.current = objectUrl;
                   setCoverImageUrl(objectUrl);
-                  setCoverRemoved(false);
+                  coverResolutionGeneration.current += 1;
+                  setCoverRecovery(null);
+                  dispatchSession({ type: "setCoverRemoved", removed: false });
                   form.setValue("image", file, {
                     shouldDirty: true,
                     shouldTouch: true,
@@ -1515,7 +1596,9 @@ function CreateEditor() {
                   coverObjectUrlRef.current = undefined;
                 }
                 setCoverImageUrl(undefined);
-                setCoverRemoved(true);
+                coverResolutionGeneration.current += 1;
+                setCoverRecovery(null);
+                dispatchSession({ type: "setCoverRemoved", removed: true });
                 form.setValue("image", undefined, {
                   shouldDirty: true,
                   shouldTouch: true,

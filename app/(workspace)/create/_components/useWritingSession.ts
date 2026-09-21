@@ -43,6 +43,10 @@ export type WritingSessionState = {
   media: WritingSessionMedia;
   operation: WritingSessionOperation;
   authLock: WritingSessionAuthLock;
+  /** True while the active session's stored cover has been explicitly
+   * removed. Any target adoption or baseline adoption clears it so a stale
+   * intent cannot delete the next target's cover. */
+  coverRemoved: boolean;
 };
 
 export type WritingSessionAction =
@@ -113,6 +117,10 @@ export type WritingSessionAction =
       type: "loadLatest";
       proposal: CanonicalProposal;
       expectedUpdatedAt?: number;
+    }
+  | {
+      type: "setCoverRemoved";
+      removed: boolean;
     };
 
 export function createInitialWritingSessionState(
@@ -130,6 +138,7 @@ export function createInitialWritingSessionState(
     media: { pending: [], failed: [], coverSelected: false },
     operation: { status: "idle" },
     authLock: "unlocked",
+    coverRemoved: false,
   };
 }
 
@@ -179,6 +188,7 @@ function adoptBaseline(
     presentation: "edit",
     operation: { status: "idle" },
     authLock: "unlocked",
+    coverRemoved: false,
   };
 }
 
@@ -338,5 +348,8 @@ export function writingSessionReducer(
         canonicalizeProposal(action.proposal),
         action.expectedUpdatedAt,
       );
+
+    case "setCoverRemoved":
+      return { ...state, coverRemoved: action.removed };
   }
 }

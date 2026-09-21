@@ -4,6 +4,10 @@ import { useRef } from "react";
 import { AudioLines, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  REVIEW_BLOCKER_MESSAGES,
+  type CoverRecoveryState,
+} from "./reviewReadiness";
 
 export type MediaKind = "inline" | "cover";
 export type MediaType = "image" | "audio" | "video";
@@ -22,6 +26,8 @@ export type MediaAsset = {
   url?: string;
   error?: string;
   fileName?: string;
+  /** Replaces the status label when a state needs its own wording. */
+  statusNote?: string;
 };
 
 export type MediaAuthoringProps = {
@@ -33,6 +39,7 @@ export type MediaAuthoringProps = {
   onRemoveInline?: (id: string) => void;
   coverInputAriaLabel?: string;
   coverNote?: string;
+  coverRecovery?: CoverRecoveryState | null;
 };
 
 const STATUS_LABELS: Record<Exclude<MediaStatus, "failed">, string> = {
@@ -115,7 +122,7 @@ function MediaRow({
             recoverable ? "text-destructive" : "text-muted-foreground",
           )}
         >
-          {statusLabel(asset)}
+          {asset.statusNote ?? statusLabel(asset)}
         </p>
       </div>
       {recoverable ? (
@@ -155,6 +162,7 @@ export default function MediaAuthoring({
   onRemoveInline,
   coverInputAriaLabel,
   coverNote,
+  coverRecovery,
 }: MediaAuthoringProps) {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const unresolved = inlineImages.some((asset) => asset.status !== "resolved");
@@ -178,6 +186,19 @@ export default function MediaAuthoring({
 
       <div className="grid gap-3" aria-label="Cover media">
         {cover ? <MediaRow asset={cover} onReplace={openCoverPicker} /> : null}
+        {coverRecovery === "resolving" ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            {REVIEW_BLOCKER_MESSAGES["cover-resolving"]}
+          </p>
+        ) : null}
+        {coverRecovery === "failed" ? (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm"
+          >
+            {REVIEW_BLOCKER_MESSAGES["cover-load-failed"]}
+          </p>
+        ) : null}
         {cover ? (
           <div className="flex items-center gap-2">
             <Button

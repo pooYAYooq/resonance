@@ -352,4 +352,99 @@ describe("writingSessionReducer", () => {
     expect(state.expectedUpdatedAt).toBe(12);
     expect(state.dirty).toBe(false);
   });
+
+  describe("cover removal intent", () => {
+    it("tracks the intent within the active session", () => {
+      let state = createInitialWritingSessionState("published-edit", "post-1");
+      state = reduce(state, {
+        type: "establishBaseline",
+        proposal: baseline,
+        expectedUpdatedAt: 10,
+      });
+
+      state = reduce(state, { type: "setCoverRemoved", removed: true });
+      expect(state.coverRemoved).toBe(true);
+
+      state = reduce(state, { type: "setProposal", proposal: changedProposal });
+      state = reduce(state, { type: "enterReview" });
+      state = reduce(state, { type: "returnToEdit" });
+      expect(state.coverRemoved).toBe(true);
+
+      state = reduce(state, { type: "setCoverRemoved", removed: false });
+      expect(state.coverRemoved).toBe(false);
+    });
+
+    it("clears the intent when a clean requested target is adopted", () => {
+      let state = createInitialWritingSessionState("published-edit", "post-1");
+      state = reduce(state, { type: "setCoverRemoved", removed: true });
+
+      state = reduce(state, {
+        type: "requestTarget",
+        target: { editorMode: "published-edit", id: "post-2" },
+      });
+
+      expect(state.coverRemoved).toBe(false);
+      expect(state.targetId).toBe("post-2");
+    });
+
+    it("clears the intent when a dirty confirmed target is adopted", () => {
+      let state = createInitialWritingSessionState("published-edit", "post-1");
+      state = reduce(state, {
+        type: "establishBaseline",
+        proposal: baseline,
+        expectedUpdatedAt: 10,
+      });
+      state = reduce(state, { type: "setProposal", proposal: changedProposal });
+      state = reduce(state, { type: "setCoverRemoved", removed: true });
+
+      state = reduce(state, {
+        type: "confirmTarget",
+        target: { editorMode: "published-edit", id: "post-2" },
+      });
+      expect(state.pendingTarget).toEqual({
+        editorMode: "published-edit",
+        id: "post-2",
+      });
+
+      state = reduce(state, {
+        type: "acceptTarget",
+        target: { editorMode: "published-edit", id: "post-2" },
+      });
+
+      expect(state.coverRemoved).toBe(false);
+      expect(state.targetId).toBe("post-2");
+    });
+
+    it("clears the intent on server hydration and on a successful save baseline", () => {
+      let state = createInitialWritingSessionState("draft", "draft-1");
+      state = reduce(state, { type: "setCoverRemoved", removed: true });
+
+      state = reduce(state, {
+        type: "hydrate",
+        proposal: baseline,
+        expectedUpdatedAt: 11,
+      });
+      expect(state.coverRemoved).toBe(false);
+
+      state = reduce(state, { type: "setCoverRemoved", removed: true });
+      state = reduce(state, {
+        type: "beginOperation",
+        operation: "save-draft",
+        attemptId: "attempt-1",
+        sessionKey: "draft:draft-1",
+      });
+      state = reduce(state, {
+        type: "finishOperation",
+        attemptId: "attempt-1",
+        sessionKey: "draft:draft-1",
+        outcome: {
+          kind: "succeeded",
+          proposal: baseline,
+          expectedUpdatedAt: 12,
+        },
+      });
+
+      expect(state.coverRemoved).toBe(false);
+    });
+  });
 });
