@@ -2,26 +2,22 @@
 
 ## Status
 
-**Authority:** This is the tracked product and delivery source of truth for
-the remaining Phase 3A redesign work.
+**Authority:** This document holds the approved Phase 3A product direction,
+scope areas, delivery slices, and deferrals. Scope, remaining work, and
+delivery status are tracked in [`../ROADMAP.md`](../ROADMAP.md).
 
-**Current delivery position:** Phase 3A.0, Phase 3A.1 Product Structure, and
-Phase 3A.2 Discover Foundations are shipped. Phase 3A.3, Writing and Content
-Management, is the sole next delivery focus. Within it, Track 1's
-standard-BlockNote authoring and Review baseline is merged to `main` (PR #72,
-merge commit `1bc54ef`); Track 1 remains open on a UI/UX follow-up backlog, and
-Track 4 (management, navigation, accessibility) is not started.
+**Release boundary:** Phase 3A is v1.0. Phase 3 Platform and the post-1.0 items
+in `ROADMAP.md` ship after v1.0. Paste hardening is a v1.0 exception.
+Design-session deferrals postpone a decision to an approved design session and
+keep their v1.0 membership unless that session decides otherwise.
 
-**Required fresh-session reading order:**
+**Current delivery position:** see [`docs/status.md`](status.md) for the
+current focus and next action, and [`../ROADMAP.md`](../ROADMAP.md) for the
+remaining-work list and delivery status.
 
-1. `AGENTS.md`
-2. `docs/status.md`
-3. `docs/PHASE_3A.md`
-4. `docs/PHASE_3A_DECISIONS.md`
-5. `FEATURES.md`
-6. `docs/ARCHITECTURE.md`
-7. The active local implementation plan under `docs/superpowers/plans/`, when
-   present
+This document is consulted for product direction relevant to the task. Follow
+the progressive documentation loading rule in `AGENTS.md`; there is no
+mandatory full-document reading sequence.
 
 ## Authority and Terminology
 
@@ -144,10 +140,12 @@ are authenticated site-shell surfaces, not workspace-mode pages.
 - Editorial reader cards, compact collection cards, and dense management rows
   are distinct presentations over shared data/primitives. Do not force a
   universal card composition.
-- Existing `NotificationBell`, auth-return helpers, public post rendering, and
-  viewer-aware hydration are reusable seams. The current universal `PostCard`,
-  dashboard tabs, dashboard-owned Saved route, and universal app shell are
-  replacement seams.
+- At the time of this direction, `NotificationBell`, auth-return helpers,
+  public post rendering, and viewer-aware hydration were reusable seams, while
+  the universal `PostCard`, dashboard tabs, dashboard-owned Saved route, and
+  universal app shell were replacement seams. The shipped Product Structure
+  slice replaced the listed seams; current state is in `FEATURES.md` and
+  `ROADMAP.md`.
 
 ## Section 18 Scope Areas
 
@@ -180,9 +178,9 @@ of misleading public placeholders are complete.
 
 Shipped baseline (Track 1, PR #72): full-page Create/Edit environment inside the
 workspace shell, the explicit Preview/Review -> Publish publication sequence, and
-silent local draft recovery. Open: the Track 1 UI/UX follow-up backlog
-(media-state wording and affordances, layout consistency, reader typography, and
-reader author identity) and the remaining scope below.
+silent local draft recovery, with the media panel, frozen Review, and cover
+fallback following in PRs #74 to #76. The remaining Track 1 and Track 4 work is
+tracked in [`../ROADMAP.md`](../ROADMAP.md).
 
 - Full-page Create/Edit environment inside the workspace shell.
 - Preview/Review -> explicit Publish -> newly published post.
@@ -368,22 +366,24 @@ notification expansion, final visual-system work, or a universal card redesign.
   semantic/AI search, and broader analytics/notification infrastructure.
 
 These are intentional deferrals, not missing requirements. A slice may request
-a decision only when the decision materially blocks its approved work.
+a decision only when the decision materially blocks its approved work. The
+final visual treatments are a design-session deferral: they keep their v1.0
+membership unless the approved design session decides otherwise.
 
 ## Documentation and Handoff Model
 
-| Document                     | Responsibility                                                                                                                                                    |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/PHASE_3A.md`           | Target direction, scope areas, slices, dependencies, sequencing, deferrals, and current delivery boundary.                                                        |
-| `docs/PHASE_3A_DECISIONS.md` | Dated cross-cutting decisions and rationale.                                                                                                                      |
-| `FEATURES.md`                | Concise roadmap/status board.                                                                                                                                     |
-| `docs/status.md`             | Short resume point, verified evidence, and links to the authoritative documents.                                                                                  |
-| `docs/superpowers/plans/`    | Active local execution artifacts. Untracked and intentionally not gitignored; supplemental only, never the only source of target direction.                       |
-| `docs/superpowers/specs/`    | Active local working-design artifacts. Untracked and intentionally not gitignored; obsolete artifacts must be removed rather than retained as competing guidance. |
+| Document                     | Responsibility                                                                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ROADMAP.md`                 | Scope, remaining work, delivery status, release boundary, and the single remaining-work list.                                                                                                    |
+| `docs/PHASE_3A.md`           | Target direction, scope areas, slices, dependencies, sequencing, deferrals, and current delivery boundary.                                                                                       |
+| `docs/PHASE_3A_DECISIONS.md` | Dated cross-cutting decisions and rationale.                                                                                                                                                     |
+| `FEATURES.md`                | Shipped capability catalog.                                                                                                                                                                      |
+| `docs/status.md`             | Short resume point, verified evidence, and links to the authoritative documents.                                                                                                                 |
+| `docs/superpowers/plans/`    | Active local execution artifacts. Untracked and intentionally not gitignored; supplemental only, never the only source of target direction.                                                      |
+| `docs/superpowers/specs/`    | Local working-design artifacts. Untracked and intentionally not gitignored. Completed or superseded artifacts are preserved and clearly marked superseded, and are excluded from active reading. |
 
-A new session must follow the required reading order at the start of this
-document before proposing or changing Phase 3A work. It must not reconstruct
-product direction from conversation history.
+A new session follows the progressive loading rule in `AGENTS.md`. It must not
+reconstruct product direction from conversation history.
 
 ## Mandatory Human Review Gates
 

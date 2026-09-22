@@ -24,23 +24,17 @@
 
 ## Roadmap and Feature Status
 
-The detailed roadmap lives in [`FEATURES.md`](FEATURES.md). It separates
-shipped functionality from delivery priorities and optional ideas so that a
-deferred feature is not mistaken for unfinished work.
+[`ROADMAP.md`](ROADMAP.md) is the single source of truth for scope, remaining
+work, and delivery status. It defines the v1.0 release boundary (Phase 3A
+complete) and the numbered remaining-work list.
 
-Feature statuses are:
+[`FEATURES.md`](FEATURES.md) is the shipped capability catalog: what Resonance
+does today, surface by surface. [`CHANGELOG.md`](CHANGELOG.md) holds release
+history.
 
-- **Now** — actively being implemented.
-- **Next** — the next agreed delivery focus.
-- **Later** — planned, but not scheduled.
-- **Deferred** — intentionally postponed until its revisit conditions are met.
-- **Shipped** — available in the product.
-
-The short resume point is [`docs/status.md`](docs/status.md). The author
-dashboard, published post editing, analytics dashboard, Discover Foundations,
-and the standard-BlockNote authoring and Review baseline are shipped. Phase
-3A.3 — Writing & Management is the active focus, with authoring UI/UX follow-ups
-open before the slice is called complete.
+The short resume point is [`docs/status.md`](docs/status.md): current focus,
+next action, and blockers. Shipped capabilities are cataloged in `FEATURES.md`;
+scope and progress live only in `ROADMAP.md`.
 
 ---
 
