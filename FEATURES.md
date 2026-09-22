@@ -101,8 +101,10 @@ resolved inline media; Review renders only that snapshot, hides Post details,
 and moves Back plus Publish/Update into the header under a Review label.
 Submission validates and publishes the snapshot, guarded against an in-flight
 write, a pending target switch, and a media blocker. Card, Review, and reader
-now share the blank cover fallback. The remaining audit items stay open for a
-later batch.
+now share the blank cover fallback. All three follow-up batches are merged to
+`main` in PRs #74, #75, and #76, and a final cross-PR browser pass over the
+merged revision passed. Track 1 stays open only for the remaining audit items,
+which ship in a later batch.
 
 **Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
 instead of the provider picture until the user record sync completes
