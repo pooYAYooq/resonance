@@ -15,9 +15,9 @@ in [`../ROADMAP.md`](../ROADMAP.md).
 ## Next action
 
 Start with V1-01, V1-02, V1-04, and V1-05. V1-03 and V1-07 await the content
-width design session. After V1-01 to V1-05 and V1-07 to V1-12 are done and the author has accepted
-the authoring journey in the browser, close Track 1 with V1-06. The roadmap
-consolidation on `docs/roadmap-scope-sync` is pending review and merge first.
+width design session. After V1-01 to V1-05 and V1-07 to V1-12 are done and the
+author has accepted the authoring journey in the browser, close Track 1 with
+V1-06.
 
 ## Blockers
 
