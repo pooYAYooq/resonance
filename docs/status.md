@@ -52,8 +52,9 @@ internal. Saved-content hydration is excluded from undo history, and successful
 saves reset history when no later body edits are present. Later in-flight edits
 keep their history. The overlapping BlockNote tooltip arrow is hidden in both
 themes. Browser acceptance passed for tooltips, existing published images,
-abandoning edits, and Undo/Redo after saving; the fixes are committed and
-pushed on the open PR.
+abandoning edits, and Undo/Redo after saving; the fixes are merged in PR #76. A
+final cross-PR browser pass over the three follow-up batches on the merged
+revision also passed.
 Automated verification: lint, TypeScript, targeted Prettier, and diff checks
 pass; edge tests pass (36 files / 484 tests), and component tests pass (76 files /
 458 tests). The production build passes with network access for Google Fonts;
@@ -151,9 +152,9 @@ delivers the frozen Review and snapshot submission. The remaining browser-audit
 items above stay open.
 
 1. Media authoring, Review readiness, frozen Review, and snapshot submission —
-   delivered in the three batched changes; prior browser acceptance is complete,
-   and the follow-up review fixes passed a fresh browser verification on the
-   open PR.
+   delivered in the three batched changes, merged to `main` in PRs #74, #75, and
+   #76; prior browser acceptance is complete, the follow-up review fixes are
+   merged, and the final cross-PR browser pass on the merged revision passed.
 2. Remaining editor, reader, and design-system audit items — still open.
 3. Authoring browser journey evidence — capture the journeys once the remaining
    fixes land.
