@@ -1,8 +1,8 @@
 # Resonance — Architecture
 
-This document is a reference for when you have been away from the codebase and need
-to re-orient fast. It covers the full stack, how the layers connect, and why things were
-built the way they were. Read it top-to-bottom once, then use it as a lookup.
+This document is a lookup reference for the full stack, how the layers connect,
+and why things were built the way they were. Read only the sections relevant to
+the task, following the progressive documentation loading rule in `AGENTS.md`.
 
 ---
 
@@ -19,23 +19,14 @@ built the way they were. Read it top-to-bottom once, then use it as a lookup.
 
 ## Roadmap and Feature Status
 
-Product planning is separate from the runtime architecture. The source of
-truth for feature priorities is [`FEATURES.md`](../FEATURES.md), while
-[`docs/status.md`](status.md) is the concise resume point for the current
-delivery focus.
+Product planning is separate from the runtime architecture. Scope, remaining
+work, and delivery status live in [`ROADMAP.md`](../ROADMAP.md).
+[`FEATURES.md`](../FEATURES.md) is the shipped capability catalog, and
+[`docs/status.md`](status.md) is the short resume note.
 
-Features use five statuses:
-
-- **Now** — actively being implemented.
-- **Next** — the next agreed delivery focus.
-- **Later** — planned, but not scheduled.
-- **Deferred** — intentionally postponed until a revisit condition is met.
-- **Shipped** — available in the product.
-
-Phase 1C is complete after Post Tags (1.8). Trending (1.9), User Activity
-(1.10), and the remaining Polish work (1.11) are retained as deferred,
-optional backlog items. They are not required dependencies for the author
-phase and should only be promoted when their product value is clear.
+Deferred and optional items, including Trending (1.9), User Activity (1.10),
+and the remaining Polish work (1.11), keep their original revisit conditions in
+`ROADMAP.md` and are not dependencies for the author phase.
 
 ---
 

@@ -74,8 +74,23 @@ Before PR: `pnpm lint` → `pnpm test:ci` → `pnpm test:component` → `pnpm bu
 Keep the docs in sync as part of every change — stale docs cost more than
 no docs.
 
-- `FEATURES.md` — living roadmap. Shipping a feature → update its status in
-  the Status Board / backlog.
+**Progressive loading:** start with `docs/status.md` to identify the current
+focus and resume point. Read only the relevant group or row in `ROADMAP.md` when
+choosing, scoping, or updating delivery work; an already-scoped implementation
+task does not need a full roadmap read. Open `docs/PHASE_3A.md` only for product
+direction relevant to the task, `docs/PHASE_3A_DECISIONS.md` only for a linked
+decision or a cross-cutting product choice, `FEATURES.md` when shipped
+capability changes, and `docs/ARCHITECTURE.md` plus the README project tree when
+the change affects architecture, directories, schema, or auth. Read only the
+active local spec or plan for the current implementation unit.
+
+- `ROADMAP.md`: the single source of truth for scope, remaining work, and
+  delivery status. Shipping an item, changing scope, or deferring work means
+  updating its row here and the linked docs in the same PR.
+- `FEATURES.md`: shipped capability catalog. Shipping a capability means adding
+  or updating its entry.
+- `docs/status.md`: the short resume note. Changing the current focus, next
+  action, or a blocker means updating it.
 - `docs/ARCHITECTURE.md` + README's Project Structure — changing directory
   structure, schema, or auth → update both.
 - Active designs and implementation plans → `docs/superpowers/specs|plans/`
@@ -84,9 +99,8 @@ no docs.
 
 ## Status and PR workflow
 
-- Use `docs/status.md` as the first place to resume work after an absence.
 - When a task or plan step is genuinely complete, update its checkbox in the relevant plan and update `docs/status.md` in the same change when the resume point changes.
-- When a tracked delivery item ships, update `FEATURES.md` and `docs/status.md`, then mark exactly one next delivery focus as `🔵 Next On`.
+- When a tracked delivery item ships, update its row in `ROADMAP.md` and the resume note in `docs/status.md` in the same change.
 - Do not assume implementation must follow roadmap phase numbering. Use the currently approved product/system slice or task as the delivery unit.
 - Never mark work complete without fresh verification evidence. Record known limitations rather than marking incomplete work as complete.
 - Before preparing a PR, follow the local procedure in `docs/PR_CHECKLIST.md`. This is an agent workflow document, not a GitHub PR template.

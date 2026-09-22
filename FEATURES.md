@@ -1,118 +1,19 @@
-# Resonance — Features & Roadmap
+# Resonance Features
 
-> The living roadmap: what's shipped, what's next, and the idea backlog.
+> The shipped capability catalog: what Resonance does today, surface by
+> surface. Scope, remaining work, and delivery status live in
+> [`ROADMAP.md`](ROADMAP.md). Release history lives in
+> [`CHANGELOG.md`](CHANGELOG.md).
 >
-> **Update rule:** when a feature ships, update its status here (see the
-> "Documentation" section in `AGENTS.md`). Detailed phase designs and
-> implementation plans live in `docs/superpowers/specs|plans/` (local,
-> untracked, and intentionally not gitignored). Human staging review prevents
-> these development artifacts from being committed.
+> **Update rule:** when a capability ships, add or update its entry here. When
+> scope or status changes, update `ROADMAP.md` in the same change (see the
+> "Documentation" section in `AGENTS.md`). Detailed designs and implementation
+> plans live in `docs/superpowers/specs|plans/` (local, untracked, and
+> intentionally not gitignored).
 
 **Stack:** Next.js 16 (App Router) + TypeScript + Convex + Better Auth + Tailwind CSS v4 + shadcn/ui
 
 **Purpose:** A multi-author publishing platform where users write posts and readers engage through likes, comments, and follows.
-
----
-
-## Status Board
-
-Feature status is managed with five labels:
-
-- **Now** — actively being implemented.
-- **Next On** — the next agreed delivery focus.
-- **Later** — planned, but not scheduled.
-- **Deferred** — intentionally postponed; revisit when its trigger is met.
-- **Shipped** — available in the product.
-
-| Phase                               | Goal                                                                    | Status      |
-| ----------------------------------- | ----------------------------------------------------------------------- | ----------- |
-| Phase 0 — Foundation Fix            | `users` table, OAuth, auth guards, schema hardening                     | ✅ Complete |
-| Phase 1.0 — Backward-compat cleanup | `createdAt`/`updatedAt` tightened to required                           | ✅ Complete |
-| Phase 1A — Identity & Engagement    | 1.1 Profiles ✅ · 1.2 Likes ✅ · 1.3 Comment Likes ✅                   | ✅ Complete |
-| Phase 1B — Curation & Connection    | 1.4 Follows ✅ · 1.5 Bookmarks ✅ · 1.6 Notifications ✅ · 1.7 Feed ✅  | ✅ Complete |
-| Phase 1C — Discovery & Polish       | 1.8 Tags ✅; 1.9–1.11 deferred optional features                        | ✅ Complete |
-| Phase 2 — The Author                | Editor, drafts, editing, private analytics, and dashboard visualization | ✅ Complete |
-| Phase 3A.0 — UX Correctness         | Public reading, auth returns, viewer state, publishing, honest claims   | ✅ Complete |
-| Phase 3A.1 — Product Structure      | Shells, navigation, reader utilities, Profile/Settings, analytics       | ✅ Shipped  |
-| Phase 3A.2 — Discover Foundations   | Search, Topics, Latest, Feed recovery; Hot remains deferred             | ✅ Shipped  |
-| Phase 3A.3 — Writing & Management   | Writing environment, review/publish, management, deletion               | 🔵 Now      |
-| Phase 3A.4 — Identity & Engagement  | Profiles, Notifications, collections, contextual post presentation      | 🟡 Later    |
-| Phase 3A.5 — Visual System & Polish | Typography, color, density, states, responsive interaction              | 🟡 Later    |
-| Phase 3 — The Platform              | Moderation, AI, subscriptions, digest                                   | 🟡 Later    |
-
-**Roadmap decision:** Phase 1C is complete with 1.8. Items 1.9–1.11 remain
-documented as optional features and are not current delivery commitments.
-
-Published-post deletion now hides the source and Discover projections
-transactionally and drains dependent rows, storage claims, and derived counters
-in bounded scheduled batches with strict integrity checks and stale-job recovery.
-Hot remains deferred until its ranking formula and time window are defined.
-
-Phase 2 includes the shipped editor, draft lifecycle, private author dashboard,
-owner-scoped published editing, private analytics totals, and the four-card
-analytics dashboard with its dense 30-day follower-growth chart. Phase 3A.0,
-Phase 3A.1, and Phase 3A.2 are shipped; Phase 3A.3 — Writing & Management is
-the sole current delivery focus. The approved Phase 3A target direction, scope
-map, delivery
-slices, sequencing rules, and deferrals are maintained in
-[`docs/PHASE_3A.md`](docs/PHASE_3A.md). Section 18 scope areas are not a rigid
-implementation order.
-
-### Phase 3A.3 Track Status
-
-| Track   | Delivery focus                                | Status     |
-| ------- | --------------------------------------------- | ---------- |
-| Track 2 | Persistence, Retry, Session, and Media Safety | ✅ Shipped |
-| Track 3 | Long-Form Content and Discovery               | ✅ Shipped |
-| Track 1 | Authoring Workspace and BlockNote Experience  | 🔵 Next On |
-| Track 4 | Management, Navigation, and Accessibility     | 🟡 Later   |
-
-Track 1 progress: the writing workspace uses the installed standard BlockNote
-editor with native menus, file controls including remote embeds, code language
-selection, Shiki highlighting, and persistent visible Undo/Redo controls. Its
-safe canonical document contract supports the default text, media, table, and
-presentation features, and the public reader renders that same contract without
-injected HTML. Every enabled block is proven to survive editor serialization,
-server validation, and reader rendering; previously the canonical projection was
-bypassed and non-text blocks were rejected on save. Headings reserve H1 for the
-post title and offer H2 through H6 with toggle headings disabled. Unsaved work is
-kept in a silent local draft and reloaded on return, so a refresh or navigation
-no longer loses content. Publication goes through an explicit Review step: the
-frozen canonical post renders in a read-only surface, Publish/Update reuse the
-existing save path, and Review is blocked while inline media is unresolved.
-
-This authoring and Review baseline is merged to `main` in PR #72 (merge commit
-`1bc54ef`); all PR-review findings are closed. The author has accepted the
-editor, embeds, history controls, and recovery in the browser, and Review is
-browser-tested. Track 1 is not yet complete: the remaining follow-up backlog
-(editor title sizing, published-edit code highlighting, layout and reader width,
-reader author identity and engagement controls, tag grid, and dark-mode polish)
-must be re-verified and closed before the slice is called done. Follow-up
-batch 1 delivers the shared blank cover fallback across
-cards, Discover summaries, and the reader; a missing cover renders a blank
-transparent surface with a subtle bottom border. Follow-up batch 2 delivers the
-authoring media panel: rows name their kind and type, audio and video render
-glyph tiles, lifecycle wording is plain, failed inline rows expose Replace and
-Remove, and cover controls use styled Add, Replace, and Remove buttons with
-same-file reselection. Follow-up batch 3 freezes Review and submits what the
-author reviewed: entering Review validates the publication schema and captures
-an immutable snapshot of the content, tags, cover intent, cover preview, and
-resolved inline media; Review renders only that snapshot, hides Post details,
-and moves Back plus Publish/Update into the header under a Review label.
-Submission validates and publishes the snapshot, guarded against an in-flight
-write, a pending target switch, and a media blocker. Card, Review, and reader
-now share the blank cover fallback. All three follow-up batches are merged to
-`main` in PRs #74, #75, and #76, and a final cross-PR browser pass over the
-merged revision passed. Track 1 stays open only for the remaining audit items,
-which ship in a later batch.
-
-**Known issue:** on first OAuth sign-up, the Navbar avatar shows initials
-instead of the provider picture until the user record sync completes
-(`AuthSync` fires `syncUser` as fire-and-forget).
-
-- Better Auth uses its installed 1.5.3 defaults: a finite seven-day session
-  expiry with a one-day sliding refresh. Resonance has no custom `session`
-  configuration or client inactivity logout timer.
 
 ---
 
@@ -153,9 +54,36 @@ instead of the provider picture until the user record sync completes
 - Authors can edit published posts in place through `/create?editPostId=<id>`;
   edits preserve the post ID, publication time, engagement records, bookmarks,
   and feed position while advancing `updatedAt`
+- `/dashboard/published` lists the author's published posts with Edit and View
+  Post actions; published-post deletion is not yet available in the UI
 - Public readers, likes, bookmarks, comments, notifications, and feed rows do
   not expose or act on drafts
 - Public post details show `publishedAt` and show `updatedAt` only after an edit
+
+### Authoring and Review
+
+- Full-page Create and Edit inside the workspace shell, backed by the standard
+  BlockNote editor with native menus, remote embeds, code language selection,
+  Shiki highlighting, and persistent visible Undo/Redo controls; published-edit
+  code highlighting is still open (V1-02)
+- Canonical `blocknote@1` bodies with H1 reserved for the post title and H2 to
+  H6 body headings; the reader renders the same contract without injected HTML
+- Silent local recovery for unsaved new posts and drafts, loaded back during
+  hydration with no prompt; published edits stay page-local until Update Post
+  succeeds
+- Media panel rows name their kind and type, show image thumbnails or audio and
+  video glyphs, use plain lifecycle wording, and offer Replace and Remove for
+  failed media while resolved inline editing stays in BlockNote
+- Cover controls are styled Add, Replace, and Remove buttons with same-file
+  reselection; a missing cover renders the shared blank fallback on cards,
+  Discover, and the reader
+- Review renders only a frozen snapshot of the reviewed title, body, tags,
+  cover intent, cover preview, and resolved inline media; Post details are
+  hidden and Back plus Publish/Update live in the studio header
+- Review and submission are blocked while inline media or a recovered saved
+  cover is unresolved; a transient cover lookup retries with backoff and on
+  focus or reconnect, and the failure alert is reserved for a server-reported
+  missing cover
 
 ### Likes
 
@@ -222,6 +150,14 @@ instead of the provider picture until the user record sync completes
   contextual/read-only where shown.
 - OAuth avatars mapped from provider profiles (Google `picture` / GitHub `avatar_url`), DiceBear fallback
 
+### Analytics
+
+- Private author analytics at `/dashboard/analytics`, scoped to signed-in
+  unique readers and labeled honestly as such
+- Four summary cards: Unique Readers, Likes Received, Current Followers, and
+  New Followers over 30 days
+- A 30-day follower-growth chart rendered from the same summary query
+
 ### UI/UX
 
 - Landing page sections in `app/(marketing)/_components/`: Hero, Features,
@@ -231,72 +167,6 @@ instead of the provider picture until the user record sync completes
   the legacy footer variant and is not rendered by the workspace shell
 - Dark/light/system theme toggle; toast notifications (Sonner)
 - SEO phase 1: per-page metadata, OG/Twitter tags, dynamic post metadata, `noindex` auth pages
-
----
-
-## Backlog
-
-Each item: essence + rough effort. Phase-numbered items are specified in the
-roadmap design doc; "Unscheduled" items are not yet in the phase roadmap.
-
-### Phase 1B — Curation & Connection
-
-- **1.4 Follows** ✅ — follow/unfollow authors; denormalized `followerCount`/`followingCount` on `users`. _Medium._ Ships a `by_followingId` index that 1.6 notifications and the 1.7 feed reuse; later phases build on what 1.4 shipped and must not duplicate the follow relationship.
-- **1.5 Bookmarks / Saved Posts** ✅ — private bookmarks at `/saved`.
-  _Medium._ Unrelated to `follows`; new `bookmarks` table mirroring `likes`,
-  **no** denormalized count on `users` (bookmarks are private). The shared
-  `LikeToggle` primitive is the ready seam (Phase 1.3 key decision).
-  `BookmarkButton` receives its initial state from server-rendered reads via
-  `fetchAuthQuery` and keeps it reconciled with a client-side subscription.
-- **1.6 Notifications** ✅ — bell in Navbar + `/notifications` when a followed author publishes. _Medium-High._ Fan-out after `publishPost` via `ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, ...)`; uses the `follows.by_followingId` index for ordered scanning. 1.7's feed strategy is its own first-class design decision; 1.6 only shares the `by_followingId` index, not the feed data path.
-
-### Deferred Phase 1C — Optional Discovery & Polish
-
-- **1.8 Post Tags** ✅ **Shipped** — `tags` array on posts, tag pills, filter `/blog?tag=`. _Medium._
-- **1.9 Trending / Popular** — **Deferred** — a ranked Popular or Hot mode on
-  `/blog` via `likeCount`/`commentCount`. Discover's Latest, Search, and Topics
-  are shipped, but Hot is not rendered or implemented. Revisit when its ranking
-  formula and time window are defined. _Low._
-- **1.10 User Activity Feed** — **Deferred** — recent activity ("X liked Y's post") on profiles. Revisit when profiles have enough activity to avoid a noisy or empty feed and privacy rules are defined. _Medium._
-- **1.11 Polish** — **Deferred** — reading-time estimate (~200 wpm) on cards/detail; share links (copy-to-clipboard / Web Share API). Consider share links independently when distribution becomes a priority. _Low._
-
-### Phase 2 — The Author
-
-1. **2.1 Rich Text Editor Foundation** — replace the plain-text body with a structured editor and define the canonical content format. ✅ Shipped
-2. **2.2 Inline Image Support** — upload block-level images to Convex Storage, publish canonical storage IDs, and support required alt text plus optional captions. ✅ Shipped
-3. **2.3 Structured Content Publishing** — harden the structured-content contract end to end: posts use validated `blocknote@1` documents at both the form and the Convex write boundary, and card/metadata excerpts never expose serialized JSON. ✅ Shipped
-4. **2.4 Drafts & Publishing Workflow** — add `draft`/`published` status, save drafts, resume editing, and publish intentionally. ✅ Shipped
-5. **2.5 Author Dashboard** — add `/dashboard` with drafts, published posts, and author actions. ✅ Shipped
-6. **2.6 Post Editing** — allow authors to edit drafts and published posts with ownership checks. ✅ Shipped
-7. **2.7 Analytics Foundation** — records one signed-in unique view per published post and privately summarizes author unique views, likes received, current followers, and 30-day follower growth. ✅ Shipped
-8. **2.8 Analytics Dashboard UI** — add four summary cards and an accessible, presentation-only 30-day follower-growth chart to the dashboard. ✅ Shipped
-
-#### Deferred Editor Polish
-
-- **Undo/Redo Controls** — add visible editor controls and decide whether they belong in the formatting toolbar or a compact history toolbar. _Low._
-- **Editor Keyboard Navigation** — improve focus management and keyboard navigation for slash menus and floating formatting menus. _Medium._
-- **Editor Interaction Polish** — improve menu focus, shortcut discoverability, accessible labels, and mobile behavior. _Medium._
-
-Phases 2.2 and 2.3 did not include drafts, post editing, paragraph-inline
-images, or general storage garbage collection. Those remain separate
-author-workflow scope items.
-
-### Phase 3 — The Platform
-
-- **Admin Role & Moderation** — hide posts, ban users, content reports. _High._
-- **AI Features** — content suggestions, summarization, auto-tags. _High._
-- **Subscriptions / Tipping** — Stripe integration, premium gating. _High._
-- **Email Digest** — weekly top posts from followed authors. _Medium._
-
-### Unscheduled
-
-- **Reply to Comments** — 1-level threading (`parentId` on comments), inline reply form. _Medium._
-- **Custom 404 Page** — branded not-found page with navigation. `Quick Win` _Low._
-- **About & Contact Pages** — static `/about`; `/contact` form. _Low._
-- **Empty-state Rollout** — `EmptyState` currently used on profiles only; extend to `/blog`, comments, search. `Quick Win` _Low._
-- **Custom Avatar Upload** — `avatarStorageId` + upload UI (OAuth/DiceBear avatars already work). _Medium._
-- **SEO Phase 2** — JSON-LD structured data, `sitemap.xml`, `robots.ts`. _Medium._
-- **Loading Skeletons Phase 2** — content-shaped skeletons for `/blog` listing and comments. _Low._
 
 ---
 
@@ -317,9 +187,10 @@ Use `pnpm shadcn add <component>` to add new primitives. Do not edit `components
 
 ### Phase 3A Documentation and Review Gates
 
-- Read `docs/PHASE_3A.md` and `docs/PHASE_3A_DECISIONS.md` before planning or
-  changing a Phase 3A slice. The current local implementation plan supplements
-  these documents but never replaces them.
+- Follow the progressive documentation loading rule in `AGENTS.md`. Open
+  `docs/PHASE_3A.md` or `docs/PHASE_3A_DECISIONS.md` only for the product
+  direction or decision relevant to the task. The active local implementation
+  plan supplements these documents but never replaces them.
 - Before every staging action, present the intended diff and documentation
   impact for human review. Before every commit, present the staged diff and
   fresh verification evidence. Before every PR, present all commits, the full
@@ -331,3 +202,15 @@ Use `pnpm shadcn add <component>` to add new primitives. Do not edit `components
 ```
 pnpm lint → pnpm test:ci → pnpm test:component → pnpm build
 ```
+
+### Known Issue
+
+- On first OAuth sign-up, the Navbar avatar shows initials instead of the
+  provider picture until the user record sync completes (`AuthSync` fires
+  `syncUser` as fire-and-forget).
+
+### Sessions
+
+- Better Auth uses its installed 1.5.3 defaults: a finite seven-day session
+  expiry with a one-day sliding refresh. Resonance has no custom `session`
+  configuration or client inactivity logout timer.
