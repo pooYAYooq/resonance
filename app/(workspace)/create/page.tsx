@@ -5,7 +5,6 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument, PostBlock } from "@/lib/post-content";
 import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
@@ -59,6 +58,7 @@ import {
   useWritingSession,
   type WritingSessionTarget,
 } from "./_components/useWritingSession";
+import type { PostBodyEditorHandle } from "./_components/PostBodyEditor";
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
   ssr: false,
@@ -476,6 +476,16 @@ function CreateEditor() {
   );
   const hydratedSessionKey = useRef<string | undefined>(undefined);
   const activeSessionKeyRef = useRef<string | undefined>(undefined);
+  const bodyEditorRef = useRef<PostBodyEditorHandle>(null);
+  const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  // The title wraps instead of scrolling: keep the textarea height in sync
+  // with its content, including when returning from the hidden Review view.
+  useEffect(() => {
+    const element = titleTextareaRef.current;
+    if (!element || element.offsetParent === null) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }, [watchedValues.title, sessionState.presentation]);
   const claimRecoveredMedia = useCallback(
     (urls: Record<string, string | null>) => {
       const sessionId = activeSessionKeyRef.current ?? "new:new";
@@ -1546,11 +1556,7 @@ function CreateEditor() {
               ? "Edit Published Post"
               : "New Post"
         }
-        description={
-          reviewing
-            ? undefined
-            : "Give your ideas a home. Draft a deep dive, share a quick update, or capture a fleeting thought to share with your community."
-        }
+        description={reviewing ? undefined : "Write, review, publish."}
         title={
           <div
             hidden={reviewing}
@@ -1562,12 +1568,27 @@ function CreateEditor() {
               control={form.control}
               render={({ field, fieldState }) => (
                 <div className="space-y-2">
-                  <Input
-                    aria-label="Blog title"
+                  <textarea
+                    aria-label="Post title"
                     aria-invalid={fieldState.invalid}
-                    className="h-auto border-0 bg-transparent px-0 py-2 text-4xl font-semibold tracking-tight shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0 sm:text-5xl"
-                    placeholder="Give your thought a name"
+                    className="w-full resize-none overflow-hidden rounded-md border border-input bg-transparent px-2.5 py-2 text-3xl font-semibold tracking-tight shadow-none outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/70 hover:bg-accent focus:bg-accent dark:hover:bg-accent dark:focus:bg-accent aria-invalid:border-destructive"
+                    maxLength={100}
+                    rows={1}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        // Moving focus is an enhancement. The dynamic import
+                        // wrapper can hold a non-handle outside a real browser,
+                        // so Enter must never throw.
+                        bodyEditorRef.current?.focus?.();
+                      }
+                    }}
+                    placeholder="Post title"
                     {...field}
+                    ref={(element) => {
+                      titleTextareaRef.current = element;
+                      field.ref(element);
+                    }}
                   />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -1593,6 +1614,7 @@ function CreateEditor() {
                       Blog content
                     </span>
                     <PostBodyEditor
+                      ref={bodyEditorRef}
                       historyResetKey={historyResetKey}
                       key={`${editorMode.mode}:${editorMode.id ?? "new"}:${recoveryNonce}`}
                       onChange={field.onChange}

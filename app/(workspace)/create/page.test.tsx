@@ -513,10 +513,7 @@ describe("CreateRoute", () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -539,10 +536,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Edit inline content" }),
     );
@@ -1203,10 +1197,7 @@ describe("CreateRoute", () => {
       json: async () => ({ storageId: "storage-cover" }),
     });
     const view = render(<CreateRoute />);
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Covered draft",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Covered draft");
     await user.upload(
       screen.getByLabelText("Image (optional)"),
       new File(["cover"], "cover.png", { type: "image/png" }),
@@ -1265,10 +1256,7 @@ describe("CreateRoute", () => {
       type: "image/png",
     });
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Covered draft",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Covered draft");
     await user.upload(imageInput, firstCover);
     await user.click(screen.getByRole("button", { name: "Save Draft" }));
     await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
@@ -1431,7 +1419,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Post title"),
       "Unfinished thought",
     );
     await user.click(screen.getByRole("button", { name: "Save Draft" }));
@@ -1468,10 +1456,7 @@ describe("CreateRoute", () => {
       });
 
     render(<CreateRoute />);
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Two saves",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Two saves");
 
     const saveButton = screen.getByRole("button", { name: "Save Draft" });
     await user.click(saveButton);
@@ -1494,10 +1479,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Draft{Enter}",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Draft{Enter}");
 
     expect(saveDraftMock).not.toHaveBeenCalled();
     expect(publishPostMock).not.toHaveBeenCalled();
@@ -1508,10 +1490,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "A titled post",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "A titled post");
     await user.click(
       screen.getByRole("button", { name: "Review for publication" }),
     );
@@ -1536,10 +1515,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "My Post",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "My Post");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -1569,10 +1545,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "My Post",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "My Post");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -1617,10 +1590,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "My Post",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "My Post");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -1645,10 +1615,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "My Post",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "My Post");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -1739,10 +1706,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "My Post",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "My Post");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -1769,10 +1733,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "My Post",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "My Post");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -1812,10 +1773,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "My Post",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "My Post");
     await user.click(
       screen.getByRole("button", { name: "Edit inline content" }),
     );
@@ -1850,10 +1808,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "My Post",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "My Post");
     await user.upload(
       screen.getByLabelText("Image (optional)"),
       new File(["img"], "photo.png", { type: "image/png" }),
@@ -1892,10 +1847,7 @@ describe("CreateRoute", () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -1915,7 +1867,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Post title"),
       "Reviewed title",
     );
     await user.click(
@@ -1929,7 +1881,7 @@ describe("CreateRoute", () => {
     await enterReview(user);
     await screen.findByTestId("review-surface");
 
-    fireEvent.change(screen.getByLabelText("Blog title"), {
+    fireEvent.change(screen.getByLabelText("Post title"), {
       target: { value: "Drifted title" },
     });
     fireEvent.click(shortContentButton);
@@ -1960,10 +1912,7 @@ describe("CreateRoute", () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -1994,10 +1943,7 @@ describe("CreateRoute", () => {
     const cover = new File(["cover"], "cover.png", { type: "image/png" });
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -2026,10 +1972,7 @@ describe("CreateRoute", () => {
     const cover = new File(["cover"], "cover.png", { type: "image/png" });
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -2066,10 +2009,7 @@ describe("CreateRoute", () => {
     });
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -2148,10 +2088,7 @@ describe("CreateRoute", () => {
     );
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Register inline upload" }),
     );
@@ -2177,10 +2114,7 @@ describe("CreateRoute", () => {
     reserveAttemptMock.mockReturnValue(new Promise(() => {}));
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
@@ -2679,10 +2613,7 @@ describe("CreateRoute", () => {
     );
     render(<CreateRoute />);
 
-    await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
-      "Reviewable",
-    );
+    await user.type(screen.getByPlaceholderText("Post title"), "Reviewable");
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );

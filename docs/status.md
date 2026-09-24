@@ -14,10 +14,10 @@ in [`../ROADMAP.md`](../ROADMAP.md).
 
 ## Next action
 
-Start with V1-01, V1-02, V1-04, and V1-05. V1-03 and V1-07 await the content
-width design session. After V1-01 to V1-05 and V1-07 to V1-12 are done and the
-author has accepted the authoring journey in the browser, close Track 1 with
-V1-06.
+Continue the authoring polish batch: V1-02, V1-04, and V1-05 are next. V1-03
+and V1-07 await the content width design session. After V1-01 to V1-05 and
+V1-07 to V1-12 are done and the author has accepted the authoring journey in the
+browser, close Track 1 with V1-06.
 
 ## Blockers
 
@@ -46,6 +46,9 @@ V1-06.
   silent recovery clears the local snapshot on save, revert, or empty.
 - `pnpm format:check` reports a pre-existing baseline of unrelated files; no
   changed file is flagged.
+- The title's Enter-to-body focus move depends on the dynamic import forwarding
+  the body editor handle; the jsdom component tests cannot exercise it, so it is
+  browser-verified only.
 
 ## Local design and plan artifacts
 

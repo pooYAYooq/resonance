@@ -82,7 +82,7 @@ export default function DocumentStudio({
                 {title}
               </div>
               {description && (
-                <p className="text-base leading-relaxed text-muted-foreground">
+                <p className="px-2.5 text-base leading-relaxed text-muted-foreground">
                   {description}
                 </p>
               )}

@@ -38,7 +38,7 @@ Source: Track 1 UI and UX audit, recorded in `docs/status.md` at commit
 
 | ID    | Item                                                        | Status                 | Estimate |
 | ----- | ----------------------------------------------------------- | ---------------------- | -------- |
-| V1-01 | Editor title sizing                                         | Todo                   | S        |
+| V1-01 | Editor title sizing                                         | Done                   | S        |
 | V1-02 | Published-edit code highlighting                            | Todo                   | M        |
 | V1-03 | Editor and Review width and spacing consistency             | Pending design session | M        |
 | V1-04 | Tag checkbox grid styling                                   | Todo                   | S        |

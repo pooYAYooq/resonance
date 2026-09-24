@@ -63,6 +63,9 @@ work is tracked in `ROADMAP.md`.
   resets history only when the live body still matches the submission.
 - The overlapping BlockNote tooltip arrow is hidden in both themes.
 - Review cover images use the reviewed title as alt text.
+- Post titles in the authoring editor render at full title size, wrap instead of
+  scrolling, cap at 100 characters, and show a clear input border with hover and
+  focus states; Enter moves focus to the body editor.
 
 > Earlier phases between 0.1.0 and this entry are recorded in the git history;
 > this changelog resumes at the standard-BlockNote authoring and Review
