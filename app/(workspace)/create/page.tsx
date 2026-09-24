@@ -481,12 +481,25 @@ function CreateEditor() {
   const bodyEditorRef = useRef<PostBodyEditorHandle>(null);
   const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   // The title wraps instead of scrolling: keep the textarea height in sync
-  // with its content, including when returning from the hidden Review view.
+  // with its content, including when returning from the hidden Review view and
+  // when a viewport change rewraps the text at a new width.
   useEffect(() => {
     const element = titleTextareaRef.current;
-    if (!element || element.offsetParent === null) return;
-    element.style.height = "auto";
-    element.style.height = `${element.scrollHeight}px`;
+    if (!element) return;
+    const resize = () => {
+      if (element.offsetParent === null) return;
+      element.style.height = "auto";
+      element.style.height = `${element.scrollHeight}px`;
+    };
+    resize();
+    let lastWidth = element.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (element.clientWidth === lastWidth) return;
+      lastWidth = element.clientWidth;
+      resize();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
   }, [watchedValues.title, sessionState.presentation]);
   const claimRecoveredMedia = useCallback(
     (urls: Record<string, string | null>) => {
@@ -1645,7 +1658,12 @@ function CreateEditor() {
                     maxLength={100}
                     rows={1}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter") {
+                      // Enter during IME composition confirms the candidate
+                      // list; only a real Enter moves focus to the body.
+                      if (
+                        event.key === "Enter" &&
+                        !event.nativeEvent.isComposing
+                      ) {
                         event.preventDefault();
                         // Moving focus is an enhancement. The dynamic import
                         // wrapper can hold a non-handle outside a real browser,

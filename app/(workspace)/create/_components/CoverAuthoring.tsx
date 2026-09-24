@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { MediaAsset } from "./MediaAuthoring";
 import {
   REVIEW_BLOCKER_MESSAGES,
@@ -35,8 +36,15 @@ export default function CoverAuthoring({
   coverRecovery,
 }: CoverAuthoringProps) {
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
   const openCoverPicker = () => coverInputRef.current?.click();
   const failed = coverRecovery === "failed";
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) onChooseCover(file);
+  };
   const statusLine =
     coverRecovery === "resolving"
       ? REVIEW_BLOCKER_MESSAGES["cover-resolving"]
@@ -125,7 +133,22 @@ export default function CoverAuthoring({
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3">
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-4 rounded-lg border border-dashed px-4 py-3 transition-colors",
+            dragging ? "border-ring bg-accent/40" : "border-border bg-muted/30",
+          )}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+              setDragging(false);
+            }
+          }}
+          onDrop={handleDrop}
+        >
           <span
             aria-hidden="true"
             className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"

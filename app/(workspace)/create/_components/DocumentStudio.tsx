@@ -94,10 +94,10 @@ export default function DocumentStudio({
                 className="flex w-full flex-col gap-5"
                 data-studio-canvas="true"
               >
-                {cover && <div className="px-[54px]">{cover}</div>}
+                {cover && <div className="px-4 sm:px-[54px]">{cover}</div>}
                 <div
                   data-studio-title="true"
-                  className="px-[53px] pt-4 sm:pt-8"
+                  className="px-[15px] pt-4 sm:px-[53px] sm:pt-8"
                 >
                   {heading && <h1 className="sr-only">{heading}</h1>}
                   {title}

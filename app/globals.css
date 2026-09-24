@@ -48,9 +48,17 @@
 }
 
 /* The document card is the authoring surface; keep BlockNote from painting its
- * own background on top of it. */
+ * own background on top of it. The gutter matches BlockNote's 54px inset on
+ * wider screens and relaxes on phones; the title and cover wrappers use the
+ * same breakpoint so document text stays aligned. */
 [data-studio-canvas] .bn-editor {
   --bn-colors-editor-background: transparent;
+  padding-inline: 1rem;
+}
+@media (min-width: 40rem) {
+  [data-studio-canvas] .bn-editor {
+    padding-inline: 54px;
+  }
 }
 
 @custom-variant dark (&:is(.dark *));
