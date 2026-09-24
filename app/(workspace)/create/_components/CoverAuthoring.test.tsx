@@ -56,7 +56,6 @@ describe("CoverAuthoring", () => {
       },
     });
 
-    expect(screen.getByText("Cover")).toBeVisible();
     expect(screen.getByText("cover.png")).toBeVisible();
     const chooser = screen.getByLabelText("Replace cover image");
     await user.upload(chooser, file);

@@ -54,8 +54,6 @@ export default function CoverAuthoring({
 
   return (
     <section aria-label="Cover" className="flex flex-col gap-3">
-      <p className="text-base font-medium">Cover</p>
-
       {failed ? (
         <>
           <p
