@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PenLine } from "lucide-react";
 import type { EditorMode } from "../editorMode";
 
 export type DocumentStudioState =
@@ -26,7 +27,7 @@ type DocumentStudioProps = {
 const modeLabels: Record<EditorMode, string> = {
   new: "New post",
   draft: "Draft",
-  "published-edit": "Published edit",
+  "published-edit": "Edit post",
   invalid: "Unavailable",
 };
 
@@ -56,14 +57,27 @@ export default function DocumentStudio({
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
         {isReady ? (
           <>
-            <header className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  {modeLabel ?? modeLabels[mode]}
-                </p>
+            <header className="mx-auto flex w-full max-w-5xl flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
+                  aria-hidden="true"
+                >
+                  <PenLine className="size-5" />
+                </div>
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="text-base font-semibold tracking-tight text-foreground">
+                    {modeLabel ?? modeLabels[mode]}
+                  </p>
+                  {description && (
+                    <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
+                      {description}
+                    </p>
+                  )}
+                </div>
               </div>
               <div
-                className="flex flex-wrap items-center gap-2"
+                className="flex shrink-0 flex-wrap items-center gap-2 [&>button]:min-h-11 [&>button]:flex-1 [&>button]:px-4 sm:[&>button]:flex-none"
                 data-studio-actions="true"
               >
                 {actions}
@@ -77,15 +91,10 @@ export default function DocumentStudio({
               className="mx-auto flex w-full max-w-5xl flex-col gap-5"
               data-studio-canvas="true"
             >
-              <div data-studio-title="true" className="pt-4">
+              <div data-studio-title="true" className="px-[53px] pt-4 sm:pt-8">
                 {heading && <h1 className="sr-only">{heading}</h1>}
                 {title}
               </div>
-              {description && (
-                <p className="px-2.5 text-base leading-relaxed text-muted-foreground">
-                  {description}
-                </p>
-              )}
               {body}
             </main>
 

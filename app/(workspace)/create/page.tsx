@@ -17,7 +17,7 @@ import { clearDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
 import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useConvex, useMutation, useQuery } from "convex/react";
-import { Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -1553,10 +1553,16 @@ function CreateEditor() {
           reviewing
             ? undefined
             : editorMode.mode === "published-edit"
-              ? "Edit Published Post"
-              : "New Post"
+              ? "Edit post"
+              : "New post"
         }
-        description={reviewing ? undefined : "Write, review, publish."}
+        description={
+          reviewing
+            ? "One last look before your readers see it."
+            : editorMode.mode === "published-edit"
+              ? "Review your changes before updating your post."
+              : "Make it yours. Review it before publishing."
+        }
         title={
           <div
             hidden={reviewing}
@@ -1571,7 +1577,7 @@ function CreateEditor() {
                   <textarea
                     aria-label="Post title"
                     aria-invalid={fieldState.invalid}
-                    className="w-full resize-none overflow-hidden rounded-md border border-input bg-transparent px-2.5 py-2 text-3xl font-semibold tracking-tight shadow-none outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/70 hover:bg-accent focus:bg-accent dark:hover:bg-accent dark:focus:bg-accent aria-invalid:border-destructive"
+                    className="w-full resize-none overflow-hidden rounded-md border border-transparent bg-transparent px-0 py-2 text-[clamp(2rem,4vw,3rem)] leading-tight font-semibold tracking-tight text-foreground shadow-none outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 aria-invalid:border-destructive"
                     maxLength={100}
                     rows={1}
                     onKeyDown={(event) => {
@@ -1812,21 +1818,23 @@ function CreateEditor() {
               {capabilities.canPublish && (
                 <Button
                   type="button"
-                  variant="outline"
+                  className="bg-foreground text-background hover:bg-foreground/80"
                   disabled={isPending || Boolean(sessionState.pendingTarget)}
                   onClick={enterReview}
                 >
                   Review for publication
+                  <ArrowRight aria-hidden="true" data-icon="inline-end" />
                 </Button>
               )}
               {capabilities.canUpdate && (
                 <Button
                   type="button"
-                  variant="outline"
+                  className="bg-foreground text-background hover:bg-foreground/80"
                   disabled={isPending || Boolean(sessionState.pendingTarget)}
                   onClick={enterReview}
                 >
                   Review Update
+                  <ArrowRight aria-hidden="true" data-icon="inline-end" />
                 </Button>
               )}
             </>

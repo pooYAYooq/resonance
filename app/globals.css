@@ -8,6 +8,38 @@
   display: none;
 }
 
+/* Authoring headings mirror the reader scale in `post-body-shared.tsx` so the
+ * canvas matches the published preview. BlockNote omits `data-level` on the
+ * default H2, which otherwise inherits the 3em H1 metric. Overriding `--level`
+ * wins over BlockNote's `font-size: var(--level)` declarations because the
+ * custom property cascades independently of their higher selector weight. */
+[data-studio-canvas] .bn-editor [data-content-type="heading"] {
+  --level: 1.875rem;
+}
+[data-studio-canvas] .bn-editor [data-content-type="heading"][data-level="2"] {
+  --level: 1.875rem;
+}
+[data-studio-canvas] .bn-editor [data-content-type="heading"][data-level="3"] {
+  --level: 1.5rem;
+}
+[data-studio-canvas] .bn-editor [data-content-type="heading"][data-level="4"] {
+  --level: 1.25rem;
+}
+[data-studio-canvas] .bn-editor [data-content-type="heading"][data-level="5"] {
+  --level: 1.125rem;
+}
+[data-studio-canvas] .bn-editor [data-content-type="heading"][data-level="6"] {
+  --level: 1rem;
+}
+[data-studio-canvas]
+  .bn-editor
+  .bn-block-outer
+  > .bn-block
+  > .bn-block-content[data-content-type="heading"] {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* Theme is Darkmater from tweakcn.com */

@@ -38,6 +38,9 @@ work is tracked in `ROADMAP.md`.
 
 - Adopted the installed standard BlockNote editor; the curated interaction
   contract was retired in favour of the full default authoring experience.
+- The authoring studio header condenses the mode, a short intent line, and the
+  primary Review action into one block; the post title scales responsively and
+  shares the body text's left edge.
 - Published edits stay page-local and clear stale local recovery snapshots
   instead of writing new ones.
 
@@ -66,6 +69,9 @@ work is tracked in `ROADMAP.md`.
 - Post titles in the authoring editor render at full title size, wrap instead of
   scrolling, cap at 100 characters, and show a clear input border with hover and
   focus states; Enter moves focus to the body editor.
+- Editor headings had drifted from the published scale: the default H2 rendered
+  at H1 size and H3-H6 were smaller than the reader. The editor now mirrors the
+  reader scale with matching weight and tracking.
 
 > Earlier phases between 0.1.0 and this entry are recorded in the git history;
 > this changelog resumes at the standard-BlockNote authoring and Review
