@@ -1,13 +1,8 @@
 "use client";
 
-import { useRef } from "react";
 import { AudioLines, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  REVIEW_BLOCKER_MESSAGES,
-  type CoverRecoveryState,
-} from "./reviewReadiness";
 
 export type MediaKind = "inline" | "cover";
 export type MediaType = "image" | "audio" | "video";
@@ -32,14 +27,8 @@ export type MediaAsset = {
 
 export type MediaAuthoringProps = {
   inlineImages: readonly MediaAsset[];
-  cover: MediaAsset | null;
-  onChooseCover: (file: File) => void;
-  onRemoveCover: () => void;
   onReplaceMedia: (id: string) => void;
   onRemoveInline?: (id: string) => void;
-  coverInputAriaLabel?: string;
-  coverNote?: string;
-  coverRecovery?: CoverRecoveryState | null;
 };
 
 const STATUS_LABELS: Record<Exclude<MediaStatus, "failed">, string> = {
@@ -101,7 +90,7 @@ function MediaRow({
     >
       <MediaThumbnail asset={asset} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-base">
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
             {asset.kind === "cover" ? "Cover" : "Inline"}
           </span>
@@ -155,18 +144,10 @@ function MediaRow({
 
 export default function MediaAuthoring({
   inlineImages,
-  cover,
-  onChooseCover,
-  onRemoveCover,
   onReplaceMedia,
   onRemoveInline,
-  coverInputAriaLabel,
-  coverNote,
-  coverRecovery,
 }: MediaAuthoringProps) {
-  const coverInputRef = useRef<HTMLInputElement>(null);
   const unresolved = inlineImages.some((asset) => asset.status !== "resolved");
-  const openCoverPicker = () => coverInputRef.current?.click();
 
   return (
     <section aria-label="Media authoring" className="grid gap-4">
@@ -182,83 +163,6 @@ export default function MediaAuthoring({
             />
           </article>
         ))}
-      </div>
-
-      <div className="grid gap-3" aria-label="Cover media">
-        {cover ? <MediaRow asset={cover} onReplace={openCoverPicker} /> : null}
-        {coverRecovery === "resolving" ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            {REVIEW_BLOCKER_MESSAGES["cover-resolving"]}
-          </p>
-        ) : null}
-        {coverRecovery === "failed" ? (
-          <p
-            role="alert"
-            className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm"
-          >
-            {REVIEW_BLOCKER_MESSAGES["cover-load-failed"]}
-          </p>
-        ) : null}
-        {cover ? (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={ACTION_BUTTON_CLASS}
-              onClick={openCoverPicker}
-            >
-              Replace cover
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={ACTION_BUTTON_CLASS}
-              onClick={onRemoveCover}
-            >
-              Remove cover
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-start gap-2">
-            <p className="text-sm text-muted-foreground">
-              No cover selected. Your post will show without a cover image.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={ACTION_BUTTON_CLASS}
-              onClick={openCoverPicker}
-            >
-              Add cover
-            </Button>
-          </div>
-        )}
-        {cover?.status === "choosing" && coverNote ? (
-          <p className="text-sm text-muted-foreground">{coverNote}</p>
-        ) : null}
-        <input
-          ref={coverInputRef}
-          type="file"
-          accept="image/*"
-          tabIndex={-1}
-          className="sr-only"
-          aria-label={
-            coverInputAriaLabel ??
-            (cover ? "Replace cover image" : "Add cover image")
-          }
-          onClick={(event) => {
-            // Clear before opening the picker so choosing the same file still
-            // emits a change event without losing the selected value.
-            event.currentTarget.value = "";
-          }}
-          onChange={(event) => {
-            const file = event.currentTarget.files?.[0];
-            if (file) onChooseCover(file);
-          }}
-        />
       </div>
 
       {unresolved ? (

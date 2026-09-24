@@ -11,11 +11,11 @@ const alignmentClass = {
 } as const;
 
 const headingSizeClass = {
-  2: "text-3xl",
-  3: "text-2xl",
-  4: "text-xl",
-  5: "text-lg",
-  6: "text-base",
+  2: "text-h2",
+  3: "text-h3",
+  4: "text-h4",
+  5: "text-h5",
+  6: "text-h6",
 } as const;
 
 export function getHeadingClassName(level: unknown): string {
@@ -267,7 +267,7 @@ export function renderMedia(
       ? { width: `${previewWidth}px`, maxWidth: "100%" }
       : undefined;
   const figcaption = caption ? (
-    <figcaption className="mt-2 text-sm text-muted-foreground">
+    <figcaption className="mt-2 text-small text-muted-foreground">
       {caption}
     </figcaption>
   ) : null;

@@ -14,10 +14,10 @@ in [`../ROADMAP.md`](../ROADMAP.md).
 
 ## Next action
 
-Continue the authoring polish batch: V1-02, V1-04, and V1-05 are next. V1-03
-and V1-07 await the content width design session. After V1-01 to V1-05 and
-V1-07 to V1-12 are done and the author has accepted the authoring journey in the
-browser, close Track 1 with V1-06.
+Continue the authoring polish batch: V1-02 and V1-05 are next. V1-03 and V1-07
+await the content width design session. After V1-01 to V1-05 and V1-07 to
+V1-12 are done and the author has accepted the authoring journey in the browser,
+close Track 1 with V1-06.
 
 ## Blockers
 

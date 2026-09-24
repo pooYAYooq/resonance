@@ -130,7 +130,8 @@ app/
         PostBodyEditor.tsx    # Browser-only standard BlockNote adapter (ssr:false); uses the shared upload hook
         AuthoringSideMenu.tsx # Drag-safe block side menu; click-only handle menu over a Radix popover
         BlockHandleMenu.tsx   # Handle menu body; kept off the "use client" entry file
-        MediaAuthoring.tsx    # Details-level media status, thumbnails or glyphs, replace/remove recovery, and cover
+        CoverAuthoring.tsx    # Cover dropzone and 3:2 preview above the title, with replace/remove recovery
+        MediaAuthoring.tsx    # Details-level inline media status, thumbnails or glyphs, and replace/remove recovery
         ReviewSurface.tsx     # Frozen read-only review preview; the studio header owns Back and Publish/Update
         reviewReadiness.ts    # Media gate: blocks Review while inline media or a recovered cover is unresolved
         reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders for frozen Review
@@ -220,7 +221,7 @@ components/
     HighlightedCodeClient.tsx # Client Shiki highlighting for the Review preview
     post-body-shared.tsx      # Pure inline/alignment/media helpers shared by both renderers
     TagPill.tsx               # Linked pill for /blog?tag= filters
-    PostTagSelector.tsx       # Controlled five-tag checkbox selector
+    PostTagSelector.tsx       # Controlled five-tag grid of shadcn Checkbox rows
     LikeButton.tsx
     LikeToggle.tsx              # Generic like-toggle primitive (auth, transition, toasts)
     CommentLikeButton.tsx       # Comment like button wrapper rendered on CommentCard

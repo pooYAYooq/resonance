@@ -134,13 +134,13 @@ export function HistoryControls({ resetKey = 0 }: { resetKey?: number }) {
 
   return (
     <div
-      className="mb-2 flex items-center gap-1"
+      className="mb-2 flex items-center gap-1 ps-[53px]"
       role="toolbar"
       aria-label="Editor history"
     >
       <Button
         type="button"
-        variant="ghost"
+        variant="outline"
         size="icon-sm"
         aria-label="Undo"
         title="Undo"
@@ -155,7 +155,7 @@ export function HistoryControls({ resetKey = 0 }: { resetKey?: number }) {
       </Button>
       <Button
         type="button"
-        variant="ghost"
+        variant="outline"
         size="icon-sm"
         aria-label="Redo"
         title="Redo"

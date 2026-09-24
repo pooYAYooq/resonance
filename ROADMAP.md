@@ -41,7 +41,7 @@ Source: Track 1 UI and UX audit, recorded in `docs/status.md` at commit
 | V1-01 | Editor title sizing                                         | Done                   | S        |
 | V1-02 | Published-edit code highlighting                            | Todo                   | M        |
 | V1-03 | Editor and Review width and spacing consistency             | Pending design session | M        |
-| V1-04 | Tag checkbox grid styling                                   | Todo                   | S        |
+| V1-04 | Tag checkbox grid styling                                   | Done                   | S        |
 | V1-05 | Paste hardening for rejected pasted content                 | Todo                   | S        |
 | V1-06 | Track 1 closure documentation and author browser acceptance | Todo                   | S        |
 
@@ -170,6 +170,8 @@ V1-23.
 
 - Cancel and save-draft options for new posts and published edits.
 - Cover size limit decision.
+- Author-controlled cover position inside the fixed 3:2 crop (a stored focal
+  point applied across the editor, Review, cards, and the reader).
 
 ## Design-session deferrals
 

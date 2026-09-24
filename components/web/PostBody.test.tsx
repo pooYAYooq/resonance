@@ -70,8 +70,8 @@ describe("PostBody", () => {
           .tagName,
       ).toBe(`H${level}`);
     }
-    expect(container.querySelector("h2")).toHaveClass("text-3xl");
-    expect(container.querySelector("h6")).toHaveClass("text-base");
+    expect(container.querySelector("h2")).toHaveClass("text-h2");
+    expect(container.querySelector("h6")).toHaveClass("text-h6");
   });
   it("renders all standard rich blocks with safe native elements", async () => {
     render(

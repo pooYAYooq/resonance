@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
+import { Separator } from "@/components/ui/separator";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument, PostBlock } from "@/lib/post-content";
 import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
@@ -37,6 +38,7 @@ import {
   coverRetryDelayMs,
   type CoverLookup,
 } from "./_components/coverResolution";
+import CoverAuthoring from "./_components/CoverAuthoring";
 import DocumentStudio from "./_components/DocumentStudio";
 import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
 import {
@@ -1540,6 +1542,7 @@ function CreateEditor() {
 
   return (
     <form
+      className="flex flex-1 flex-col"
       onSubmit={(event) => {
         event.preventDefault();
       }}
@@ -1563,6 +1566,67 @@ function CreateEditor() {
               ? "Review your changes before updating your post."
               : "Make it yours. Review it before publishing."
         }
+        cover={
+          <div
+            hidden={reviewing}
+            inert={reviewing ? true : undefined}
+            aria-hidden={reviewing || undefined}
+          >
+            <CoverAuthoring
+              cover={coverMedia}
+              coverInputAriaLabel="Image (optional)"
+              coverRecovery={coverRecovery}
+              coverNote={
+                editorMode.mode === "published-edit"
+                  ? "Uploads when you update"
+                  : "Uploads when you save or publish"
+              }
+              onChooseCover={(file) =>
+                (() => {
+                  selectedCoverRef.current = file;
+                  if (coverObjectUrlRef.current) {
+                    URL.revokeObjectURL(coverObjectUrlRef.current);
+                  }
+                  const objectUrl = URL.createObjectURL(file);
+                  coverObjectUrlRef.current = objectUrl;
+                  setCoverImageUrl(objectUrl);
+                  coverResolutionGeneration.current += 1;
+                  clearCoverRetry();
+                  setCoverRecovery(null);
+                  dispatchSession({ type: "setCoverRemoved", removed: false });
+                  form.setValue("image", file, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                  });
+                  dispatchSession({
+                    type: "setMedia",
+                    media: { ...sessionState.media, coverSelected: true },
+                  });
+                })()
+              }
+              onRemoveCover={() => {
+                selectedCoverRef.current = undefined;
+                if (coverObjectUrlRef.current) {
+                  URL.revokeObjectURL(coverObjectUrlRef.current);
+                  coverObjectUrlRef.current = undefined;
+                }
+                setCoverImageUrl(undefined);
+                coverResolutionGeneration.current += 1;
+                clearCoverRetry();
+                setCoverRecovery(null);
+                dispatchSession({ type: "setCoverRemoved", removed: true });
+                form.setValue("image", undefined, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                });
+                setCoverStorageId(undefined);
+              }}
+            />
+            {form.formState.errors.image && (
+              <FieldError errors={[form.formState.errors.image]} />
+            )}
+          </div>
+        }
         title={
           <div
             hidden={reviewing}
@@ -1577,7 +1641,7 @@ function CreateEditor() {
                   <textarea
                     aria-label="Post title"
                     aria-invalid={fieldState.invalid}
-                    className="w-full resize-none overflow-hidden rounded-md border border-transparent bg-transparent px-0 py-2 text-[clamp(2rem,4vw,3rem)] leading-tight font-semibold tracking-tight text-foreground shadow-none outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 aria-invalid:border-destructive"
+                    className="w-full resize-none overflow-hidden rounded-md border border-input bg-transparent ps-2.5 py-2 text-2xl leading-tight font-semibold tracking-tight text-foreground shadow-none outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/60 hover:border-ring/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 aria-invalid:border-destructive"
                     maxLength={100}
                     rows={1}
                     onKeyDown={(event) => {
@@ -1589,7 +1653,7 @@ function CreateEditor() {
                         bodyEditorRef.current?.focus?.();
                       }
                     }}
-                    placeholder="Post title"
+                    placeholder="Give your post a title"
                     {...field}
                     ref={(element) => {
                       titleTextareaRef.current = element;
@@ -1705,60 +1769,10 @@ function CreateEditor() {
           <FieldGroup className="gap-y-4">
             <MediaAuthoring
               inlineImages={inlineMedia}
-              cover={coverMedia}
-              coverInputAriaLabel="Image (optional)"
-              coverRecovery={coverRecovery}
-              onChooseCover={(file) =>
-                (() => {
-                  selectedCoverRef.current = file;
-                  if (coverObjectUrlRef.current) {
-                    URL.revokeObjectURL(coverObjectUrlRef.current);
-                  }
-                  const objectUrl = URL.createObjectURL(file);
-                  coverObjectUrlRef.current = objectUrl;
-                  setCoverImageUrl(objectUrl);
-                  coverResolutionGeneration.current += 1;
-                  clearCoverRetry();
-                  setCoverRecovery(null);
-                  dispatchSession({ type: "setCoverRemoved", removed: false });
-                  form.setValue("image", file, {
-                    shouldDirty: true,
-                    shouldTouch: true,
-                  });
-                  dispatchSession({
-                    type: "setMedia",
-                    media: { ...sessionState.media, coverSelected: true },
-                  });
-                })()
-              }
-              onRemoveCover={() => {
-                selectedCoverRef.current = undefined;
-                if (coverObjectUrlRef.current) {
-                  URL.revokeObjectURL(coverObjectUrlRef.current);
-                  coverObjectUrlRef.current = undefined;
-                }
-                setCoverImageUrl(undefined);
-                coverResolutionGeneration.current += 1;
-                clearCoverRetry();
-                setCoverRecovery(null);
-                dispatchSession({ type: "setCoverRemoved", removed: true });
-                form.setValue("image", undefined, {
-                  shouldDirty: true,
-                  shouldTouch: true,
-                });
-                setCoverStorageId(undefined);
-              }}
               onReplaceMedia={replaceInlineMedia}
               onRemoveInline={removeInlineMedia}
-              coverNote={
-                editorMode.mode === "published-edit"
-                  ? "Uploads when you update"
-                  : "Uploads when you save or publish"
-              }
             />
-            {form.formState.errors.image && (
-              <FieldError errors={[form.formState.errors.image]} />
-            )}
+            <Separator />
             <Controller
               name="tags"
               control={form.control}

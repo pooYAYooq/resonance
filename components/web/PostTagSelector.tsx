@@ -1,5 +1,6 @@
 "use client";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { MAX_POST_TAGS, POST_TAGS } from "@/lib/constants/post-tags";
 import { useState } from "react";
 
@@ -32,22 +33,23 @@ export function PostTagSelector({ value, onChange }: PostTagSelectorProps) {
 
   return (
     <fieldset>
-      <legend className="text-sm font-medium">Tags (optional)</legend>
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <legend className="text-base font-medium">
+        Tags (up to {MAX_POST_TAGS})
+      </legend>
+      <div className="mt-1 grid grid-cols-2 gap-1 sm:grid-cols-3">
         {POST_TAGS.map((tag) => (
-          <label key={tag} className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <label
+            key={tag}
+            className="flex cursor-pointer select-none items-center gap-2 rounded-md border border-transparent px-2.5 py-1.5 text-base transition-colors hover:bg-accent has-data-[state=checked]:border-border has-data-[state=checked]:bg-muted"
+          >
+            <Checkbox
               checked={value.includes(tag)}
-              onChange={(event) => handleChange(tag, event.target.checked)}
+              onCheckedChange={(checked) => handleChange(tag, checked === true)}
             />
             {tag}
           </label>
         ))}
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Select up to {MAX_POST_TAGS} tags.
-      </p>
       {limitMessage && (
         <p role="alert" className="mt-1 text-sm text-destructive">
           Choose up to 5 tags.

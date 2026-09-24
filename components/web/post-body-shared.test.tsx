@@ -8,10 +8,10 @@ import {
 
 describe("post body shared helpers", () => {
   it("rejects fractional heading levels and uses the default size", () => {
-    expect(getHeadingClassName(2.5)).toContain("text-3xl");
-    expect(getHeadingClassName(2)).toContain("text-3xl");
-    expect(getHeadingClassName(6)).toContain("text-base");
-    expect(getHeadingClassName(7)).toContain("text-3xl");
+    expect(getHeadingClassName(2.5)).toContain("text-h2");
+    expect(getHeadingClassName(2)).toContain("text-h2");
+    expect(getHeadingClassName(6)).toContain("text-h6");
+    expect(getHeadingClassName(7)).toContain("text-h2");
   });
 
   it("normalizes heading tags and rejects invalid levels", () => {
