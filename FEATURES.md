@@ -64,8 +64,7 @@
 
 - Full-page Create and Edit inside the workspace shell, backed by the standard
   BlockNote editor with native menus, remote embeds, code language selection,
-  Shiki highlighting, and persistent visible Undo/Redo controls; published-edit
-  code highlighting is still open (V1-02)
+  Shiki highlighting, and persistent visible Undo/Redo controls
 - Canonical `blocknote@1` bodies with H1 reserved for the post title and H2 to
   H6 body headings; the reader renders the same contract without injected HTML
 - Silent local recovery for unsaved new posts and drafts, loaded back during
