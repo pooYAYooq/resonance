@@ -75,6 +75,11 @@ const emptyDocument: BlockNoteDocument = {
 // Matches the server's per-query batch cap in `getOwnedMediaUrls`.
 const RESOLVE_MEDIA_BATCH = 100;
 
+/** Titles are single line: pasted line breaks collapse to spaces. */
+function normalizeTitle(value: string) {
+  return value.replace(/\s*[\r\n]+\s*/g, " ");
+}
+
 type PostFormInput = z.input<typeof draftPostSchema>;
 type PostFormOutput = z.output<typeof draftPostSchema>;
 type SubmitMode = "draft" | "publish";
@@ -1673,6 +1678,9 @@ function CreateEditor() {
                     }}
                     placeholder="Give your post a title"
                     {...field}
+                    onChange={(event) =>
+                      field.onChange(normalizeTitle(event.target.value))
+                    }
                     ref={(element) => {
                       titleTextareaRef.current = element;
                       field.ref(element);

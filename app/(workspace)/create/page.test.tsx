@@ -1509,6 +1509,18 @@ describe("CreateRoute", () => {
     expect(publishPostMock).not.toHaveBeenCalled();
   });
 
+  it("keeps line breaks pasted into the title on a single line", () => {
+    render(<CreateRoute />);
+
+    fireEvent.change(screen.getByPlaceholderText("Give your post a title"), {
+      target: { value: "First\nSecond" },
+    });
+
+    expect(screen.getByPlaceholderText("Give your post a title")).toHaveValue(
+      "First Second",
+    );
+  });
+
   it("keeps the editor mounted when publish validation fails", async () => {
     const user = userEvent.setup();
 

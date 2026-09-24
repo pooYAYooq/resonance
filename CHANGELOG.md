@@ -78,6 +78,9 @@ work is tracked in `ROADMAP.md`.
   move focus to the body editor on Enter.
 - Editor headings no longer inherit BlockNote's 3em default H2; H2-H6 render at
   an editing scale that keeps the post title the largest text in the editor.
+- Pasting a line break into the post title could produce a visually blank
+  published heading; line breaks now collapse to spaces and whitespace-only
+  titles are rejected.
 
 > Earlier phases between 0.1.0 and this entry are recorded in the git history;
 > this changelog resumes at the standard-BlockNote authoring and Review
