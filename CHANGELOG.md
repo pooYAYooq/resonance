@@ -38,6 +38,16 @@ work is tracked in `ROADMAP.md`.
 
 - Adopted the installed standard BlockNote editor; the curated interaction
   contract was retired in favour of the full default authoring experience.
+- The authoring studio header condenses the mode, a short intent line, and the
+  primary Review action into one block.
+- Create is a UX surface: the editor keeps a compact title field and an editing
+  heading scale, while the published modular type scale belongs to Review and
+  the reader.
+- The create studio places the cover above the title with a dropzone and 3:2
+  preview, frames the canvas in a full-height document card on a muted desk, and
+  moves Post details into a bordered row with an end-of-page marker.
+- Tag selection uses the shadcn Checkbox in selectable rows with non-selectable
+  labels, capped at five tags.
 - Published edits stay page-local and clear stale local recovery snapshots
   instead of writing new ones.
 
@@ -63,6 +73,14 @@ work is tracked in `ROADMAP.md`.
   resets history only when the live body still matches the submission.
 - The overlapping BlockNote tooltip arrow is hidden in both themes.
 - Review cover images use the reviewed title as alt text.
+- Post titles in the authoring editor wrap instead of scrolling, cap at 100
+  characters, show a clear input affordance with hover and focus states, and
+  move focus to the body editor on Enter.
+- Editor headings no longer inherit BlockNote's 3em default H2; H2-H6 render at
+  an editing scale that keeps the post title the largest text in the editor.
+- Pasting a line break into the post title could produce a visually blank
+  published heading; line breaks now collapse to spaces and whitespace-only
+  titles are rejected.
 
 > Earlier phases between 0.1.0 and this entry are recorded in the git history;
 > this changelog resumes at the standard-BlockNote authoring and Review

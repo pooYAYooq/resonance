@@ -38,7 +38,7 @@ const blockNoteDocumentSchema = z.custom<BlockNoteDocument>(
 );
 
 export const draftPostSchema = z.object({
-  title: z.string().max(100),
+  title: z.string().trim().max(100),
   content: blockNoteDocumentSchema,
   tags: postTagsSchema,
   image: z
@@ -54,7 +54,7 @@ export const draftPostSchema = z.object({
 });
 
 export const publishPostSchema = draftPostSchema.extend({
-  title: z.string().min(1).max(100),
+  title: z.string().trim().min(1).max(100),
   content: blockNoteDocumentSchema.refine(
     (document) =>
       getCodePointCount(getCanonicalBodyText(document.blocks)) >=

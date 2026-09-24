@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument, PostBlock } from "@/lib/post-content";
 import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
@@ -18,7 +18,7 @@ import { clearDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
 import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useConvex, useMutation, useQuery } from "convex/react";
-import { Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -38,6 +38,7 @@ import {
   coverRetryDelayMs,
   type CoverLookup,
 } from "./_components/coverResolution";
+import CoverAuthoring from "./_components/CoverAuthoring";
 import DocumentStudio from "./_components/DocumentStudio";
 import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
 import {
@@ -59,6 +60,7 @@ import {
   useWritingSession,
   type WritingSessionTarget,
 } from "./_components/useWritingSession";
+import type { PostBodyEditorHandle } from "./_components/PostBodyEditor";
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
   ssr: false,
@@ -72,6 +74,11 @@ const emptyDocument: BlockNoteDocument = {
 
 // Matches the server's per-query batch cap in `getOwnedMediaUrls`.
 const RESOLVE_MEDIA_BATCH = 100;
+
+/** Titles are single line: pasted line breaks collapse to spaces. */
+function normalizeTitle(value: string) {
+  return value.replace(/\s*[\r\n]+\s*/g, " ");
+}
 
 type PostFormInput = z.input<typeof draftPostSchema>;
 type PostFormOutput = z.output<typeof draftPostSchema>;
@@ -476,6 +483,29 @@ function CreateEditor() {
   );
   const hydratedSessionKey = useRef<string | undefined>(undefined);
   const activeSessionKeyRef = useRef<string | undefined>(undefined);
+  const bodyEditorRef = useRef<PostBodyEditorHandle>(null);
+  const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  // The title wraps instead of scrolling: keep the textarea height in sync
+  // with its content, including when returning from the hidden Review view and
+  // when a viewport change rewraps the text at a new width.
+  useEffect(() => {
+    const element = titleTextareaRef.current;
+    if (!element) return;
+    const resize = () => {
+      if (element.offsetParent === null) return;
+      element.style.height = "auto";
+      element.style.height = `${element.scrollHeight}px`;
+    };
+    resize();
+    let lastWidth = element.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (element.clientWidth === lastWidth) return;
+      lastWidth = element.clientWidth;
+      resize();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [watchedValues.title, sessionState.presentation]);
   const claimRecoveredMedia = useCallback(
     (urls: Record<string, string | null>) => {
       const sessionId = activeSessionKeyRef.current ?? "new:new";
@@ -1530,6 +1560,7 @@ function CreateEditor() {
 
   return (
     <form
+      className="flex flex-1 flex-col"
       onSubmit={(event) => {
         event.preventDefault();
       }}
@@ -1543,13 +1574,76 @@ function CreateEditor() {
           reviewing
             ? undefined
             : editorMode.mode === "published-edit"
-              ? "Edit Published Post"
-              : "New Post"
+              ? "Edit post"
+              : "New post"
         }
         description={
           reviewing
-            ? undefined
-            : "Give your ideas a home. Draft a deep dive, share a quick update, or capture a fleeting thought to share with your community."
+            ? "One last look before your readers see it."
+            : editorMode.mode === "published-edit"
+              ? "Review your changes before updating your post."
+              : "Make it yours. Review it before publishing."
+        }
+        cover={
+          <div
+            hidden={reviewing}
+            inert={reviewing ? true : undefined}
+            aria-hidden={reviewing || undefined}
+          >
+            <CoverAuthoring
+              cover={coverMedia}
+              coverInputAriaLabel="Image (optional)"
+              coverRecovery={coverRecovery}
+              coverNote={
+                editorMode.mode === "published-edit"
+                  ? "Uploads when you update"
+                  : "Uploads when you save or publish"
+              }
+              onChooseCover={(file) =>
+                (() => {
+                  selectedCoverRef.current = file;
+                  if (coverObjectUrlRef.current) {
+                    URL.revokeObjectURL(coverObjectUrlRef.current);
+                  }
+                  const objectUrl = URL.createObjectURL(file);
+                  coverObjectUrlRef.current = objectUrl;
+                  setCoverImageUrl(objectUrl);
+                  coverResolutionGeneration.current += 1;
+                  clearCoverRetry();
+                  setCoverRecovery(null);
+                  dispatchSession({ type: "setCoverRemoved", removed: false });
+                  form.setValue("image", file, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                  });
+                  dispatchSession({
+                    type: "setMedia",
+                    media: { ...sessionState.media, coverSelected: true },
+                  });
+                })()
+              }
+              onRemoveCover={() => {
+                selectedCoverRef.current = undefined;
+                if (coverObjectUrlRef.current) {
+                  URL.revokeObjectURL(coverObjectUrlRef.current);
+                  coverObjectUrlRef.current = undefined;
+                }
+                setCoverImageUrl(undefined);
+                coverResolutionGeneration.current += 1;
+                clearCoverRetry();
+                setCoverRecovery(null);
+                dispatchSession({ type: "setCoverRemoved", removed: true });
+                form.setValue("image", undefined, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                });
+                setCoverStorageId(undefined);
+              }}
+            />
+            {form.formState.errors.image && (
+              <FieldError errors={[form.formState.errors.image]} />
+            )}
+          </div>
         }
         title={
           <div
@@ -1562,12 +1656,35 @@ function CreateEditor() {
               control={form.control}
               render={({ field, fieldState }) => (
                 <div className="space-y-2">
-                  <Input
-                    aria-label="Blog title"
+                  <textarea
+                    aria-label="Post title"
                     aria-invalid={fieldState.invalid}
-                    className="h-auto border-0 bg-transparent px-0 py-2 text-4xl font-semibold tracking-tight shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0 sm:text-5xl"
-                    placeholder="Give your thought a name"
+                    className="w-full resize-none overflow-hidden rounded-md border border-input bg-transparent ps-2.5 py-2 text-2xl leading-tight font-semibold tracking-tight text-foreground shadow-none outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/60 hover:border-ring/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 aria-invalid:border-destructive"
+                    maxLength={100}
+                    rows={1}
+                    onKeyDown={(event) => {
+                      // Enter during IME composition confirms the candidate
+                      // list; only a real Enter moves focus to the body.
+                      if (
+                        event.key === "Enter" &&
+                        !event.nativeEvent.isComposing
+                      ) {
+                        event.preventDefault();
+                        // Moving focus is an enhancement. The dynamic import
+                        // wrapper can hold a non-handle outside a real browser,
+                        // so Enter must never throw.
+                        bodyEditorRef.current?.focus?.();
+                      }
+                    }}
+                    placeholder="Give your post a title"
                     {...field}
+                    onChange={(event) =>
+                      field.onChange(normalizeTitle(event.target.value))
+                    }
+                    ref={(element) => {
+                      titleTextareaRef.current = element;
+                      field.ref(element);
+                    }}
                   />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -1593,6 +1710,7 @@ function CreateEditor() {
                       Blog content
                     </span>
                     <PostBodyEditor
+                      ref={bodyEditorRef}
                       historyResetKey={historyResetKey}
                       key={`${editorMode.mode}:${editorMode.id ?? "new"}:${recoveryNonce}`}
                       onChange={field.onChange}
@@ -1677,60 +1795,10 @@ function CreateEditor() {
           <FieldGroup className="gap-y-4">
             <MediaAuthoring
               inlineImages={inlineMedia}
-              cover={coverMedia}
-              coverInputAriaLabel="Image (optional)"
-              coverRecovery={coverRecovery}
-              onChooseCover={(file) =>
-                (() => {
-                  selectedCoverRef.current = file;
-                  if (coverObjectUrlRef.current) {
-                    URL.revokeObjectURL(coverObjectUrlRef.current);
-                  }
-                  const objectUrl = URL.createObjectURL(file);
-                  coverObjectUrlRef.current = objectUrl;
-                  setCoverImageUrl(objectUrl);
-                  coverResolutionGeneration.current += 1;
-                  clearCoverRetry();
-                  setCoverRecovery(null);
-                  dispatchSession({ type: "setCoverRemoved", removed: false });
-                  form.setValue("image", file, {
-                    shouldDirty: true,
-                    shouldTouch: true,
-                  });
-                  dispatchSession({
-                    type: "setMedia",
-                    media: { ...sessionState.media, coverSelected: true },
-                  });
-                })()
-              }
-              onRemoveCover={() => {
-                selectedCoverRef.current = undefined;
-                if (coverObjectUrlRef.current) {
-                  URL.revokeObjectURL(coverObjectUrlRef.current);
-                  coverObjectUrlRef.current = undefined;
-                }
-                setCoverImageUrl(undefined);
-                coverResolutionGeneration.current += 1;
-                clearCoverRetry();
-                setCoverRecovery(null);
-                dispatchSession({ type: "setCoverRemoved", removed: true });
-                form.setValue("image", undefined, {
-                  shouldDirty: true,
-                  shouldTouch: true,
-                });
-                setCoverStorageId(undefined);
-              }}
               onReplaceMedia={replaceInlineMedia}
               onRemoveInline={removeInlineMedia}
-              coverNote={
-                editorMode.mode === "published-edit"
-                  ? "Uploads when you update"
-                  : "Uploads when you save or publish"
-              }
             />
-            {form.formState.errors.image && (
-              <FieldError errors={[form.formState.errors.image]} />
-            )}
+            <Separator />
             <Controller
               name="tags"
               control={form.control}
@@ -1790,21 +1858,23 @@ function CreateEditor() {
               {capabilities.canPublish && (
                 <Button
                   type="button"
-                  variant="outline"
+                  className="bg-foreground text-background hover:bg-foreground/80"
                   disabled={isPending || Boolean(sessionState.pendingTarget)}
                   onClick={enterReview}
                 >
                   Review for publication
+                  <ArrowRight aria-hidden="true" data-icon="inline-end" />
                 </Button>
               )}
               {capabilities.canUpdate && (
                 <Button
                   type="button"
-                  variant="outline"
+                  className="bg-foreground text-background hover:bg-foreground/80"
                   disabled={isPending || Boolean(sessionState.pendingTarget)}
                   onClick={enterReview}
                 >
                   Review Update
+                  <ArrowRight aria-hidden="true" data-icon="inline-end" />
                 </Button>
               )}
             </>

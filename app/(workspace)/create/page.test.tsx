@@ -514,7 +514,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(
@@ -540,7 +540,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(
@@ -1204,7 +1204,7 @@ describe("CreateRoute", () => {
     });
     const view = render(<CreateRoute />);
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Covered draft",
     );
     await user.upload(
@@ -1266,7 +1266,7 @@ describe("CreateRoute", () => {
     });
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Covered draft",
     );
     await user.upload(imageInput, firstCover);
@@ -1431,7 +1431,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Unfinished thought",
     );
     await user.click(screen.getByRole("button", { name: "Save Draft" }));
@@ -1469,7 +1469,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Two saves",
     );
 
@@ -1477,8 +1477,14 @@ describe("CreateRoute", () => {
     await user.click(saveButton);
     await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
 
+    // The button is disabled while the first save is in flight. Wait for it to
+    // settle so the second click starts a real consecutive save.
+    await waitFor(() => expect(saveButton).toBeEnabled());
+
     await user.click(saveButton);
-    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(2), {
+      timeout: 3_000,
+    });
 
     expect(reserveAttemptMock).toHaveBeenNthCalledWith(
       2,
@@ -1495,12 +1501,24 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Draft{Enter}",
     );
 
     expect(saveDraftMock).not.toHaveBeenCalled();
     expect(publishPostMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps line breaks pasted into the title on a single line", () => {
+    render(<CreateRoute />);
+
+    fireEvent.change(screen.getByPlaceholderText("Give your post a title"), {
+      target: { value: "First\nSecond" },
+    });
+
+    expect(screen.getByPlaceholderText("Give your post a title")).toHaveValue(
+      "First Second",
+    );
   });
 
   it("keeps the editor mounted when publish validation fails", async () => {
@@ -1509,7 +1527,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "A titled post",
     );
     await user.click(
@@ -1537,7 +1555,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "My Post",
     );
     await user.click(
@@ -1570,7 +1588,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "My Post",
     );
     await user.click(
@@ -1618,7 +1636,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "My Post",
     );
     await user.click(
@@ -1646,7 +1664,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "My Post",
     );
     await user.click(
@@ -1740,7 +1758,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "My Post",
     );
     await user.click(
@@ -1770,7 +1788,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "My Post",
     );
     await user.click(
@@ -1813,7 +1831,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "My Post",
     );
     await user.click(
@@ -1851,7 +1869,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "My Post",
     );
     await user.upload(
@@ -1893,7 +1911,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(
@@ -1915,7 +1933,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewed title",
     );
     await user.click(
@@ -1929,7 +1947,7 @@ describe("CreateRoute", () => {
     await enterReview(user);
     await screen.findByTestId("review-surface");
 
-    fireEvent.change(screen.getByLabelText("Blog title"), {
+    fireEvent.change(screen.getByLabelText("Post title"), {
       target: { value: "Drifted title" },
     });
     fireEvent.click(shortContentButton);
@@ -1961,7 +1979,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(
@@ -1995,7 +2013,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(
@@ -2018,7 +2036,11 @@ describe("CreateRoute", () => {
       "https://upload.url",
       expect.objectContaining({ body: cover }),
     );
-    await waitFor(() => expect(screen.queryByText("Selected")).toBeNull());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Replace cover" }),
+      ).toBeNull(),
+    );
   });
 
   it("clears a selected cover when Remove cover is clicked", async () => {
@@ -2027,25 +2049,25 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
     await user.upload(screen.getByLabelText("Image (optional)"), cover);
-    expect(screen.getByText("Selected")).toBeVisible();
+    expect(screen.getByText("cover.png")).toBeVisible();
+    expect(screen.getByText("Uploads when you save or publish")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Remove cover" }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText(
-          "No cover selected. Your post will show without a cover image.",
-        ),
-      ).toBeVisible(),
+      expect(screen.getByText("No cover selected")).toBeVisible(),
     );
-    expect(screen.queryByText("Selected")).toBeNull();
+    expect(
+      screen.getByText("Your post will show without a cover image."),
+    ).toBeVisible();
+    expect(screen.queryByText("cover.png")).toBeNull();
     expect(screen.queryByRole("button", { name: "Replace cover" })).toBeNull();
 
     await enterReview(user);
@@ -2067,7 +2089,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(
@@ -2149,7 +2171,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(
@@ -2178,7 +2200,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(
@@ -2350,10 +2372,9 @@ describe("CreateRoute", () => {
 
     await user.click(screen.getByRole("button", { name: "Remove cover" }));
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(screen.getByText("No cover selected")).toBeVisible();
     expect(
-      screen.getByText(
-        "No cover selected. Your post will show without a cover image.",
-      ),
+      screen.getByText("Your post will show without a cover image."),
     ).toBeVisible();
 
     await enterReview(user);
@@ -2560,10 +2581,9 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
     await screen.findByDisplayValue("Recovered title");
     await user.click(screen.getByRole("button", { name: "Remove cover" }));
+    expect(await screen.findByText("No cover selected")).toBeVisible();
     expect(
-      await screen.findByText(
-        "No cover selected. Your post will show without a cover image.",
-      ),
+      screen.getByText("Your post will show without a cover image."),
     ).toBeVisible();
 
     resolveCover([
@@ -2571,10 +2591,9 @@ describe("CreateRoute", () => {
     ]);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    expect(screen.getByText("No cover selected")).toBeVisible();
     expect(
-      screen.getByText(
-        "No cover selected. Your post will show without a cover image.",
-      ),
+      screen.getByText("Your post will show without a cover image."),
     ).toBeVisible();
     expect(screen.queryByTestId("default-cover")).toBeNull();
 
@@ -2680,7 +2699,7 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
 
     await user.type(
-      screen.getByPlaceholderText("Give your thought a name"),
+      screen.getByPlaceholderText("Give your post a title"),
       "Reviewable",
     );
     await user.click(

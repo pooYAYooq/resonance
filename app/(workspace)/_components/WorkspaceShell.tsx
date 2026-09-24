@@ -21,7 +21,11 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="flex justify-center py-12" role="status" aria-label="Loading workspace">
+      <div
+        className="flex justify-center py-12"
+        role="status"
+        aria-label="Loading workspace"
+      >
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -35,7 +39,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           <WorkspaceMobileDrawer />
           <span className="ml-2 text-lg font-extrabold">RESONANCE</span>
         </header>
-        <main className="flex-1">{children}</main>
+        <main className="flex flex-1 flex-col">{children}</main>
       </div>
     </div>
   );

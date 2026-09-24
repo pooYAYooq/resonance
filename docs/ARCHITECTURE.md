@@ -51,8 +51,10 @@ resonance/
 │   │   │       │                        # Never imported by server bundles.
 │   │   │       ├── AuthoringSideMenu.tsx # Drag-safe block side menu (custom)
 │   │   │       ├── BlockHandleMenu.tsx   # Click-opened handle menu; kept off the client entry
-│   │   │       ├── MediaAuthoring.tsx    # Details-level media status, thumbnails or
-│   │   │       │                         # glyphs, replace/remove recovery, and cover
+│   │   │       ├── CoverAuthoring.tsx    # Cover dropzone and 3:2 preview above the title,
+│   │   │       │                         # with replace/remove and recovery states
+│   │   │       ├── MediaAuthoring.tsx    # Details-level inline media status, thumbnails
+│   │   │       │                         # or glyphs, and replace/remove recovery
 │   │   │       ├── ReviewSurface.tsx     # Frozen read-only preview; header owns Back and Publish/Update
 │   │   │       ├── reviewReadiness.ts    # Blocks Review while inline media or a recovered cover is unresolved
 │   │   │       ├── reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders
@@ -223,7 +225,7 @@ resonance/
 │       ├── HighlightedCodeClient.tsx # Client Shiki highlighting for the Review preview.
 │       ├── post-body-shared.tsx # Pure inline/alignment/media helpers shared by both renderers.
 │       ├── TagPill.tsx          # Shared linked tag pill.
-│       ├── PostTagSelector.tsx  # Controlled checkbox group, capped at five selections.
+│       ├── PostTagSelector.tsx  # Controlled tag grid capped at five selections, shadcn Checkbox rows.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
 │       ├── SectionHeading.tsx   # Heading with optional count + right-side action slot
 │       ├── ProfileHeader.tsx    # Reusable profile hero (avatar, name, bio, action,
@@ -559,8 +561,10 @@ in-flight write, a pending target switch, or a media blocker. A media failure
 while Review is open shows the blocker alert and disables publishing. The
 editor stays mounted but `hidden`/`inert` so its instance, history, and
 selection survive; Publish/Update reuse the existing attempt and save paths.
-`MediaAuthoring.tsx` reports media status, renders image thumbnails or
-audio/video glyphs, and offers replace or remove recovery plus cover selection.
+`MediaAuthoring.tsx` reports inline media status, renders image thumbnails or
+audio/video glyphs, and offers replace or remove recovery. `CoverAuthoring.tsx`
+owns the cover dropzone, its 3:2 preview, and the cover recovery states above
+the title.
 
 - **`lib/blocknote-contract.ts`** defines the finite `blocknote@1` projection
   for BlockNote's default text, list, checklist, toggle, code, divider, table,

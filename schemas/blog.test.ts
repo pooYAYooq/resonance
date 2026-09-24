@@ -82,6 +82,32 @@ describe("blog form schemas", () => {
     ).toBe(true);
   });
 
+  it("trims titles and rejects whitespace-only published titles", () => {
+    const draft = draftPostSchema.safeParse({
+      title: "  Draft title  ",
+      content: emptyDocument,
+      tags: [],
+    });
+    expect(draft.success).toBe(true);
+    if (draft.success) expect(draft.data.title).toBe("Draft title");
+
+    expect(
+      publishPostSchema.safeParse({
+        title: "   ",
+        content: bodyWithText("Long enough body text"),
+        tags: [],
+      }).success,
+    ).toBe(false);
+
+    const published = publishPostSchema.safeParse({
+      title: "  Published title  ",
+      content: bodyWithText("Long enough body text"),
+      tags: [],
+    });
+    expect(published.success).toBe(true);
+    if (published.success) expect(published.data.title).toBe("Published title");
+  });
+
   it("rejects image metadata beyond the shared capacity limit", () => {
     expect(
       draftPostSchema.safeParse({

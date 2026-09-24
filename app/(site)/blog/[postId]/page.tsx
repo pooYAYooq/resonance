@@ -126,7 +126,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
         />
       </div>
       <div>
-        <h1 className="text-4xl font-bold mt-8 tracking-tight text-foreground">
+        <h1 className="text-h1 font-bold mt-8 tracking-tight text-foreground">
           {post.title}
         </h1>
         <p className="text-muted-foreground mt-4 text-sm">
