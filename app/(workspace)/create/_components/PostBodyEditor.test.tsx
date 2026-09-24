@@ -239,6 +239,61 @@ describe("PostBodyEditor configuration", () => {
     }
   });
 
+  it("highlights a code block hydrated from initial content", async () => {
+    const editor = BlockNoteEditor.create({
+      schema: editorSchema,
+      initialContent: [
+        {
+          type: "codeBlock",
+          props: { language: "typescript" },
+          content: "const answer = 42;",
+        },
+      ],
+    });
+    const container = document.createElement("div");
+    editor.mount(container);
+
+    try {
+      await waitFor(
+        () =>
+          expect(
+            container.querySelectorAll('[data-content-type="codeBlock"] .shiki')
+              .length,
+          ).toBeGreaterThan(0),
+        { timeout: 5_000 },
+      );
+    } finally {
+      editor.unmount();
+    }
+  });
+
+  it("highlights a code block replaced into the document", async () => {
+    const editor = BlockNoteEditor.create({ schema: editorSchema });
+    const container = document.createElement("div");
+    editor.mount(container);
+
+    try {
+      editor.replaceBlocks(editor.document, [
+        {
+          type: "codeBlock",
+          props: { language: "typescript" },
+          content: "const answer = 42;",
+        },
+      ]);
+
+      await waitFor(
+        () =>
+          expect(
+            container.querySelectorAll('[data-content-type="codeBlock"] .shiki')
+              .length,
+          ).toBeGreaterThan(0),
+        { timeout: 5_000 },
+      );
+    } finally {
+      editor.unmount();
+    }
+  });
+
   it("normalizes unknown code languages to the canonical fallback", () => {
     expect(
       normalizeBlock({
