@@ -134,7 +134,7 @@ export function HistoryControls({ resetKey = 0 }: { resetKey?: number }) {
 
   return (
     <div
-      className="mb-2 flex items-center gap-1 ps-[53px]"
+      className="mb-2 flex items-center gap-1 ps-[15px] sm:ps-[53px]"
       role="toolbar"
       aria-label="Editor history"
     >
