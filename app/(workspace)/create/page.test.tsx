@@ -64,6 +64,7 @@ const shortEnvelope: BlockNoteDocument = {
 
 type MockPostBodyEditorProps = {
   onChange: (value: BlockNoteDocument) => void;
+  onPasteNotice?: (message: string) => void;
   onUploadSessionCreated?: (
     sessionId: string,
     storageId: string,
@@ -76,6 +77,7 @@ type MockPostBodyEditorProps = {
 vi.mock("./_components/PostBodyEditor", () => ({
   default: ({
     onChange,
+    onPasteNotice,
     onUploadSessionCreated,
     initialContent,
     resolvedImageUrls,
@@ -131,6 +133,17 @@ vi.mock("./_components/PostBodyEditor", () => ({
         onClick={() => onChange(shortEnvelope)}
       >
         Set short content
+      </button>
+      <button
+        type="button"
+        aria-label="Report paste notice"
+        onClick={() =>
+          onPasteNotice?.(
+            "Removed a media item from the pasted content because its source is not supported.",
+          )
+        }
+      >
+        Report paste notice
       </button>
     </>
   ),
@@ -1518,6 +1531,19 @@ describe("CreateRoute", () => {
 
     expect(screen.getByPlaceholderText("Give your post a title")).toHaveValue(
       "First Second",
+    );
+  });
+
+  it("shows pasted-content notices immediately", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Report paste notice" }),
+    );
+
+    expect(toastMock).toHaveBeenCalledWith(
+      "Removed a media item from the pasted content because its source is not supported.",
     );
   });
 

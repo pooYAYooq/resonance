@@ -27,6 +27,8 @@ const { editor, replaceBlocks, setDocument, viewProps } = vi.hoisted(() => {
       undo: vi.fn(),
       redo: vi.fn(),
       onChange: () => () => {},
+      onUploadStart: () => () => {},
+      onUploadEnd: () => () => {},
     },
     replaceBlocks,
     setDocument: (next: unknown[]) => (document = [...next]),

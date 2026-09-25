@@ -2,6 +2,7 @@ import z from "zod";
 import { POST_TAGS } from "@/lib/constants/post-tags";
 import {
   MIN_POST_TEXT_LENGTH,
+  getBlockNoteDocumentValidationMessage,
   getCanonicalBodyText,
   getCodePointCount,
   isValidBlockNoteDoc,
@@ -34,7 +35,24 @@ const blockNoteDocumentSchema = z.custom<BlockNoteDocument>(
     const document = value as BlockNoteDocument;
     return isValidBlockNoteDoc(document.blocks);
   },
-  "Content must be a valid BlockNote document within the supported capacity limits.",
+  {
+    error: (issue) => {
+      const value = issue.input;
+      const hasEnvelope =
+        typeof value === "object" &&
+        value !== null &&
+        Object.hasOwn(value, "format") &&
+        (value as { format?: unknown }).format === "blocknote@1" &&
+        Object.hasOwn(value, "blocks");
+      if (hasEnvelope) {
+        const message = getBlockNoteDocumentValidationMessage(
+          (value as { blocks?: unknown }).blocks,
+        );
+        if (message) return message;
+      }
+      return "Content must be a valid BlockNote document.";
+    },
+  },
 );
 
 export const draftPostSchema = z.object({

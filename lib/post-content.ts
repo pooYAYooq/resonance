@@ -73,13 +73,37 @@ export function getCompactExcerpt(blocks: PostBlock[]): string {
 }
 
 export function isValidBlockNoteDoc(blocks: unknown): blocks is PostBlock[] {
+  return getBlockNoteDocumentValidationMessage(blocks) === null;
+}
+
+function exceedsBlockLimit(blocks: unknown) {
+  if (!Array.isArray(blocks)) return false;
+  let blockCount = 0;
+  const pending = [...blocks];
+  while (pending.length) {
+    const block = pending.pop();
+    if (typeof block !== "object" || block === null || Array.isArray(block)) {
+      continue;
+    }
+    blockCount += 1;
+    if (blockCount > MAX_POST_BLOCKS) return true;
+    const children = (block as { children?: unknown }).children;
+    if (Array.isArray(children)) pending.push(...children);
+  }
+  return false;
+}
+
+export function getBlockNoteDocumentValidationMessage(blocks: unknown) {
+  if (exceedsBlockLimit(blocks)) return "Content contains too many blocks.";
   const document = normalizeBlockNoteDocument({
     format: BLOCKNOTE_FORMAT,
     blocks,
   });
-  return (
-    document !== null && validatePostCapacity(document as BlockNoteDocument).ok
-  );
+  if (!document) {
+    return "Pasted content contains formatting or media that Resonance cannot save. Try pasting as plain text.";
+  }
+  const capacity = validatePostCapacity(document as BlockNoteDocument);
+  return capacity.ok ? null : capacity.error.message;
 }
 
 /**

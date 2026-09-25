@@ -65,6 +65,10 @@
 - Full-page Create and Edit inside the workspace shell, backed by the standard
   BlockNote editor with native menus, remote embeds, code language selection,
   Shiki highlighting, and persistent visible Undo/Redo controls
+- Pasted web content is repaired at paste time: copied CSS colors and alignments
+  normalize to supported values, media items whose source cannot be stored are
+  removed with a notice naming how many were dropped, and an over-capacity
+  paste reports the exact limit it crossed
 - Canonical `blocknote@1` bodies with H1 reserved for the post title and H2 to
   H6 body headings; the reader renders the same contract without injected HTML
 - Silent local recovery for unsaved new posts and drafts, loaded back during

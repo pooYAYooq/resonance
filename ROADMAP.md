@@ -42,7 +42,7 @@ Source: Track 1 UI and UX audit, recorded in `docs/status.md` at commit
 | V1-02 | Published-edit code highlighting                            | Done                   | M        |
 | V1-03 | Editor and Review width and spacing consistency             | Pending design session | M        |
 | V1-04 | Tag checkbox grid styling                                   | Done                   | S        |
-| V1-05 | Paste hardening for rejected pasted content                 | Todo                   | S        |
+| V1-05 | Paste hardening for rejected pasted content                 | Done                   | S        |
 | V1-06 | Track 1 closure documentation and author browser acceptance | Todo                   | S        |
 
 Track 1 closure (V1-06) depends on every Track 1 audit fix, V1-01 to V1-05

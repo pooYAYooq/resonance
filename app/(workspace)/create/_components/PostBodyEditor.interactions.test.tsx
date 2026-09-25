@@ -22,7 +22,9 @@ vi.mock("next-themes", () => ({
 }));
 
 vi.mock("convex/react", () => ({
-  useMutation: () => vi.fn(),
+  // Upload mutations stay pending so an inline upload never settles in tests
+  // that only observe the pending state.
+  useMutation: () => vi.fn().mockReturnValue(new Promise(() => {})),
 }));
 
 const browserRect = {
@@ -198,6 +200,316 @@ describe("PostBodyEditor standard BlockNote integration", () => {
       expect(editor.querySelector("h4")).toHaveTextContent("Deep heading");
     },
   );
+
+  it("keeps prose with copied webpage styling saveable", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { container } = render(
+      <PostBodyEditor onChange={onChange} onBlur={() => {}} />,
+    );
+    const editor = getEditor(container);
+
+    await user.click(editor);
+    fireEvent.paste(editor, {
+      clipboardData: {
+        types: ["text/html", "text/plain"],
+        files: [],
+        getData: (type: string) =>
+          type === "text/html"
+            ? '<p style="color: rgb(51, 51, 51); text-align: start">Copied prose</p>'
+            : "Copied prose",
+      },
+    });
+
+    await waitFor(() => expect(editor).toHaveTextContent("Copied prose"));
+    const emitted = onChange.mock.lastCall?.[0];
+    expect(
+      draftPostSchema.safeParse({
+        title: "Title",
+        content: emitted,
+        tags: [],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("drops a copied embedded image and explains why", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onPasteNotice = vi.fn();
+    const { container } = render(
+      <PostBodyEditor
+        onChange={onChange}
+        onBlur={() => {}}
+        onPasteNotice={onPasteNotice}
+      />,
+    );
+    const editor = getEditor(container);
+
+    await user.click(editor);
+    fireEvent.paste(editor, {
+      clipboardData: {
+        types: ["text/html", "text/plain"],
+        files: [],
+        getData: (type: string) =>
+          type === "text/html"
+            ? '<p>Copied prose</p><img alt="Copied favicon" src="data:image/png;base64,abc">'
+            : "Copied prose",
+      },
+    });
+
+    await waitFor(() =>
+      expect(onPasteNotice).toHaveBeenCalledWith(
+        "Removed a media item from the pasted content because its source is not supported.",
+      ),
+    );
+    expect(editor).not.toHaveTextContent("Copied favicon");
+    const emitted = onChange.mock.lastCall?.[0];
+    expect(
+      draftPostSchema.safeParse({
+        title: "Title",
+        content: emitted,
+        tags: [],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("reports how many pasted media items were removed", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onPasteNotice = vi.fn();
+    const { container } = render(
+      <PostBodyEditor
+        onChange={onChange}
+        onBlur={() => {}}
+        onPasteNotice={onPasteNotice}
+      />,
+    );
+    const editor = getEditor(container);
+
+    await user.click(editor);
+    fireEvent.paste(editor, {
+      clipboardData: {
+        types: ["text/html", "text/plain"],
+        files: [],
+        getData: (type: string) =>
+          type === "text/html"
+            ? '<p>Copied prose</p><img alt="First" src="data:image/png;base64,abc"><img alt="Second" src="data:image/png;base64,def">'
+            : "Copied prose",
+      },
+    });
+
+    await waitFor(() =>
+      expect(onPasteNotice).toHaveBeenCalledWith(
+        "Removed 2 media items from the pasted content because their sources are not supported.",
+      ),
+    );
+    expect(editor.querySelectorAll('[data-content-type="image"]')).toHaveLength(
+      0,
+    );
+    expect(editor).toHaveTextContent("Copied prose");
+  });
+
+  it("describes removed pasted video as media", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onPasteNotice = vi.fn();
+    const { container } = render(
+      <PostBodyEditor
+        onChange={onChange}
+        onBlur={() => {}}
+        onPasteNotice={onPasteNotice}
+      />,
+    );
+    const editor = getEditor(container);
+
+    await user.click(editor);
+    fireEvent.paste(editor, {
+      clipboardData: {
+        types: ["text/html", "text/plain"],
+        files: [],
+        getData: (type: string) =>
+          type === "text/html"
+            ? '<p>Copied prose</p><video src="data:video/mp4;base64,abc"></video>'
+            : "Copied prose",
+      },
+    });
+
+    await waitFor(() =>
+      expect(onPasteNotice).toHaveBeenCalledWith(
+        "Removed a media item from the pasted content because its source is not supported.",
+      ),
+    );
+    expect(editor.querySelector('[data-content-type="video"]')).toBeNull();
+    expect(editor).toHaveTextContent("Copied prose");
+    const emitted = onChange.mock.lastCall?.[0];
+    expect(
+      draftPostSchema.safeParse({
+        title: "Title",
+        content: emitted,
+        tags: [],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("drops a copied media placeholder without a source and explains why", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onPasteNotice = vi.fn();
+    const { container } = render(
+      <PostBodyEditor
+        onChange={onChange}
+        onBlur={() => {}}
+        onPasteNotice={onPasteNotice}
+      />,
+    );
+    const editor = getEditor(container);
+
+    await user.click(editor);
+    fireEvent.paste(editor, {
+      clipboardData: {
+        types: ["text/html", "text/plain"],
+        files: [],
+        getData: (type: string) =>
+          type === "text/html"
+            ? '<p>Copied prose</p><img alt="Lazy placeholder">'
+            : "Copied prose",
+      },
+    });
+
+    await waitFor(() =>
+      expect(onPasteNotice).toHaveBeenCalledWith(
+        "Removed a media item from the pasted content because its source is not supported.",
+      ),
+    );
+    expect(editor.querySelector('[data-content-type="image"]')).toBeNull();
+    expect(editor).toHaveTextContent("Copied prose");
+    const emitted = onChange.mock.lastCall?.[0];
+    expect(
+      draftPostSchema.safeParse({
+        title: "Title",
+        content: emitted,
+        tags: [],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("keeps a pasted media file while its upload is pending", async () => {
+    const user = userEvent.setup();
+    const onPasteNotice = vi.fn();
+    const { container } = render(
+      <PostBodyEditor
+        onChange={() => {}}
+        onBlur={() => {}}
+        onPasteNotice={onPasteNotice}
+      />,
+    );
+    const editor = getEditor(container);
+    const file = new File([new Uint8Array([1, 2, 3])], "photo.png", {
+      type: "image/png",
+    });
+
+    await user.click(editor);
+    fireEvent.paste(editor, {
+      clipboardData: {
+        types: ["Files"],
+        files: [file],
+        items: [{ getAsFile: () => file, type: "image/png", kind: "file" }],
+        getData: () => "",
+      },
+    });
+
+    await waitFor(() =>
+      expect(
+        editor.querySelector('[data-content-type="image"]'),
+      ).not.toBeNull(),
+    );
+    expect(onPasteNotice).not.toHaveBeenCalled();
+  });
+
+  it("explains when pasted content exceeds the block limit", async () => {
+    const user = userEvent.setup();
+    const onPasteNotice = vi.fn();
+    const { container } = render(
+      <PostBodyEditor
+        onChange={() => {}}
+        onBlur={() => {}}
+        onPasteNotice={onPasteNotice}
+      />,
+    );
+    const editor = getEditor(container);
+    const paragraphs = Array.from(
+      { length: 101 },
+      (_, index) => `<p>Paragraph ${index}</p>`,
+    ).join("");
+
+    await user.click(editor);
+    fireEvent.paste(editor, {
+      clipboardData: {
+        types: ["text/html", "text/plain"],
+        files: [],
+        getData: (type: string) => (type === "text/html" ? paragraphs : ""),
+      },
+    });
+
+    await waitFor(() =>
+      expect(onPasteNotice).toHaveBeenCalledWith(
+        "Content contains too many blocks.",
+      ),
+    );
+    expect(editor).toHaveTextContent("Paragraph 100");
+  });
+
+  it("keeps pasted content saveable after undo and redo", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onPasteNotice = vi.fn();
+    const { container } = render(
+      <PostBodyEditor
+        onChange={onChange}
+        onBlur={() => {}}
+        onPasteNotice={onPasteNotice}
+      />,
+    );
+    const editor = getEditor(container);
+
+    await user.click(editor);
+    fireEvent.paste(editor, {
+      clipboardData: {
+        types: ["text/html", "text/plain"],
+        files: [],
+        getData: (type: string) =>
+          type === "text/html"
+            ? '<p style="color: rgb(51, 51, 51)">Copied prose</p><img alt="Copied favicon" src="data:image/png;base64,abc">'
+            : "Copied prose",
+      },
+    });
+    await waitFor(() =>
+      expect(onPasteNotice).toHaveBeenCalledWith(
+        "Removed a media item from the pasted content because its source is not supported.",
+      ),
+    );
+
+    fireEvent.keyDown(editor, { key: "z", code: "KeyZ", ctrlKey: true });
+    await waitFor(() => expect(editor).not.toHaveTextContent("Copied prose"));
+
+    fireEvent.keyDown(editor, {
+      key: "z",
+      code: "KeyZ",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    await waitFor(() => expect(editor).toHaveTextContent("Copied prose"));
+    expect(editor.querySelector('[data-content-type="image"]')).toBeNull();
+
+    const emitted = onChange.mock.lastCall?.[0];
+    expect(
+      draftPostSchema.safeParse({
+        title: "Title",
+        content: emitted,
+        tags: [],
+      }).success,
+    ).toBe(true);
+  });
 
   it("keeps H1 typing and shortcut disabled while allowing native body heading shortcuts", async () => {
     const user = userEvent.setup();
