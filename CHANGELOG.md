@@ -53,6 +53,14 @@ work is tracked in `ROADMAP.md`.
 
 ### Fixed
 
+- Pasted web pages no longer make a post unsaveable: copied CSS colors and
+  alignments are normalized to supported values when they enter the editor,
+  while text and links are preserved.
+- Pasted images, audio, and video whose source cannot be stored (`data:`,
+  `blob:`, `cid:`) are removed at paste time with a notice naming how many
+  items were dropped.
+- An over-capacity paste now reports the exact limit it crossed, such as too
+  many blocks, instead of the generic document validity message.
 - Media, table, and divider blocks were rejected on save because editor-only
   block identity bypassed the canonical contract.
 - Remote safe HTTP(S) embed URLs resolved to an empty string; they now pass

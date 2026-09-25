@@ -14,11 +14,10 @@ in [`../ROADMAP.md`](../ROADMAP.md).
 
 ## Next action
 
-Continue the authoring polish batch: V1-05 is next. Published-edit code
-highlighting was verified working in the browser, so V1-02 closes without a code
-change. V1-03 and V1-07 await the content width design session. After V1-01 to
-V1-05 and V1-07 to V1-12 are done and the author has accepted the authoring
-journey in the browser, close Track 1 with V1-06.
+The authoring polish batch continues after V1-05 paste hardening. V1-01, V1-02,
+V1-04, and V1-05 are done. V1-03 and V1-07 await the content width design
+session. After V1-03, V1-07 to V1-12, and a recorded author browser acceptance
+pass, close Track 1 with V1-06.
 
 ## Blockers
 
@@ -36,6 +35,9 @@ journey in the browser, close Track 1 with V1-06.
 - Pasted Table-of-Contents anchor links (`#heading`) render as plain text
   because the safe-link allowlist permits only http, https, and mailto, and
   reader headings have no `id`.
+- HTML drag-and-drop can still introduce the pasted-content shapes that paste
+  now repairs at paste time, because BlockNote exposes no drop hook; such a drop
+  falls back to the specific save-time message instead of the paste notice.
 - The installed native side-handle menu has no separate "Turn into" surface. The
   side menu is replaced by a custom drag-safe adapter because the Shadcn/Base UI
   handle opened its menu on mousedown.

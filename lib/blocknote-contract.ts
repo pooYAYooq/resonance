@@ -99,7 +99,7 @@ function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]) {
   return Object.keys(value).every((key) => keys.includes(key));
 }
 
-function isColorToken(value: unknown): value is string {
+export function isBlockNoteColorToken(value: unknown): value is string {
   return typeof value === "string" && COLOR_TOKENS.has(value);
 }
 
@@ -130,8 +130,8 @@ function normalizeTextProps(value: unknown, type: string) {
   const textColor = value.textColor ?? "default";
   const textAlignment = value.textAlignment ?? "left";
   if (
-    !isColorToken(backgroundColor) ||
-    !isColorToken(textColor) ||
+    !isBlockNoteColorToken(backgroundColor) ||
+    !isBlockNoteColorToken(textColor) ||
     !isTextAlignment(textAlignment)
   ) {
     return null;
@@ -208,7 +208,7 @@ function normalizeMediaProps(value: unknown, type: string) {
   if (
     typeof name !== "string" ||
     typeof caption !== "string" ||
-    !isColorToken(backgroundColor)
+    !isBlockNoteColorToken(backgroundColor)
   ) {
     return null;
   }
@@ -252,7 +252,7 @@ function normalizeStyles(value: unknown) {
       continue;
     }
     if (name === "textColor" || name === "backgroundColor") {
-      if (!isColorToken(styleValue)) return null;
+      if (!isBlockNoteColorToken(styleValue)) return null;
       styles[name] = styleValue;
       continue;
     }
@@ -366,8 +366,8 @@ function normalizeTableContent(value: unknown): CanonicalTableContent | null {
         !Number.isInteger(rowspan) ||
         colspan < 1 ||
         rowspan < 1 ||
-        !isColorToken(backgroundColor) ||
-        !isColorToken(textColor) ||
+        !isBlockNoteColorToken(backgroundColor) ||
+        !isBlockNoteColorToken(textColor) ||
         !isTextAlignment(textAlignment)
       ) {
         return null;
@@ -460,7 +460,7 @@ function normalizeBlock(
       value.props !== undefined &&
       (!isRecord(value.props) ||
         !hasOnlyKeys(value.props, ["textColor"]) ||
-        !isColorToken(value.props.textColor ?? "default"))
+        !isBlockNoteColorToken(value.props.textColor ?? "default"))
     )
       return null;
     props = {

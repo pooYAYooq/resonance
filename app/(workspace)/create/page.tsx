@@ -1720,6 +1720,7 @@ function CreateEditor() {
                       labelledBy="blog-content-label"
                       initialContent={initialContent}
                       resolvedImageUrls={resolvedImageUrls}
+                      onPasteNotice={(message) => toast(message)}
                       onUploadSessionCreated={(
                         sessionId,
                         storageId,

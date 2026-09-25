@@ -48,6 +48,12 @@ import type {
   PostBlock,
   PostInlineContent,
 } from "@/lib/post-content";
+import { validatePostCapacity } from "@/lib/post-capacity";
+import {
+  collectPendingMediaIds,
+  sanitizePastedBlocks,
+  type PastedBlock,
+} from "@/lib/paste-sanitize";
 import { isSafeAuthorLink } from "@/lib/safe-link";
 import { createEditorCodeHighlighter } from "@/lib/shiki/highlight-code";
 import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
@@ -185,6 +191,18 @@ export type EditorBlock = {
   content: unknown;
   children: EditorBlock[];
 };
+
+function findPastedBlock(
+  blocks: PastedBlock[],
+  id: string,
+): PastedBlock | null {
+  for (const block of blocks) {
+    if (block.id === id) return block;
+    const child = findPastedBlock(block.children ?? [], id);
+    if (child) return child;
+  }
+  return null;
+}
 
 function normalizeCodeContent(value: unknown): string {
   if (typeof value === "string") return value;
@@ -330,6 +348,7 @@ export type PostBodyEditorProps = {
     storageId: Id<"_storage">,
     objectUrl: string,
   ) => void;
+  onPasteNotice?: (message: string) => void;
 };
 
 export type PostBodyEditorHandle = { focus: () => void };
@@ -382,11 +401,21 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
       historyResetKey = 0,
       resolvedImageUrls = {},
       onUploadSessionCreated,
+      onPasteNotice,
     },
     ref,
   ) {
     const { resolvedTheme } = useTheme();
     const editorTheme = resolvedTheme === "dark" ? "dark" : "light";
+    // The editor captures `pasteHandler` once, so the notice callback must be
+    // read through a ref to stay current across renders.
+    const onPasteNoticeRef = useRef(onPasteNotice);
+    useEffect(() => {
+      onPasteNoticeRef.current = onPasteNotice;
+    }, [onPasteNotice]);
+    // Media blocks with an upload in flight keep an empty source until the
+    // upload resolves, so paste repair must not treat them as foreign content.
+    const uploadingMediaIdsRef = useRef(new Set<string>());
     const { uploadFile, resolveFileUrl } = useBlockNoteFileUpload({
       resolvedImageUrls,
       onUploadSessionCreated,
@@ -396,16 +425,66 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
       initialContent: getInitialEditorContent(initialContent) as never,
       links: { isValidLink: isSafeAuthorLink },
       pasteHandler: ({ editor, defaultPasteHandler }) => {
+        const pendingMediaIdsBeforePaste = collectPendingMediaIds(
+          editor.document as unknown as PastedBlock[],
+        );
         const handled = defaultPasteHandler(getEditorPasteOptions());
         if (handled) {
-          // Native paste dispatches directly through ProseMirror. Repair after
-          // it finishes, without adding a second undo entry.
+          // Native paste dispatches directly through ProseMirror. Repair it
+          // after it finishes in two parts: attribute-only fixes stay out of
+          // history so one undo removes the whole paste (the heading-repair
+          // pattern), while dropped media is recorded so it groups with the
+          // paste event and redo restores the repaired document.
+          const pendingMediaIds = new Set([
+            ...pendingMediaIdsBeforePaste,
+            ...uploadingMediaIdsRef.current,
+          ]);
+          const sanitizedPaste = sanitizePastedBlocks(
+            editor.document as unknown as PastedBlock[],
+            { pendingMediaIds },
+          );
           editor.transact((transaction) => {
+            for (const blockId of sanitizedPaste.changedBlockIds) {
+              const current = editor.getBlock(blockId);
+              const sanitized = findPastedBlock(sanitizedPaste.blocks, blockId);
+              if (!current || !sanitized) continue;
+              transaction.setMeta("addToHistory", false);
+              editor.updateBlock(current, {
+                ...(sanitized.props && { props: sanitized.props }),
+                ...(sanitized.content !== undefined && {
+                  content: sanitized.content,
+                }),
+              } as never);
+            }
             normalizeHeadingLevels(editor.document, (block, level) => {
               transaction.setMeta("addToHistory", false);
               editor.updateBlock(block, { props: { level } });
             });
           });
+          if (sanitizedPaste.droppedMediaIds.length) {
+            editor.transact(() => {
+              editor.removeBlocks(sanitizedPaste.droppedMediaIds);
+            });
+          }
+          if (sanitizedPaste.droppedMediaCount) {
+            const media =
+              sanitizedPaste.droppedMediaCount === 1
+                ? "a media item"
+                : `${sanitizedPaste.droppedMediaCount} media items`;
+            const sources =
+              sanitizedPaste.droppedMediaCount === 1
+                ? "its source is"
+                : "their sources are";
+            onPasteNoticeRef.current?.(
+              `Removed ${media} from the pasted content because ${sources} not supported.`,
+            );
+          }
+          const capacity = validatePostCapacity(
+            serializeEditorDocument(
+              editor.document as unknown as EditorBlock[],
+            ),
+          );
+          if (!capacity.ok) onPasteNoticeRef.current?.(capacity.error.message);
         }
         return handled;
       },
@@ -415,6 +494,19 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
     const appliedInitialContentKey = useRef<string | undefined>(undefined);
 
     useImperativeHandle(ref, () => ({ focus: () => editor.focus() }), [editor]);
+
+    useEffect(() => {
+      const stopUploadStart = editor.onUploadStart((blockId) => {
+        if (blockId) uploadingMediaIdsRef.current.add(blockId);
+      });
+      const stopUploadEnd = editor.onUploadEnd((blockId) => {
+        if (blockId) uploadingMediaIdsRef.current.delete(blockId);
+      });
+      return () => {
+        stopUploadStart();
+        stopUploadEnd();
+      };
+    }, [editor]);
 
     useEffect(() => {
       if (!initialContent) return;

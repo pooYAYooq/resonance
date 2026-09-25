@@ -82,6 +82,72 @@ describe("blog form schemas", () => {
     ).toBe(true);
   });
 
+  it("reports an invalid document envelope without a pasted-content message", () => {
+    for (const content of [
+      { format: "blocknote@2", blocks: bodyWithText("Valid body text").blocks },
+      { blocks: bodyWithText("Valid body text").blocks },
+    ]) {
+      const result = draftPostSchema.safeParse({
+        title: "Draft",
+        content,
+        tags: [],
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe(
+          "Content must be a valid BlockNote document.",
+        );
+      }
+    }
+  });
+
+  it("explains when pasted content has too many blocks", () => {
+    const result = draftPostSchema.safeParse({
+      title: "Draft",
+      content: {
+        format: "blocknote@1",
+        blocks: Array.from({ length: 101 }, (_, index) => ({
+          type: "paragraph",
+          content: [{ type: "text", text: `Paragraph ${index}` }],
+        })),
+      },
+      tags: [],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        "Content contains too many blocks.",
+      );
+    }
+  });
+
+  it("explains when content contains shapes Resonance cannot save", () => {
+    const result = draftPostSchema.safeParse({
+      title: "Draft",
+      content: {
+        format: "blocknote@1",
+        blocks: [
+          {
+            type: "image",
+            props: {
+              source: { kind: "url", url: "data:image/png;base64,abc" },
+            },
+          },
+        ],
+      },
+      tags: [],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        "Pasted content contains formatting or media that Resonance cannot save. Try pasting as plain text.",
+      );
+    }
+  });
+
   it("trims titles and rejects whitespace-only published titles", () => {
     const draft = draftPostSchema.safeParse({
       title: "  Draft title  ",
