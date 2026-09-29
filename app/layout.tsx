@@ -1,26 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Neuton, Work_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ConvexClientProvider } from "@/components/web/ConvexClientProvider";
 import { Toaster } from "@/components/ui/sonner";
-import {
-  SITE_NAME,
-  SITE_DESCRIPTION,
-  getSiteUrl,
-} from "@/lib/constants/seo";
+import { SITE_NAME, SITE_DESCRIPTION, getSiteUrl } from "@/lib/constants/seo";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/**
+ * Two-family system: Work Sans is the product voice across the app and the
+ * published body; Neuton is the published accent, used only for post headings
+ * (reader and Review titles plus in-body H2-H6). `--font-mono` stays on the
+ * deferred monospace decision.
+ */
+const workSans = Work_Sans({
   subsets: ["latin"],
+  variable: "--font-work-sans",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const neuton = Neuton({
   subsets: ["latin"],
+  variable: "--font-neuton",
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -52,21 +53,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("font-sans", inter.variable)}
+      className={cn("font-sans", workSans.variable, neuton.variable)}
       suppressHydrationWarning
     >
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <ConvexClientProvider>
-            {children}
-          </ConvexClientProvider>
+          <ConvexClientProvider>{children}</ConvexClientProvider>
           <Toaster richColors closeButton />
         </ThemeProvider>
       </body>

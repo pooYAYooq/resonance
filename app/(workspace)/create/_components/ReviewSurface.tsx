@@ -43,7 +43,7 @@ export default function ReviewSurface({
             className="object-cover"
           />
         </div>
-        <h1 className="text-h1 font-semibold tracking-tight">
+        <h1 className="text-h1 font-semibold tracking-tight font-serif">
           {proposal.title}
         </h1>
         {proposal.tags.length > 0 && (

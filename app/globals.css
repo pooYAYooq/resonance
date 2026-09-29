@@ -48,11 +48,13 @@
 }
 
 /* The document card is the authoring surface; keep BlockNote from painting its
- * own background on top of it. The gutter matches BlockNote's 54px inset on
- * wider screens and relaxes on phones; the title and cover wrappers use the
+ * own background on top of it, and pin the editor to the product sans instead
+ * of BlockNote's bundled Inter stack. The gutter matches BlockNote's 54px inset
+ * on wider screens and relaxes on phones; the title and cover wrappers use the
  * same breakpoint so document text stays aligned. */
 [data-studio-canvas] .bn-editor {
   --bn-colors-editor-background: transparent;
+  font-family: var(--font-sans);
   padding-inline: 1rem;
 }
 @media (min-width: 40rem) {
@@ -97,8 +99,8 @@
   --sidebar-accent-foreground: oklch(0.2101 0.0318 264.6645);
   --sidebar-border: oklch(0.9276 0.0058 264.5313);
   --sidebar-ring: oklch(0.6716 0.1368 48.513);
-  --font-sans: Geist Mono, ui-monospace, monospace;
-  --font-serif: serif;
+  --font-sans: var(--font-work-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-neuton), ui-serif, Georgia, serif;
   --font-mono: JetBrains Mono, monospace;
   --radius: 0.75rem;
   --shadow-x: 0px;
@@ -157,8 +159,8 @@
   --sidebar-accent-foreground: oklch(0.8109 0 0);
   --sidebar-border: oklch(0.252 0 0);
   --sidebar-ring: oklch(0.7214 0.1337 49.9802);
-  --font-sans: Geist Mono, ui-monospace, monospace;
-  --font-serif: serif;
+  --font-sans: var(--font-work-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-neuton), ui-serif, Georgia, serif;
   --font-mono: JetBrains Mono, monospace;
   --radius: 0.75rem;
   --shadow-x: 0px;
