@@ -5,7 +5,6 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
-import { Separator } from "@/components/ui/separator";
 import { PostTagSelector } from "@/components/web/PostTagSelector";
 import type { BlockNoteDocument, PostBlock } from "@/lib/post-content";
 import { extractImageStorageIds, parsePostBody } from "@/lib/post-content";
@@ -439,6 +438,13 @@ function CreateEditor() {
       ),
     [resolvedImageUrls, watchedValues.content],
   );
+  const tagCount = (watchedValues.tags ?? []).length;
+  const detailsSummary =
+    tagCount === 0 && inlineMedia.length === 0
+      ? "No tags or media yet."
+      : `${tagCount} ${tagCount === 1 ? "tag" : "tags"} · ${inlineMedia.length} ${
+          inlineMedia.length === 1 ? "media item" : "media items"
+        }`;
   const coverMedia = useMemo<MediaAsset | null>(() => {
     const selected = watchedValues.image;
     if (selected instanceof File) {
@@ -1659,7 +1665,7 @@ function CreateEditor() {
                   <textarea
                     aria-label="Post title"
                     aria-invalid={fieldState.invalid}
-                    className="w-full resize-none overflow-hidden rounded-md border border-input bg-transparent ps-2.5 py-2 text-2xl leading-tight font-semibold tracking-tight text-foreground shadow-none outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/60 hover:border-ring/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 aria-invalid:border-destructive"
+                    className="w-full resize-none overflow-hidden rounded-md bg-transparent py-2 text-4xl leading-tight font-semibold tracking-tight text-foreground outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-ring/50 aria-invalid:text-destructive"
                     maxLength={100}
                     rows={1}
                     onKeyDown={(event) => {
@@ -1792,14 +1798,9 @@ function CreateEditor() {
             )}
           </>
         }
+        detailsSummary={detailsSummary}
         details={
-          <FieldGroup className="gap-y-4">
-            <MediaAuthoring
-              inlineImages={inlineMedia}
-              onReplaceMedia={replaceInlineMedia}
-              onRemoveInline={removeInlineMedia}
-            />
-            <Separator />
+          <FieldGroup className="gap-y-8">
             <Controller
               name="tags"
               control={form.control}
@@ -1810,6 +1811,24 @@ function CreateEditor() {
                 />
               )}
             />
+            <section aria-labelledby="post-details-media-heading">
+              <h3
+                id="post-details-media-heading"
+                className="text-base font-medium"
+              >
+                Inline media
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Attached in the writing flow.
+              </p>
+              <div className="mt-4">
+                <MediaAuthoring
+                  inlineImages={inlineMedia}
+                  onReplaceMedia={replaceInlineMedia}
+                  onRemoveInline={removeInlineMedia}
+                />
+              </div>
+            </section>
           </FieldGroup>
         }
         actions={

@@ -45,6 +45,7 @@ vi.mock("@blocknote/react", () => ({
 
 vi.mock("./AuthoringSideMenu", () => ({
   AuthoringSideMenu: () => null,
+  AuthoringSideMenuController: () => null,
 }));
 
 vi.mock("@blocknote/shadcn", () => ({

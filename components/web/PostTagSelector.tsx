@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MAX_POST_TAGS, POST_TAGS } from "@/lib/constants/post-tags";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface PostTagSelectorProps {
   value: string[];
@@ -10,22 +11,29 @@ interface PostTagSelectorProps {
 }
 
 /**
- * Renders a controlled selector for choosing post tags.
+ * Renders a controlled selector for choosing post tags. When an author tries
+ * to exceed the limit, the guide nudges in place instead of adding a sixth
+ * tag or stacking a second message under the grid.
  *
  * @param value - The currently selected tags
  * @param onChange - Called with the updated tag selection
  * @returns The tag selection fieldset
  */
 export function PostTagSelector({ value, onChange }: PostTagSelectorProps) {
-  const [limitMessage, setLimitMessage] = useState(false);
+  const [limitPulse, setLimitPulse] = useState(0);
+
+  useEffect(() => {
+    if (!limitPulse) return;
+    const timeout = window.setTimeout(() => setLimitPulse(0), 700);
+    return () => window.clearTimeout(timeout);
+  }, [limitPulse]);
 
   function handleChange(tag: string, checked: boolean) {
     if (checked && value.length >= MAX_POST_TAGS) {
-      setLimitMessage(true);
+      setLimitPulse((current) => current + 1);
       return;
     }
 
-    setLimitMessage(false);
     onChange(
       checked ? [...value, tag] : value.filter((selected) => selected !== tag),
     );
@@ -33,10 +41,28 @@ export function PostTagSelector({ value, onChange }: PostTagSelectorProps) {
 
   return (
     <fieldset>
-      <legend className="text-base font-medium">
-        Tags (up to {MAX_POST_TAGS})
+      <legend className="w-full">
+        <span className="flex items-baseline justify-between gap-4">
+          <span className="flex flex-col">
+            <span className="text-base font-medium">Tags</span>
+            <span
+              key={limitPulse}
+              className={cn(
+                "mt-1 text-sm font-normal",
+                limitPulse > 0
+                  ? "animate-[tag-limit-nudge_500ms_ease-in-out] text-destructive"
+                  : "text-muted-foreground",
+              )}
+            >
+              Choose up to {MAX_POST_TAGS}.
+            </span>
+          </span>
+          <span className="shrink-0 text-sm font-normal tabular-nums text-muted-foreground">
+            {value.length} / {MAX_POST_TAGS}
+          </span>
+        </span>
       </legend>
-      <div className="mt-1 grid grid-cols-2 gap-1 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-1 sm:grid-cols-3">
         {POST_TAGS.map((tag) => (
           <label
             key={tag}
@@ -50,11 +76,6 @@ export function PostTagSelector({ value, onChange }: PostTagSelectorProps) {
           </label>
         ))}
       </div>
-      {limitMessage && (
-        <p role="alert" className="mt-1 text-sm text-destructive">
-          Choose up to 5 tags.
-        </p>
-      )}
     </fieldset>
   );
 }

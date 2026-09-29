@@ -25,6 +25,8 @@ describe("PostTagSelector", () => {
 
     await user.click(screen.getByLabelText("Science"));
     expect(onChange).not.toHaveBeenCalled();
-    expect(screen.getByText("Choose up to 5 tags.")).toBeInTheDocument();
+    const guide = screen.getByText("Choose up to 5.");
+    expect(guide.className).toContain("text-destructive");
+    expect(guide.className).toContain("tag-limit-nudge");
   });
 });
