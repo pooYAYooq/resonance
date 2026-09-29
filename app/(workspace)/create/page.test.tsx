@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { BlockNoteDocument } from "@/lib/post-content";
 import { saveDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
@@ -2388,16 +2394,17 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
     await screen.findByDisplayValue("Recovered title");
 
+    const cover = screen.getByRole("region", { name: "Cover" });
     const failure =
       "Your saved cover could not be loaded. Replace it or remove it to continue to Review.";
-    expect(await screen.findByRole("alert")).toHaveTextContent(failure);
+    expect(await within(cover).findByRole("alert")).toHaveTextContent(failure);
 
     await enterReview(user);
     expect(toastErrorMock).toHaveBeenCalledWith(failure);
     expect(screen.queryByTestId("review-surface")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Remove cover" }));
-    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    await waitFor(() => expect(within(cover).queryByRole("alert")).toBeNull());
     expect(screen.getByText("No cover selected")).toBeVisible();
     expect(
       screen.getByText("Your post will show without a cover image."),
@@ -2445,13 +2452,15 @@ describe("CreateRoute", () => {
     await screen.findByDisplayValue("Recovered title");
     await waitFor(() => expect(convexQueryMock).toHaveBeenCalledTimes(1));
 
+    const cover = screen.getByRole("region", { name: "Cover" });
+
     // A rejected lookup is transient: keep the hold and never show the alert.
     expect(
       screen.getByText(
         "Loading your saved cover. Review will be available when it finishes.",
       ),
     ).toBeVisible();
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(within(cover).queryByRole("alert")).toBeNull();
 
     fireEvent(window, new Event("focus"));
 
@@ -2466,7 +2475,7 @@ describe("CreateRoute", () => {
         ),
       ).toBeNull(),
     );
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(within(cover).queryByRole("alert")).toBeNull();
   });
 
   it("shows the alert for a missing recovered cover without retrying", async () => {
@@ -2496,7 +2505,8 @@ describe("CreateRoute", () => {
     render(<CreateRoute />);
     await screen.findByDisplayValue("Recovered title");
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    const cover = screen.getByRole("region", { name: "Cover" });
+    expect(await within(cover).findByRole("alert")).toHaveTextContent(
       "Your saved cover could not be loaded. Replace it or remove it to continue to Review.",
     );
     expect(convexQueryMock).toHaveBeenCalledTimes(1);

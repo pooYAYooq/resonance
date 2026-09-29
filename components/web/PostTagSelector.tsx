@@ -62,6 +62,9 @@ export function PostTagSelector({ value, onChange }: PostTagSelectorProps) {
           </span>
         </span>
       </legend>
+      <span role="alert" className="sr-only">
+        {limitPulse > 0 ? `Choose up to ${MAX_POST_TAGS} tags.` : ""}
+      </span>
       <div className="mt-4 grid grid-cols-2 gap-1 sm:grid-cols-3">
         {POST_TAGS.map((tag) => (
           <label
