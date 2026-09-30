@@ -40,6 +40,10 @@
 - Denormalized `commentCount` and `likeCount` on posts; O(1) total via `stats` table
 - Curated tags on posts (up to five from a shared sixteen-value list), clickable
   tag pills, and exact `/blog?tag=<tag>` filtering
+- The published reader aligns its cover, title, metadata, tags, and title divider
+  to the site header container around a 700px prose column that left-aligns from
+  `xl` up to reserve the wide-screen rail, with a 16:9 cover (capped at
+  `min(560px, 40dvh)`) and an 18px published body scale
 
 ### Drafts & Publishing
 
@@ -78,11 +82,12 @@
   video glyphs, use plain lifecycle wording, and offer Replace and Remove for
   failed media while resolved inline editing stays in BlockNote
 - Cover controls are styled Add, Replace, and Remove buttons with same-file
-  reselection; a missing cover renders the shared blank fallback on cards,
-  Discover, and the reader
+  reselection and a published-ratio 16:9 preview; a missing cover renders the
+  shared blank fallback on cards, Discover, and the reader
 - Review renders only a frozen snapshot of the reviewed title, body, tags,
-  cover intent, cover preview, and resolved inline media; Post details are
-  hidden and Back plus Publish/Update live in the studio header
+  cover intent, cover preview, and resolved inline media at the published
+  geometry (16:9 cover, 700px measure, published title weight); Post details
+  are hidden and Back plus Publish/Update live in the studio header
 - Review and submission are blocked while inline media or a recovered saved
   cover is unresolved; a transient cover lookup retries with backoff and on
   focus or reconnect, and the failure alert is reserved for a server-reported

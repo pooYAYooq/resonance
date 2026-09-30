@@ -83,6 +83,63 @@ describe("ReviewSurface", () => {
     expect(img.getAttribute("src") ?? "").toContain("cdn.example%2Fcover.png");
   });
 
+  it("hints the cover at the studio frame width", () => {
+    renderSurface({ coverUrl: "https://cdn.example/cover.png" });
+
+    expect(screen.getByAltText("Review title")).toHaveAttribute(
+      "sizes",
+      "(max-width: 888px) 100vw, 808px",
+    );
+  });
+
+  it("renders the published cover ratio", () => {
+    renderSurface();
+
+    expect(screen.getByTestId("default-cover").parentElement).toHaveClass(
+      "aspect-[16/9]",
+    );
+  });
+
+  it("holds the previewed body at the published measure", () => {
+    renderSurface();
+
+    const prose = screen.getByTestId("review-prose");
+    expect(prose).toHaveClass("max-w-[700px]");
+    expect(prose).toHaveClass("mx-auto");
+    expect(prose).toContainElement(screen.getByText("Reviewed body"));
+  });
+
+  it("matches the published title weight", () => {
+    renderSurface();
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Review title" }),
+    ).toHaveClass("font-bold");
+  });
+
+  it("renders body headings through the published token map", () => {
+    renderSurface({
+      proposal: {
+        ...proposal,
+        body: JSON.stringify({
+          format: "blocknote@1",
+          blocks: [
+            {
+              type: "heading",
+              props: { level: 2 },
+              content: [{ type: "text", text: "Section" }],
+              children: [],
+            },
+          ],
+        }),
+      },
+    });
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Section" }),
+    ).toHaveClass("text-h2");
+  });
+
   it("surfaces the blocker alert", () => {
     renderSurface({ blockerMessage: "Some media is still uploading." });
 

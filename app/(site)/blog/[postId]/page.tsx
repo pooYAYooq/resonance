@@ -7,7 +7,6 @@
 
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { buttonVariants } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { fetchQuery } from "convex/nextjs";
@@ -22,7 +21,7 @@ import { truncateForDescription } from "@/lib/constants/seo";
 import { TagPill } from "@/components/web/TagPill";
 import { PostBody } from "@/components/web/PostBody";
 import { PostViewTracker } from "@/components/web/PostViewTracker";
-import { CoverImage } from "@/components/web/CoverImage";
+import { PostCover } from "@/components/web/PostCover";
 import { extractPlainText, parsePostBody } from "@/lib/post-content";
 
 /** Props received by the dynamic blog post route. */
@@ -86,10 +85,19 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
 
   if (!post || post.publishedAt === undefined) {
     return (
-      <div className="max-w-3xl mx-auto py-8 px-4">
-        <h1 className="text-2xl font-bold mb-4">Post not found</h1>
-        <Link href="/blog" className={buttonVariants({ variant: "ghost" })}>
-          Back to blog
+      <div
+        data-testid="not-found-frame"
+        className="relative w-full pt-6 pb-8"
+      >
+        <h1 className="text-h1 font-bold tracking-tight text-foreground font-serif">
+          Post not found
+        </h1>
+        <Link
+          href="/blog"
+          className="mt-6 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back to all posts
         </Link>
       </div>
     );
@@ -104,29 +112,20 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
     });
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4 animate-in fade-in duration-500 relative">
+    <div
+      data-testid="reader-frame"
+      className="relative w-full pt-6 pb-8 animate-in fade-in duration-500"
+    >
       <PostViewTracker postId={postId} />
-      <Link
-        className={buttonVariants({
-          variant: "outline",
-          className: "space-x-2",
-        })}
-        href="/blog"
-      >
-        <ArrowLeft className="size-4" />
-        Back to blog page
-      </Link>
-      <div className="relative aspect-[3/2] w-full mt-8 rounded-xl overflow-hidden shadow-sm">
-        <CoverImage
-          src={post.imageUrl}
-          alt={post.title}
-          sizes="(max-width: 1024px) 100vw, 768px"
-          className="object-cover hover:scale-102 transition-transform duration-800 ease-in-out"
-          priority
-        />
-      </div>
+      <PostCover
+        src={post.imageUrl}
+        alt={post.title}
+        priority
+        className="rounded-xl shadow-sm"
+        imageClassName="hover:scale-102 transition-transform duration-800 ease-in-out"
+      />
       <div>
-        <h1 className="text-h1 font-bold mt-8 tracking-tight text-foreground">
+        <h1 className="text-h1 font-bold mt-6 tracking-tight text-foreground font-serif">
           {post.title}
         </h1>
         <p className="text-muted-foreground mt-4 text-sm">
@@ -146,21 +145,33 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
         )}
       </div>
       <Separator className="my-8" orientation="horizontal" decorative={true} />
-      <div className="mt-6 max-w-none">
-        <PostBody body={post.body} inlineImages={post.inlineImages} />
+      <div
+        data-testid="reader-prose"
+        className="mx-auto w-full max-w-[700px] xl:mx-0"
+      >
+        <div className="mt-6 max-w-none">
+          <PostBody body={post.body} inlineImages={post.inlineImages} />
+        </div>
+        <Separator className="my-8" orientation="horizontal" decorative={true} />
+        <div className="flex items-center gap-2 mb-4">
+          <LikeButton
+            postId={postId}
+            isLiked={post.isLiked ?? false}
+            likeCount={post.likeCount ?? 0}
+          />
+          <BookmarkButton postId={postId} isBookmarked={post.isBookmarked} />
+        </div>
+        <Link
+          href="/blog"
+          className="mt-8 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back to all posts
+        </Link>
+        <Suspense fallback={null}>
+          <CommentSection initialTotalCount={post.commentCount ?? 0} />
+        </Suspense>
       </div>
-      <Separator className="my-8" orientation="horizontal" decorative={true} />
-      <div className="flex items-center gap-2 mb-4">
-        <LikeButton
-          postId={postId}
-          isLiked={post.isLiked ?? false}
-          likeCount={post.likeCount ?? 0}
-        />
-        <BookmarkButton postId={postId} isBookmarked={post.isBookmarked} />
-      </div>
-      <Suspense fallback={null}>
-        <CommentSection initialTotalCount={post.commentCount ?? 0} />
-      </Suspense>
     </div>
   );
 }

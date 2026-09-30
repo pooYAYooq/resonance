@@ -25,6 +25,26 @@ describe("PostTagSelector", () => {
 
     await user.click(screen.getByLabelText("Science"));
     expect(onChange).not.toHaveBeenCalled();
-    expect(screen.getByText("Choose up to 5 tags.")).toBeInTheDocument();
+    const guide = screen.getByText("Choose up to 5.");
+    expect(guide.className).toContain("text-destructive");
+    expect(guide.className).toContain("tag-limit-nudge");
+  });
+
+  it("announces the rejected selection to assistive technology", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <PostTagSelector
+        value={["Technology", "Design", "Music", "Theory", "Landscape"]}
+        onChange={onChange}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toBeEmptyDOMElement();
+
+    await user.click(screen.getByLabelText("Science"));
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Choose up to 5 tags.");
   });
 });

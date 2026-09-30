@@ -190,13 +190,111 @@ describe("blog post timestamps", () => {
     expect(postViewTrackerMock).toHaveBeenCalledWith({ postId }, undefined);
   });
 
-  it("uses the editorial 3:2 ratio for the reader cover", async () => {
+  it("uses the published 16:9 ratio for the reader cover", async () => {
     fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
 
     render(await PostIdRoute({ params }));
 
     expect(screen.getByTestId("default-cover").parentElement).toHaveClass(
-      "aspect-[3/2]",
+      "aspect-[16/9]",
     );
+  });
+
+  it("lets the cover span the layout container and holds the prose at 700", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    const frame = screen.getByTestId("reader-frame");
+    expect(frame).toHaveClass("w-full");
+    expect(frame.className).not.toMatch(/\bmax-w-/);
+    const prose = screen.getByTestId("reader-prose");
+    expect(prose).toHaveClass("max-w-[700px]");
+    expect(prose).toHaveClass("mx-auto");
+    expect(prose).toHaveClass("xl:mx-0");
+    expect(frame).toContainElement(prose);
+  });
+
+  it("spans the top divider across the frame and keeps the rest in the prose column", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    const { container } = render(await PostIdRoute({ params }));
+
+    const dividers = container.querySelectorAll<HTMLElement>(
+      '[data-slot="separator"]',
+    );
+    expect(dividers).toHaveLength(2);
+    const [topDivider, closingDivider] = Array.from(dividers);
+    const frame = screen.getByTestId("reader-frame");
+    const prose = screen.getByTestId("reader-prose");
+
+    expect(prose).not.toContainElement(topDivider);
+    expect(frame).toContainElement(topDivider);
+    expect(prose).toContainElement(closingDivider);
+  });
+
+  it("keeps the cover and the title inside the frame", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    const frame = screen.getByTestId("reader-frame");
+    expect(frame).toContainElement(
+      screen.getByTestId("default-cover").parentElement,
+    );
+    expect(frame).toContainElement(
+      screen.getByRole("heading", { level: 1, name: "Structured Post" }),
+    );
+  });
+
+  it("holds the top of the page to a 24px rhythm", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    const frame = screen.getByTestId("reader-frame");
+    expect(frame).toHaveClass("pt-6");
+    expect(frame.className).not.toMatch(/\bpy-8/);
+    const cover = screen.getByTestId("default-cover").parentElement;
+    expect(cover?.className).not.toMatch(/\bmt-/);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Structured Post" }),
+    ).toHaveClass("mt-6");
+  });
+
+  it("does not put a return link above the cover", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    expect(
+      screen.queryByRole("link", { name: /back to blog page/i }),
+    ).toBeNull();
+  });
+
+  it("offers a quiet return link at the end of the article", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    const back = screen.getByRole("link", { name: /back to all posts/i });
+    expect(back).toHaveAttribute("href", "/blog");
+    expect(screen.getByTestId("reader-prose")).toContainElement(back);
+  });
+
+  it("renders the not-found fallback as part of the reader family", async () => {
+    fetchAuthQueryMock.mockResolvedValue(null);
+
+    render(await PostIdRoute({ params }));
+
+    const frame = screen.getByTestId("not-found-frame");
+    expect(frame).toHaveClass("w-full");
+    expect(frame).toHaveClass("pt-6");
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Post not found" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /back to all posts/i }),
+    ).toHaveAttribute("href", "/blog");
   });
 });

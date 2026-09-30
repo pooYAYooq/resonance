@@ -1,6 +1,5 @@
 "use client";
 
-import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 
 import {
@@ -15,7 +14,6 @@ import {
   blockTypeSelectItems,
   FormattingToolbar,
   FormattingToolbarController,
-  SideMenuController,
   useBlockNoteEditor,
   useCreateBlockNote,
 } from "@blocknote/react";
@@ -57,7 +55,7 @@ import {
 import { isSafeAuthorLink } from "@/lib/safe-link";
 import { createEditorCodeHighlighter } from "@/lib/shiki/highlight-code";
 import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
-import { AuthoringSideMenu } from "./AuthoringSideMenu";
+import { AuthoringSideMenuController } from "./AuthoringSideMenu";
 
 /**
  * The authoring schema intentionally begins with every installed BlockNote
@@ -140,7 +138,7 @@ export function HistoryControls({ resetKey = 0 }: { resetKey?: number }) {
 
   return (
     <div
-      className="mb-2 flex items-center gap-1 ps-[15px] sm:ps-[53px]"
+      className="mb-2 flex items-center gap-1 ps-4 sm:ps-[54px]"
       role="toolbar"
       aria-label="Editor history"
     >
@@ -562,7 +560,7 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
           <FormattingToolbarController
             formattingToolbar={BodyFormattingToolbar}
           />
-          <SideMenuController sideMenu={AuthoringSideMenu} />
+          <AuthoringSideMenuController />
         </BlockNoteView>
       </div>
     );

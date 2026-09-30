@@ -36,14 +36,14 @@ Source: Track 1 UI and UX audit, recorded in `docs/status.md` at commit
 `docs/superpowers/plans/2026-09-20-media-review-correctness.md`. Requirements in
 `docs/PHASE_3A.md` 3A.3.
 
-| ID    | Item                                                        | Status                 | Estimate |
-| ----- | ----------------------------------------------------------- | ---------------------- | -------- |
-| V1-01 | Editor title sizing                                         | Done                   | S        |
-| V1-02 | Published-edit code highlighting                            | Done                   | M        |
-| V1-03 | Editor and Review width and spacing consistency             | Pending design session | M        |
-| V1-04 | Tag checkbox grid styling                                   | Done                   | S        |
-| V1-05 | Paste hardening for rejected pasted content                 | Done                   | S        |
-| V1-06 | Track 1 closure documentation and author browser acceptance | Todo                   | S        |
+| ID    | Item                                                        | Status    | Estimate |
+| ----- | ----------------------------------------------------------- | --------- | -------- |
+| V1-01 | Editor title sizing                                         | Done      | S        |
+| V1-02 | Published-edit code highlighting                            | Done      | M        |
+| V1-03 | Editor and Review width and spacing consistency             | In review | M        |
+| V1-04 | Tag checkbox grid styling                                   | Done      | S        |
+| V1-05 | Paste hardening for rejected pasted content                 | Done      | S        |
+| V1-06 | Track 1 closure documentation and author browser acceptance | Todo      | S        |
 
 Track 1 closure (V1-06) depends on every Track 1 audit fix, V1-01 to V1-05
 and V1-07 to V1-12,
@@ -53,14 +53,14 @@ plus a recorded author browser acceptance pass.
 
 Source: Track 1 UI and UX audit, coordinated with 3A.4 and 3A.5.
 
-| ID    | Item                             | Status                 | Estimate |
-| ----- | -------------------------------- | ---------------------- | -------- |
-| V1-07 | Reader width on wide screens     | Pending design session | S        |
-| V1-08 | Author identity on the post page | Todo                   | M        |
-| V1-09 | Engagement control emphasis      | Todo                   | S        |
-| V1-10 | Reader link distinctness         | Todo                   | S        |
-| V1-11 | Dark-mode contrast and focus     | Todo                   | M        |
-| V1-12 | H3 and Divider content check     | Todo                   | S        |
+| ID    | Item                             | Status    | Estimate |
+| ----- | -------------------------------- | --------- | -------- |
+| V1-07 | Reader width on wide screens     | In review | S        |
+| V1-08 | Author identity on the post page | Todo      | M        |
+| V1-09 | Engagement control emphasis      | Todo      | S        |
+| V1-10 | Reader link distinctness         | Todo      | S        |
+| V1-11 | Dark-mode contrast and focus     | Todo      | M        |
+| V1-12 | H3 and Divider content check     | Todo      | S        |
 
 ### Management and navigation
 
@@ -170,23 +170,26 @@ V1-23.
 
 - Cancel and save-draft options for new posts and published edits.
 - Cover size limit decision.
-- Author-controlled cover position inside the fixed 3:2 crop (a stored focal
-  point applied across the editor, Review, cards, and the reader).
+- Author-controlled cover position inside the fixed cover crop: 16:9 on cover
+  surfaces and 3:2 on cards since the 2026-09-30 content width decision. A
+  stored focal point applied across the editor, Review, cards, and the reader.
+- Wide-screen reader rail contents: a content map first, then related posts and
+  more from the author. The article frame reserves the space from `xl` up; the
+  contents wait on a design session.
 
 ## Design-session deferrals
 
 These postpone a decision to an approved design session and keep their v1.0
 membership unless that session decides otherwise.
 
-- Content width Option C, using the side space on wide screens.
-- Exact typography, supporting palette, compact footer, and final responsive
-  treatments. The v1.0 visual system (V1-21 and V1-23) establishes the
-  structure; the final treatments are settled in the design session.
+- Exact supporting palette, compact footer, and final responsive treatments.
+  The v1.0 visual system (V1-21 and V1-23) establishes the structure; the final
+  treatments are settled in the design session. The published typography scale
+  and the content width were decided on 2026-09-30, and the resume note in
+  `docs/status.md` records where they are implemented.
 
 ## Pending scope
 
-- V1-03 and V1-07 width and measure: in v1.0, awaiting the content width design
-  session.
 - V1-15 unsaved-exit guards: in v1.0, scope pending a dedicated spec.
 - V1-16 accessibility evidence: in v1.0, the exact evidence set is confirmed
   when scoped.

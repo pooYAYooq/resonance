@@ -273,4 +273,20 @@ describe("PostBody", () => {
       container.querySelector('[data-background-color="blue"]'),
     ).not.toBeNull();
   });
+
+  it("renders the published body at the 18px scale", async () => {
+    const { container } = render(<>{await PostBody({ body })}</>);
+
+    expect(container.querySelector('[data-slot="post-body"]')).toHaveClass(
+      "text-lg",
+    );
+  });
+
+  it("leaves the block rhythm to the published stylesheet", async () => {
+    const { container } = render(<>{await PostBody({ body })}</>);
+
+    expect(container.querySelector('[data-slot="post-body"]')).not.toHaveClass(
+      /space-y-/,
+    );
+  });
 });

@@ -2,6 +2,7 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { Image as ImageIcon } from "lucide-react";
+import { POST_COVER_ASPECT } from "@/components/web/PostCover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { MediaAsset } from "./MediaAuthoring";
@@ -23,8 +24,8 @@ const ACTION_BUTTON_CLASS =
   "cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent";
 
 /**
- * The cover picker above the title: an empty dropzone, a live 3:2 preview of
- * the selected or saved cover, and the replace/remove actions with their
+ * The cover picker above the title: an empty dropzone, a live published-ratio
+ * preview of the selected or saved cover, and the replace/remove actions with their
  * lifecycle and recovery notes.
  */
 export default function CoverAuthoring({
@@ -85,7 +86,12 @@ export default function CoverAuthoring({
         </>
       ) : cover ? (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="relative aspect-[3/2] w-full max-w-md overflow-hidden rounded-lg border bg-muted sm:w-80 sm:flex-none">
+          <div
+            className={cn(
+              POST_COVER_ASPECT,
+              "relative w-full max-w-md overflow-hidden rounded-lg border bg-muted sm:w-80 sm:flex-none",
+            )}
+          >
             {cover.url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img

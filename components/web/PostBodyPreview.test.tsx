@@ -149,4 +149,12 @@ describe("PostBodyPreview", () => {
     const img = sized.container.querySelector("img") as HTMLElement | null;
     expect(img?.style.width).toBe("160px");
   });
+
+  it("leaves the block rhythm to the published stylesheet", () => {
+    const { container } = render(<PostBodyPreview body={body} />);
+
+    expect(
+      container.querySelector('[data-slot="post-body-preview"]'),
+    ).not.toHaveClass(/space-y-/);
+  });
 });

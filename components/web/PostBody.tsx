@@ -196,7 +196,7 @@ export async function PostBody({ body, inlineImages = [] }: PostBodyProps) {
     ),
   );
   return (
-    <div data-slot="post-body" className="space-y-5 text-base">
+    <div data-slot="post-body" className="text-lg">
       {await renderBlocks(parsed.document.blocks, "post", resolved)}
     </div>
   );

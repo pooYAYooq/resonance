@@ -34,8 +34,9 @@ describe("DocumentStudio", () => {
     expect(studio).toHaveAttribute("data-studio-state", "ready");
     expect(screen.getByRole("textbox", { name: "Blog title" })).toBeVisible();
     expect(screen.getByTestId("body-canvas")).toBeVisible();
-    expect(screen.getAllByText("Post details")).toHaveLength(1);
+    expect(screen.getByText("Post details")).toBeVisible();
     expect(studio.querySelector("details")).toHaveAttribute("open");
+    expect(studio.querySelector("header")).toHaveClass("sticky");
     expect(screen.getByRole("button", { name: "Save Draft" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Review" })).toBeVisible();
     expect(studio.className).not.toContain("rounded-lg");
@@ -94,7 +95,16 @@ describe("DocumentStudio", () => {
     expect(header).toHaveClass("flex-col");
     expect(canvas).toBeInTheDocument();
     expect(actions).toHaveClass("flex-wrap");
-    expect(studio.querySelector("details")).toBeInTheDocument();
+    expect(studio.querySelector("details")).toHaveAttribute("open");
+    expect(screen.getByText("Post details")).toBeVisible();
+  });
+
+  it("frames the writing canvas at the 808px studio measure", () => {
+    renderStudio("new", <button type="button">Review</button>);
+
+    expect(
+      screen.getByRole("main", { name: "Writing canvas" }).parentElement,
+    ).toHaveClass("max-w-[808px]");
   });
 
   it.each([
@@ -124,7 +134,41 @@ describe("DocumentStudio", () => {
     expect(screen.queryByRole("button", { name: "Save Draft" })).toBeNull();
   });
 
-  it("hides the details disclosure when detailsHidden is set", () => {
+  it("swaps the details counts for the description while the disclosure is open", () => {
+    render(
+      <DocumentStudio
+        mode="new"
+        detailsSummary={<span>3 media · 2 tags</span>}
+        title={<input aria-label="Blog title" />}
+        body={<div>Body canvas</div>}
+        details={<div>Cover and topics</div>}
+      />,
+    );
+
+    // jsdom applies no Tailwind stylesheet, so the variant classes are the
+    // contract this test can verify: the counts hide while the disclosure is
+    // open (group-open:hidden) and the description appears in their place
+    // (hidden until group-open:inline applies).
+    const details = screen
+      .getByTestId("document-studio")
+      .querySelector("details");
+    expect(details).toHaveAttribute("open");
+
+    const counts = screen.getByText("3 media · 2 tags");
+    expect(counts.parentElement).toHaveClass("group-open:hidden");
+    const description = screen.getByText(
+      "Inline media and the tags readers can use to find this post.",
+    );
+    expect(description).toHaveClass("hidden");
+    expect(description).toHaveClass("group-open:inline");
+
+    // Closing the disclosure is what surfaces the counts again.
+    details?.removeAttribute("open");
+    expect(details).not.toHaveAttribute("open");
+    expect(counts).toBeVisible();
+  });
+
+  it("hides the details section when detailsHidden is set", () => {
     render(
       <DocumentStudio
         mode="new"

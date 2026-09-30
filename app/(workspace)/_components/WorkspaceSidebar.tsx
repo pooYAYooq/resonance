@@ -10,7 +10,11 @@ import {
 } from "./workspace-navigation";
 import { WorkspaceUtilities } from "./WorkspaceUtilities";
 
-export function WorkspaceNavigation({ onNavigate }: { onNavigate?: () => void }) {
+export function WorkspaceNavigation({
+  onNavigate,
+}: {
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -73,7 +77,7 @@ function WorkspaceNavigationGroup({
 
 export function WorkspaceSidebar() {
   return (
-    <aside className="hidden w-64 shrink-0 border-r bg-background lg:flex lg:flex-col">
+    <aside className="hidden w-64 shrink-0 border-r bg-background lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
       <div className="p-5">
         <Link href="/dashboard" className="text-xl font-extrabold">
           RESONANCE

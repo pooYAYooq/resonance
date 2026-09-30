@@ -199,7 +199,7 @@ export function PostBodyPreview({
     ),
   );
   return (
-    <div data-slot="post-body-preview" className="space-y-5 text-lg">
+    <div data-slot="post-body-preview" className="text-lg">
       {renderBlocks(parsed.document.blocks, "preview", resolved)}
     </div>
   );

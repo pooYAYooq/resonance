@@ -130,7 +130,7 @@ app/
         PostBodyEditor.tsx    # Browser-only standard BlockNote adapter (ssr:false); uses the shared upload hook
         AuthoringSideMenu.tsx # Drag-safe block side menu; click-only handle menu over a Radix popover
         BlockHandleMenu.tsx   # Handle menu body; kept off the "use client" entry file
-        CoverAuthoring.tsx    # Cover dropzone and 3:2 preview above the title, with replace/remove recovery
+        CoverAuthoring.tsx    # Cover dropzone and published-ratio 16:9 preview above the title, with replace/remove recovery
         MediaAuthoring.tsx    # Details-level inline media status, thumbnails or glyphs, and replace/remove recovery
         ReviewSurface.tsx     # Frozen read-only review preview; the studio header owns Back and Publish/Update
         reviewReadiness.ts    # Media gate: blocks Review while inline media or a recovered cover is unresolved
@@ -214,7 +214,8 @@ components/
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
-    CoverImage.tsx            # Shared cover: custom image, or a blank transparent fallback with a subtle bottom border
+    CoverImage.tsx            # Custom cover image or the blank transparent fallback surface with a subtle bottom border
+    PostCover.tsx             # Published 16:9 cover frame: shared ratio, viewport-height cap, single crop seam
     PostBody.tsx              # Pure Server Component renderer for structured post bodies
     PostBodyPreview.tsx       # Synchronous client preview renderer used by Review
     HighlightedCode.tsx       # Server-rendered Shiki token spans with plain-text fallback

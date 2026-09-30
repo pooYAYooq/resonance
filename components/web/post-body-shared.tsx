@@ -26,7 +26,7 @@ export function getHeadingClassName(level: unknown): string {
     level <= 6
       ? (level as keyof typeof headingSizeClass)
       : (DEFAULT_HEADING_LEVEL as keyof typeof headingSizeClass);
-  return `${headingSizeClass[resolved]} font-semibold tracking-tight`;
+  return `${headingSizeClass[resolved]} font-serif font-semibold tracking-tight`;
 }
 
 /** Normalized `h2`-`h6` tag name; invalid levels fall back to the default. */
