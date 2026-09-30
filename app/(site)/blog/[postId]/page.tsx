@@ -22,7 +22,7 @@ import { truncateForDescription } from "@/lib/constants/seo";
 import { TagPill } from "@/components/web/TagPill";
 import { PostBody } from "@/components/web/PostBody";
 import { PostViewTracker } from "@/components/web/PostViewTracker";
-import { CoverImage } from "@/components/web/CoverImage";
+import { PostCover } from "@/components/web/PostCover";
 import { extractPlainText, parsePostBody } from "@/lib/post-content";
 
 /** Props received by the dynamic blog post route. */
@@ -116,15 +116,13 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
         <ArrowLeft className="size-4" />
         Back to blog page
       </Link>
-      <div className="relative aspect-[3/2] w-full mt-8 rounded-xl overflow-hidden shadow-sm">
-        <CoverImage
-          src={post.imageUrl}
-          alt={post.title}
-          sizes="(max-width: 1024px) 100vw, 768px"
-          className="object-cover hover:scale-102 transition-transform duration-800 ease-in-out"
-          priority
-        />
-      </div>
+      <PostCover
+        src={post.imageUrl}
+        alt={post.title}
+        priority
+        className="mt-8 rounded-xl shadow-sm"
+        imageClassName="hover:scale-102 transition-transform duration-800 ease-in-out"
+      />
       <div>
         <h1 className="text-h1 font-bold mt-8 tracking-tight text-foreground font-serif">
           {post.title}

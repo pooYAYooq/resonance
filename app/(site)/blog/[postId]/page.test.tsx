@@ -190,13 +190,13 @@ describe("blog post timestamps", () => {
     expect(postViewTrackerMock).toHaveBeenCalledWith({ postId }, undefined);
   });
 
-  it("uses the editorial 3:2 ratio for the reader cover", async () => {
+  it("uses the published 16:9 ratio for the reader cover", async () => {
     fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
 
     render(await PostIdRoute({ params }));
 
     expect(screen.getByTestId("default-cover").parentElement).toHaveClass(
-      "aspect-[3/2]",
+      "aspect-[16/9]",
     );
   });
 });
