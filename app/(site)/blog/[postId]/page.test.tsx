@@ -200,7 +200,7 @@ describe("blog post timestamps", () => {
     );
   });
 
-  it("lets the cover span the layout container and centres the prose", async () => {
+  it("lets the cover span the layout container and holds the prose at 700", async () => {
     fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
 
     render(await PostIdRoute({ params }));
@@ -211,7 +211,26 @@ describe("blog post timestamps", () => {
     const prose = screen.getByTestId("reader-prose");
     expect(prose).toHaveClass("max-w-[700px]");
     expect(prose).toHaveClass("mx-auto");
+    expect(prose).toHaveClass("xl:mx-0");
     expect(frame).toContainElement(prose);
+  });
+
+  it("spans the top divider across the frame and keeps the rest in the prose column", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    const { container } = render(await PostIdRoute({ params }));
+
+    const dividers = container.querySelectorAll<HTMLElement>(
+      '[data-slot="separator"]',
+    );
+    expect(dividers).toHaveLength(2);
+    const [topDivider, closingDivider] = Array.from(dividers);
+    const frame = screen.getByTestId("reader-frame");
+    const prose = screen.getByTestId("reader-prose");
+
+    expect(prose).not.toContainElement(topDivider);
+    expect(frame).toContainElement(topDivider);
+    expect(prose).toContainElement(closingDivider);
   });
 
   it("keeps the cover and the title inside the frame", async () => {
