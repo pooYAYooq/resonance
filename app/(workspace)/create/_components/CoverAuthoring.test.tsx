@@ -161,4 +161,21 @@ describe("CoverAuthoring", () => {
     expect(props.onChooseCover).toHaveBeenCalledWith(file);
     expect(props.onRemoveCover).toHaveBeenCalledTimes(1);
   });
+
+  it("previews the cover at the published ratio", () => {
+    renderCover({
+      cover: {
+        id: "cover-1",
+        kind: "cover",
+        mediaType: "image",
+        status: "resolved",
+        url: "/cover.png",
+        fileName: "cover.png",
+      },
+    });
+
+    expect(screen.getByTestId("media-preview").parentElement).toHaveClass(
+      "aspect-[16/9]",
+    );
+  });
 });

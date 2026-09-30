@@ -5,7 +5,7 @@ import {
   PostBodyPreview,
   type PreviewInlineImage,
 } from "@/components/web/PostBodyPreview";
-import { CoverImage } from "@/components/web/CoverImage";
+import { PostCover } from "@/components/web/PostCover";
 import type { EditorMode } from "../editorMode";
 
 type ReviewSurfaceProps = {
@@ -35,15 +35,13 @@ export default function ReviewSurface({
       className="flex flex-col gap-6"
     >
       <article className="flex flex-col gap-6">
-        <div className="relative aspect-[3/2] w-full overflow-hidden rounded-md border">
-          <CoverImage
-            src={coverUrl}
-            alt={proposal.title}
-            sizes="(max-width: 1024px) 100vw, 768px"
-            className="object-cover"
-          />
-        </div>
-        <h1 className="text-h1 font-semibold tracking-tight font-serif">
+        <PostCover
+          src={coverUrl}
+          alt={proposal.title}
+          sizes="(max-width: 1100px) 100vw, 744px"
+          className="rounded-md border"
+        />
+        <h1 className="text-h1 font-bold tracking-tight font-serif">
           {proposal.title}
         </h1>
         {proposal.tags.length > 0 && (
@@ -58,7 +56,9 @@ export default function ReviewSurface({
             ))}
           </div>
         )}
-        <PostBodyPreview body={proposal.body} inlineImages={inlineImages} />
+        <div data-testid="review-prose" className="mx-auto w-full max-w-[700px]">
+          <PostBodyPreview body={proposal.body} inlineImages={inlineImages} />
+        </div>
       </article>
 
       {blockerMessage && (
