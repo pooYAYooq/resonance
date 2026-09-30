@@ -10,18 +10,21 @@ live in [`../ROADMAP.md`](../ROADMAP.md); shipped history lives in
 v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3 is the active slice:
 Track 1 authoring polish and Track 4 management, navigation, and accessibility,
 followed by 3A.4, 3A.5, and release readiness. The single remaining-work list is
-in [`../ROADMAP.md`](../ROADMAP.md).
+in [`../ROADMAP.md`](../ROADMAP.md). The content width design session completed
+on 2026-09-30; its reader, published scale, and Review work is implemented on
+`fix/content-width-consistency`.
 
 ## Next action
 
-The authoring polish batch continues after V1-05 paste hardening. V1-01, V1-02,
-V1-04, and V1-05 are done. V1-03 and V1-07 await the content width design
-session. After V1-03, V1-07 to V1-12, and a recorded author browser acceptance
-pass, close Track 1 with V1-06.
+The content width work is implemented on `fix/content-width-consistency` with
+per-task browser acceptance recorded: the reader frame and published scale, the
+heading rhythm, Review parity, and the wide-screen rail reservation. It awaits
+the human PR gate. After it merges, the remaining Track 1 items (V1-08 to
+V1-12) and the V1-06 closure continue, and the wide-screen reader rail contents
+are the first queued reader follow-up.
 
 ## Blockers
 
-- V1-03 and V1-07 await the content width design session.
 - V1-15 unsaved-exit guards are in v1.0 but need a dedicated spec before
   implementation.
 
@@ -57,6 +60,9 @@ pass, close Track 1 with V1-06.
 
 Active, local, and untracked:
 
+- `docs/superpowers/specs/2026-09-30-reader-width-design.md`
+- `docs/superpowers/plans/2026-09-30-reader-width.md`
+- `docs/superpowers/plans/2026-09-27-typography-font-application.md`
 - `docs/superpowers/plans/2026-09-23-roadmap-scope-sync.md`
 
 Historical artifacts, preserved in place and excluded from active reading.
