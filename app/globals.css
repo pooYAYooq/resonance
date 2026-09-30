@@ -201,26 +201,41 @@
   --shadow-2xl: 0px 1px 4px 0px hsl(0 0% 0% / 0.13);
 }
 
-/* Document type scale: a 1.2 modular scale for the writing and reading
- * surfaces (editor canvas, reader, Review preview). App chrome keeps the
- * shadcn control sizes. */
+/* Document type scale: a 1.2 modular scale rebased on an 18px published body
+ * for the reading surfaces (reader and Review preview). App chrome keeps the
+ * shadcn control sizes; the editor canvas has its own editing scale, set by the
+ * BlockNote overrides above. */
 @theme {
-  --text-h1: 2.986rem;
+  --text-h1: 3.359rem;
   --text-h1--line-height: 1.1;
-  --text-h2: 2.488rem;
+  --text-h2: 2.799rem;
   --text-h2--line-height: 1.15;
-  --text-h3: 2.074rem;
+  --text-h3: 2.333rem;
   --text-h3--line-height: 1.2;
-  --text-h4: 1.728rem;
+  --text-h4: 1.944rem;
   --text-h4--line-height: 1.25;
-  --text-h5: 1.44rem;
+  --text-h5: 1.62rem;
   --text-h5--line-height: 1.3;
-  --text-h6: 1.2rem;
+  --text-h6: 1.35rem;
   --text-h6--line-height: 1.35;
   --text-small: 0.833rem;
   --text-small--line-height: 1.45;
   --text-tiny: 0.694rem;
   --text-tiny--line-height: 1.4;
+}
+
+/* Published reading rhythm. A heading's line box carries its own optical air
+ * under the glyphs, so the block a heading introduces is bound tighter than
+ * the 20px block step instead of floating a full line away. Held here rather
+ * than in a `space-y-5` utility because the tighter gap belongs on the
+ * heading's next sibling, on both the reader and the Review preview. */
+[data-slot="post-body"] > * + *,
+[data-slot="post-body-preview"] > * + * {
+  margin-block-start: 1.25rem;
+}
+[data-slot="post-body"] > :is(h2, h3, h4, h5, h6) + *,
+[data-slot="post-body-preview"] > :is(h2, h3, h4, h5, h6) + * {
+  margin-block-start: 0.5rem;
 }
 
 @theme inline {
