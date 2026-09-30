@@ -43,9 +43,16 @@ work is tracked in `ROADMAP.md`.
 - Create is a UX surface: the editor keeps a compact title field and an editing
   heading scale, while the published modular type scale belongs to Review and
   the reader.
-- The create studio places the cover above the title with a dropzone and 3:2
-  preview, frames the canvas in a full-height document card on a muted desk, and
-  moves Post details into a bordered row with an end-of-page marker.
+- The create studio is one open writing page: the cover sits above the title
+  with a dropzone and a published-ratio 16:9 preview, the canvas frames an 808px
+  document column, and Post details move into a disclosure with an end-of-page
+  marker.
+- The published reader aligns its cover, title, metadata, tags, and title
+  divider to the site header container around a 700px prose column that
+  left-aligns from `xl` up to reserve the wide-screen rail, with a 16:9
+  viewport-capped cover and an 18px published body and heading scale.
+- Review mirrors the published cover ratio, measure, and title weight, and the
+  authoring cover chip previews the published 16:9 crop before Review.
 - Tag selection uses the shadcn Checkbox in selectable rows with non-selectable
   labels, capped at five tags.
 - Published edits stay page-local and clear stale local recovery snapshots

@@ -285,8 +285,8 @@ describe("PostBody", () => {
   it("leaves the block rhythm to the published stylesheet", async () => {
     const { container } = render(<>{await PostBody({ body })}</>);
 
-    expect(
-      container.querySelector('[data-slot="post-body"]'),
-    ).not.toHaveClass("space-y-5");
+    expect(container.querySelector('[data-slot="post-body"]')).not.toHaveClass(
+      /space-y-/,
+    );
   });
 });

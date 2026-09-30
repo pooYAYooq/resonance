@@ -281,4 +281,20 @@ describe("blog post timestamps", () => {
     expect(back).toHaveAttribute("href", "/blog");
     expect(screen.getByTestId("reader-prose")).toContainElement(back);
   });
+
+  it("renders the not-found fallback as part of the reader family", async () => {
+    fetchAuthQueryMock.mockResolvedValue(null);
+
+    render(await PostIdRoute({ params }));
+
+    const frame = screen.getByTestId("not-found-frame");
+    expect(frame).toHaveClass("w-full");
+    expect(frame).toHaveClass("pt-6");
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Post not found" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /back to all posts/i }),
+    ).toHaveAttribute("href", "/blog");
+  });
 });

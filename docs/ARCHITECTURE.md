@@ -51,7 +51,7 @@ resonance/
 │   │   │       │                        # Never imported by server bundles.
 │   │   │       ├── AuthoringSideMenu.tsx # Drag-safe block side menu (custom)
 │   │   │       ├── BlockHandleMenu.tsx   # Click-opened handle menu; kept off the client entry
-│   │   │       ├── CoverAuthoring.tsx    # Cover dropzone and 3:2 preview above the title,
+│   │   │       ├── CoverAuthoring.tsx    # Cover dropzone and published-ratio preview above the title,
 │   │   │       │                         # with replace/remove and recovery states
 │   │   │       ├── MediaAuthoring.tsx    # Details-level inline media status, thumbnails
 │   │   │       │                         # or glyphs, and replace/remove recovery
@@ -212,8 +212,11 @@ resonance/
 │       │                        # stored bodies via lib/post-content so serialized JSON never leaks.
 │       ├── CoverImage.tsx       # Shared cover: renders the resolved custom URL or a
 │       │                        # blank transparent fallback surface with a subtle
-│       │                        # bottom border. Cards and the reader agree; Review
-│       │                        # adopts it in a follow-up. Server-component safe.
+│       │                        # bottom border. Cards, the reader, and Review agree;
+│       │                        # published surfaces render through PostCover. Server-component safe.
+│       ├── PostCover.tsx        # Published 16:9 cover frame: one ratio, one clip, a
+│       │                        # viewport-height cap, and the single crop/focal seam.
+│       │                        # Server-component safe; a caller's aspect-* cannot override.
 │       ├── PostBody.tsx         # Pure Server Component renderer for structured bodies,
 │       │                         # including hydrated inline images.
 │       │                        # No "use client", no dangerouslySetInnerHTML, no sanitizer dep.
@@ -563,8 +566,8 @@ editor stays mounted but `hidden`/`inert` so its instance, history, and
 selection survive; Publish/Update reuse the existing attempt and save paths.
 `MediaAuthoring.tsx` reports inline media status, renders image thumbnails or
 audio/video glyphs, and offers replace or remove recovery. `CoverAuthoring.tsx`
-owns the cover dropzone, its 3:2 preview, and the cover recovery states above
-the title.
+owns the cover dropzone, its published-ratio preview, and the cover recovery
+states above the title.
 
 - **`lib/blocknote-contract.ts`** defines the finite `blocknote@1` projection
   for BlockNote's default text, list, checklist, toggle, code, divider, table,

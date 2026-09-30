@@ -19,6 +19,17 @@ describe("PostCover", () => {
     expect(frame).toHaveClass("mt-8");
   });
 
+  it("wins over a caller's conflicting aspect class", () => {
+    render(
+      <PostCover alt="A covered post" className="aspect-[3/2] rounded-xl" />,
+    );
+
+    const frame = screen.getByTestId("default-cover").parentElement;
+    expect(frame).toHaveClass("aspect-[16/9]");
+    expect(frame).not.toHaveClass("aspect-[3/2]");
+    expect(frame).toHaveClass("rounded-xl");
+  });
+
   it("caps the hero by viewport height, not just a flat pixel ceiling", () => {
     render(<PostCover alt="A covered post" />);
 

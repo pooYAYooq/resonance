@@ -7,7 +7,6 @@
 
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { buttonVariants } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { fetchQuery } from "convex/nextjs";
@@ -86,10 +85,19 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
 
   if (!post || post.publishedAt === undefined) {
     return (
-      <div className="max-w-3xl mx-auto py-8 px-4">
-        <h1 className="text-2xl font-bold mb-4">Post not found</h1>
-        <Link href="/blog" className={buttonVariants({ variant: "ghost" })}>
-          Back to blog
+      <div
+        data-testid="not-found-frame"
+        className="relative w-full pt-6 pb-8"
+      >
+        <h1 className="text-h1 font-bold tracking-tight text-foreground font-serif">
+          Post not found
+        </h1>
+        <Link
+          href="/blog"
+          className="mt-6 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back to all posts
         </Link>
       </div>
     );

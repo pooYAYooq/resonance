@@ -50,7 +50,7 @@ export function PostTagSelector({ value, onChange }: PostTagSelectorProps) {
               className={cn(
                 "mt-1 text-sm font-normal",
                 limitPulse > 0
-                  ? "animate-[tag-limit-nudge_500ms_ease-in-out] text-destructive"
+                  ? "animate-[tag-limit-nudge_500ms_ease-in-out] text-destructive motion-reduce:animate-none"
                   : "text-muted-foreground",
               )}
             >

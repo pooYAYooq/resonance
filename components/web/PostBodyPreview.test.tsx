@@ -155,6 +155,6 @@ describe("PostBodyPreview", () => {
 
     expect(
       container.querySelector('[data-slot="post-body-preview"]'),
-    ).not.toHaveClass("space-y-5");
+    ).not.toHaveClass(/space-y-/);
   });
 });

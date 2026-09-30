@@ -185,9 +185,8 @@ membership unless that session decides otherwise.
 - Exact supporting palette, compact footer, and final responsive treatments.
   The v1.0 visual system (V1-21 and V1-23) establishes the structure; the final
   treatments are settled in the design session. The published typography scale
-  and the content width were decided on 2026-09-30 and are implemented on
-  `fix/content-width-consistency`; the local artifacts are listed in
-  `docs/status.md`.
+  and the content width were decided on 2026-09-30, and the resume note in
+  `docs/status.md` records where they are implemented.
 
 ## Pending scope
 

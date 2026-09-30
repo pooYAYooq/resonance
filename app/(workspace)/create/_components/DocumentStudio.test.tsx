@@ -99,6 +99,14 @@ describe("DocumentStudio", () => {
     expect(screen.getByText("Post details")).toBeVisible();
   });
 
+  it("frames the writing canvas at the 808px studio measure", () => {
+    renderStudio("new", <button type="button">Review</button>);
+
+    expect(
+      screen.getByRole("main", { name: "Writing canvas" }).parentElement,
+    ).toHaveClass("max-w-[808px]");
+  });
+
   it.each([
     ["loading", "Loading document"],
     ["auth", "Sign in to continue"],

@@ -83,6 +83,15 @@ describe("ReviewSurface", () => {
     expect(img.getAttribute("src") ?? "").toContain("cdn.example%2Fcover.png");
   });
 
+  it("hints the cover at the studio frame width", () => {
+    renderSurface({ coverUrl: "https://cdn.example/cover.png" });
+
+    expect(screen.getByAltText("Review title")).toHaveAttribute(
+      "sizes",
+      "(max-width: 888px) 100vw, 808px",
+    );
+  });
+
   it("renders the published cover ratio", () => {
     renderSurface();
 

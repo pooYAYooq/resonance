@@ -19,7 +19,10 @@ type ReviewSurfaceProps = {
 /**
  * A frozen preview. It renders only the values handed to it, so the page can
  * pass the reviewed snapshot rather than live form state. Actions live in the
- * studio header.
+ * studio header. The cover hint matches the studio frame (808px inside the
+ * `px-4 sm:px-6 lg:px-10` padding), and the prose holds the published 700px
+ * measure centred inside that frame — the same 54px gutters the editor gives
+ * its canvas.
  */
 export default function ReviewSurface({
   mode,
@@ -38,7 +41,7 @@ export default function ReviewSurface({
         <PostCover
           src={coverUrl}
           alt={proposal.title}
-          sizes="(max-width: 1100px) 100vw, 744px"
+          sizes="(max-width: 888px) 100vw, 808px"
           className="rounded-md border"
         />
         <h1 className="text-h1 font-bold tracking-tight font-serif">

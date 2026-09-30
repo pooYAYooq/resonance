@@ -97,6 +97,9 @@ export default function DocumentStudio({
           </header>
 
           <div className="flex flex-1 flex-col px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+            {/* The 808px frame centres the editor's published-measure canvas;
+                Review renders its 700px prose inside the same frame, which is
+                the pair of 54px gutters both surfaces share. */}
             <div className="mx-auto flex w-full max-w-[808px] flex-1 flex-col">
               {notice && <div className="mb-8">{notice}</div>}
 
