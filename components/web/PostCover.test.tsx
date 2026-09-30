@@ -19,6 +19,14 @@ describe("PostCover", () => {
     expect(frame).toHaveClass("mt-8");
   });
 
+  it("caps the hero by viewport height, not just a flat pixel ceiling", () => {
+    render(<PostCover alt="A covered post" />);
+
+    expect(screen.getByTestId("default-cover").parentElement).toHaveClass(
+      "max-h-[min(560px,40dvh)]",
+    );
+  });
+
   it("passes the loading hint to the image", () => {
     render(
       <PostCover

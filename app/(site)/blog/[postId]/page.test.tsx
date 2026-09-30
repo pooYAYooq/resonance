@@ -199,4 +199,67 @@ describe("blog post timestamps", () => {
       "aspect-[16/9]",
     );
   });
+
+  it("lets the cover span the layout container and centres the prose", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    const frame = screen.getByTestId("reader-frame");
+    expect(frame).toHaveClass("w-full");
+    expect(frame.className).not.toMatch(/\bmax-w-/);
+    const prose = screen.getByTestId("reader-prose");
+    expect(prose).toHaveClass("max-w-[700px]");
+    expect(prose).toHaveClass("mx-auto");
+    expect(frame).toContainElement(prose);
+  });
+
+  it("keeps the cover and the title inside the frame", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    const frame = screen.getByTestId("reader-frame");
+    expect(frame).toContainElement(
+      screen.getByTestId("default-cover").parentElement,
+    );
+    expect(frame).toContainElement(
+      screen.getByRole("heading", { level: 1, name: "Structured Post" }),
+    );
+  });
+
+  it("holds the top of the page to a 24px rhythm", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    const frame = screen.getByTestId("reader-frame");
+    expect(frame).toHaveClass("pt-6");
+    expect(frame.className).not.toMatch(/\bpy-8/);
+    const cover = screen.getByTestId("default-cover").parentElement;
+    expect(cover?.className).not.toMatch(/\bmt-/);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Structured Post" }),
+    ).toHaveClass("mt-6");
+  });
+
+  it("does not put a return link above the cover", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    expect(
+      screen.queryByRole("link", { name: /back to blog page/i }),
+    ).toBeNull();
+  });
+
+  it("offers a quiet return link at the end of the article", async () => {
+    fetchAuthQueryMock.mockResolvedValue({ ...basePost, body: "body" });
+
+    render(await PostIdRoute({ params }));
+
+    const back = screen.getByRole("link", { name: /back to all posts/i });
+    expect(back).toHaveAttribute("href", "/blog");
+    expect(screen.getByTestId("reader-prose")).toContainElement(back);
+  });
 });
