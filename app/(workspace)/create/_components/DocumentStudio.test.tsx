@@ -134,7 +134,7 @@ describe("DocumentStudio", () => {
     expect(screen.queryByRole("button", { name: "Save Draft" })).toBeNull();
   });
 
-  it("shows the details summary counts in the disclosure", () => {
+  it("swaps the details counts for the description while the disclosure is open", () => {
     render(
       <DocumentStudio
         mode="new"
@@ -145,7 +145,27 @@ describe("DocumentStudio", () => {
       />,
     );
 
-    expect(screen.getByText("3 media · 2 tags")).toBeVisible();
+    // jsdom applies no Tailwind stylesheet, so the variant classes are the
+    // contract this test can verify: the counts hide while the disclosure is
+    // open (group-open:hidden) and the description appears in their place
+    // (hidden until group-open:inline applies).
+    const details = screen
+      .getByTestId("document-studio")
+      .querySelector("details");
+    expect(details).toHaveAttribute("open");
+
+    const counts = screen.getByText("3 media · 2 tags");
+    expect(counts.parentElement).toHaveClass("group-open:hidden");
+    const description = screen.getByText(
+      "Inline media and the tags readers can use to find this post.",
+    );
+    expect(description).toHaveClass("hidden");
+    expect(description).toHaveClass("group-open:inline");
+
+    // Closing the disclosure is what surfaces the counts again.
+    details?.removeAttribute("open");
+    expect(details).not.toHaveAttribute("open");
+    expect(counts).toBeVisible();
   });
 
   it("hides the details section when detailsHidden is set", () => {
