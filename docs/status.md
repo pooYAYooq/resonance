@@ -11,17 +11,18 @@ v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3 is the active slice:
 Track 1 authoring polish and Track 4 management, navigation, and accessibility,
 followed by 3A.4, 3A.5, and release readiness. The single remaining-work list is
 in [`../ROADMAP.md`](../ROADMAP.md). The content width design session completed
-on 2026-09-30; its reader, published scale, and Review work is implemented on
-`fix/content-width-consistency`.
+on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
+(merged as `d64cab5`).
 
 ## Next action
 
-The content width work is implemented on `fix/content-width-consistency` with
-per-task browser acceptance recorded: the reader frame and published scale, the
-heading rhythm, Review parity, and the wide-screen rail reservation. It awaits
-the human PR gate. After it merges, the remaining Track 1 items (V1-08 to
-V1-12) and the V1-06 closure continue, and the wide-screen reader rail contents
-are the first queued reader follow-up.
+The content width work shipped in PR #82 (`d64cab5`) with per-task browser
+acceptance recorded: the reader frame and published scale, the heading rhythm,
+Review parity, and the wide-screen rail reservation. Next: V1-08 author identity
+on the post page, then V1-09 to V1-12, then the V1-06 Track 1 closure. The
+wide-screen reader rail contents remain the first queued reader follow-up and
+pair with the author identity decision. Workspace setup for the next session
+(branch, `pnpm install`, `.env.local`) is still pending.
 
 ## Blockers
 
