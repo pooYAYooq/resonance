@@ -54,7 +54,7 @@ scope and progress live only in `ROADMAP.md`.
 
 ### Prerequisites
 
-- Node.js 20.9+ (required by Next.js 16)
+- Node.js 20.19+, 22.13+, or 24+ (required by Next.js 16 and the Vitest toolchain)
 - pnpm (locked to v10 via `packageManager` in `package.json`)
 - A Convex project (sign up at [convex.dev](https://convex.dev))
 
