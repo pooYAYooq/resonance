@@ -11,17 +11,19 @@ v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3 is the active slice:
 Track 1 authoring polish and Track 4 management, navigation, and accessibility,
 followed by 3A.4, 3A.5, and release readiness. The single remaining-work list is
 in [`../ROADMAP.md`](../ROADMAP.md). The content width design session completed
-on 2026-09-30; its reader, published scale, and Review work is implemented on
-`fix/content-width-consistency`.
+on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
+(merged as `d64cab5`).
 
 ## Next action
 
-The content width work is implemented on `fix/content-width-consistency` with
-per-task browser acceptance recorded: the reader frame and published scale, the
-heading rhythm, Review parity, and the wide-screen rail reservation. It awaits
-the human PR gate. After it merges, the remaining Track 1 items (V1-08 to
-V1-12) and the V1-06 closure continue, and the wide-screen reader rail contents
-are the first queued reader follow-up.
+The content width work shipped in PR #82 (`d64cab5`) with per-task browser
+acceptance recorded: the reader frame and published scale, the heading rhythm,
+Review parity, and the wide-screen rail reservation. Next: V1-08 author identity
+on the post page, then V1-09 to V1-12, then the V1-06 Track 1 closure. The
+wide-screen reader rail contents remain the first queued reader follow-up and
+pair with the author identity decision. The `feat/post-author-identity` branch
+carries the roadmap status correction and this documentation sync; V1-08 starts
+from it.
 
 ## Blockers
 
@@ -58,23 +60,26 @@ are the first queued reader follow-up.
 
 ## Local design and plan artifacts
 
-Active, local, and untracked:
+Active, local, and untracked: none at present. The wide-screen reader rail
+design session will add its spec and plan here.
 
-- `docs/superpowers/specs/2026-09-30-reader-width-design.md`
-- `docs/superpowers/plans/2026-09-30-reader-width.md`
-- `docs/superpowers/plans/2026-09-27-typography-font-application.md`
-- `docs/superpowers/plans/2026-09-23-roadmap-scope-sync.md`
+Historical artifacts, preserved in place and excluded from active reading:
 
-Historical artifacts, preserved in place and excluded from active reading.
-Each carries its own status notice:
-
+- `docs/superpowers/specs/2026-09-30-reader-width-design.md` (implemented;
+  parts superseded during browser acceptance; shipped in PR #82)
+- `docs/superpowers/plans/2026-09-30-reader-width.md` (completed; shipped in
+  PR #82)
+- `docs/superpowers/plans/2026-09-27-typography-font-application.md` (applied;
+  shipped in PR #82)
+- `docs/superpowers/plans/2026-09-23-roadmap-scope-sync.md` (completed audit)
 - `docs/superpowers/specs/2026-09-18-full-blocknote-authoring-design.md`
   (completed and implemented)
 - `docs/superpowers/specs/2026-09-19-review-surface-design.md` (completed and
   implemented)
 - `docs/superpowers/plans/2026-09-20-media-review-correctness.md` (completed)
-- The curated BlockNote contract plans are superseded by decision 3A-019. Other
-  artifacts in the same folders carry their own status notices.
+- The curated BlockNote contract plans are superseded by decision 3A-019.
+  Older artifacts in the same folders are historical; a few predate the
+  status-notice convention and carry no notice of their own.
 
 ## On-demand references
 

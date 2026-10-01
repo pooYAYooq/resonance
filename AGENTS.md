@@ -15,10 +15,10 @@ Convex agent skills for common tasks can be installed by running
 ## Setup
 
 - `pnpm install` (locked to pnpm 10 via `packageManager`) in the repo root.
-- Copy `.env.local.example` → `.env.local`. Set `NEXT_PUBLIC_CONVEX_URL`,
-  `NEXT_PUBLIC_CONVEX_SITE_URL`, and `BETTER_AUTH_SECRET` (32+ chars, match
-  production entropy). Also set `SITE_URL` in the **Convex dashboard** env vars
-  (not `.env.local`) — `convex/auth.ts` and Better Auth read it from there.
+- Copy `.env.local.example` → `.env.local`. Set `NEXT_PUBLIC_CONVEX_URL` and
+  `NEXT_PUBLIC_CONVEX_SITE_URL`. Set `SITE_URL` and `BETTER_AUTH_SECRET` (32+
+  chars, match production entropy) in the **Convex dashboard** env vars (not
+  `.env.local`) — `convex/auth.ts` and Better Auth read them there.
 - `opencode.json` sets `permission.edit: "ask"` and `permission.bash.*: "ask"` —
   expect approval prompts for write/file-system commands.
 

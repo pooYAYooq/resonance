@@ -40,6 +40,7 @@ resonance/
 │   ├── (workspace)/            # Authenticated author workspace, no global Navbar or Footer
 │   │   ├── layout.tsx          # WorkspaceShell auth boundary and workspace-only chrome
 │   │   ├── create/
+│   │   │   ├── layout.tsx      # Metadata-only child layout.
 │   │   │   ├── page.tsx        # New, draft, and published-edit writing modes.
 │   │   │   │                   # Loads the BlockNote editor via next/dynamic
 │   │   │   │                   # ({ ssr: false }) and serializes the envelope
@@ -64,6 +65,7 @@ resonance/
 │   │   │   ├── page.tsx        # Dashboard root with independent drafts and published-post previews.
 │   │   │   ├── drafts/page.tsx # Full owner-scoped draft list.
 │   │   │   ├── published/page.tsx # Full current-author published list.
+│   │   │   ├── analytics/page.tsx # Private author analytics: summary cards and follower chart.
 │   │   │   └── _components/    # Deferred root content, sections, previews, and rows.
 │   │   └── _components/        # Shell, sidebar, mobile drawer, utilities, and navigation.
 │   ├── (marketing)/            # Public marketing routes (Navbar + marketing Footer)
@@ -106,10 +108,10 @@ resonance/
 │   │   │   ├── page.tsx        # Private reader collection of bookmarked posts.
 │   │   │   └── _components/
 │   │   │       └── SavedSection.tsx      # Client auth gate + pagination.
-│   │   └── liked/
-│   │       ├── page.tsx        # Private reader collection of liked posts.
-│   │       └── _components/
-│   │           └── LikedSection.tsx      # Client auth gate + pagination.
+│   │   ├── liked/
+│   │   │   ├── page.tsx        # Private reader collection of liked posts.
+│   │   │   └── _components/
+│   │   │       └── LikedSection.tsx      # Client auth gate + pagination.
 │   │   ├── profile/edit/page.tsx # Authenticated display-name and bio editor.
 │   │   └── settings/page.tsx    # Appearance and Account configuration only.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
@@ -1086,13 +1088,13 @@ data because the existing server `fetchQuery` path is unauthenticated.
 
 ## Environment Variables
 
-| Variable                      | Where it lives            | Used by                                  |
-| ----------------------------- | ------------------------- | ---------------------------------------- |
-| `NEXT_PUBLIC_CONVEX_URL`      | Next.js `.env.local`      | `ConvexClientProvider`: WebSocket URL    |
-| `NEXT_PUBLIC_CONVEX_SITE_URL` | Next.js `.env.local`      | Points browser auth calls at Convex HTTP |
-| `BETTER_AUTH_SECRET`          | Next.js `.env.local`      | Better Auth encryption (32+ chars)       |
-| `NEXT_PUBLIC_SITE_URL`        | Next.js `.env.local`      | `metadataBase` / absolute OG image URLs  |
-| `SITE_URL`                    | Convex dashboard env vars | `convex/auth.ts`: Better Auth base URL   |
+| Variable                      | Where it lives            | Used by                                    |
+| ----------------------------- | ------------------------- | ------------------------------------------ |
+| `NEXT_PUBLIC_CONVEX_URL`      | Next.js `.env.local`      | `ConvexClientProvider`: WebSocket URL      |
+| `NEXT_PUBLIC_CONVEX_SITE_URL` | Next.js `.env.local`      | Points browser auth calls at Convex HTTP   |
+| `BETTER_AUTH_SECRET`          | Convex dashboard env vars | Better Auth session encryption (32+ chars) |
+| `NEXT_PUBLIC_SITE_URL`        | Next.js `.env.local`      | `metadataBase` / absolute OG image URLs    |
+| `SITE_URL`                    | Convex dashboard env vars | `convex/auth.ts`: Better Auth base URL     |
 
-`NEXT_PUBLIC_*` variables are exposed to the browser bundle. `SITE_URL` stays
-server-side inside Convex.
+`NEXT_PUBLIC_*` variables are exposed to the browser bundle. `SITE_URL` and
+`BETTER_AUTH_SECRET` stay server-side inside Convex.

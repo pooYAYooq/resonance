@@ -44,7 +44,7 @@ scope and progress live only in `ROADMAP.md`.
 - **Backend:** [Convex](https://convex.dev) — real-time database & serverless functions
 - **Auth:** [Better Auth](https://better-auth.com) via `@convex-dev/better-auth` (runs inside Convex)
 - **UI:** [shadcn/ui](https://ui.shadcn.com), [Tailwind CSS v4](https://tailwindcss.com), [Radix UI](https://radix-ui.com)
-- **Fonts:** Geist Sans, Geist Mono, Inter (via `next/font`)
+- **Fonts:** Work Sans (product voice and reading text) and Neuton (published headings) via `next/font`
 - **Forms:** React Hook Form + Zod
 - **Testing:** Vitest (edge-runtime for Convex, jsdom for UI components)
 
@@ -54,7 +54,7 @@ scope and progress live only in `ROADMAP.md`.
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.19+, 22.13+, or 24+ (required by Next.js 16 and the Vitest toolchain)
 - pnpm (locked to v10 via `packageManager` in `package.json`)
 - A Convex project (sign up at [convex.dev](https://convex.dev))
 
@@ -68,14 +68,13 @@ pnpm install
 
 Copy `.env.local.example` to `.env.local` and fill in:
 
-| Variable                      | Description                              |
-| ----------------------------- | ---------------------------------------- |
-| `NEXT_PUBLIC_CONVEX_URL`      | Your Convex deployment URL               |
-| `NEXT_PUBLIC_CONVEX_SITE_URL` | Your Convex site URL                     |
-| `BETTER_AUTH_SECRET`          | 32+ character secret for auth encryption |
-| `NEXT_PUBLIC_SITE_URL`        | Public site URL (for OG tags)            |
+| Variable                      | Description                   |
+| ----------------------------- | ----------------------------- |
+| `NEXT_PUBLIC_CONVEX_URL`      | Your Convex deployment URL    |
+| `NEXT_PUBLIC_CONVEX_SITE_URL` | Your Convex site URL          |
+| `NEXT_PUBLIC_SITE_URL`        | Public site URL (for OG tags) |
 
-> **Note:** Also set `SITE_URL` in the **Convex dashboard** environment variables (not `.env.local`) — `convex/auth.ts` and Better Auth read it from there.
+> **Note:** Also set `SITE_URL` and `BETTER_AUTH_SECRET` (32+ high-entropy characters) in the **Convex dashboard** environment variables (not `.env.local`) — `convex/auth.ts` and Better Auth read them from there.
 
 ### 3. Run the development server
 
@@ -125,6 +124,7 @@ app/
   (workspace)/                # Authenticated workspace routes (no global Navbar or Footer)
     layout.tsx                # WorkspaceShell auth boundary and workspace-only chrome
     create/
+      layout.tsx              # Metadata-only child layout
       page.tsx                # New, draft, and published-edit writing modes
       _components/
         PostBodyEditor.tsx    # Browser-only standard BlockNote adapter (ssr:false); uses the shared upload hook
@@ -139,6 +139,7 @@ app/
     dashboard/
       layout.tsx              # Metadata-only child layout
       page.tsx                # Dashboard root with drafts and published-post previews
+      analytics/page.tsx      # Private author analytics: summary cards and follower-growth chart
       drafts/page.tsx         # Full owner-scoped draft list
       published/page.tsx      # Full current-author published list
       _components/            # Deferred root content, sections, previews, and rows
@@ -155,8 +156,8 @@ app/
   (site)/                     # Reader routes (Navbar + compact Footer)
     layout.tsx                # SiteShell with the compact footer
     blog/
-       page.tsx                # Discover route with normalized URL state
-       _components/            # Search, Topics, states, summaries, and paginated results
+      page.tsx                # Discover route with normalized URL state
+      _components/            # Search, Topics, states, summaries, and paginated results
       [postId]/
         page.tsx              # Single post view with likes, comments, and publication timestamps
     feed/
@@ -168,9 +169,13 @@ app/
     notifications/
       page.tsx                # Private notifications feed (client-gated + paginated)
       _components/            # NotificationsList (gate + pagination + mark-all-read) + NotificationRow
+    profile/edit/
+      page.tsx                # Authenticated display-name and bio editor
     saved/
       page.tsx                # Private reader collection of bookmarked posts
       _components/            # SavedSection (client gate + pagination)
+    settings/
+      page.tsx                # Appearance and account configuration
     u/[userId]/
       page.tsx                # Public profile with paginated posts
       _components/            # ProfilePostList (Edit Profile + Follow live in components/web/)
