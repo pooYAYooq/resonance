@@ -24,4 +24,24 @@ describe("TagPill", () => {
       "/blog?tag=RemovedTag",
     );
   });
+
+  it("allows roomier reader padding without changing the default tag sizing", () => {
+    const { rerender } = render(<TagPill tag="Culture" className="py-1" />);
+    const tag = screen.getByRole("link", { name: "Culture" });
+    expect(tag).toHaveClass("py-1", "text-xs");
+    expect(tag).not.toHaveClass("py-0.5");
+
+    rerender(<TagPill tag="Culture" />);
+    expect(tag).toHaveClass("py-0.5");
+    expect(tag).not.toHaveClass("py-1");
+  });
+
+  it("exposes a visible keyboard focus style without replacing the topic name", () => {
+    render(<TagPill tag="Culture" />);
+    expect(screen.getByRole("link", { name: "Culture" })).toHaveClass(
+      "focus-visible:outline-2",
+      "focus-visible:outline-ring",
+      "focus-visible:outline-offset-2",
+    );
+  });
 });

@@ -30,12 +30,15 @@ interface FollowButtonProps {
   authorName: string;
   /** Server-derived follow state used before the live query resolves. */
   isFollowing: boolean;
+  /** Compact byline sizing; profile actions retain the default size. */
+  size?: "default" | "sm";
 }
 
 export function FollowButton({
   profileUserId,
   authorName,
   isFollowing,
+  size = "default",
 }: FollowButtonProps) {
   const [isPending, startTransition] = useTransition();
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -85,7 +88,7 @@ export function FollowButton({
   return (
     <Button
       variant={localFollowing ? "default" : "outline"}
-      size="default"
+      size={size}
       onClick={handleClick}
       disabled={isPending || isLoading}
       aria-label={
@@ -94,13 +97,18 @@ export function FollowButton({
       aria-pressed={localFollowing}
     >
       {isPending ? (
-        <Loader2 className="size-4 animate-spin" />
+        <Loader2 data-icon="inline-start" className="animate-spin" />
       ) : localFollowing ? (
-        <UserCheck className="size-4" />
+        <UserCheck data-icon="inline-start" />
       ) : (
-        <UserPlus className="size-4" />
+        <UserPlus data-icon="inline-start" />
       )}
-      <span>{label}</span>
+      <span className="inline-grid">
+        <span aria-hidden="true" className="invisible col-start-1 row-start-1">
+          Following
+        </span>
+        <span className="col-start-1 row-start-1">{label}</span>
+      </span>
     </Button>
   );
 }

@@ -45,6 +45,11 @@
   to the site header container around a 700px prose column that left-aligns from
   `xl` up to reserve the wide-screen rail, with a 16:9 cover (capped at
   `min(560px, 40dvh)`) and an 18px published body scale
+- Published post attribution includes a 40px avatar and a linked author name,
+  falling back to Unknown when the profile name is unavailable. Publication and
+  conditional update dates are stacked beneath the name with emphasized labels;
+  roomier topic links sit below in a labeled navigation region. Author and topic
+  links expose explicit keyboard-focus styles.
 
 ### Drafts & Publishing
 
@@ -111,6 +116,10 @@
 
 - `toggleFollow` — idempotent, one follow per user per author, records in a separate `follows` table
 - `FollowButton` and `ProfileActionButton` on author profiles (consolidates Edit Profile + Follow into one `rightAction` slot)
+- Published post bylines reuse a compact Follow control beside the author name,
+  hidden on the author's own posts. Initial follow state is server-hydrated and
+  reconciled with the authenticated live query; signed-out clicks return through
+  login to the post. Both labels reserve the same width to avoid layout shifts.
 - Denormalized `followerCount` and `followingCount` on `users`; `ProfileStats` row on profile headers subscribes to `getFollowCounts` and bumps live
 - `isFollowing` query drives the initial button state; `getFollowCounts` drives the reactive stats row
 - Two indexes: `by_followerId_and_followingId` (1.4) for the "is X following Y?" check, `by_followingId` (1.6) for the notification fan-out's ordered scan

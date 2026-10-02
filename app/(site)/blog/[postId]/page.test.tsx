@@ -19,6 +19,25 @@ vi.mock("@/components/web/LikeButton", () => ({ LikeButton: () => null }));
 vi.mock("@/components/web/BookmarkButton", () => ({
   BookmarkButton: () => null,
 }));
+vi.mock("@/components/web/FollowButton", () => ({
+  FollowButton: ({
+    profileUserId,
+    authorName,
+    isFollowing,
+  }: {
+    profileUserId: string;
+    authorName: string;
+    isFollowing: boolean;
+  }) => (
+    <button
+      type="button"
+      data-testid="follow-button"
+      data-user={profileUserId}
+      data-author={authorName}
+      data-following={String(isFollowing)}
+    />
+  ),
+}));
 vi.mock("@/components/web/PostBody", () => ({
   PostBody: () => null,
 }));
@@ -34,6 +53,12 @@ import PostIdRoute, { generateMetadata } from "./page";
 const postId = "post-1" as Id<"posts">;
 const params = Promise.resolve({ postId });
 
+const dateLine = (text: string) =>
+  screen.getByText(
+    (_content, element) =>
+      element?.tagName === "P" && element.textContent === text,
+  );
+
 const basePost = {
   _id: postId,
   title: "Structured Post",
@@ -41,6 +66,8 @@ const basePost = {
   inlineImages: [],
   isLiked: false,
   isBookmarked: false,
+  isFollowing: false,
+  isAuthor: false,
   commentCount: 0,
   likeCount: 0,
   createdAt: 1,
@@ -142,9 +169,7 @@ describe("blog post timestamps", () => {
 
     render(await PostIdRoute({ params }));
 
-    expect(
-      screen.getByText("Published on: January 15, 2024"),
-    ).toBeInTheDocument();
+    expect(dateLine("Published on: January 15, 2024")).toBeInTheDocument();
     expect(screen.queryByText(/Updated on:/)).toBeNull();
   });
 
@@ -159,12 +184,8 @@ describe("blog post timestamps", () => {
 
     render(await PostIdRoute({ params }));
 
-    expect(
-      screen.getByText("Published on: January 15, 2024"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Updated on: February 20, 2024"),
-    ).toBeInTheDocument();
+    expect(dateLine("Published on: January 15, 2024")).toBeInTheDocument();
+    expect(dateLine("Updated on: February 20, 2024")).toBeInTheDocument();
   });
 
   it("does not fall back to createdAt when publishedAt is missing", async () => {
@@ -296,5 +317,152 @@ describe("blog post timestamps", () => {
     expect(
       screen.getByRole("link", { name: /back to all posts/i }),
     ).toHaveAttribute("href", "/blog");
+  });
+});
+
+describe("blog post author byline", () => {
+  beforeEach(() => {
+    fetchQueryMock.mockReset();
+    fetchAuthQueryMock.mockReset();
+    postViewTrackerMock.mockClear();
+  });
+
+  it("links the author name to the author profile above the dates", async () => {
+    fetchAuthQueryMock.mockResolvedValue({
+      ...basePost,
+      authorName: "Ada Lovelace",
+      authorAvatarUrl: null,
+      body: "body",
+    });
+
+    const { container } = render(await PostIdRoute({ params }));
+
+    const byline = screen.getByTestId("author-byline");
+    const authorLink = screen.getByRole("link", { name: "Ada Lovelace" });
+    expect(authorLink).toHaveAttribute("href", "/u/user-1");
+    expect(authorLink).toHaveClass("capitalize");
+    expect(authorLink).toHaveClass(
+      "focus-visible:underline",
+      "underline-offset-4",
+    );
+    expect(container.querySelector('[data-slot="avatar"]')).toHaveClass(
+      "size-10",
+    );
+    expect(byline).toContainElement(authorLink);
+    expect(byline).toContainElement(dateLine("Published on: January 1, 1970"));
+  });
+
+  it("falls back to Unknown when the author has no profile name", async () => {
+    fetchAuthQueryMock.mockResolvedValue({
+      ...basePost,
+      authorName: null,
+      authorAvatarUrl: null,
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    expect(screen.getByRole("link", { name: "Unknown" })).toHaveAttribute(
+      "href",
+      "/u/user-1",
+    );
+  });
+
+  it("groups the stacked dates with the author text beside the avatar", async () => {
+    fetchAuthQueryMock.mockResolvedValue({
+      ...basePost,
+      authorName: "Ada Lovelace",
+      updatedAt: 2,
+      body: "body",
+    });
+
+    const { container } = render(await PostIdRoute({ params }));
+    const authorLink = screen.getByRole("link", { name: "Ada Lovelace" });
+    const textColumn = authorLink.parentElement?.parentElement;
+    expect(textColumn).toContainElement(
+      dateLine("Published on: January 1, 1970"),
+    );
+    expect(textColumn).toContainElement(
+      dateLine("Updated on: January 1, 1970"),
+    );
+    expect(textColumn).not.toContainElement(
+      container.querySelector('[data-slot="avatar"]'),
+    );
+    expect(authorLink.parentElement).toHaveClass("flex-wrap");
+    expect(authorLink).not.toHaveClass("tracking-wide");
+  });
+
+  it("emphasizes date labels in a tighter stack beneath the author name", async () => {
+    fetchAuthQueryMock.mockResolvedValue({
+      ...basePost,
+      authorName: "Ada Lovelace",
+      updatedAt: 2,
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    for (const label of ["Published on:", "Updated on:"]) {
+      expect(screen.getByText(label)).toHaveClass(
+        "font-semibold",
+        "text-foreground",
+      );
+    }
+    const authorLink = screen.getByRole("link", { name: "Ada Lovelace" });
+    expect(authorLink.parentElement?.parentElement).toHaveClass("gap-1");
+    expect(dateLine("Published on: January 1, 1970").parentElement).toHaveClass(
+      "text-muted-foreground",
+    );
+  });
+
+  it("renders the follow button with the author identity when not the author", async () => {
+    fetchAuthQueryMock.mockResolvedValue({
+      ...basePost,
+      authorName: "Ada Lovelace",
+      isFollowing: true,
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    const follow = screen.getByTestId("follow-button");
+    expect(follow).toHaveAttribute("data-user", "user-1");
+    expect(follow).toHaveAttribute("data-author", "Ada Lovelace");
+    expect(follow).toHaveAttribute("data-following", "true");
+  });
+
+  it("hides the follow button on the author's own post", async () => {
+    fetchAuthQueryMock.mockResolvedValue({
+      ...basePost,
+      authorName: "Ada Lovelace",
+      isAuthor: true,
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    expect(screen.queryByTestId("follow-button")).toBeNull();
+  });
+
+  it("keeps roomier topic links below the byline with compact spacing", async () => {
+    fetchAuthQueryMock.mockResolvedValue({
+      ...basePost,
+      authorName: "Ada Lovelace",
+      tags: ["Culture", "Science"],
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    const tag = screen.getByRole("link", { name: "Culture" });
+    expect(tag).toHaveAttribute("href", "/blog?tag=Culture");
+    expect(tag).toHaveClass("py-1", "text-xs");
+    expect(tag.parentElement).toBe(
+      screen.getByRole("navigation", { name: "Post topics" }),
+    );
+    expect(tag.parentElement).toHaveClass("mt-3", "flex-wrap", "gap-2");
+    expect(tag.parentElement?.previousElementSibling).toBe(
+      screen.getByTestId("author-byline"),
+    );
   });
 });

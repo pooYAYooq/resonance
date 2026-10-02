@@ -54,11 +54,18 @@ Source: Track 1 UI and UX audit, coordinated with 3A.4 and 3A.5.
 | ID    | Item                             | Status | Estimate |
 | ----- | -------------------------------- | ------ | -------- |
 | V1-07 | Reader width on wide screens     | Done   | S        |
-| V1-08 | Author identity on the post page | Todo   | M        |
+| V1-08 | Author identity on the post page | Done   | M        |
 | V1-09 | Engagement control emphasis      | Todo   | S        |
 | V1-10 | Reader link distinctness         | Todo   | S        |
 | V1-11 | Dark-mode contrast and focus     | Todo   | M        |
 | V1-12 | H3 and Divider content check     | Todo   | S        |
+
+Author identity browser acceptance was confirmed on 2026-10-02, including the
+stable-width Follow button tested with a different user account and the rest of
+the reader design. Accessibility and responsive verification cover the byline,
+dates, topic links, and compact Follow action. Implementation is complete on
+`feat/reader-author-identity`; PR integration remains pending. Follow
+colors are deferred to V1-21.
 
 ### Management and navigation
 
@@ -94,6 +101,10 @@ Source: `docs/PHASE_3A.md` 3A.5.
 | V1-21 | Typography, color, surface, spacing, density systems | Todo   | L        |
 | V1-22 | Shared page-state language                           | Todo   | M        |
 | V1-23 | Responsive and interaction polish                    | Todo   | M        |
+
+V1-21 includes the deferred Follow/Following color treatment. V1-23 includes the
+signed-out navbar overflow at 320px and 375px, where authentication controls do
+not fit; the post author section fits at those widths.
 
 ### Release readiness
 
