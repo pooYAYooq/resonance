@@ -2,7 +2,7 @@
 
 Use this checklist before requesting approval to open a pull request. It is intentionally a local agent workflow document, not a GitHub PR template.
 
-1. Confirm the working tree contains only intended task changes plus any intentionally local, untracked planning artifacts.
+1. Confirm the working tree contains only intended task changes plus any intentionally local, untracked planning artifacts for the active task.
 2. Read `docs/status.md` and verify the current delivery focus and next task are accurate.
 3. Mark completed plan steps and record any known limitations.
 4. Update `ROADMAP.md` when scope, delivery status, or deferred work changed, and keep every commitment traceable to its source.

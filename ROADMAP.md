@@ -32,9 +32,7 @@ not commitments.
 ### Authoring polish
 
 Source: Track 1 UI and UX audit, recorded in `docs/status.md` at commit
-`46d26a3`; local supplemental detail in
-`docs/superpowers/plans/2026-09-20-media-review-correctness.md`. Requirements in
-`docs/PHASE_3A.md` 3A.3.
+`46d26a3`. Requirements in `docs/PHASE_3A.md` 3A.3.
 
 | ID    | Item                                                        | Status | Estimate |
 | ----- | ----------------------------------------------------------- | ------ | -------- |

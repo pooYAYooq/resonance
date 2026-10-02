@@ -93,9 +93,12 @@ active local spec or plan for the current implementation unit.
   action, or a blocker means updating it.
 - `docs/ARCHITECTURE.md` + README's Project Structure — changing directory
   structure, schema, or auth → update both.
-- Active designs and implementation plans → `docs/superpowers/specs|plans/`
-  (local, untracked, and intentionally not gitignored). The mandatory human
-  staging gate prevents these development artifacts from being committed.
+- Task design and implementation artifacts → `docs/superpowers/specs|plans/`
+  while active (local, untracked, and intentionally not gitignored; the
+  staging gate prevents commits). When the task's completion is recorded in
+  the permanent docs, archive its artifacts under
+  `/home/studio/projects/resonance-docs-archive/` and remove them from the
+  worktree.
 
 ## Status and PR workflow
 
