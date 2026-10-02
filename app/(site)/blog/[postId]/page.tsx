@@ -147,7 +147,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
               >
                 {displayName}
               </Link>
-              {!post.isAuthor && (
+              {post.authorExists && !post.isAuthor && (
                 <FollowButton
                   profileUserId={post.authorId}
                   authorName={displayName}

@@ -615,8 +615,8 @@ export const countPosts = query({
  * @returns The post object with `imageUrl`, `authorName`, `authorAvatarUrl`,
  *   `commentCount`, and `isLiked` fields, or `null` if not found. `imageUrl` is
  *   a signed URL string when the post has an associated image, or `null` when
- *   it does not; the author fields are `null` when the author has no `users`
- *   record.
+ *   it does not; `authorExists` reports whether the author has a `users` record,
+ *   and the author name/avatar fields are `null` when that record is missing.
  */
 export const getPostById = query({
   args: { postId: v.id("posts") },
@@ -626,6 +626,7 @@ export const getPostById = query({
       imageUrl: v.union(v.string(), v.null()),
       authorName: v.union(v.string(), v.null()),
       authorAvatarUrl: v.union(v.string(), v.null()),
+      authorExists: v.boolean(),
       inlineImages: v.array(
         v.object({
           storageId: v.id("_storage"),
@@ -706,6 +707,7 @@ export const getPostById = query({
       authorName: author?.displayName ?? null,
       authorAvatarUrl: author?.avatarUrl ?? null,
       inlineImages,
+      authorExists: author !== null,
       isLiked,
       isBookmarked,
       isFollowing,

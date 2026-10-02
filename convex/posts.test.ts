@@ -1963,6 +1963,7 @@ describe("posts functions", () => {
 
     expect(result?.authorName).toBe("Bob");
     expect(result?.authorAvatarUrl).toBe("https://example.com/bob.png");
+    expect(result).toHaveProperty("authorExists", true);
   });
 
   it("returns null author fields in getPostById when the author has no users record", async () => {
@@ -1987,6 +1988,37 @@ describe("posts functions", () => {
 
     expect(result).not.toBeNull();
     expect(result?.authorName).toBeNull();
+    expect(result?.authorAvatarUrl).toBeNull();
+    expect(result).toHaveProperty("authorExists", false);
+  });
+
+  it("reports an existing author even with a blank name and no stored avatar", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "blank-name-author",
+        displayName: "",
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: Date.now(),
+      });
+      return await ctx.db.insert("posts", {
+        title: "Existing author",
+        body: "Body.",
+        authorId: "blank-name-author",
+        tags: [],
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+    expect(result).toHaveProperty("authorExists", true);
+    expect(result?.authorName).toBe("");
     expect(result?.authorAvatarUrl).toBeNull();
   });
 

@@ -68,6 +68,7 @@ const basePost = {
   isBookmarked: false,
   isFollowing: false,
   isAuthor: false,
+  authorExists: true,
   commentCount: 0,
   likeCount: 0,
   createdAt: 1,
@@ -352,10 +353,31 @@ describe("blog post author byline", () => {
     expect(byline).toContainElement(dateLine("Published on: January 1, 1970"));
   });
 
-  it("falls back to Unknown when the author has no profile name", async () => {
+  it("keeps missing-author posts readable without offering Follow", async () => {
     fetchAuthQueryMock.mockResolvedValue({
       ...basePost,
       authorName: null,
+      authorAvatarUrl: null,
+      authorExists: false,
+      body: "body",
+    });
+
+    render(await PostIdRoute({ params }));
+
+    expect(screen.getByRole("link", { name: "Unknown" })).toHaveAttribute(
+      "href",
+      "/u/user-1",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Structured Post" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("follow-button")).toBeNull();
+  });
+
+  it("offers Follow for an existing author with a blank name and no stored avatar", async () => {
+    fetchAuthQueryMock.mockResolvedValue({
+      ...basePost,
+      authorName: "   ",
       authorAvatarUrl: null,
       body: "body",
     });
@@ -365,6 +387,10 @@ describe("blog post author byline", () => {
     expect(screen.getByRole("link", { name: "Unknown" })).toHaveAttribute(
       "href",
       "/u/user-1",
+    );
+    expect(screen.getByTestId("follow-button")).toHaveAttribute(
+      "data-user",
+      "user-1",
     );
   });
 
