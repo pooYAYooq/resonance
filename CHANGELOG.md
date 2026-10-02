@@ -12,6 +12,11 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Published post author attribution with an avatar, profile link, stacked
+  publication/update dates, and a compact viewer-aware Follow action with equal
+  width for Follow and Following labels. Topic links have roomier reader padding
+  and labeled navigation, with explicit keyboard
+  focus styling for author and topic links.
 - Standard Shadcn BlockNote authoring environment with native menus, remote
   embeds, code-language selection, Shiki highlighting, tables, and persistent
   visible Undo/Redo controls.

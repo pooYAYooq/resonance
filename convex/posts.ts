@@ -132,7 +132,9 @@ export function isValidPublishPostBody(body: string): boolean {
   if (!isValidDraftPostBody(body)) return false;
   const document = getStructuredPostBody(body);
   if (!document) return false;
-  const textLength = Array.from(extractPlainText(document.blocks).trim()).length;
+  const textLength = Array.from(
+    extractPlainText(document.blocks).trim(),
+  ).length;
   return textLength >= MIN_POST_TEXT_LENGTH;
 }
 
@@ -610,9 +612,11 @@ export const countPosts = query({
  * server-side if one exists.
  *
  * @param postId - `Id<"posts">`: The Convex document ID of the target post.
- * @returns The post object with `imageUrl`, `commentCount`, and `isLiked` fields,
- *   or `null` if not found. `imageUrl` is a signed URL string when the post has an
- *   associated image, or `null` when it does not.
+ * @returns The post object with `imageUrl`, `authorName`, `authorAvatarUrl`,
+ *   `commentCount`, and `isLiked` fields, or `null` if not found. `imageUrl` is
+ *   a signed URL string when the post has an associated image, or `null` when
+ *   it does not; `authorExists` reports whether the author has a `users` record,
+ *   and the author name/avatar fields are `null` when that record is missing.
  */
 export const getPostById = query({
   args: { postId: v.id("posts") },
@@ -620,6 +624,9 @@ export const getPostById = query({
     v.object({
       ...postFieldsValidator,
       imageUrl: v.union(v.string(), v.null()),
+      authorName: v.union(v.string(), v.null()),
+      authorAvatarUrl: v.union(v.string(), v.null()),
+      authorExists: v.boolean(),
       inlineImages: v.array(
         v.object({
           storageId: v.id("_storage"),
@@ -628,6 +635,8 @@ export const getPostById = query({
       ),
       isLiked: v.boolean(),
       isBookmarked: v.boolean(),
+      isFollowing: v.boolean(),
+      isAuthor: v.boolean(),
     }),
     v.null(),
   ),
@@ -636,6 +645,11 @@ export const getPostById = query({
     if (!post) {
       return null;
     }
+
+    const author = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
+      .unique();
 
     const resolvedImageUrl =
       post?.imageStorageId !== undefined
@@ -658,8 +672,11 @@ export const getPostById = query({
 
     let isLiked = false;
     let isBookmarked = false;
+    let isFollowing = false;
+    let isAuthor = false;
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (authUser) {
+      isAuthor = authUser._id === post.authorId;
       const like = await ctx.db
         .query("likes")
         .withIndex("by_postId_and_userId", (q) =>
@@ -674,15 +691,27 @@ export const getPostById = query({
         )
         .unique();
       isBookmarked = !!bookmark;
+      const follow = await ctx.db
+        .query("follows")
+        .withIndex("by_followerId_and_followingId", (q) =>
+          q.eq("followerId", authUser._id).eq("followingId", post.authorId),
+        )
+        .unique();
+      isFollowing = !!follow;
     }
 
     return {
       ...post,
       tags: post.tags,
       imageUrl: resolvedImageUrl,
+      authorName: author?.displayName ?? null,
+      authorAvatarUrl: author?.avatarUrl ?? null,
       inlineImages,
+      authorExists: author !== null,
       isLiked,
       isBookmarked,
+      isFollowing,
+      isAuthor,
     };
   },
 });

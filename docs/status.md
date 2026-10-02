@@ -16,14 +16,30 @@ on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 
 ## Next action
 
-The content width work shipped in PR #82 (`d64cab5`) with per-task browser
-acceptance recorded: the reader frame and published scale, the heading rhythm,
-Review parity, and the wide-screen rail reservation. Next: V1-08 author identity
-on the post page, then V1-09 to V1-12, then the V1-06 Track 1 closure. The
-wide-screen reader rail contents remain the first queued reader follow-up and
-pair with the author identity decision. The `feat/post-author-identity` branch
-carries the roadmap status correction and this documentation sync; V1-08 starts
-from it.
+V1-08 implementation and browser acceptance are complete on
+`feat/reader-author-identity`: author avatar and profile link, stacked dates with
+stronger labels, roomier topic links, and a compact viewer-aware Follow action.
+On 2026-10-02, the user approved the final design and stable button width after
+testing Follow with a different account. Colors remain unchanged and are deferred
+to V1-21. Next: review and integrate the local fixes, then monitor checks on
+[PR #85](https://github.com/pooYAYooq/resonance/pull/85), then await maintainer
+review and merge. The local review fixes correct this resume note and hide Follow
+when the author profile is missing, while preserving readable post attribution.
+These fixes await PR review and maintainer merge. V1-09 to V1-12 follow, then
+V1-06 closure; wide-screen reader rail contents remain the queued reader follow-up.
+
+Browser checks cover 320, 375, 768, and 1280px in light/dark themes, including a
+long unbroken author-name fixture, visible keyboard focus, and signed-out Follow
+redirecting to login with the post return path. The entrance animation was
+disabled in the browser probe to isolate layout. Byline controls and topic links
+remain within the viewport; the existing signed-out navbar overflow is separate.
+
+Fresh verification of the review fixes on 2026-10-02: lint, 37 files / 503 backend
+tests, 78 files / 508 component tests, build with TypeScript, and whitespace checks
+passed. Missing-profile and blank-name/no-stored-avatar regression cases passed.
+The browser-only label-swap probe measured 105px for both Follow and Following
+at all four widths. CodeRabbit's review of the local review fixes reported zero
+findings.
 
 ## Blockers
 
@@ -32,6 +48,10 @@ from it.
 
 ## Known limitations
 
+- The signed-out navbar overflows at 320px and 375px because the authentication
+  controls do not fit. The author byline and topic links fit at those widths;
+  navbar correction remains outside the author-identity task and is tracked in
+  ROADMAP.md under V1-23 responsive and interaction polish.
 - No stored-data migration or backfill exists. The project is not deployed and
   development data is disposable.
 - Authenticated owner-scoped post mutation tests remain limited by the Better

@@ -1930,6 +1930,181 @@ describe("posts functions", () => {
     expect(result).not.toBeNull();
     expect(result?.likeCount).toBe(0);
   });
+
+  it("hydrates author name and avatar in getPostById", async () => {
+    const t = convexTest(schema, modules);
+
+    const postId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "user-1",
+        displayName: "Bob",
+        avatarUrl: "https://example.com/bob.png",
+        followerCount: 0,
+        followingCount: 0,
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: Date.now(),
+      });
+      return await ctx.db.insert("posts", {
+        title: "Bob's post detail",
+        body: "Body.",
+        authorId: "user-1",
+        tags: [],
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result?.authorName).toBe("Bob");
+    expect(result?.authorAvatarUrl).toBe("https://example.com/bob.png");
+    expect(result).toHaveProperty("authorExists", true);
+  });
+
+  it("returns null author fields in getPostById when the author has no users record", async () => {
+    const t = convexTest(schema, modules);
+
+    const postId = await t.run(async (ctx) => {
+      return await ctx.db.insert("posts", {
+        title: "Ghost post detail",
+        body: "Body.",
+        authorId: "unknown-user",
+        tags: [],
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result).not.toBeNull();
+    expect(result?.authorName).toBeNull();
+    expect(result?.authorAvatarUrl).toBeNull();
+    expect(result).toHaveProperty("authorExists", false);
+  });
+
+  it("reports an existing author even with a blank name and no stored avatar", async () => {
+    const t = convexTest(schema, modules);
+    const postId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "blank-name-author",
+        displayName: "",
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: Date.now(),
+      });
+      return await ctx.db.insert("posts", {
+        title: "Existing author",
+        body: "Body.",
+        authorId: "blank-name-author",
+        tags: [],
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+    expect(result).toHaveProperty("authorExists", true);
+    expect(result?.authorName).toBe("");
+    expect(result?.authorAvatarUrl).toBeNull();
+  });
+
+  it("returns isFollowing and isAuthor false in getPostById for anonymous callers", async () => {
+    const t = convexTest(schema, modules);
+
+    const postId = await t.run(async (ctx) => {
+      return await ctx.db.insert("posts", {
+        title: "Anonymous viewer post",
+        body: "Body.",
+        authorId: "user-1",
+        tags: [],
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t.query(api.posts.getPostById, { postId });
+
+    expect(result?.isFollowing).toBe(false);
+    expect(result?.isAuthor).toBe(false);
+  });
+
+  it("marks isFollowing in getPostById when the viewer follows the author", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(t, "detail-follower@example.com");
+
+    const postId = await t.run(async (ctx) => {
+      const postId = await ctx.db.insert("posts", {
+        title: "Followed author post",
+        body: "Body.",
+        authorId: "author-1",
+        tags: [],
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("follows", {
+        followerId: identity.subject,
+        followingId: "author-1",
+        createdAt: Date.now(),
+      });
+      return postId;
+    });
+
+    const result = await t
+      .withIdentity(identity)
+      .query(api.posts.getPostById, { postId });
+
+    expect(result?.isFollowing).toBe(true);
+    expect(result?.isAuthor).toBe(false);
+  });
+
+  it("marks isAuthor in getPostById when the author views their own post", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(t, "detail-author@example.com");
+
+    const postId = await t.run(async (ctx) => {
+      return await ctx.db.insert("posts", {
+        title: "Own post",
+        body: "Body.",
+        authorId: identity.subject,
+        tags: [],
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await t
+      .withIdentity(identity)
+      .query(api.posts.getPostById, { postId });
+
+    expect(result?.isAuthor).toBe(true);
+    expect(result?.isFollowing).toBe(false);
+  });
 });
 
 describe("atomic discovery lifecycle", () => {

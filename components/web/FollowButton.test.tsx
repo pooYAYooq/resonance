@@ -79,12 +79,22 @@ describe("FollowButton", () => {
     expect(screen.getByRole("button", { name: /follow/i })).toBeInTheDocument();
   });
 
+  it("uses compact sizing when requested without changing the profile default", () => {
+    const { rerender } = render(<FollowButton {...baseProps} size="sm" />);
+    expect(screen.getByRole("button")).toHaveAttribute("data-size", "sm");
+
+    rerender(<FollowButton {...baseProps} />);
+    expect(screen.getByRole("button")).toHaveAttribute("data-size", "default");
+  });
+
   it("renders 'Following' when isFollowing is true", () => {
     useQueryMock.mockReturnValue(undefined);
     render(<FollowButton {...baseProps} isFollowing={true} />);
     // The visible label is the `<span>Following</span>`; the accessible
     // name is the aria-label ("Unfollow Ada"), so query by visible text.
-    expect(screen.getByText("Following")).toBeInTheDocument();
+    expect(
+      screen.getByText("Following", { selector: "span:not([aria-hidden])" }),
+    ).toBeInTheDocument();
     // And the button is the unfollow affordance in this state.
     expect(
       screen.getByRole("button", { name: /unfollow ada/i }),
@@ -100,6 +110,33 @@ describe("FollowButton", () => {
   it("sets aria-pressed to false when not following", () => {
     render(<FollowButton {...baseProps} />);
     expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("reserves the longer label width without announcing both labels", () => {
+    const { rerender } = render(<FollowButton {...baseProps} />);
+    const button = screen.getByRole("button", { name: "Follow Ada" });
+    const reservation = button.querySelector('[aria-hidden="true"]:not(svg)');
+    expect(reservation).toHaveTextContent("Following");
+    expect(reservation).toHaveClass("invisible", "col-start-1", "row-start-1");
+
+    useQueryMock.mockReturnValue(true);
+    rerender(<FollowButton {...baseProps} />);
+    expect(
+      screen.getByRole("button", { name: "Unfollow Ada" }),
+    ).toContainElement(reservation);
+  });
+
+  it("keeps decorative icons out of the accessible follow action", () => {
+    const { rerender } = render(<FollowButton {...baseProps} />);
+    expect(
+      screen.getByRole("button", { name: "Follow Ada" }).querySelector("svg"),
+    ).toHaveAttribute("aria-hidden", "true");
+
+    useQueryMock.mockReturnValue(true);
+    rerender(<FollowButton {...baseProps} />);
+    expect(
+      screen.getByRole("button", { name: "Unfollow Ada" }).querySelector("svg"),
+    ).toHaveAttribute("aria-hidden", "true");
   });
 
   it("calls toggleFollow with the correct followingId on click and toasts on success", async () => {
