@@ -96,9 +96,9 @@ active local spec or plan for the current implementation unit.
 - Task design and implementation artifacts → `docs/superpowers/specs|plans/`
   while active (local, untracked, and intentionally not gitignored; the
   staging gate prevents commits). When the task's completion is recorded in
-  the permanent docs, archive its artifacts under
-  `/home/studio/projects/resonance-docs-archive/` and remove them from the
-  worktree.
+  the permanent docs, archive its artifacts under the local docs archive
+  (`/home/studio/projects/resonance-docs-archive/`, maintainer's
+  workstation) and remove them from the worktree.
 
 ## Status and PR workflow
 

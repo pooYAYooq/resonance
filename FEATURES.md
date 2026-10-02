@@ -8,8 +8,9 @@
 > **Update rule:** when a capability ships, add or update its entry here. When
 > scope or status changes, update `ROADMAP.md` in the same change (see the
 > "Documentation" section in `AGENTS.md`). Detailed designs and implementation
-> plans live in `docs/superpowers/specs|plans/` (local, untracked, and
-> intentionally not gitignored).
+> plans live in `docs/superpowers/specs|plans/` while their task is active
+> (local, untracked, and intentionally not gitignored); completed artifacts
+> follow the archive lifecycle in `AGENTS.md`.
 
 **Stack:** Next.js 16 (App Router) + TypeScript + Convex + Better Auth + Tailwind CSS v4 + shadcn/ui
 

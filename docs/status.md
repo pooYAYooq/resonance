@@ -66,7 +66,9 @@ design session will add its spec and plan here.
 Completed task artifacts are archived and removed rather than preserved in
 place; see the artifact lifecycle in `AGENTS.md` ("Documentation"). The
 shipped Track 1 specs and plans were archived on 2026-10-02 to
-`/home/studio/projects/resonance-docs-archive/superpowers-2026-10-02/`.
+`/home/studio/projects/resonance-docs-archive/superpowers-2026-10-02/` on the
+maintainer's workstation. That archive is local-only and is not part of a
+clone; the tracked docs remain the durable record.
 
 ## On-demand references
 
