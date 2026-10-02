@@ -372,15 +372,15 @@ membership unless the approved design session decides otherwise.
 
 ## Documentation and Handoff Model
 
-| Document                     | Responsibility                                                                                                                                                                                   |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ROADMAP.md`                 | Scope, remaining work, delivery status, release boundary, and the single remaining-work list.                                                                                                    |
-| `docs/PHASE_3A.md`           | Target direction, scope areas, slices, dependencies, sequencing, deferrals, and current delivery boundary.                                                                                       |
-| `docs/PHASE_3A_DECISIONS.md` | Dated cross-cutting decisions and rationale.                                                                                                                                                     |
-| `FEATURES.md`                | Shipped capability catalog.                                                                                                                                                                      |
-| `docs/status.md`             | Short resume point, verified evidence, and links to the authoritative documents.                                                                                                                 |
-| `docs/superpowers/plans/`    | Active local execution artifacts. Untracked and intentionally not gitignored; supplemental only, never the only source of target direction.                                                      |
-| `docs/superpowers/specs/`    | Local working-design artifacts. Untracked and intentionally not gitignored. Completed or superseded artifacts are preserved and clearly marked superseded, and are excluded from active reading. |
+| Document                     | Responsibility                                                                                                                                                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ROADMAP.md`                 | Scope, remaining work, delivery status, release boundary, and the single remaining-work list.                                                                                                                                  |
+| `docs/PHASE_3A.md`           | Target direction, scope areas, slices, dependencies, sequencing, deferrals, and current delivery boundary.                                                                                                                     |
+| `docs/PHASE_3A_DECISIONS.md` | Dated cross-cutting decisions and rationale.                                                                                                                                                                                   |
+| `FEATURES.md`                | Shipped capability catalog.                                                                                                                                                                                                    |
+| `docs/status.md`             | Short resume point, verified evidence, and links to the authoritative documents.                                                                                                                                               |
+| `docs/superpowers/plans/`    | Active local execution artifacts. Untracked and intentionally not gitignored; supplemental only, never the only source of target direction. Archived and removed once the task's completion is recorded in the permanent docs. |
+| `docs/superpowers/specs/`    | Local working-design artifacts for the active task. Untracked and intentionally not gitignored. Archived and removed once the task's completion is recorded in the permanent docs.                                             |
 
 A new session follows the progressive loading rule in `AGENTS.md`. It must not
 reconstruct product direction from conversation history.

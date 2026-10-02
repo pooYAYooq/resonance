@@ -63,23 +63,12 @@ from it.
 Active, local, and untracked: none at present. The wide-screen reader rail
 design session will add its spec and plan here.
 
-Historical artifacts, preserved in place and excluded from active reading:
-
-- `docs/superpowers/specs/2026-09-30-reader-width-design.md` (implemented;
-  parts superseded during browser acceptance; shipped in PR #82)
-- `docs/superpowers/plans/2026-09-30-reader-width.md` (completed; shipped in
-  PR #82)
-- `docs/superpowers/plans/2026-09-27-typography-font-application.md` (applied;
-  shipped in PR #82)
-- `docs/superpowers/plans/2026-09-23-roadmap-scope-sync.md` (completed audit)
-- `docs/superpowers/specs/2026-09-18-full-blocknote-authoring-design.md`
-  (completed and implemented)
-- `docs/superpowers/specs/2026-09-19-review-surface-design.md` (completed and
-  implemented)
-- `docs/superpowers/plans/2026-09-20-media-review-correctness.md` (completed)
-- The curated BlockNote contract plans are superseded by decision 3A-019.
-  Older artifacts in the same folders are historical; a few predate the
-  status-notice convention and carry no notice of their own.
+Completed task artifacts are archived and removed rather than preserved in
+place; see the artifact lifecycle in `AGENTS.md` ("Documentation"). The
+shipped Track 1 specs and plans were archived on 2026-10-02 to
+`/home/studio/projects/resonance-docs-archive/superpowers-2026-10-02/` on the
+maintainer's workstation. That archive is local-only and is not part of a
+clone; the tracked docs remain the durable record.
 
 ## On-demand references
 
