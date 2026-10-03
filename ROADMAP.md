@@ -56,7 +56,7 @@ Source: Track 1 UI and UX audit, coordinated with 3A.4 and 3A.5.
 | V1-07 | Reader width on wide screens     | Done   | S        |
 | V1-08 | Author identity on the post page | Done   | M        |
 | V1-09 | Engagement control emphasis      | Done   | S        |
-| V1-10 | Reader link distinctness         | Todo   | S        |
+| V1-10 | Reader link distinctness         | Done   | S        |
 | V1-11 | Dark-mode contrast and focus     | Todo   | M        |
 | V1-12 | H3 and Divider content check     | Todo   | S        |
 
@@ -79,6 +79,11 @@ revision. Like/Liked measured approximately 97px for 0/1, 122px for `999k`, and
 overflow. Signed-out redirects have automated coverage; separate signed-out
 browser acceptance remains unverified because the Chrome extension denied
 creation of an isolated context.
+
+Reader link distinctness was confirmed on 2026-10-04 without a UI change. An
+author-created post-body link remained underlined at rest, changed to the primary
+color on hover, and stayed visible without clipping at 320, 375, 768, and 1280px
+in light and dark themes.
 
 ### Management and navigation
 
