@@ -19,6 +19,18 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
+function formatReaderLikeCount(count: number): string {
+  for (const [threshold, suffix] of [
+    [1_000_000_000_000, "t"],
+    [1_000_000_000, "b"],
+    [1_000_000, "m"],
+    [1_000, "k"],
+  ] as const) {
+    if (count >= threshold) return `${Math.floor(count / threshold)}${suffix}`;
+  }
+  return String(count);
+}
+
 interface LikeToggleProps {
   isLiked: boolean;
   count: number;
@@ -28,6 +40,7 @@ interface LikeToggleProps {
   toastLiked: string;
   toastUnliked: string;
   size?: "sm" | "default";
+  presentation?: "compact" | "reader";
 }
 
 export function LikeToggle({
@@ -39,6 +52,7 @@ export function LikeToggle({
   toastLiked,
   toastUnliked,
   size = "sm",
+  presentation = "compact",
 }: LikeToggleProps) {
   const [isPending, startTransition] = useTransition();
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -76,22 +90,50 @@ export function LikeToggle({
 
   return (
     <Button
-      variant="ghost"
-      size={size}
+      variant={presentation === "reader" ? "outline" : "ghost"}
+      size={presentation === "reader" ? "lg" : size}
       onClick={handleClick}
       disabled={isPending || isLoading}
-      aria-label={localLiked ? ariaLabelLiked : ariaLabelNotLiked}
+      aria-label={
+        presentation === "reader"
+          ? `${localLiked ? ariaLabelLiked : ariaLabelNotLiked}, ${localCount.toLocaleString("en-US")} ${localCount === 1 ? "like" : "likes"}`
+          : localLiked
+            ? ariaLabelLiked
+            : ariaLabelNotLiked
+      }
       aria-pressed={localLiked}
     >
       {isPending ? (
-        <Loader2 className="animate-spin size-4" />
+        <Loader2
+          data-icon={presentation === "reader" ? "inline-start" : undefined}
+          className="animate-spin"
+        />
       ) : (
         <Heart
-          className={cn("size-4", localLiked && "text-red-500")}
+          data-icon={presentation === "reader" ? "inline-start" : undefined}
+          className={cn(
+            localLiked &&
+              (presentation === "reader" ? "text-destructive" : "text-red-500"),
+          )}
           fill={localLiked ? "currentColor" : "none"}
         />
       )}
-      <span className="ml-1">{localCount}</span>
+      {presentation === "reader" && (
+        <span aria-hidden="true" className="inline-grid text-left">
+          <span className="invisible col-start-1 row-start-1">Liked</span>
+          <span className="col-start-1 row-start-1">
+            {localLiked ? "Liked" : "Like"}
+          </span>
+        </span>
+      )}
+      <span
+        aria-hidden={presentation === "reader" ? true : undefined}
+        className={cn("tabular-nums", presentation === "compact" && "ml-1")}
+      >
+        {presentation === "reader"
+          ? formatReaderLikeCount(localCount)
+          : localCount}
+      </span>
     </Button>
   );
 }

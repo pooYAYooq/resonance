@@ -32,12 +32,14 @@ interface BookmarkButtonProps {
   size?: "sm" | "default";
   /** Server-derived bookmark state used before the live query resolves. */
   isBookmarked: boolean;
+  presentation?: "compact" | "reader";
 }
 
 export function BookmarkButton({
   postId,
   size = "sm",
   isBookmarked,
+  presentation = "compact",
 }: BookmarkButtonProps) {
   const [isPending, startTransition] = useTransition();
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -82,8 +84,9 @@ export function BookmarkButton({
 
   return (
     <Button
-      variant="ghost"
-      size={size}
+      variant={presentation === "reader" ? "outline" : "ghost"}
+      size={presentation === "reader" ? "lg" : size}
+      className={presentation === "reader" ? "min-w-24" : undefined}
       onClick={handleClick}
       disabled={isPending || isLoading}
       aria-label={
@@ -92,12 +95,19 @@ export function BookmarkButton({
       aria-pressed={localSaved}
     >
       {isPending ? (
-        <Loader2 className="animate-spin size-4" />
+        <Loader2
+          data-icon={presentation === "reader" ? "inline-start" : undefined}
+          className="animate-spin"
+        />
       ) : (
         <Bookmark
-          className={cn("size-4", localSaved && "text-primary")}
+          data-icon={presentation === "reader" ? "inline-start" : undefined}
+          className={cn(localSaved && "text-primary")}
           fill={localSaved ? "currentColor" : "none"}
         />
+      )}
+      {presentation === "reader" && (
+        <span>{localSaved ? "Saved" : "Save"}</span>
       )}
     </Button>
   );

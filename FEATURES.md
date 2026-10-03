@@ -103,6 +103,11 @@
 
 - `toggleLike` — idempotent, one like per user per post, records in a separate `likes` table
 - `LikeButton` on post cards and the post detail page; `likeCount` denormalized on posts
+- The post reader uses a larger outlined Like/Liked control after the article,
+  immediately before discussion. The Like/Liked label reserves its natural width;
+  tabular counts grow naturally rather than reserving maximum-count space.
+  Large counts use whole-number lowercase k/m/b/t suffixes, with the exact count
+  in the accessible name. Cards and comment reactions retain compact controls.
 - `/liked` is a private, client-gated reader collection of the current user's liked posts
 - `toggleCommentLike` — idempotent, one like per user per comment, records in a separate `commentLikes` table
 - `CommentLikeButton` on each `CommentCard`; `likeCount` denormalized on comments; shared `LikeToggle` primitive powers both post and comment like buttons
@@ -128,6 +133,8 @@
 
 - `toggleBookmark` — idempotent, one bookmark per user per post, records in a separate `bookmarks` table
 - `BookmarkButton` on post cards and the post detail page; private, so no denormalized count on `users` or `posts`
+- Reader bookmarks show outlined Save/Saved labels with reserved width alongside
+  Like, before discussion. Back to all posts follows discussion.
 - Server-rendered post reads hydrate initial bookmark state with
   `fetchAuthQuery`; bookmark controls continue to reconcile with their private
   live query after auth resolution

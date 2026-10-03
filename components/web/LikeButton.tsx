@@ -17,12 +17,19 @@ interface LikeButtonProps {
   postId: Id<"posts">;
   isLiked: boolean;
   likeCount: number;
+  presentation?: "compact" | "reader";
 }
 
-export function LikeButton({ postId, isLiked, likeCount }: LikeButtonProps) {
+export function LikeButton({
+  postId,
+  isLiked,
+  likeCount,
+  presentation,
+}: LikeButtonProps) {
   const toggleLike = useMutation(api.likes.toggleLike);
   return (
     <LikeToggle
+      presentation={presentation}
       isLiked={isLiked}
       count={likeCount}
       onToggle={() => toggleLike({ postId })}
