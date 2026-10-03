@@ -26,10 +26,12 @@ focus, and responsive layouts; signed-out browser acceptance remains unverified
 as recorded in ROADMAP.md. The comments shortcut beside estimated reading time
 and commenter profile links remain deferred follow-ups in ROADMAP.md.
 
-Next: V1-10 Reader link distinctness. Start with a browser re-verify because
-post-body links already have underline styling and V1-08 added byline and topic
-links. Then V1-11 and V1-12 follow, before V1-06 closure. Wide-screen reader rail
-contents remain a queued follow-up.
+V1-10 is complete without a UI change. Browser verification confirmed an
+author-created post-body link stays underlined at rest, changes color on hover,
+and remains visible without clipping at 320, 375, 768, and 1280px in both themes.
+
+Next: V1-11 dark-mode contrast and focus, then V1-12, before V1-06 closure.
+Wide-screen reader rail contents remain a queued follow-up.
 
 ## Blockers
 
