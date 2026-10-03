@@ -51,14 +51,14 @@ plus a recorded author browser acceptance pass.
 
 Source: Track 1 UI and UX audit, coordinated with 3A.4 and 3A.5.
 
-| ID    | Item                             | Status    | Estimate |
-| ----- | -------------------------------- | --------- | -------- |
-| V1-07 | Reader width on wide screens     | Done      | S        |
-| V1-08 | Author identity on the post page | Done      | M        |
-| V1-09 | Engagement control emphasis      | In review | S        |
-| V1-10 | Reader link distinctness         | Todo      | S        |
-| V1-11 | Dark-mode contrast and focus     | Todo      | M        |
-| V1-12 | H3 and Divider content check     | Todo      | S        |
+| ID    | Item                             | Status | Estimate |
+| ----- | -------------------------------- | ------ | -------- |
+| V1-07 | Reader width on wide screens     | Done   | S        |
+| V1-08 | Author identity on the post page | Done   | M        |
+| V1-09 | Engagement control emphasis      | Done   | S        |
+| V1-10 | Reader link distinctness         | Todo   | S        |
+| V1-11 | Dark-mode contrast and focus     | Todo   | M        |
+| V1-12 | H3 and Divider content check     | Todo   | S        |
 
 Author identity browser acceptance was confirmed on 2026-10-02, including the
 stable-width Follow button tested with a different user account and the rest of
@@ -67,19 +67,18 @@ dates, topic links, and compact Follow action. Implementation is complete on
 `feat/reader-author-identity`; PR #85 merged as `4c94efe`. Follow
 colors are deferred to V1-21.
 
-Engagement emphasis is implemented and user-approved on
-`feat/reader-engagement-emphasis`, awaiting review and PR integration. Reader-only
-outlined Like/Liked and Save/Saved controls sit after the article, immediately
-before discussion; Back to all posts follows discussion. Like reserves only the
-natural Liked label width; compact tabular counts grow naturally, with the exact
-count in its accessible name. Cards and comment reactions retain compact
-controls. Browser verification covers authenticated
-toggles restored to their original states, keyboard focus, and 320/375/768/1280px
-in both themes on the final compact revision. Like/Liked measured approximately
-97px for 0/1, 122px for `999k`, and 128px for `999m`, with stable label transitions
-at each count and no action-row overflow. Signed-out redirects have automated
-coverage; separate signed-out browser acceptance remains unverified because the
-Chrome extension denied creation of an isolated context.
+Engagement emphasis shipped in PR #86 (merged as `25705e0`). Reader-only outlined
+Like/Liked and Save/Saved controls sit after the article, immediately before
+discussion; Back to all posts follows discussion. Like reserves only the natural
+Liked label width; compact tabular counts grow naturally, with the exact count in
+its accessible name. Cards and comment reactions retain compact controls. Browser
+verification covered authenticated toggles restored to their original states,
+keyboard focus, and 320/375/768/1280px in both themes on the final compact
+revision. Like/Liked measured approximately 97px for 0/1, 122px for `999k`, and
+128px for `999m`, with stable label transitions at each count and no action-row
+overflow. Signed-out redirects have automated coverage; separate signed-out
+browser acceptance remains unverified because the Chrome extension denied
+creation of an isolated context.
 
 ### Management and navigation
 
