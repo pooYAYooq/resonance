@@ -19,41 +19,17 @@ on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
 
-V1-09 is user-approved and implemented on `feat/reader-engagement-emphasis`:
-reader-only outlined Like/Liked and Save/Saved controls follow the article and
-precede discussion; Back to all posts follows discussion. Like reserves only the
-natural Liked label width, with naturally sized compact tabular counts and an
-exact accessible count. No Comments shortcut remains in this row. The requested
-top-of-article comments link beside reading
-time and commenter profile links are recorded as unscheduled in ROADMAP.md.
+V1-09 shipped in [PR #86](https://github.com/pooYAYooq/resonance/pull/86), merged
+as `25705e0`. Its reader-only Like and Save controls sit after the article and
+before discussion. Browser verification covered authenticated toggles, keyboard
+focus, and responsive layouts; signed-out browser acceptance remains unverified
+as recorded in ROADMAP.md. The comments shortcut beside estimated reading time
+and commenter profile links remain deferred follow-ups in ROADMAP.md.
 
-Fresh browser checks of the final compact revision on 2026-10-03 cover 320, 375,
-768, and 1280px in light/dark themes and visible keyboard focus. Authenticated
-Like and Save toggles succeeded and were restored to their original states.
-Browser-only count fixtures from 0 through `999m` all fit with no action-row
-overflow. Like measured approximately 97px for 0/1, 122px for `999k`, and 128px
-for `999m`; Like/Liked widths matched at each count. Save measured 96px; both
-controls are 40px tall. These fixtures verify layout, not real stored counts.
-The user rejected the earlier maximum-count reservation as unnecessarily wide;
-the final revision reserves label width only and permits natural count growth.
-
-Signed-out redirects retain component-test coverage. Separate signed-out browser
-acceptance was attempted, but the Windows Chrome extension denied creation of a
-fresh browser context (`Target.createBrowserContext: Not allowed`). The attached
-user was not signed out; this browser acceptance case remains unverified.
-
-Fresh compact-revision verification: lint, 37 files / 503 backend tests,
-78 files / 522 component tests, and build with TypeScript passed. CodeRabbit
-reported zero findings. Changed-file formatting and whitespace checks passed; full formatting
-still flags 40 unrelated baseline files. CodeRabbit's two review passes preceded
-the compact revision. Final browser verification now passed for the authenticated
-cases above. The local PR checklist review confirmed the intended file scope,
-the separately approved Convex tooling commit, no secrets or planning artifacts
-in the diff, and no need for README/architecture changes. Proposed PR title:
-"Improve reader like and save controls". Next: request separate approval to stage
-and commit the reader changes, followed by separate push and PR approvals.
-V1-10 to V1-12 follow, then V1-06 closure. Wide-screen reader rail contents remain
-a queued follow-up.
+Next: V1-10 Reader link distinctness. Start with a browser re-verify because
+post-body links already have underline styling and V1-08 added byline and topic
+links. Then V1-11 and V1-12 follow, before V1-06 closure. Wide-screen reader rail
+contents remain a queued follow-up.
 
 ## Blockers
 
