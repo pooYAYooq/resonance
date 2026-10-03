@@ -79,6 +79,21 @@ describe("BookmarkButton", () => {
     expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("shows reader Save and Saved labels without changing its width slot", async () => {
+    useMutationMock.mockResolvedValue({ bookmarked: true });
+    render(<BookmarkButton {...baseProps} presentation="reader" />);
+    expect(screen.getByText("Save")).toBeInTheDocument();
+    expect(screen.getByRole("button")).toHaveClass("min-w-24");
+    expect(screen.getByRole("button")).toHaveAttribute(
+      "data-variant",
+      "outline",
+    );
+    expect(screen.getByRole("button")).toHaveAttribute("data-size", "lg");
+    await userEvent.setup().click(screen.getByRole("button"));
+    expect(await screen.findByText("Saved")).toBeInTheDocument();
+    expect(screen.getByRole("button")).toHaveClass("min-w-24");
+  });
+
   it("renders the saved affordance when isBookmarked is true", () => {
     useQueryMock.mockReturnValue(undefined);
     render(<BookmarkButton {...baseProps} isBookmarked={true} />);

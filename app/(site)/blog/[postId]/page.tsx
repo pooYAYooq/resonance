@@ -195,14 +195,26 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           orientation="horizontal"
           decorative={true}
         />
-        <div className="flex items-center gap-2 mb-4">
+        <div
+          aria-label="Post engagement"
+          role="group"
+          className="flex flex-wrap items-center gap-2 mb-6"
+        >
           <LikeButton
             postId={postId}
             isLiked={post.isLiked ?? false}
             likeCount={post.likeCount ?? 0}
+            presentation="reader"
           />
-          <BookmarkButton postId={postId} isBookmarked={post.isBookmarked} />
+          <BookmarkButton
+            postId={postId}
+            isBookmarked={post.isBookmarked}
+            presentation="reader"
+          />
         </div>
+        <Suspense fallback={null}>
+          <CommentSection initialTotalCount={post.commentCount ?? 0} />
+        </Suspense>
         <Link
           href="/blog"
           className="mt-8 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
@@ -210,9 +222,6 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back to all posts
         </Link>
-        <Suspense fallback={null}>
-          <CommentSection initialTotalCount={post.commentCount ?? 0} />
-        </Suspense>
       </div>
     </div>
   );

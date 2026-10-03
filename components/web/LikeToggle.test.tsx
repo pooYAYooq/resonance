@@ -67,6 +67,56 @@ describe("LikeToggle", () => {
     expect(screen.getByText("7")).toBeInTheDocument();
   });
 
+  it.each([
+    [0, "0"],
+    [1, "1"],
+    [10, "10"],
+    [100, "100"],
+    [999, "999"],
+    [1_000, "1k"],
+    [999_999, "999k"],
+    [1_000_000, "1m"],
+    [10_000_000, "10m"],
+    [999_999_999, "999m"],
+    [1_000_000_000, "1b"],
+  ])(
+    "renders reader count %i as %s with the exact accessible count",
+    (count, text) => {
+      render(<LikeToggle {...baseProps} count={count} presentation="reader" />);
+      expect(screen.getByText(text)).toHaveClass("tabular-nums");
+      expect(screen.getByText(text)).not.toHaveClass("w-[5ch]");
+      expect(screen.getByRole("button")).toHaveAccessibleName(
+        `Like, ${count.toLocaleString("en-US")} ${count === 1 ? "like" : "likes"}`,
+      );
+      expect(screen.getByRole("button")).toHaveAttribute(
+        "data-variant",
+        "outline",
+      );
+      expect(screen.getByRole("button")).toHaveAttribute("data-size", "lg");
+    },
+  );
+
+  it("reserves only the Liked label width when toggled", async () => {
+    onToggleMock.mockResolvedValue({ liked: true, likeCount: 1 });
+    render(<LikeToggle {...baseProps} presentation="reader" />);
+    const label = screen.getByText("Like").parentElement;
+    expect(label).toHaveClass("inline-grid");
+    expect(screen.getByText("Liked")).toHaveClass("invisible");
+    await userEvent.setup().click(screen.getByRole("button"));
+    expect(
+      screen.getByText("Liked", { selector: "span:not(.invisible)" }),
+    ).toBeVisible();
+    expect(label).toHaveClass("inline-grid");
+    expect(screen.getByRole("button")).toHaveAccessibleName("Unlike, 1 like");
+  });
+
+  it("preserves compact unformatted counts and ghost styling", () => {
+    render(<LikeToggle {...baseProps} count={20_000} />);
+    expect(screen.getByText("20000")).toBeInTheDocument();
+    expect(screen.getByRole("button")).toHaveAttribute("data-variant", "ghost");
+    expect(screen.getByRole("button")).toHaveAttribute("data-size", "sm");
+  });
+
   it("sets aria-pressed to true when liked", () => {
     render(<LikeToggle {...baseProps} isLiked={true} />);
     expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");

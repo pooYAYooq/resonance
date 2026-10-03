@@ -51,21 +51,35 @@ plus a recorded author browser acceptance pass.
 
 Source: Track 1 UI and UX audit, coordinated with 3A.4 and 3A.5.
 
-| ID    | Item                             | Status | Estimate |
-| ----- | -------------------------------- | ------ | -------- |
-| V1-07 | Reader width on wide screens     | Done   | S        |
-| V1-08 | Author identity on the post page | Done   | M        |
-| V1-09 | Engagement control emphasis      | Todo   | S        |
-| V1-10 | Reader link distinctness         | Todo   | S        |
-| V1-11 | Dark-mode contrast and focus     | Todo   | M        |
-| V1-12 | H3 and Divider content check     | Todo   | S        |
+| ID    | Item                             | Status    | Estimate |
+| ----- | -------------------------------- | --------- | -------- |
+| V1-07 | Reader width on wide screens     | Done      | S        |
+| V1-08 | Author identity on the post page | Done      | M        |
+| V1-09 | Engagement control emphasis      | In review | S        |
+| V1-10 | Reader link distinctness         | Todo      | S        |
+| V1-11 | Dark-mode contrast and focus     | Todo      | M        |
+| V1-12 | H3 and Divider content check     | Todo      | S        |
 
 Author identity browser acceptance was confirmed on 2026-10-02, including the
 stable-width Follow button tested with a different user account and the rest of
 the reader design. Accessibility and responsive verification cover the byline,
 dates, topic links, and compact Follow action. Implementation is complete on
-`feat/reader-author-identity`; PR integration remains pending. Follow
+`feat/reader-author-identity`; PR #85 merged as `4c94efe`. Follow
 colors are deferred to V1-21.
+
+Engagement emphasis is implemented and user-approved on
+`feat/reader-engagement-emphasis`, awaiting review and PR integration. Reader-only
+outlined Like/Liked and Save/Saved controls sit after the article, immediately
+before discussion; Back to all posts follows discussion. Like reserves only the
+natural Liked label width; compact tabular counts grow naturally, with the exact
+count in its accessible name. Cards and comment reactions retain compact
+controls. Browser verification covers authenticated
+toggles restored to their original states, keyboard focus, and 320/375/768/1280px
+in both themes on the final compact revision. Like/Liked measured approximately
+97px for 0/1, 122px for `999k`, and 128px for `999m`, with stable label transitions
+at each count and no action-row overflow. Signed-out redirects have automated
+coverage; separate signed-out browser acceptance remains unverified because the
+Chrome extension denied creation of an isolated context.
 
 ### Management and navigation
 
@@ -159,6 +173,14 @@ V1-23.
   infrastructure.
 
 ### Unscheduled
+
+Follow-ups requested during reader engagement acceptance (2026-10-03), not part
+of V1-09 or committed v1.0 scope:
+
+- Top-of-article link to the comments section beside estimated reading time.
+  Coordinate with the deferred Phase 1C reading-time polish; no redundant
+  comments shortcut directly above the discussion.
+- Link commenter identity to the comment writer's public profile.
 
 - Reply to comments: one-level threading with `parentId` and an inline reply
   form.
