@@ -58,7 +58,7 @@ Source: Track 1 UI and UX audit, coordinated with 3A.4 and 3A.5.
 | V1-09 | Engagement control emphasis      | Done   | S        |
 | V1-10 | Reader link distinctness         | Done   | S        |
 | V1-11 | Dark-mode contrast and focus     | Done   | M        |
-| V1-12 | H3 and Divider content check     | Todo   | S        |
+| V1-12 | H3 and Divider content check     | Done   | S        |
 
 Author identity browser acceptance was confirmed on 2026-10-02, including the
 stable-width Follow button tested with a different user account and the rest of
@@ -95,6 +95,14 @@ tag checkboxes use a stronger border (3.56:1 dark, 4.59:1 light). Browser
 verification covered the reader and authoring surfaces in both themes at 320,
 375, 768, and 1280px; the pre-existing signed-in navbar overflow at 320px is
 unchanged and stays with V1-23.
+
+H3 and Divider content check was confirmed on 2026-10-05 without a code change.
+All four H3 body headings in the reviewed published post rendered with their text
+at the published 2.333rem serif scale (10.46:1 dark, 17.74:1 light) and the
+divider rendered as a 1px hairline at the prose measure, with no clipping at 320,
+375, 768, or 1280px in either theme. The audit's perceived gap was an empty
+authored paragraph adjacent to the divider, not a lost block or a stylesheet
+defect.
 
 ### Management and navigation
 
