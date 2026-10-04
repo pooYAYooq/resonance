@@ -38,8 +38,14 @@ unchecked tag borders. Browser verification covered both themes at 320, 375,
 768, and 1280px; the light-theme primary text and focus-border observations are
 recorded for V1-21.
 
-Next: V1-12 H3 and Divider content check, then V1-06 closure. Wide-screen reader
-rail contents remain a queued follow-up.
+V1-12 is complete without a code change. Browser verification on a published post
+confirmed every H3 body heading rendered its text at the published scale and the
+divider rendered at the prose measure, with no clipping at 320, 375, 768, and
+1280px in both themes. The audit's perceived gap was an empty authored paragraph
+next to the divider, not a lost block.
+
+Next: V1-06 Track 1 closure documentation and author browser acceptance.
+Wide-screen reader rail contents remain a queued follow-up.
 
 ## Blockers
 
