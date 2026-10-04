@@ -98,6 +98,11 @@
   cover is unresolved; a transient cover lookup retries with backoff and on
   focus or reconnect, and the failure alert is reserved for a server-reported
   missing cover
+- The title field keeps a persistent underline and receives one-time focus when
+  a writing view opens; its placeholder stays visibly distinct from entered text
+  at 4.5:1 or better in both themes
+- Tag checkboxes use a stronger unchecked border, and a checked box swaps to a
+  contrasting border under keyboard focus
 
 ### Likes
 
@@ -191,6 +196,9 @@
 - `EmptyState` and `SectionHeading` primitives; `FooterCTA` remains limited to
   the legacy footer variant and is not rendered by the workspace shell
 - Dark/light/system theme toggle; toast notifications (Sonner)
+- Keyboard focus renders as a single solid 1px line: bordered controls recolor
+  their rounded edge, other targets use an offset outline, and the BlockNote
+  editor canvas shows an outline where its own stylesheet suppresses one
 - SEO phase 1: per-page metadata, OG/Twitter tags, dynamic post metadata, `noindex` auth pages
 
 ---

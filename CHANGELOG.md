@@ -38,6 +38,11 @@ work is tracked in `ROADMAP.md`.
   Remove for failed media while resolved inline editing stays in BlockNote.
 - Styled cover controls with Add, Replace, and Remove, same-file reselection,
   and an explanation when no cover is selected.
+- The authoring title field keeps a persistent underline and receives one-time
+  focus when a writing view opens; its placeholder remains readable at 4.92:1
+  dark and 4.59:1 light.
+- Tag checkboxes show a stronger unchecked border, with a contrasting border on
+  keyboard focus when checked.
 
 ### Changed
 
@@ -62,6 +67,9 @@ work is tracked in `ROADMAP.md`.
   labels, capped at five tags.
 - Published edits stay page-local and clear stale local recovery snapshots
   instead of writing new ones.
+- Keyboard focus is one solid 1px line across controls and links; the soft focus
+  halo and double outlines are gone, and the BlockNote editor canvas shows an
+  outline where its bundled stylesheet suppressed one.
 
 ### Fixed
 

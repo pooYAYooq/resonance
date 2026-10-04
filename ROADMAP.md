@@ -57,7 +57,7 @@ Source: Track 1 UI and UX audit, coordinated with 3A.4 and 3A.5.
 | V1-08 | Author identity on the post page | Done   | M        |
 | V1-09 | Engagement control emphasis      | Done   | S        |
 | V1-10 | Reader link distinctness         | Done   | S        |
-| V1-11 | Dark-mode contrast and focus     | Todo   | M        |
+| V1-11 | Dark-mode contrast and focus     | Done   | M        |
 | V1-12 | H3 and Divider content check     | Todo   | S        |
 
 Author identity browser acceptance was confirmed on 2026-10-02, including the
@@ -84,6 +84,17 @@ Reader link distinctness was confirmed on 2026-10-04 without a UI change. An
 author-created post-body link remained underlined at rest, changed to the primary
 color on hover, and stayed visible without clipping at 320, 375, 768, and 1280px
 in light and dark themes.
+
+Dark-mode contrast and keyboard focus ship in this change. Keyboard focus now
+renders as one solid 1px line: bordered controls recolor their rounded edge,
+other targets use an offset outline, and the BlockNote editor canvas shows an
+outline where its own stylesheet suppresses one. The authoring title field keeps
+a persistent underline, receives one-time initial focus when a writing view
+opens, and uses a readable placeholder (4.92:1 dark, 4.59:1 light). Unchecked
+tag checkboxes use a stronger border (3.56:1 dark, 4.59:1 light). Browser
+verification covered the reader and authoring surfaces in both themes at 320,
+375, 768, and 1280px; the pre-existing signed-in navbar overflow at 320px is
+unchanged and stays with V1-23.
 
 ### Management and navigation
 
@@ -120,9 +131,12 @@ Source: `docs/PHASE_3A.md` 3A.5.
 | V1-22 | Shared page-state language                           | Todo   | M        |
 | V1-23 | Responsive and interaction polish                    | Todo   | M        |
 
-V1-21 includes the deferred Follow/Following color treatment. V1-23 includes the
-signed-out navbar overflow at 320px and 375px, where authentication controls do
-not fit; the post author section fits at those widths.
+V1-21 includes the deferred Follow/Following color treatment and the
+light-theme contrast observations recorded with V1-11: primary button text at
+3.12:1 and the focus border at 2.96:1. V1-23 includes the signed-out navbar
+overflow at 320px and 375px, where authentication controls do not fit, and the
+signed-in navbar overflow at 320px for the same control density; the post
+author section fits at those widths.
 
 ### Release readiness
 
