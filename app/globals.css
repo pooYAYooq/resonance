@@ -57,6 +57,13 @@
   font-family: var(--font-sans);
   padding-inline: 1rem;
 }
+
+/* BlockNote's unlayered stylesheet suppresses the editable surface outline.
+ * Match the application's keyboard focus without overriding editor internals. */
+[data-studio-canvas] .bn-editor[contenteditable="true"]:focus-visible {
+  outline: 1px solid var(--ring);
+  outline-offset: 2px;
+}
 @media (min-width: 40rem) {
   [data-studio-canvas] .bn-editor {
     padding-inline: 54px;
@@ -439,6 +446,45 @@
 
 .dark .shiki-token {
   color: var(--shiki-dark);
+}
+
+/* Keyboard focus uses a solid 1px line instead of a soft halo. Bordered
+ * controls reuse their rounded edge; other targets use an offset outline.
+ * Keep these overrides in the utilities layer alongside Tailwind focus styles. */
+@layer utilities {
+  :is(
+    a,
+    button,
+    input,
+    textarea,
+    select,
+    summary,
+    [tabindex],
+    [contenteditable="true"]
+  ):focus-visible {
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-inset-ring-shadow: 0 0 #0000;
+    outline: 1px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  :is(
+    [data-slot="button"],
+    [class~="group/button"],
+    [data-slot="input"],
+    [data-slot="textarea"],
+    [data-slot="checkbox"],
+    [id="post-title"],
+    select
+  ):focus-visible {
+    border-color: var(--ring);
+    outline: none;
+  }
+
+  /* A checked box already has a primary-colored border at rest. */
+  [data-slot="checkbox"][data-state="checked"]:focus-visible {
+    border-color: var(--primary-foreground);
+  }
 }
 
 @layer base {

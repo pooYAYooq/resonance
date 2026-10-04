@@ -491,6 +491,7 @@ function CreateEditor() {
   const activeSessionKeyRef = useRef<string | undefined>(undefined);
   const bodyEditorRef = useRef<PostBodyEditorHandle>(null);
   const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const hasFocusedTitleRef = useRef(false);
   // The title wraps instead of scrolling: keep the textarea height in sync
   // with its content, including when returning from the hidden Review view and
   // when a viewport change rewraps the text at a new width.
@@ -1663,9 +1664,10 @@ function CreateEditor() {
               render={({ field, fieldState }) => (
                 <div className="space-y-2">
                   <textarea
+                    id="post-title"
                     aria-label="Post title"
                     aria-invalid={fieldState.invalid}
-                    className="w-full resize-none overflow-hidden rounded-md bg-transparent py-2 text-4xl leading-tight font-semibold tracking-tight text-foreground outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-ring/50 aria-invalid:text-destructive"
+                    className="w-full resize-none overflow-hidden border-b border-border bg-transparent py-2 text-4xl leading-tight font-semibold tracking-tight text-foreground outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground aria-invalid:text-destructive"
                     maxLength={100}
                     rows={1}
                     onKeyDown={(event) => {
@@ -1690,6 +1692,14 @@ function CreateEditor() {
                     ref={(element) => {
                       titleTextareaRef.current = element;
                       field.ref(element);
+                      if (
+                        element &&
+                        !reviewing &&
+                        !hasFocusedTitleRef.current
+                      ) {
+                        hasFocusedTitleRef.current = true;
+                        element.focus({ preventScroll: true });
+                      }
                     }}
                   />
                   {fieldState.invalid && (
