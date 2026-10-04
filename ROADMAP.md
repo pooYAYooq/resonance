@@ -41,11 +41,17 @@ Source: Track 1 UI and UX audit, recorded in `docs/status.md` at commit
 | V1-03 | Editor and Review width and spacing consistency             | Done   | M        |
 | V1-04 | Tag checkbox grid styling                                   | Done   | S        |
 | V1-05 | Paste hardening for rejected pasted content                 | Done   | S        |
-| V1-06 | Track 1 closure documentation and author browser acceptance | Todo   | S        |
+| V1-06 | Track 1 closure documentation and author browser acceptance | Done   | S        |
 
-Track 1 closure (V1-06) depends on every Track 1 audit fix, V1-01 to V1-05
-and V1-07 to V1-12,
-plus a recorded author browser acceptance pass.
+Track 1 is closed. Author browser acceptance passed on 2026-10-05 on the merged
+revision `3b5102c`: the heading, paste, table/list/code, Review, and
+publish/reader journeys plus the editor width, tag grid, published-edit code
+highlighting, and contrast and focus checks held at 320, 375, 768, and 1280px in
+both themes. Reader checks covered the 700px prose column with its reserved
+wide-screen rail, author attribution and engagement placement, underlined links,
+and the published H3 and divider scale. No regression was found, so the closure
+changed documentation only; the signed-out engagement acceptance gap stays with
+V1-09 and the signed-in navbar overflow at 320px stays with V1-23.
 
 ### Reader and design system
 

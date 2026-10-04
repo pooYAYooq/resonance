@@ -179,7 +179,7 @@ of misleading public placeholders are complete.
 Shipped baseline (Track 1, PR #72): full-page Create/Edit environment inside the
 workspace shell, the explicit Preview/Review -> Publish publication sequence, and
 silent local draft recovery, with the media panel, frozen Review, and cover
-fallback following in PRs #74 to #76. The remaining Track 1 and Track 4 work is
+fallback following in PRs #74 to #76. The remaining Track 4 work is
 tracked in [`../ROADMAP.md`](../ROADMAP.md).
 
 - Full-page Create/Edit environment inside the workspace shell.

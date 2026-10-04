@@ -8,8 +8,8 @@ live in [`../ROADMAP.md`](../ROADMAP.md); shipped history lives in
 ## Current focus
 
 v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3 is the active slice:
-Track 1 authoring polish and Track 4 management, navigation, and accessibility,
-followed by 3A.4, 3A.5, and release readiness. The single remaining-work list is
+Track 4 management, navigation, and accessibility, followed by 3A.4, 3A.5, and
+release readiness. The single remaining-work list is
 in [`../ROADMAP.md`](../ROADMAP.md). The content width design session completed
 on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 (merged as `d64cab5`).
@@ -44,7 +44,12 @@ divider rendered at the prose measure, with no clipping at 320, 375, 768, and
 1280px in both themes. The audit's perceived gap was an empty authored paragraph
 next to the divider, not a lost block.
 
-Next: V1-06 Track 1 closure documentation and author browser acceptance.
+V1-06 closed Track 1 on 2026-10-05. Author browser acceptance on the merged
+revision passed the authoring and reader journeys at 320, 375, 768, and 1280px in
+both themes with no regression, so the closure changed documentation only; the
+full record is in ROADMAP.md.
+
+Next: V1-13 published management rows and deletion UI with clear confirmation.
 Wide-screen reader rail contents remain a queued follow-up.
 
 ## Blockers
