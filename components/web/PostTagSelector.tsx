@@ -72,6 +72,7 @@ export function PostTagSelector({ value, onChange }: PostTagSelectorProps) {
             className="flex cursor-pointer select-none items-center gap-2 rounded-md border border-transparent px-2.5 py-1.5 text-base transition-colors hover:bg-accent has-data-[state=checked]:border-border has-data-[state=checked]:bg-muted"
           >
             <Checkbox
+              className="data-[state=unchecked]:border-muted-foreground"
               checked={value.includes(tag)}
               onCheckedChange={(checked) => handleChange(tag, checked === true)}
             />

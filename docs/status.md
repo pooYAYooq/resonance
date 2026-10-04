@@ -30,8 +30,16 @@ V1-10 is complete without a UI change. Browser verification confirmed an
 author-created post-body link stays underlined at rest, changes color on hover,
 and remains visible without clipping at 320, 375, 768, and 1280px in both themes.
 
-Next: V1-11 dark-mode contrast and focus, then V1-12, before V1-06 closure.
-Wide-screen reader rail contents remain a queued follow-up.
+V1-11 dark-mode contrast and focus is complete on
+`accessibility/dark-mode-contrast-focus` and ships with its documentation record
+in the same change: solid 1px keyboard focus across reader and authoring
+surfaces, an underlined title field with one-time initial focus, and stronger
+unchecked tag borders. Browser verification covered both themes at 320, 375,
+768, and 1280px; the light-theme primary text and focus-border observations are
+recorded for V1-21.
+
+Next: V1-12 H3 and Divider content check, then V1-06 closure. Wide-screen reader
+rail contents remain a queued follow-up.
 
 ## Blockers
 
@@ -41,9 +49,11 @@ Wide-screen reader rail contents remain a queued follow-up.
 ## Known limitations
 
 - The signed-out navbar overflows at 320px and 375px because the authentication
-  controls do not fit. The author byline and topic links fit at those widths;
-  navbar correction remains outside the author-identity task and is tracked in
-  ROADMAP.md under V1-23 responsive and interaction polish.
+  controls do not fit. The post author section fits at those widths; navbar
+  correction remains outside the author-identity task and is tracked in
+  ROADMAP.md under V1-23 responsive and interaction polish. Signed-in, the
+  theme toggle and account controls overflow at 320px for the same density
+  reason, unchanged by V1-11.
 - No stored-data migration or backfill exists. The project is not deployed and
   development data is disposable.
 - Authenticated owner-scoped post mutation tests remain limited by the Better
