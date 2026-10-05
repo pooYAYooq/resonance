@@ -57,10 +57,10 @@ Last saved dates, Resume/Delete actions, and accessible deletion confirmation.
 The user reported browser acceptance; pagination is automated-test verified
 rather than manually verified because there were insufficient draft items.
 Lint, 504 edge-runtime tests, 552 component tests, and production build passed
-on 2026-10-06. Review is complete; CodeRabbit's minor roadmap status finding was
-corrected and inline review covered the untracked files. Next: obtain staging
-approval, then proceed through
-the separate commit, push, and PR gates. V1-15 needs its dedicated spec;
+on 2026-10-06. Local review is complete; CodeRabbit's minor roadmap status
+finding was corrected and a manual pass covered the new row files. PR #94 is
+open with passing CI. Next: address PR review feedback, then await maintainer
+review and merge. V1-15 needs its dedicated spec;
 wide-screen reader rail contents remain queued. Dashboard Overview purpose and
 composition remain deferred to a separate comprehensive design session.
 

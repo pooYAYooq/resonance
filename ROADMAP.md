@@ -159,8 +159,9 @@ absent, and deleted cover URLs. Lint, 504 edge-runtime tests, 552 component test
 and production build passed. Existing fixture cleanup/timer warnings and expected
 failure-path logs remain. No new agent browser deletion was performed. CodeRabbit's
 tracked-diff review found only a roadmap status inconsistency, corrected to In
-review; inline review covered the new untracked row and its tests. Separate Git/PR
-approval gates remain pending on this branch.
+review; a manual pass covered the new untracked row and its tests. A Codex P1
+finding corrected the stale resume note after the PR opened. PR #94 is open with
+passing CI; maintainer review and merge remain pending.
 
 ### Profiles and engagement
 
