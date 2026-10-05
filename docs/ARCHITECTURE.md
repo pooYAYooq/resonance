@@ -67,6 +67,8 @@ resonance/
 │   │   │   ├── published/page.tsx # Full current-author published list.
 │   │   │   ├── analytics/page.tsx # Private author analytics: summary cards and follower chart.
 │   │   │   └── _components/    # Deferred root content, sections, previews, and rows.
+│   │   │       ├── PublishedRow.tsx     # Responsive published management presentation.
+│   │   │       └── DeletePostDialog.tsx # Controlled deletion confirmation, pending/error states.
 │   │   └── _components/        # Shell, sidebar, mobile drawer, utilities, and navigation.
 │   ├── (marketing)/            # Public marketing routes (Navbar + marketing Footer)
 │   │   ├── layout.tsx          # SiteShell with the marketing footer.
@@ -669,9 +671,15 @@ states above the title.
 
   The private dashboard lists owner-scoped draft summaries at
   `/dashboard/drafts`, resumes through `/create?draftId=...`, and deletes only
-  drafts. `/dashboard/published` scopes published cards through the current
-  user's auth identity and links authors to `/create?editPostId=...` for
-  published editing. `/saved` is the client-gated, paginated private reader
+  drafts. `/dashboard/published` scopes management rows through the current
+  user's auth identity after authentication resolves. `PublishedSection`
+  owns 12-item pagination, confirmation selection, duplicate-submission
+  protection, retryable errors, and focus restoration across asynchronous query
+  updates. `PublishedRow` links titles to the reader and Edit to
+  `/create?editPostId=...`; `DeletePostDialog` uses the generated Radix/shadcn
+  AlertDialog and calls the existing owner-authorized `deletePublishedPost`
+  lifecycle through its parent. No schema or backend deletion change is needed.
+  `/saved` is the client-gated, paginated private reader
   collection for bookmarks, and `/liked` is the equivalent collection for the
   current user's liked posts. The deferred `/dashboard` root composes
   independent, small previews of drafts and published posts and keeps each collection's

@@ -141,8 +141,10 @@ app/
       page.tsx                # Dashboard root with drafts and published-post previews
       analytics/page.tsx      # Private author analytics: summary cards and follower-growth chart
       drafts/page.tsx         # Full owner-scoped draft list
-      published/page.tsx      # Full current-author published list
+      published/page.tsx      # Current-author published management rows
       _components/            # Deferred root content, sections, previews, and rows
+        PublishedRow.tsx       # Responsive cover, metadata, engagement, and author actions
+        DeletePostDialog.tsx   # Confirmed deletion with pending/error and focus handling
     _components/              # Workspace shell, sidebar, mobile drawer, utilities, and navigation
   (marketing)/                # Public marketing routes (Navbar + marketing Footer)
     layout.tsx                # SiteShell with the marketing footer
