@@ -51,18 +51,17 @@ full record is in ROADMAP.md.
 
 V1-13 and its diagnostics follow-up shipped in merged PRs #92 and #93.
 
-V1-14 implementation and verification are complete on
-`feat/draft-management-rows`: My Posts-style Drafts page/rows, blank cover fallback,
-Last saved dates, Resume/Delete actions, and accessible deletion confirmation.
-The user reported browser acceptance; pagination is automated-test verified
-rather than manually verified because there were insufficient draft items.
-Lint, 504 edge-runtime tests, 552 component tests, and production build passed
-on 2026-10-06. Local review is complete; CodeRabbit's minor roadmap status
-finding was corrected and a manual pass covered the new row files. PR #94 is
-open with passing CI. Next: address PR review feedback, then await maintainer
-review and merge. V1-15 needs its dedicated spec;
-wide-screen reader rail contents remain queued. Dashboard Overview purpose and
-composition remain deferred to a separate comprehensive design session.
+V1-14 shipped in [PR #94](https://github.com/pooYAYooq/resonance/pull/94), merged
+as `5426bcd`. Drafts use My Posts-style management rows with 16:9 covers and the
+shared blank fallback, Last saved dates, and Resume/Delete actions; deletion has
+a named confirmation with pending protection and focus restoration. The user
+reported browser acceptance for covers, Resume, deletion, and responsive themes;
+pagination is automated-test verified. The merged revision re-passed lint, 504
+edge-runtime tests, 552 component tests, and the production build on 2026-10-06.
+
+Next: draft the dedicated spec for V1-15 unsaved-exit guards. Wide-screen reader
+rail contents remain queued, and Dashboard Overview purpose and composition
+remain deferred to a separate comprehensive design session.
 
 ## Blockers
 
