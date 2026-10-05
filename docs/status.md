@@ -49,8 +49,14 @@ revision passed the authoring and reader journeys at 320, 375, 768, and 1280px i
 both themes with no regression, so the closure changed documentation only; the
 full record is in ROADMAP.md.
 
-Next: V1-13 published management rows and deletion UI with clear confirmation.
-Wide-screen reader rail contents remain a queued follow-up.
+V1-13 is complete on `feat/published-management-rows`: approved layout, lint,
+503 edge-runtime tests, 536 component tests, production build, and a both-theme
+responsive keyboard/deletion browser pass using a disposable post. CodeRabbit
+reported zero findings on tracked changes; fresh-agent review covered untracked
+files and its focus/hover findings were fixed and verified. Next: obtain staging
+approval, then proceed through the separate commit, push, and PR gates.
+V1-14 draft management rows follow this change. Wide-screen reader rail contents
+remain a queued follow-up.
 
 ## Blockers
 

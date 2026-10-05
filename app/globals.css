@@ -107,6 +107,10 @@
   --accent-foreground: oklch(0.2101 0.0318 264.6645);
   --destructive: oklch(0.6368 0.2078 25.3313);
   --destructive-foreground: oklch(0.9851 0 0);
+  /* Theme-aware Edit text accent for the published management action group. */
+  --management-edit: oklch(0.5 0.13 155);
+  /* Confirmation hover stays white in both themes without changing primitives. */
+  --management-delete-foreground: oklch(1 0 0);
   --border: oklch(0.9276 0.0058 264.5313);
   --input: oklch(0.9276 0.0058 264.5313);
   --ring: oklch(0.6716 0.1368 48.513);
@@ -167,6 +171,7 @@
   --accent-foreground: oklch(0.8109 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.1797 0.0043 308.1928);
+  --management-edit: oklch(0.78 0.16 155);
   --border: oklch(0.252 0 0);
   --input: oklch(0.252 0 0);
   --ring: oklch(0.7214 0.1337 49.9802);
@@ -262,6 +267,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-management-edit: var(--management-edit);
+  --color-management-delete-foreground: var(--management-delete-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

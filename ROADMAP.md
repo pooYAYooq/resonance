@@ -113,16 +113,37 @@ defect.
 ### Management and navigation
 
 Source: Track 4 (recorded in `FEATURES.md` at commit `46d26a3`),
-`docs/PHASE_3A.md` 3A.3 scope, decision 3A-021. Includes the approved dense
-management-row requirement from the 3A.3 detailed requirements;
-`PublishedSection.tsx` still renders a PostCard grid today.
+`docs/PHASE_3A.md` 3A.3 scope, decision 3A-014. Includes the approved dense
+management-row requirement from the 3A.3 detailed requirements.
 
 | ID    | Item                                                              | Status       | Estimate |
 | ----- | ----------------------------------------------------------------- | ------------ | -------- |
-| V1-13 | Published management rows and deletion UI with clear confirmation | Todo         | M        |
+| V1-13 | Published management rows and deletion UI with clear confirmation | Done         | M        |
 | V1-14 | Draft management rows and deletion confirmation check             | Todo         | S        |
 | V1-15 | Unsaved-exit guards beyond target switches                        | Pending spec | M        |
 | V1-16 | Accessibility evidence pass                                       | Todo         | M        |
+
+V1-13 verification on `feat/published-management-rows` (2026-10-05): approved
+desktop rows and mobile title/thumbnail/metadata/action composition; existing
+owner-authorized deletion and 12-item pagination preserved. Component coverage
+includes cancellation, pending/duplicate protection, errors and retry, auth
+guards, and focus restoration when query updates arrive before or after mutation
+resolution. Browser checks passed at 320, 375, 700, 900, and 1280px in both
+themes for dialog bounds, keyboard focus trapping, Escape cancellation, and
+trigger restoration. A purpose-created disposable post was published and
+deleted through the confirmation UI; the row disappeared, success feedback
+appeared, and focus moved to the next Edit link. No pre-existing post was deleted.
+Lint, 503 edge-runtime tests, 536 component tests, and production build passed.
+Known fixture cleanup/timer warnings and expected failure-path logs remain.
+Both CodeRabbit passes reported zero findings on tracked changes. A fresh-agent
+review included the new untracked files; its neighboring-row focus race was
+reproduced with failing next/previous tests and fixed, and its dark confirmation
+hover finding was corrected locally and checked in isolated Chromium in both
+themes. Browser pending/error/retry, empty-state deletion, and pagination cases
+are covered by component tests rather than real-data browser fault injection.
+Implementation is complete on the branch; Git/PR approval gates remain pending.
+Narrow metadata intentionally ellipsizes; search,
+filters, sorting, layout switching, sharing, and batch deletion remain deferred.
 
 ### Profiles and engagement
 

@@ -64,8 +64,15 @@
 - Authors can edit published posts in place through `/create?editPostId=<id>`;
   edits preserve the post ID, publication time, engagement records, bookmarks,
   and feed position while advancing `updatedAt`
-- `/dashboard/published` lists the author's published posts with Edit and View
-  Post actions; published-post deletion is not yet available in the UI
+- `/dashboard/published` lists the author's published posts as responsive
+  management rows with 16:9 covers, linked titles, publication/update dates,
+  tags, read-only like/comment counts, and grouped Edit and Delete actions
+- Published deletion names the selected post in a keyboard-accessible
+  confirmation dialog, explains irreversible removal, blocks duplicate
+  submissions while pending, and keeps errors retryable. Cancellation restores
+  the trigger; successful deletion focuses a neighboring row or New Post
+- The author list retains 12-item load-more pagination. Search, filters,
+  sorting, layout switching, sharing, and batch deletion are not included
 - Public readers, likes, bookmarks, comments, notifications, and feed rows do
   not expose or act on drafts
 - Public post details show `publishedAt` and show `updatedAt` only after an edit

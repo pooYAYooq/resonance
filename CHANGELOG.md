@@ -12,6 +12,10 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Responsive published-post management rows with linked titles, 16:9 covers,
+  dates, tags, read-only engagement, and grouped Edit and Delete actions.
+  Published deletion now has named-post confirmation, pending protection,
+  retryable errors, and keyboard focus restoration.
 - Published post author attribution with an avatar, profile link, stacked
   publication/update dates, and a compact viewer-aware Follow action with equal
   width for Follow and Following labels. Topic links have roomier reader padding
