@@ -49,14 +49,20 @@ revision passed the authoring and reader journeys at 320, 375, 768, and 1280px i
 both themes with no regression, so the closure changed documentation only; the
 full record is in ROADMAP.md.
 
-V1-13 is complete on `feat/published-management-rows`: approved layout, lint,
-503 edge-runtime tests, 536 component tests, production build, and a both-theme
-responsive keyboard/deletion browser pass using a disposable post. CodeRabbit
-reported zero findings on tracked changes; fresh-agent review covered untracked
-files and its focus/hover findings were fixed and verified. Next: obtain staging
-approval, then proceed through the separate commit, push, and PR gates.
-V1-14 draft management rows follow this change. Wide-screen reader rail contents
-remain a queued follow-up.
+V1-13 and its diagnostics follow-up shipped in merged PRs #92 and #93.
+
+V1-14 implementation and verification are complete on
+`feat/draft-management-rows`: My Posts-style Drafts page/rows, blank cover fallback,
+Last saved dates, Resume/Delete actions, and accessible deletion confirmation.
+The user reported browser acceptance; pagination is automated-test verified
+rather than manually verified because there were insufficient draft items.
+Lint, 504 edge-runtime tests, 552 component tests, and production build passed
+on 2026-10-06. Review is complete; CodeRabbit's minor roadmap status finding was
+corrected and inline review covered the untracked files. Next: obtain staging
+approval, then proceed through
+the separate commit, push, and PR gates. V1-15 needs its dedicated spec;
+wide-screen reader rail contents remain queued. Dashboard Overview purpose and
+composition remain deferred to a separate comprehensive design session.
 
 ## Blockers
 
