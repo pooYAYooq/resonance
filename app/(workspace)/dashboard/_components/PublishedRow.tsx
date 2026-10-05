@@ -27,7 +27,7 @@ type PublishedRowProps = {
     | "likeCount"
     | "commentCount"
   > & { imageUrl: string | null };
-  onDelete: () => void;
+  onDeleteAction: () => void;
   deleting: boolean;
   deleteButtonRef?: Ref<HTMLButtonElement>;
   editLinkRef?: Ref<HTMLAnchorElement>;
@@ -35,7 +35,7 @@ type PublishedRowProps = {
 
 export function PublishedRow({
   post,
-  onDelete,
+  onDeleteAction,
   deleting,
   deleteButtonRef,
   editLinkRef,
@@ -51,7 +51,7 @@ export function PublishedRow({
         <Link
           href={`/blog/${post._id}`}
           title={post.title}
-          className="rounded-sm underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          className="rounded-sm underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-ring"
         >
           {post.title}
         </Link>
@@ -94,7 +94,7 @@ export function PublishedRow({
                   <Link
                     key={tag}
                     href={`/blog?tag=${encodeURIComponent(tag)}`}
-                    className="mr-3 rounded-sm underline-offset-4 last:mr-0 hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className="mr-3 rounded-sm underline-offset-4 last:mr-0 hover:text-foreground hover:underline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     {tag}
                   </Link>
@@ -155,7 +155,7 @@ export function PublishedRow({
             size="sm"
             className="min-h-11 flex-1 cursor-pointer rounded-none hover:bg-transparent! hover:text-destructive sm:min-h-8 sm:flex-none sm:rounded-md"
             disabled={deleting}
-            onClick={onDelete}
+            onClick={onDeleteAction}
             aria-label={`Delete ${post.title}`}
           >
             {deleting ? "Deleting…" : "Delete"}
