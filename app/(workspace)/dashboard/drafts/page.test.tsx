@@ -11,6 +11,11 @@ describe("Dashboard drafts route", () => {
   it("renders the Drafts section boundary", () => {
     render(<DashboardDraftsRoute />);
 
-    expect(screen.getByRole("heading", { name: "Drafts" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Drafts", level: 1 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Your unfinished posts, ready to resume."),
+    ).toBeInTheDocument();
   });
 });

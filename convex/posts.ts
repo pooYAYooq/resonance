@@ -78,6 +78,7 @@ const draftListItemValidator = v.object({
   tags: v.array(v.string()),
   updatedAt: v.number(),
   excerpt: v.string(),
+  imageUrl: v.union(v.string(), v.null()),
 });
 function validatePublicPagination(options: {
   numItems: number;
@@ -246,20 +247,25 @@ export const getDrafts = query({
 
     return {
       ...result,
-      page: result.page.map((draft) => {
-        const parsed = parsePostBody(draft.body);
-        const excerpt =
-          parsed.kind === "structured"
-            ? extractPlainText(parsed.document.blocks).slice(0, 240)
-            : "";
-        return {
-          _id: draft._id,
-          title: draft.title,
-          tags: draft.tags,
-          updatedAt: draft.updatedAt,
-          excerpt,
-        };
-      }),
+      page: await Promise.all(
+        result.page.map(async (draft) => {
+          const parsed = parsePostBody(draft.body);
+          const excerpt =
+            parsed.kind === "structured"
+              ? extractPlainText(parsed.document.blocks).slice(0, 240)
+              : "";
+          return {
+            _id: draft._id,
+            title: draft.title,
+            tags: draft.tags,
+            updatedAt: draft.updatedAt,
+            excerpt,
+            imageUrl: draft.imageStorageId
+              ? await ctx.storage.getUrl(draft.imageStorageId)
+              : null,
+          };
+        }),
+      ),
     };
   },
 });

@@ -119,7 +119,7 @@ management-row requirement from the 3A.3 detailed requirements.
 | ID    | Item                                                              | Status       | Estimate |
 | ----- | ----------------------------------------------------------------- | ------------ | -------- |
 | V1-13 | Published management rows and deletion UI with clear confirmation | Done         | M        |
-| V1-14 | Draft management rows and deletion confirmation check             | Todo         | S        |
+| V1-14 | Draft management rows and deletion confirmation check             | In review    | S        |
 | V1-15 | Unsaved-exit guards beyond target switches                        | Pending spec | M        |
 | V1-16 | Accessibility evidence pass                                       | Todo         | M        |
 
@@ -141,9 +141,27 @@ reproduced with failing next/previous tests and fixed, and its dark confirmation
 hover finding was corrected locally and checked in isolated Chromium in both
 themes. Browser pending/error/retry, empty-state deletion, and pagination cases
 are covered by component tests rather than real-data browser fault injection.
-Implementation is complete on the branch; Git/PR approval gates remain pending.
+Shipped in PR #92; the diagnostics follow-up shipped in PR #93. Both are merged.
 Narrow metadata intentionally ellipsizes; search,
 filters, sorting, layout switching, sharing, and batch deletion remain deferred.
+
+V1-14 verification on `feat/draft-management-rows` (2026-10-06): Drafts page and
+rows match My Posts' responsive composition, with Resume replacing Edit, a
+neutral blank cover fallback, Last saved dates, and no excerpts. Owner-scoped
+cover URL hydration and 12-item pagination are preserved. The user reported
+browser acceptance for blank covers, Resume, deletion confirmation/functionality,
+and responsive/both-theme review; pagination could not be manually exercised due
+to insufficient drafts. Component tests cover load-more/LoadingMore/exhaustion,
+authentication guards, cancellation, pending/duplicate protection, errors/retry,
+and neighboring/empty-state focus before and after mutation resolution. Backend
+coverage verifies cursor pagination, owner/published isolation, and stored,
+absent, and deleted cover URLs. Lint, 504 edge-runtime tests, 552 component tests,
+and production build passed. Existing fixture cleanup/timer warnings and expected
+failure-path logs remain. No new agent browser deletion was performed. CodeRabbit's
+tracked-diff review found only a roadmap status inconsistency, corrected to In
+review; a manual pass covered the new untracked row and its tests. A Codex P1
+finding corrected the stale resume note after the PR opened. PR #94 is open with
+passing CI; maintainer review and merge remain pending.
 
 ### Profiles and engagement
 

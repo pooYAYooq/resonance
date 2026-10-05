@@ -13,6 +13,7 @@ import {
 
 type DeletePostDialogProps = {
   title: string;
+  kind?: "published" | "draft";
   open: boolean;
   pending: boolean;
   error: string | null;
@@ -23,6 +24,7 @@ type DeletePostDialogProps = {
 
 export function DeletePostDialog({
   title,
+  kind = "published",
   open,
   pending,
   error,
@@ -48,10 +50,13 @@ export function DeletePostDialog({
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete published post?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {kind === "draft" ? "Delete draft?" : "Delete published post?"}
+          </AlertDialogTitle>
           <AlertDialogDescription className="wrap-anywhere">
-            Permanently delete “{title}”? The post and its associated discussion
-            and engagement will be removed. This cannot be undone.
+            {kind === "draft"
+              ? `Permanently delete “${title}”? This draft will be removed. This cannot be undone.`
+              : `Permanently delete “${title}”? The post and its associated discussion and engagement will be removed. This cannot be undone.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error && (
@@ -70,7 +75,11 @@ export function DeletePostDialog({
               onConfirm();
             }}
           >
-            {pending ? "Deleting…" : "Delete Post"}
+            {pending
+              ? "Deleting…"
+              : kind === "draft"
+                ? "Delete Draft"
+                : "Delete Post"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

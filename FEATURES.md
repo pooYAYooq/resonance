@@ -55,8 +55,12 @@
 
 - Authenticated authors can save incomplete structured posts as private drafts
   and update them through the owner-scoped `saveDraft` mutation
-- `/dashboard/drafts` lists the current author's drafts with excerpts, tags,
-  last-updated dates, resume links, and delete actions
+- `/dashboard/drafts` lists the current author's drafts as responsive management
+  rows matching My Posts: linked titles, 16:9 covers with a neutral blank fallback,
+  tags, Last saved dates, and grouped Resume/Delete actions; no excerpts
+- Draft deletion uses a named, irreversible confirmation with cancellation,
+  pending/duplicate protection, retryable errors, and focus restoration to the
+  trigger, neighboring Resume link, or Create a post action
 - Resuming a draft opens `/create?draftId=<id>` with its content, tags, and
   images hydrated into the editor
 - Publishing validates the stored draft, transitions it to `published`, and
@@ -71,7 +75,7 @@
   confirmation dialog, explains irreversible removal, blocks duplicate
   submissions while pending, and keeps errors retryable. Cancellation restores
   the trigger; successful deletion focuses a neighboring row or New Post
-- The author list retains 12-item load-more pagination. Search, filters,
+- Both author lists retain 12-item load-more pagination. Search, filters,
   sorting, layout switching, sharing, and batch deletion are not included
 - Public readers, likes, bookmarks, comments, notifications, and feed rows do
   not expose or act on drafts

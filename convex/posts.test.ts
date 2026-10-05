@@ -2108,6 +2108,87 @@ describe("posts functions", () => {
 });
 
 describe("atomic discovery lifecycle", () => {
+  it("paginates only the owner's drafts and resolves stored, absent, and missing covers", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(t, "draft-list@example.com");
+    const ids = await t.run(async (ctx) => {
+      const stored = await ctx.storage.store(
+        new Blob(["cover"], { type: "image/png" }),
+      );
+      const missing = await ctx.storage.store(
+        new Blob(["deleted"], { type: "image/png" }),
+      );
+      await ctx.storage.delete(missing);
+      const base = {
+        body: lifecycleBody(),
+        tags: [],
+        authorId: identity.subject,
+        status: "draft" as const,
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 1,
+      };
+      const covered = await ctx.db.insert("posts", {
+        ...base,
+        title: "Covered",
+        updatedAt: 3,
+        imageStorageId: stored,
+      });
+      const blank = await ctx.db.insert("posts", {
+        ...base,
+        title: "Blank",
+        updatedAt: 2,
+      });
+      const deletedCover = await ctx.db.insert("posts", {
+        ...base,
+        title: "Missing cover",
+        updatedAt: 1,
+        imageStorageId: missing,
+      });
+      await ctx.db.insert("posts", {
+        ...base,
+        title: "Someone else's",
+        authorId: "other-owner",
+        updatedAt: 5,
+      });
+      await ctx.db.insert("posts", {
+        ...base,
+        title: "Published",
+        status: "published",
+        updatedAt: 4,
+        publishedAt: 4,
+      });
+      return { covered, blank, deletedCover };
+    });
+    const owner = t.withIdentity(identity);
+    const first = await owner.query(api.posts.getDrafts, {
+      paginationOpts: { numItems: 2, cursor: null },
+    });
+    expect(first.page.map((draft) => draft._id)).toEqual([
+      ids.covered,
+      ids.blank,
+    ]);
+    expect(first.page[0].imageUrl).toEqual(
+      expect.stringMatching(/^https?:\/\//),
+    );
+    expect(first.page[1].imageUrl).toBeNull();
+    expect(first.isDone).toBe(false);
+    const second = await owner.query(api.posts.getDrafts, {
+      paginationOpts: { numItems: 2, cursor: first.continueCursor },
+    });
+    expect(second.page).toMatchObject([
+      { _id: ids.deletedCover, imageUrl: null },
+    ]);
+    expect(second.isDone).toBe(true);
+    expect(
+      (
+        await t.query(api.posts.getDrafts, {
+          paginationOpts: { numItems: 12, cursor: null },
+        })
+      ).page,
+    ).toEqual([]);
+  });
+
   it("saves drafts without creating Discover or Search rows", async () => {
     const t = convexTest(schema, modules);
     const identity = await createPostTestUser(t, "draft-lifecycle@example.com");
