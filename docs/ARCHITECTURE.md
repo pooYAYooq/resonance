@@ -66,9 +66,10 @@ resonance/
 │   │   │   ├── drafts/page.tsx # Full owner-scoped draft list.
 │   │   │   ├── published/page.tsx # Full current-author published list.
 │   │   │   ├── analytics/page.tsx # Private author analytics: summary cards and follower chart.
-│   │   │   └── _components/    # Deferred root content, sections, previews, and rows.
+│   │   │   └── _components/    # Dashboard overview previews and management sections.
+│   │   │       ├── DraftManagementRow.tsx # Responsive draft rows with cover and Resume/Delete.
 │   │   │       ├── PublishedRow.tsx     # Responsive published management presentation.
-│   │   │       └── DeletePostDialog.tsx # Controlled deletion confirmation, pending/error states.
+│   │   │       └── DeletePostDialog.tsx # Controlled draft/post deletion confirmation.
 │   │   └── _components/        # Shell, sidebar, mobile drawer, utilities, and navigation.
 │   ├── (marketing)/            # Public marketing routes (Navbar + marketing Footer)
 │   │   ├── layout.tsx          # SiteShell with the marketing footer.
@@ -669,16 +670,20 @@ states above the title.
   separate last-edited date only when `updatedAt > publishedAt`; they do not
   fall back to `createdAt`.
 
-  The private dashboard lists owner-scoped draft summaries at
-  `/dashboard/drafts`, resumes through `/create?draftId=...`, and deletes only
-  drafts. `/dashboard/published` scopes management rows through the current
-  user's auth identity after authentication resolves. `PublishedSection`
-  owns 12-item pagination, confirmation selection, duplicate-submission
-  protection, retryable errors, and focus restoration across asynchronous query
-  updates. `PublishedRow` links titles to the reader and Edit to
-  `/create?editPostId=...`; `DeletePostDialog` uses the generated Radix/shadcn
-  AlertDialog and calls the existing owner-authorized `deletePublishedPost`
-  lifecycle through its parent. No schema or backend deletion change is needed.
+  The private dashboard lists owner-scoped drafts at `/dashboard/drafts` as
+  My Posts-style management rows: 16:9 cover with the shared blank fallback,
+  linked title, tags, Last saved date, and Resume plus Delete actions. Resuming
+  opens `/create?draftId=...`; deletion only removes drafts. `DraftsSection` and
+  `PublishedSection` each own 12-item pagination, confirmation selection,
+  duplicate-submission protection, retryable errors, and focus restoration
+  across asynchronous query updates; `getDrafts` resolves cover URLs per page
+  item. `PublishedRow` links titles to the reader and Edit to
+  `/create?editPostId=...`, while `/dashboard/published` scopes management rows
+  through the current user's auth identity after authentication resolves.
+  `DeletePostDialog` uses the generated Radix/shadcn AlertDialog for both
+  deletion flows and calls the owner-authorized `deleteDraft` or
+  `deletePublishedPost` lifecycle through its parent. No schema or backend
+  deletion change is needed.
   `/saved` is the client-gated, paginated private reader
   collection for bookmarks, and `/liked` is the equivalent collection for the
   current user's liked posts. The deferred `/dashboard` root composes

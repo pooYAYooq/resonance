@@ -119,7 +119,7 @@ management-row requirement from the 3A.3 detailed requirements.
 | ID    | Item                                                              | Status       | Estimate |
 | ----- | ----------------------------------------------------------------- | ------------ | -------- |
 | V1-13 | Published management rows and deletion UI with clear confirmation | Done         | M        |
-| V1-14 | Draft management rows and deletion confirmation check             | In review    | S        |
+| V1-14 | Draft management rows and deletion confirmation check             | Done         | S        |
 | V1-15 | Unsaved-exit guards beyond target switches                        | Pending spec | M        |
 | V1-16 | Accessibility evidence pass                                       | Todo         | M        |
 
@@ -155,13 +155,14 @@ to insufficient drafts. Component tests cover load-more/LoadingMore/exhaustion,
 authentication guards, cancellation, pending/duplicate protection, errors/retry,
 and neighboring/empty-state focus before and after mutation resolution. Backend
 coverage verifies cursor pagination, owner/published isolation, and stored,
-absent, and deleted cover URLs. Lint, 504 edge-runtime tests, 552 component tests,
-and production build passed. Existing fixture cleanup/timer warnings and expected
-failure-path logs remain. No new agent browser deletion was performed. CodeRabbit's
-tracked-diff review found only a roadmap status inconsistency, corrected to In
-review; a manual pass covered the new untracked row and its tests. A Codex P1
-finding corrected the stale resume note after the PR opened. PR #94 is open with
-passing CI; maintainer review and merge remain pending.
+absent, and deleted cover URLs. The merged revision re-passed lint, 504
+edge-runtime tests, 552 component tests, and the production build on `main` on
+2026-10-06. Existing fixture cleanup/timer warnings and expected failure-path
+logs remain. No new agent browser deletion was performed. CodeRabbit's
+tracked-diff review found only a roadmap status inconsistency, corrected in the
+PR; a manual pass covered the new untracked row and its tests. A Codex P1 finding
+corrected the post-merge resume note. Shipped in
+[PR #94](https://github.com/pooYAYooq/resonance/pull/94), merged as `5426bcd`.
 
 ### Profiles and engagement
 

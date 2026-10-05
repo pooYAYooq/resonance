@@ -12,6 +12,10 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Responsive draft management rows matching My Posts: linked titles, 16:9
+  covers with the blank fallback, tags, Last saved dates, and grouped Resume
+  and Delete actions. Draft deletion has named-draft confirmation, pending
+  protection, retryable errors, and keyboard focus restoration.
 - Responsive published-post management rows with linked titles, 16:9 covers,
   dates, tags, read-only engagement, and grouped Edit and Delete actions.
   Published deletion now has named-post confirmation, pending protection,
