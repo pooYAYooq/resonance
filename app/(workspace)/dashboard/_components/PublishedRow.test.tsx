@@ -18,7 +18,9 @@ const post: ComponentProps<typeof PublishedRow>["post"] = {
 
 describe("PublishedRow", () => {
   it("shows publication and subsequent update dates, linked tags, and read-only engagement", () => {
-    render(<PublishedRow post={post} deleting={false} onDelete={vi.fn()} />);
+    render(
+      <PublishedRow post={post} deleting={false} onDeleteAction={vi.fn()} />,
+    );
     expect(screen.getByText("Published 2 Sept 2026")).toHaveAttribute(
       "datetime",
       "2026-09-02T00:00:00.000Z",
@@ -48,7 +50,7 @@ describe("PublishedRow", () => {
           tags: [],
         }}
         deleting={false}
-        onDelete={vi.fn()}
+        onDeleteAction={vi.fn()}
       />,
     );
     expect(screen.getByText("Published 1 Sept 2026")).toBeInTheDocument();
@@ -60,13 +62,15 @@ describe("PublishedRow", () => {
     const onDelete = vi.fn();
     const user = userEvent.setup();
     const view = render(
-      <PublishedRow post={post} deleting={false} onDelete={onDelete} />,
+      <PublishedRow post={post} deleting={false} onDeleteAction={onDelete} />,
     );
     await user.click(
       screen.getByRole("button", { name: "Delete A published story" }),
     );
     expect(onDelete).toHaveBeenCalledOnce();
-    view.rerender(<PublishedRow post={post} deleting onDelete={onDelete} />);
+    view.rerender(
+      <PublishedRow post={post} deleting onDeleteAction={onDelete} />,
+    );
     expect(screen.getByRole("article")).toHaveAttribute("aria-busy", "true");
     expect(
       screen.getByRole("button", { name: "Delete A published story" }),

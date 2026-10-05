@@ -146,7 +146,7 @@ export function PublishedSection() {
                 if (node) deleteButtons.current.set(post._id, node);
                 else deleteButtons.current.delete(post._id);
               }}
-              onDelete={() => {
+              onDeleteAction={() => {
                 restoreTarget.current =
                   deleteButtons.current.get(post._id) ?? null;
                 focusCandidates.current = null;
