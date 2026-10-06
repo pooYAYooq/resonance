@@ -88,4 +88,100 @@ describe("MobileNavMenu", () => {
       "/auth/sign-up",
     );
   });
+
+  it("opens an accessible drawer with every destination and account link", async () => {
+    const user = userEvent.setup();
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 0
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
+
+    render(<MobileNavMenu isAuthenticated />);
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Navigation" }),
+    ).toBeInTheDocument();
+    for (const [name, href] of [
+      ["New Post", "/create"],
+      ["Drafts", "/dashboard/drafts"],
+      ["My Posts", "/dashboard/published"],
+      ["Analytics", "/dashboard/analytics"],
+      ["Discover", "/blog"],
+      ["Feed", "/feed"],
+      ["Saved", "/saved"],
+      ["Liked", "/liked"],
+    ]) {
+      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+    }
+    expect(screen.getByRole("link", { name: "New Post" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      screen.queryByRole("link", { name: "Overview" }),
+    ).not.toBeInTheDocument();
+
+    expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute(
+      "href",
+      "/notifications",
+    );
+    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
+      "href",
+      "/u/auth-user-1",
+    );
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+    expect(
+      screen.getByRole("button", { name: "Sign Out" }),
+    ).toBeInTheDocument();
+  });
+
+  it("closes after selecting a workspace destination", async () => {
+    const user = userEvent.setup();
+    render(<MobileNavMenu isAuthenticated />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
+    await user.click(screen.getByRole("link", { name: "Discover" }));
+
+    expect(
+      screen.queryByRole("dialog", { name: "Navigation" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes after selecting an account destination", async () => {
+    const user = userEvent.setup();
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 0
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
+
+    render(<MobileNavMenu isAuthenticated />);
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
+    await user.click(screen.getByRole("link", { name: "Profile" }));
+
+    expect(
+      screen.queryByRole("dialog", { name: "Navigation" }),
+    ).not.toBeInTheDocument();
+  });
 });
