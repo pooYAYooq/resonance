@@ -18,8 +18,8 @@ vi.mock("./WorkspaceSidebar", () => ({
   WorkspaceSidebar: () => <aside>Workspace sidebar</aside>,
 }));
 
-vi.mock("./WorkspaceMobileDrawer", () => ({
-  WorkspaceMobileDrawer: () => <button type="button">Open workspace menu</button>,
+vi.mock("@/components/web/Navbar", () => ({
+  Navbar: () => <nav>Site navbar</nav>,
 }));
 
 import { WorkspaceShell } from "./WorkspaceShell";

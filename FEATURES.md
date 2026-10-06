@@ -25,6 +25,11 @@
 - Email/password **and** Google/GitHub OAuth via Better Auth (runs inside Convex)
 - `AuthSync` bridges Better Auth identity into the app-level `users` table on sign-in
 - Navbar avatar dropdown (profile / settings / logout); `/create` is auth-gated
+- Below 768px, the site and workspace use a logo plus hamburger drawer instead
+  of inline account controls. The mobile drawer and desktop workspace sidebar
+  share navigation content: Writing, Reading, Account, and Appearance, with
+  profile context and unread notifications for authenticated users; anonymous
+  users get Home, Discover, Log In, Sign Up, and theme controls.
 
 ### Blog Posts
 
@@ -43,8 +48,8 @@
   tag pills, and exact `/blog?tag=<tag>` filtering
 - The published reader aligns its cover, title, metadata, tags, and title divider
   to the site header container around a 700px prose column that left-aligns from
-  `xl` up to reserve the wide-screen rail, with a 16:9 cover (capped at
-  `min(560px, 40dvh)`) and an 18px published body scale
+  `xl` up to reserve the wide-screen rail, with an uncapped 16:9 cover and an
+  18px published body scale
 - Published post attribution includes a 40px avatar and a linked author name,
   falling back to Unknown when the profile name is unavailable. Publication and
   conditional update dates are stacked beneath the name with emphasized labels;
@@ -101,10 +106,15 @@
 - Cover controls are styled Add, Replace, and Remove buttons with same-file
   reselection and a published-ratio 16:9 preview; a missing cover renders the
   shared blank fallback on cards, Discover, and the reader
-- Review renders only a frozen snapshot of the reviewed title, body, tags,
+- Review renders a frozen snapshot of the reviewed title, body, tags,
   cover intent, cover preview, and resolved inline media at the published
-  geometry (16:9 cover, 700px measure, published title weight); Post details
-  are hidden and Back plus Publish/Update live in the studio header
+  geometry (uncapped 16:9 cover, 700px measure, published title weight), using
+  the reader's shared title, attribution, and topic presentation. Author and
+  topic links are noninteractive; Follow, engagement, and comments are omitted.
+  Review replaces the workspace navigation chrome with a dedicated
+  Edit/Preview/Publish-or-Update toolbar. Below 640px, the editing and update
+  labels shorten to Edit and Update, and shared title/H2/H3 sizes are
+  36px/30px/26px. New posts show Not published yet; published edits show dates.
 - Review and submission are blocked while inline media or a recovered saved
   cover is unresolved; a transient cover lookup retries with backoff and on
   focus or reconnect, and the failure alert is reserved for a server-reported
@@ -161,7 +171,8 @@
 
 - `internal.notifications.fanOutForPost` — called after `publishPost`, inserts one row per follower in batches via `.paginate(args.paginationOpts)` with scheduler continuation via the `follows.by_followingId` index
 - `users.unreadNotificationCount` denormalized counter; `getUnreadCount` is a single O(1) read for the bell badge
-- `NotificationBell` in the Navbar, auth-only, left of the avatar
+- `NotificationBell` in the desktop Navbar, auth-only, left of the avatar;
+  mobile navigation shows a Notifications link with an unread count
 - `/notifications` page, client-gated, paginated, marks all read on visit
 - `markAllRead` resets the counter; rows remain as visual history
 

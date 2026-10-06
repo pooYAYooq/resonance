@@ -265,6 +265,9 @@ vi.mock("@/convex/_generated/api", () => ({
     writeAttempts: {
       reserveAttempt: "reserveAttempt",
     },
+    users: {
+      getCurrentUser: "getCurrentUser",
+    },
     sessionMediaClaims: {
       claim: "claimSessionMedia",
       renew: "renewSessionMedia",
@@ -1952,7 +1955,7 @@ describe("CreateRoute", () => {
     await enterReview(user);
 
     await screen.findByTestId("review-surface");
-    expect(screen.getByText("Reviewing new post")).toBeVisible();
+    expect(screen.getByText("Preview")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Back to editing" }),
     ).toBeVisible();
@@ -1960,7 +1963,7 @@ describe("CreateRoute", () => {
     expect(screen.queryByText("Post details")).toBeNull();
   });
 
-  it("keeps the reviewed preview and submission when live fields drift", async () => {
+  it("keeps the reviewed preview and submission frozen at Review entry", async () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
 
@@ -1971,18 +1974,12 @@ describe("CreateRoute", () => {
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
-    // Capture the editor control while it is visible; after entering Review it
-    // is hidden, so re-dispatch against this reference to simulate drift.
-    const shortContentButton = screen.getByRole("button", {
-      name: "Set short blog content",
-    });
     await enterReview(user);
     await screen.findByTestId("review-surface");
 
-    fireEvent.change(screen.getByLabelText("Post title"), {
-      target: { value: "Drifted title" },
-    });
-    fireEvent.click(shortContentButton);
+    // Review replaces the editing canvas, so the reviewed values cannot
+    // drift while the author stays in Review.
+    expect(screen.queryByLabelText("Post title")).toBeNull();
 
     const surface = screen.getByTestId("review-surface");
     expect(surface).toHaveTextContent("Reviewed title");

@@ -338,7 +338,7 @@ describe("blog post author byline", () => {
 
     const { container } = render(await PostIdRoute({ params }));
 
-    const byline = screen.getByTestId("author-byline");
+    const byline = screen.getByTestId("article-byline");
     const authorLink = screen.getByRole("link", { name: "Ada Lovelace" });
     expect(authorLink).toHaveAttribute("href", "/u/user-1");
     expect(authorLink).toHaveClass("capitalize");
@@ -488,7 +488,7 @@ describe("blog post author byline", () => {
     );
     expect(tag.parentElement).toHaveClass("mt-3", "flex-wrap", "gap-2");
     expect(tag.parentElement?.previousElementSibling).toBe(
-      screen.getByTestId("author-byline"),
+      screen.getByTestId("article-byline"),
     );
   });
 });

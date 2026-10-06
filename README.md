@@ -121,8 +121,8 @@ pnpm lint && pnpm test:ci && pnpm test:component && pnpm build
 
 ```text
 app/
-  (workspace)/                # Authenticated workspace routes (no global Navbar or Footer)
-    layout.tsx                # WorkspaceShell auth boundary and workspace-only chrome
+  (workspace)/                # Authenticated workspace: sidebar at md+, site Navbar below md; no Footer
+    layout.tsx                # WorkspaceShell auth boundary and responsive navigation chrome
     create/
       layout.tsx              # Metadata-only child layout
       page.tsx                # New, draft, and published-edit writing modes
@@ -147,6 +147,7 @@ app/
         PublishedRow.tsx       # Responsive cover, metadata, engagement, and author actions
         DeletePostDialog.tsx   # Confirmed draft and published deletion with pending/error and focus
     _components/              # Workspace shell, sidebar, mobile drawer, utilities, and navigation
+      WorkspacePreviewContext.tsx # Lets Review temporarily replace workspace navigation chrome
   (marketing)/                # Public marketing routes (Navbar + marketing Footer)
     layout.tsx                # SiteShell with the marketing footer
     page.tsx                  # Landing page (public, auth-aware redirect)
@@ -219,11 +220,13 @@ components/
     AuthCTA.tsx               # Auth-aware CTA button ("Write a post" / "Get Started")
     FooterCTA.tsx             # Auth-aware CTA card for Footer
     Navbar.tsx                # Top nav with reader/workspace links, notifications, and account hub actions
+    MobileNavMenu.tsx         # Mobile drawer and shared AppNavigation for the workspace sidebar
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
     PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
     CoverImage.tsx            # Custom cover image or the blank transparent fallback surface with a subtle bottom border
-    PostCover.tsx             # Published 16:9 cover frame: shared ratio, viewport-height cap, single crop seam
+    PostCover.tsx             # Uncapped published 16:9 cover frame: shared ratio and single crop seam
+    PostArticleHeader.tsx     # Shared reader and noninteractive Review title, attribution, and topics
     PostBody.tsx              # Pure Server Component renderer for structured post bodies
     PostBodyPreview.tsx       # Synchronous client preview renderer used by Review
     HighlightedCode.tsx       # Server-rendered Shiki token spans with plain-text fallback

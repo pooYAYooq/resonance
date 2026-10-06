@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 const { pathnameState, useQueryState } = vi.hoisted(() => ({
   pathnameState: vi.fn(),
@@ -8,7 +7,7 @@ const { pathnameState, useQueryState } = vi.hoisted(() => ({
 }));
 
 vi.mock("convex/react", () => ({
-  useQuery: (_query: unknown, args: unknown) => useQueryState(args),
+  useQuery: (query: unknown, args: unknown) => useQueryState(query, args),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -17,11 +16,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
-  api: { users: { getCurrentUser: "getCurrentUser" } },
-}));
-
-vi.mock("@/components/web/NotificationBell", () => ({
-  NotificationBell: () => <button type="button">Notifications</button>,
+  api: {
+    users: { getCurrentUser: "getCurrentUser" },
+    notifications: { getUnreadCount: "getUnreadCount" },
+  },
 }));
 
 vi.mock("@/lib/auth-client", () => ({
@@ -35,12 +33,16 @@ import { WorkspaceSidebar } from "./WorkspaceSidebar";
 describe("WorkspaceSidebar", () => {
   beforeEach(() => {
     pathnameState.mockReturnValue("/dashboard/drafts");
-    useQueryState.mockReturnValue({
-      userId: "auth-user-1",
-      displayName: "Ada Lovelace",
-      email: "ada@example.com",
-      avatarUrl: null,
-    });
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 0
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
   });
 
   it("renders approved writing and reading links without an Overview link", () => {
@@ -59,28 +61,35 @@ describe("WorkspaceSidebar", () => {
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
     }
 
-    expect(screen.queryByRole("link", { name: "Overview" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Overview" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("marks the current route as active and renders workspace utilities", async () => {
-    const user = userEvent.setup();
+  it("marks the current route as active and renders account utilities", () => {
     render(<WorkspaceSidebar />);
 
     expect(screen.getByRole("link", { name: "Drafts" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: "Open workspace account menu" }),
+    expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute(
+      "href",
+      "/notifications",
     );
-    expect(screen.getByRole("menuitem", { name: "Profile" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
       "href",
       "/u/auth-user-1",
     );
-    expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
       "href",
       "/settings",
     );
+    expect(
+      screen.getByRole("button", { name: "Sign Out" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Light" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dark" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "System" })).toBeInTheDocument();
   });
 });

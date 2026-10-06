@@ -187,10 +187,14 @@ Source: `docs/PHASE_3A.md` 3A.5.
 
 V1-21 includes the deferred Follow/Following color treatment and the
 light-theme contrast observations recorded with V1-11: primary button text at
-3.12:1 and the focus border at 2.96:1. V1-23 includes the signed-out navbar
-overflow at 320px and 375px, where authentication controls do not fit, and the
-signed-in navbar overflow at 320px for the same control density; the post
-author section fits at those widths.
+3.12:1 and the focus border at 2.96:1. The reader/Review parity and shared
+navigation changes on `fix/reader-review-parity` replace inline mobile account
+controls with a drawer below 768px, addressing the layout that caused the
+previously recorded signed-out navbar overflow at 320px and 375px and signed-in
+overflow at 320px. Authenticated responsive navigation received browser
+acceptance; signed-out browser acceptance at 320px and 375px remains unverified
+and stays with V1-23. This bounded correction does not complete the broader
+responsive and interaction polish item; its status remains Todo.
 
 ### Release readiness
 

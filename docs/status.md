@@ -16,6 +16,14 @@ on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 
 ## Next action
 
+Reader/Review parity and shared responsive navigation are implemented and
+await PR preparation on `fix/reader-review-parity`. Review uses the reader's
+shared article header and uncapped 16:9 cover in a full-page preview; mobile
+drawers and the desktop workspace sidebar share navigation content. The user
+approved reader/Review parity and the editing flow. Code verification passed
+lint, 504 edge-runtime tests, 552 component tests, and the production build;
+the documentation sync is part of this same change. No Git actions are approved.
+
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
 
@@ -70,12 +78,10 @@ remain deferred to a separate comprehensive design session.
 
 ## Known limitations
 
-- The signed-out navbar overflows at 320px and 375px because the authentication
-  controls do not fit. The post author section fits at those widths; navbar
-  correction remains outside the author-identity task and is tracked in
-  ROADMAP.md under V1-23 responsive and interaction polish. Signed-in, the
-  theme toggle and account controls overflow at 320px for the same density
-  reason, unchanged by V1-11.
+- Mobile account and theme controls now live in the shared drawer rather than
+  the navbar below 768px. Authenticated responsive navigation received browser
+  acceptance; signed-out browser acceptance at 320px and 375px remains
+  unverified and stays with V1-23 in ROADMAP.md.
 - No stored-data migration or backfill exists. The project is not deployed and
   development data is disposable.
 - Authenticated owner-scoped post mutation tests remain limited by the Better
@@ -96,8 +102,10 @@ remain deferred to a separate comprehensive design session.
   post may show the in-app transition notice.
 - An always-available in-page Discard or Cancel action is not implemented; the
   silent recovery clears the local snapshot on save, revert, or empty.
-- `pnpm format:check` reports a pre-existing baseline of unrelated files; no
-  changed file is flagged.
+- `pnpm format:check` has a pre-existing baseline of unrelated files. A targeted
+  check also flagged six implementation files on `fix/reader-review-parity`:
+  WorkspaceSidebar, DocumentStudio, ReviewSurface, the create page, MobileNavMenu,
+  and Navbar. They were left untouched to preserve the approved implementation.
 - The title's Enter-to-body focus move depends on the dynamic import forwarding
   the body editor handle; the jsdom component tests cannot exercise it, so it is
   browser-verified only.

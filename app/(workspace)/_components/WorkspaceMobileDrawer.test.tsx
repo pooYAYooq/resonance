@@ -8,7 +8,7 @@ const { pathnameState, useQueryState } = vi.hoisted(() => ({
 }));
 
 vi.mock("convex/react", () => ({
-  useQuery: (_query: unknown, args: unknown) => useQueryState(args),
+  useQuery: (query: unknown, args: unknown) => useQueryState(query, args),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -17,11 +17,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
-  api: { users: { getCurrentUser: "getCurrentUser" } },
-}));
-
-vi.mock("@/components/web/NotificationBell", () => ({
-  NotificationBell: () => <button type="button">Notifications</button>,
+  api: {
+    users: { getCurrentUser: "getCurrentUser" },
+    notifications: { getUnreadCount: "getUnreadCount" },
+  },
 }));
 
 vi.mock("@/lib/auth-client", () => ({
@@ -35,21 +34,29 @@ import { WorkspaceMobileDrawer } from "./WorkspaceMobileDrawer";
 describe("WorkspaceMobileDrawer", () => {
   beforeEach(() => {
     pathnameState.mockReturnValue("/create");
-    useQueryState.mockReturnValue({
-      userId: "auth-user-1",
-      displayName: "Ada Lovelace",
-      email: "ada@example.com",
-      avatarUrl: null,
-    });
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 0
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
   });
 
   it("opens an accessible mobile drawer with the same destinations", async () => {
     const user = userEvent.setup();
     render(<WorkspaceMobileDrawer />);
 
-    await user.click(screen.getByRole("button", { name: "Open workspace menu" }));
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
 
-    expect(screen.getByRole("dialog", { name: "Workspace navigation" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Navigation" }),
+    ).toBeInTheDocument();
     for (const [name, href] of [
       ["New Post", "/create"],
       ["Drafts", "/dashboard/drafts"],
@@ -66,31 +73,38 @@ describe("WorkspaceMobileDrawer", () => {
       "aria-current",
       "page",
     );
-    expect(screen.queryByRole("link", { name: "Overview" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Overview" }),
+    ).not.toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", { name: "Open workspace account menu" }),
+    expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute(
+      "href",
+      "/notifications",
     );
-    expect(screen.getByRole("menuitem", { name: "Profile" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
       "href",
       "/u/auth-user-1",
     );
-    expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
       "href",
       "/settings",
     );
-    expect(screen.getByRole("menuitem", { name: "Sign Out" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sign Out" }),
+    ).toBeInTheDocument();
   });
 
   it("closes after selecting a workspace destination", async () => {
     const user = userEvent.setup();
     render(<WorkspaceMobileDrawer />);
 
-    await user.click(screen.getByRole("button", { name: "Open workspace menu" }));
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
     await user.click(screen.getByRole("link", { name: "Discover" }));
 
     expect(
-      screen.queryByRole("dialog", { name: "Workspace navigation" }),
+      screen.queryByRole("dialog", { name: "Navigation" }),
     ).not.toBeInTheDocument();
   });
 
@@ -98,14 +112,13 @@ describe("WorkspaceMobileDrawer", () => {
     const user = userEvent.setup();
     render(<WorkspaceMobileDrawer />);
 
-    await user.click(screen.getByRole("button", { name: "Open workspace menu" }));
     await user.click(
-      screen.getByRole("button", { name: "Open workspace account menu" }),
+      screen.getByRole("button", { name: "Open navigation menu" }),
     );
-    await user.click(screen.getByRole("menuitem", { name: "Profile" }));
+    await user.click(screen.getByRole("link", { name: "Profile" }));
 
     expect(
-      screen.queryByRole("dialog", { name: "Workspace navigation" }),
+      screen.queryByRole("dialog", { name: "Navigation" }),
     ).not.toBeInTheDocument();
   });
 });

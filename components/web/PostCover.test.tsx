@@ -30,12 +30,12 @@ describe("PostCover", () => {
     expect(frame).toHaveClass("rounded-xl");
   });
 
-  it("caps the hero by viewport height, not just a flat pixel ceiling", () => {
+  it("keeps an uncapped ratio instead of cropping by viewport height", () => {
     render(<PostCover alt="A covered post" />);
 
-    expect(screen.getByTestId("default-cover").parentElement).toHaveClass(
-      "max-h-[min(560px,40dvh)]",
-    );
+    const frame = screen.getByTestId("default-cover").parentElement;
+    expect(frame).toHaveClass("aspect-[16/9]");
+    expect(frame?.className).not.toMatch(/\bmax-h-/);
   });
 
   it("passes the loading hint to the image", () => {

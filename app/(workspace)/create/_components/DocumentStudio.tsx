@@ -24,6 +24,8 @@ type DocumentStudioProps = {
   detailsHidden?: boolean;
   modeLabel?: ReactNode;
   actions?: ReactNode;
+  preview?: boolean;
+  previewBackAction?: ReactNode;
 };
 
 const modeLabels: Record<EditorMode, string> = {
@@ -57,8 +59,36 @@ export default function DocumentStudio({
   detailsHidden,
   modeLabel,
   actions,
+  preview = false,
+  previewBackAction,
 }: DocumentStudioProps) {
   const isReady = state === "ready";
+
+  if (isReady && preview) {
+    return (
+      <section
+        data-testid="document-studio"
+        data-editor-mode={mode}
+        data-studio-state={state}
+        className="flex flex-1 flex-col bg-background"
+      >
+        <header className="sticky top-0 z-10 border-b border-border bg-background">
+          <div className="mx-auto grid min-h-[76px] w-full max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3 md:px-6 lg:px-8">
+            <div className="justify-self-start">{previewBackAction}</div>
+            <p className="text-base font-medium tracking-tight text-foreground">
+              Preview
+            </p>
+            <div className="flex justify-self-end">
+              {actions}
+            </div>
+          </div>
+        </header>
+        <main aria-label="Post preview" className="flex flex-1 flex-col">
+          {body}
+        </main>
+      </section>
+    );
+  }
 
   return (
     <section

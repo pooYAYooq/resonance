@@ -1,17 +1,19 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
-import { WorkspaceMobileDrawer } from "./WorkspaceMobileDrawer";
+import { Navbar } from "@/components/web/Navbar";
 import { WorkspaceSidebar } from "./WorkspaceSidebar";
+import { WorkspacePreviewProvider } from "./WorkspacePreviewContext";
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
+  const [isPreview, setIsPreview] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -32,15 +34,18 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
-      <WorkspaceSidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center border-b px-4 py-3 lg:hidden">
-          <WorkspaceMobileDrawer />
-          <span className="ml-2 text-lg font-extrabold">RESONANCE</span>
-        </header>
-        <main className="flex flex-1 flex-col">{children}</main>
+    <WorkspacePreviewProvider value={{ isPreview, setIsPreview }}>
+      <div className={isPreview ? "min-h-screen" : "flex min-h-screen"}>
+        {!isPreview && <WorkspaceSidebar />}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {!isPreview && (
+            <div className="sticky top-0 z-20 md:hidden">
+              <Navbar />
+            </div>
+          )}
+          <main className="flex flex-1 flex-col">{children}</main>
+        </div>
       </div>
-    </div>
+    </WorkspacePreviewProvider>
   );
 }

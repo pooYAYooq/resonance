@@ -22,6 +22,12 @@ const proposal = {
   tags: [],
 };
 
+const author = {
+  userId: "user-1",
+  name: "Ada Lovelace",
+  avatarUrl: null,
+};
+
 function renderSurface(
   overrides: Partial<ComponentProps<typeof ReviewSurface>> = {},
 ) {
@@ -30,6 +36,7 @@ function renderSurface(
       mode="new"
       proposal={proposal}
       inlineImages={[]}
+      author={author}
       {...overrides}
     />,
   );
@@ -83,12 +90,12 @@ describe("ReviewSurface", () => {
     expect(img.getAttribute("src") ?? "").toContain("cdn.example%2Fcover.png");
   });
 
-  it("hints the cover at the studio frame width", () => {
+  it("hints the cover with the reader's published sizes", () => {
     renderSurface({ coverUrl: "https://cdn.example/cover.png" });
 
     expect(screen.getByAltText("Review title")).toHaveAttribute(
       "sizes",
-      "(max-width: 888px) 100vw, 808px",
+      "(max-width: 1280px) 100vw, 1216px",
     );
   });
 

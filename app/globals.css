@@ -236,6 +236,22 @@
   --text-tiny--line-height: 1.4;
 }
 
+/* Keep the reader and its preview on the same compact article scale. */
+@media (width < 40rem) {
+  [data-testid="reader-frame"],
+  [data-testid="review-surface"] {
+    --text-h1: 2.25rem;
+    --text-h1--line-height: 1.15;
+    --text-h2: 1.875rem;
+    --text-h2--line-height: 1.2;
+    --text-h3: 1.625rem;
+    --text-h3--line-height: 1.25;
+    --text-h4: 1.5rem;
+    --text-h5: 1.375rem;
+    --text-h6: 1.25rem;
+  }
+}
+
 /* Published reading rhythm. A heading's line box carries its own optical air
  * under the glyphs, so the block a heading introduces is bound tighter than
  * the 20px block step instead of floating a full line away. Held here rather
