@@ -37,8 +37,8 @@ resonance/
 ├── app/
 │   ├── layout.tsx              # Root layout. ThemeProvider, ConvexClientProvider, Toaster
 │   ├── globals.css
-│   ├── (workspace)/            # Authenticated author workspace, no global Navbar or Footer
-│   │   ├── layout.tsx          # WorkspaceShell auth boundary and workspace-only chrome
+│   ├── (workspace)/            # Authenticated author workspace; no global Footer
+│   │   ├── layout.tsx          # WorkspaceShell auth boundary: sidebar at md+, site Navbar below md
 │   │   ├── create/
 │   │   │   ├── layout.tsx      # Metadata-only child layout.
 │   │   │   ├── page.tsx        # New, draft, and published-edit writing modes.
@@ -71,6 +71,7 @@ resonance/
 │   │   │       ├── PublishedRow.tsx     # Responsive published management presentation.
 │   │   │       └── DeletePostDialog.tsx # Controlled draft/post deletion confirmation.
 │   │   └── _components/        # Shell, sidebar, mobile drawer, utilities, and navigation.
+│   │       └── WorkspacePreviewContext.tsx # Lets Review temporarily replace workspace navigation chrome.
 │   ├── (marketing)/            # Public marketing routes (Navbar + marketing Footer)
 │   │   ├── layout.tsx          # SiteShell with the marketing footer.
 │   │   ├── page.tsx            # Landing page. Authenticated visitors redirect to /dashboard.
@@ -194,9 +195,9 @@ resonance/
 │       ├── AuthSync.tsx         # Fires users.syncUser on every auth state change
 │       ├── PostViewTracker.tsx  # Non-visual signed-in post-detail view recorder
 │       ├── Navbar.tsx           # Top nav. Dashboard actions and account dropdown.
-│       ├── MobileNavMenu.tsx    # Accessible responsive discovery/workspace menu.
+│       ├── MobileNavMenu.tsx    # Mobile drawer and shared AppNavigation for the workspace sidebar.
 │       ├── NotificationBell.tsx  # Self-subscribing bell with unread badge
-│       │                          # in the Navbar, left of the avatar. Mirrors
+│       │                          # in the desktop Navbar, left of the avatar. Mirrors
 │       │                          # BookmarkButton's self-contained pattern;
 │       │                          # hidden when unauthenticated or while auth
 │       │                          # is loading. Backs onto getUnreadCount's
@@ -219,9 +220,11 @@ resonance/
 │       │                        # blank transparent fallback surface with a subtle
 │       │                        # bottom border. Cards, the reader, and Review agree;
 │       │                        # published surfaces render through PostCover. Server-component safe.
-│       ├── PostCover.tsx        # Published 16:9 cover frame: one ratio, one clip, a
-│       │                        # viewport-height cap, and the single crop/focal seam.
+│       ├── PostCover.tsx        # Published 16:9 cover frame: one ratio, one clip,
+│       │                        # no height cap, and the single crop/focal seam.
 │       │                        # Server-component safe; a caller's aspect-* cannot override.
+│       ├── PostArticleHeader.tsx # Shared reader/Review title, attribution, dates, and topics;
+│       │                         # links and optional author actions are reader-only.
 │       ├── PostBody.tsx         # Pure Server Component renderer for structured bodies,
 │       │                         # including hydrated inline images.
 │       │                        # No "use client", no dangerouslySetInnerHTML, no sanitizer dep.
@@ -428,8 +431,9 @@ app/
 │
 ├── (workspace)/
 │   └── layout.tsx      WorkspaceShell owns the auth boundary and renders
-│                       workspace-only sidebar, mobile drawer, and utilities
-│                       around /dashboard/* and /create.
+│                       the sidebar at md+ and the site Navbar below md around
+│                       /dashboard/* and /create, without a site Footer.
+│                       Review temporarily replaces both navigation surfaces.
 │
 └── auth/
     └── layout.tsx      Full-screen centered layout.
@@ -559,16 +563,28 @@ recovered cover is still resolving or unavailable (`reviewReadiness.ts`); a
 selected-but-unuploaded cover does not block, because submit uploads it. On
 entry, `reviewSnapshot.ts` captures an immutable snapshot of the reviewed
 title, serialized body, tags, cover intent, cover preview URL, and resolved
-inline images. Review renders only that snapshot through
+inline images. Review renders the snapshot body through
 `PostBodyPreview.tsx`, a synchronous client renderer that shares
 `post-body-shared.tsx` with the server renderer and highlights code through
 `HighlightedCodeClient.tsx`, so the preview and the published output cannot
-diverge. Post details are hidden during Review, and Back plus Publish/Update
-move into the studio header behind `getReviewSubmitBlock`, which rejects an
+diverge. `PostArticleHeader.tsx` shares the reader's title, attribution, dates,
+and topics with Review; preview attribution and topics are noninteractive,
+and Follow, engagement, and comments remain reader-only. The cover is an
+uncapped 16:9 frame on both surfaces. `WorkspacePreviewContext.tsx` lets the
+authoring page suppress the sidebar and mobile Navbar during Review.
+`DocumentStudio.tsx` renders a full-page preview with its dedicated
+Edit/Preview/Publish-or-Update toolbar instead of the writing canvas and Post
+details. Below 640px, editing and update labels shorten to Edit and Update;
+shared reader/Review title, H2, and H3 sizes become 36px, 30px, and 26px.
+Publishing remains behind `getReviewSubmitBlock`, which rejects an
 in-flight write, a pending target switch, or a media blocker. A media failure
 while Review is open shows the blocker alert and disables publishing. The
-editor stays mounted but `hidden`/`inert` so its instance, history, and
-selection survive; Publish/Update reuse the existing attempt and save paths.
+body slot stays at the same React position beneath a shared layout subtree in
+editing and Review. The body editor is `hidden`/`inert` during Review, without
+remounting, so its live document, history, and selection survive. The cover,
+title, and details slots are not rendered in Preview. Target-transition notices
+remain visible above the body in either presentation, including confirmation,
+loading, and error states. Publish/Update reuse the existing attempt and save paths.
 `MediaAuthoring.tsx` reports inline media status, renders image thumbnails or
 audio/video glyphs, and offers replace or remove recovery. `CoverAuthoring.tsx`
 owns the cover dropzone, its published-ratio preview, and the cover recovery
@@ -908,11 +924,20 @@ everything (posts, users, sessions) lives in one place. Fewer moving parts.
 Marketing Home and reader routes share a persistent Navbar through `SiteShell`,
 but use marketing and compact footer variants respectively. `(workspace)` owns
 Create and Dashboard under `WorkspaceShell`, which supplies the authenticated
-workspace sidebar, mobile drawer, and utilities without global site chrome.
+workspace sidebar at 768px and above and the site Navbar below 768px, without a
+site Footer. `AppNavigation` in `MobileNavMenu.tsx` supplies shared drawer and
+sidebar content; `WorkspacePreviewContext.tsx` suppresses both navigation
+surfaces while Review owns the page.
+The shell measures the mobile Navbar wrapper with `ResizeObserver` and exposes
+`--workspace-navbar-height` to the editing toolbar. The toolbar uses that sticky
+offset below 768px and resets to zero on desktop; the Preview toolbar also uses
+zero because the Navbar is absent. The measured offset follows navbar size and
+breakpoint changes rather than relying on a fixed height.
 Profile editing and Settings live in the authenticated `(site)` shell, with
 Profile owning public identity and Settings owning Appearance and Account.
 Auth pages remain distraction-free, full-screen forms. Route groups express
-these shells structurally with no conditional rendering logic.
+these shells structurally; temporary Review chrome is controlled inside the
+workspace shell.
 
 ### 5. Why the mixed Server / Client Component rendering strategy?
 

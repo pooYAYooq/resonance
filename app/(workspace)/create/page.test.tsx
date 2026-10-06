@@ -265,6 +265,9 @@ vi.mock("@/convex/_generated/api", () => ({
     writeAttempts: {
       reserveAttempt: "reserveAttempt",
     },
+    users: {
+      getCurrentUser: "getCurrentUser",
+    },
     sessionMediaClaims: {
       claim: "claimSessionMedia",
       renew: "renewSessionMedia",
@@ -551,6 +554,58 @@ describe("CreateRoute", () => {
 
     expect(screen.queryByTestId("review-surface")).toBeNull();
     expect(screen.getByDisplayValue("Reviewable")).toBeInTheDocument();
+  });
+
+  it("keeps URL target transitions actionable without leaving Preview", async () => {
+    const user = userEvent.setup();
+    const view = render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your post a title"),
+      "Unsaved article",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await enterReview(user);
+    const preview = await screen.findByTestId("review-surface");
+
+    editPostIdParam.value = "post-next";
+    getPublishedPostForEditingMock.mockReturnValue(undefined);
+    view.rerender(<CreateRoute />);
+    await user.click(
+      await screen.findByRole("button", { name: "Load requested document" }),
+    );
+    expect(screen.getByText("Loading the requested document…")).toBeVisible();
+    expect(preview).toHaveTextContent("Unsaved article");
+    await user.click(screen.getByRole("button", { name: "Publish" }));
+    expect(reserveAttemptMock).not.toHaveBeenCalled();
+
+    getPublishedPostForEditingMock.mockReturnValue(null);
+    view.rerender(<CreateRoute />);
+    expect(
+      await screen.findByText("The requested document is unavailable."),
+    ).toBeVisible();
+    expect(preview).toHaveTextContent("Unsaved article");
+
+    editPostIdParam.value = "post-available";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-available",
+      title: "Requested article",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 100,
+    });
+    view.rerender(<CreateRoute />);
+    await user.click(
+      await screen.findByRole("button", { name: "Load requested document" }),
+    );
+    expect(
+      await screen.findByDisplayValue("Requested article"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("review-surface")).toBeNull();
   });
 
   it("blocks Review while inline media is unresolved", async () => {
@@ -1952,7 +2007,7 @@ describe("CreateRoute", () => {
     await enterReview(user);
 
     await screen.findByTestId("review-surface");
-    expect(screen.getByText("Reviewing new post")).toBeVisible();
+    expect(screen.getByText("Preview")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Back to editing" }),
     ).toBeVisible();
@@ -1960,7 +2015,7 @@ describe("CreateRoute", () => {
     expect(screen.queryByText("Post details")).toBeNull();
   });
 
-  it("keeps the reviewed preview and submission when live fields drift", async () => {
+  it("keeps the reviewed preview and submission frozen at Review entry", async () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
 
@@ -1971,18 +2026,12 @@ describe("CreateRoute", () => {
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
-    // Capture the editor control while it is visible; after entering Review it
-    // is hidden, so re-dispatch against this reference to simulate drift.
-    const shortContentButton = screen.getByRole("button", {
-      name: "Set short blog content",
-    });
     await enterReview(user);
     await screen.findByTestId("review-surface");
 
-    fireEvent.change(screen.getByLabelText("Post title"), {
-      target: { value: "Drifted title" },
-    });
-    fireEvent.click(shortContentButton);
+    // Review replaces the editing canvas, so the reviewed values cannot
+    // drift while the author stays in Review.
+    expect(screen.queryByLabelText("Post title")).toBeNull();
 
     const surface = screen.getByTestId("review-surface");
     expect(surface).toHaveTextContent("Reviewed title");

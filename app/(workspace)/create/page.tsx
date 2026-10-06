@@ -17,7 +17,7 @@ import { clearDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
 import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useConvex, useMutation, useQuery } from "convex/react";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -59,6 +59,7 @@ import {
   useWritingSession,
   type WritingSessionTarget,
 } from "./_components/useWritingSession";
+import { useWorkspacePreview } from "../_components/WorkspacePreviewContext";
 import type { PostBodyEditorHandle } from "./_components/PostBodyEditor";
 
 const PostBodyEditor = dynamic(() => import("./_components/PostBodyEditor"), {
@@ -398,11 +399,20 @@ function CreateEditor() {
     mode: sessionState.editorMode,
     id: sessionState.targetId,
   };
+  const reviewing = sessionState.presentation === "review";
+  const { setIsPreview } = useWorkspacePreview();
+
+  useEffect(() => {
+    setIsPreview(reviewing);
+    return () => setIsPreview(false);
+  }, [reviewing, setIsPreview]);
+
   const activeTarget: WritingSessionTarget = {
     editorMode: editorMode.mode,
     id: editorMode.id,
   };
   const capabilities = getEditorCapabilities(editorMode.mode);
+  const currentUser = useQuery(api.users.getCurrentUser, {});
   const hydratedDraft = useQuery(
     api.posts.getDraftById,
     activeTarget.editorMode === "draft" && activeTarget.id
@@ -1420,7 +1430,6 @@ function CreateEditor() {
     });
   }
 
-  const reviewing = sessionState.presentation === "review";
   const coverRemoved = sessionState.coverRemoved;
   const reviewModeLabel =
     editorMode.mode === "published-edit"
@@ -1574,6 +1583,23 @@ function CreateEditor() {
     >
       <DocumentStudio
         mode={editorMode.mode}
+        preview={reviewing}
+        previewBackAction={
+          reviewing ? (
+            <Button
+              type="button"
+              variant="outline"
+              aria-label="Back to editing"
+              className="min-h-11 w-22 gap-2 px-3 sm:w-auto sm:px-5"
+              disabled={isPending}
+              onClick={backToEditing}
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Back to editing</span>
+              <span className="sm:hidden">Edit</span>
+            </Button>
+          ) : undefined
+        }
         detailsHidden={reviewing}
         modeLabel={reviewing ? reviewModeLabel : undefined}
         notice={transitionNotice}
@@ -1799,6 +1825,19 @@ function CreateEditor() {
                 }}
                 inlineImages={reviewSnapshot.inlineImages}
                 coverUrl={reviewSnapshot.coverPreviewUrl}
+                author={{
+                  userId: currentUser?.userId ?? "preview-author",
+                  name: currentUser?.displayName ?? "You",
+                  avatarUrl: currentUser?.avatarUrl,
+                }}
+                published={
+                  editorMode.mode === "published-edit" && hydratedPublishedPost
+                    ? {
+                        publishedAt: hydratedPublishedPost.publishedAt,
+                        updatedAt: hydratedPublishedPost.updatedAt,
+                      }
+                    : undefined
+                }
                 blockerMessage={
                   reviewBlocker
                     ? REVIEW_BLOCKER_MESSAGES[reviewBlocker]
@@ -1843,29 +1882,32 @@ function CreateEditor() {
         }
         actions={
           reviewing ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isPending}
-                onClick={backToEditing}
-              >
-                Back to editing
-              </Button>
-              <Button
-                type="button"
-                disabled={isPending || Boolean(reviewBlocker)}
-                onClick={submitFromReview}
-              >
-                {isPending
-                  ? editorMode.mode === "published-edit"
-                    ? "Updating..."
-                    : "Publishing..."
-                  : editorMode.mode === "published-edit"
-                    ? "Update Post"
-                    : "Publish"}
-              </Button>
-            </>
+            <Button
+              type="button"
+              className="min-h-11 w-22 px-3 sm:w-auto sm:px-5"
+              aria-label={
+                editorMode.mode === "published-edit"
+                  ? isPending
+                    ? "Updating post"
+                    : "Update Post"
+                  : undefined
+              }
+              disabled={isPending || Boolean(reviewBlocker)}
+              onClick={submitFromReview}
+            >
+              {isPending
+                ? editorMode.mode === "published-edit"
+                  ? "Updating..."
+                  : "Publishing..."
+                : editorMode.mode === "published-edit"
+                  ? (
+                      <>
+                        <span className="hidden sm:inline">Update Post</span>
+                        <span className="sm:hidden">Update</span>
+                      </>
+                    )
+                  : "Publish"}
+            </Button>
           ) : (
             <>
               {capabilities.canSaveDraft && (

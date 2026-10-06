@@ -187,10 +187,26 @@ Source: `docs/PHASE_3A.md` 3A.5.
 
 V1-21 includes the deferred Follow/Following color treatment and the
 light-theme contrast observations recorded with V1-11: primary button text at
-3.12:1 and the focus border at 2.96:1. V1-23 includes the signed-out navbar
-overflow at 320px and 375px, where authentication controls do not fit, and the
-signed-in navbar overflow at 320px for the same control density; the post
-author section fits at those widths.
+3.12:1 and the focus border at 2.96:1. The reader/Review parity and shared
+navigation changes on `fix/reader-review-parity` replace inline mobile account
+controls with a drawer below 768px, addressing the layout that caused the
+previously recorded signed-out navbar overflow at 320px and 375px and signed-in
+overflow at 320px. Authenticated responsive navigation received browser
+acceptance; signed-out browser acceptance at 320px and 375px remains unverified
+and stays with V1-23. This bounded correction does not complete the broader
+responsive and interaction polish item; its status remains Todo.
+
+V1-22 gained a discovered defect from the reader/Review parity browser
+verification: a malformed editor target id in the `/create` URL (`editPostId`
+or `draftId`), for example through a hand-edited or corrupted link, reaches the
+backing Convex query unvalidated. The rejected argument fails argument
+validation and the page crashes with a client-side exception instead of showing
+an unavailable state, and the in-editor document should be preserved. The
+observation came from confirming a pending transition to a malformed target;
+direct navigation shares the same input path, which predates this correction.
+Graceful handling of malformed editor targets belongs with V1-22's page-state
+work and is recorded for a separate bounded fix rather than absorbed into this
+correction.
 
 ### Release readiness
 

@@ -18,12 +18,11 @@ import { CommentSection } from "@/components/web/CommentSection";
 import { LikeButton } from "@/components/web/LikeButton";
 import { BookmarkButton } from "@/components/web/BookmarkButton";
 import { truncateForDescription } from "@/lib/constants/seo";
-import { TagPill } from "@/components/web/TagPill";
 import { PostBody } from "@/components/web/PostBody";
 import { PostViewTracker } from "@/components/web/PostViewTracker";
 import { PostCover } from "@/components/web/PostCover";
-import { UserAvatar } from "@/components/web/UserAvatar";
 import { FollowButton } from "@/components/web/FollowButton";
+import { PostArticleHeader } from "@/components/web/PostArticleHeader";
 import { extractPlainText, parsePostBody } from "@/lib/post-content";
 
 /** Props received by the dynamic blog post route. */
@@ -102,14 +101,6 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
     );
   }
 
-  const formatDate = (timestamp: number) =>
-    new Date(timestamp).toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "long",
-      timeZone: "UTC",
-      year: "numeric",
-    });
-
   const displayName = post.authorName?.trim() || "Unknown";
 
   return (
@@ -125,67 +116,31 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
         className="rounded-xl shadow-sm"
         imageClassName="hover:scale-102 transition-transform duration-800 ease-in-out"
       />
-      <div>
-        <h1 className="text-h1 font-bold mt-6 tracking-tight text-foreground font-serif">
-          {post.title}
-        </h1>
-        <div
-          className="mt-4 flex items-start gap-3"
-          data-testid="author-byline"
-        >
-          <UserAvatar
-            userId={post.authorId}
-            name={displayName}
-            avatarUrl={post.authorAvatarUrl}
-            className="size-10 shrink-0"
-          />
-          <div className="min-w-0 flex-1 flex flex-col gap-1">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-h-10">
-              <Link
-                href={`/u/${post.authorId}`}
-                className="min-w-0 wrap-anywhere text-base font-semibold text-foreground capitalize underline-offset-4 hover:text-primary hover:underline focus-visible:underline"
-              >
-                {displayName}
-              </Link>
-              {post.authorExists && !post.isAuthor && (
-                <FollowButton
-                  profileUserId={post.authorId}
-                  authorName={displayName}
-                  isFollowing={post.isFollowing}
-                  size="sm"
-                />
-              )}
-            </div>
-            <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-              <p>
-                <span className="font-semibold text-foreground">
-                  Published on:
-                </span>{" "}
-                {formatDate(post.publishedAt)}
-              </p>
-              {post.updatedAt > post.publishedAt && (
-                <p>
-                  <span className="font-semibold text-foreground">
-                    Updated on:
-                  </span>{" "}
-                  {formatDate(post.updatedAt)}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-        {(post.tags ?? []).length > 0 && (
-          <nav aria-label="Post topics" className="mt-3 flex flex-wrap gap-2">
-            {(post.tags ?? []).map((tag) => (
-              <TagPill key={tag} tag={tag} className="py-1" />
-            ))}
-          </nav>
-        )}
-      </div>
+      <PostArticleHeader
+        title={post.title}
+        author={{
+          userId: post.authorId,
+          name: displayName,
+          avatarUrl: post.authorAvatarUrl,
+        }}
+        tags={post.tags ?? []}
+        published={{ publishedAt: post.publishedAt, updatedAt: post.updatedAt }}
+        interactive
+        authorAction={
+          post.authorExists && !post.isAuthor ? (
+            <FollowButton
+              profileUserId={post.authorId}
+              authorName={displayName}
+              isFollowing={post.isFollowing}
+              size="sm"
+            />
+          ) : undefined
+        }
+      />
       <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div
         data-testid="reader-prose"
-        className="mx-auto w-full max-w-[700px] xl:mx-0"
+        className="mx-auto w-full max-w-175 xl:mx-0"
       >
         <div className="mt-6 max-w-none">
           <PostBody body={post.body} inlineImages={post.inlineImages} />
