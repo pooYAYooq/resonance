@@ -115,6 +115,11 @@
   Edit/Preview/Publish-or-Update toolbar. Below 640px, the editing and update
   labels shorten to Edit and Update, and shared title/H2/H3 sizes are
   36px/30px/26px. New posts show Not published yet; published edits show dates.
+- Switching between editing and Review preserves the live body editor instance,
+  unsaved content, selection, and undo history. URL target-transition
+  confirmations, loading states, and errors remain visible in Review. On mobile,
+  the editing toolbar sticks below the measured navbar height; the Preview
+  toolbar stays at the top because workspace navigation is hidden.
 - Review and submission are blocked while inline media or a recovered saved
   cover is unresolved; a transient cover lookup retries with backoff and on
   focus or reconnect, and the failure alert is reserved for a server-reported

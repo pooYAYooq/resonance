@@ -196,6 +196,18 @@ acceptance; signed-out browser acceptance at 320px and 375px remains unverified
 and stays with V1-23. This bounded correction does not complete the broader
 responsive and interaction polish item; its status remains Todo.
 
+V1-22 gained a discovered defect from the reader/Review parity browser
+verification: a malformed editor target id in the `/create` URL (`editPostId`
+or `draftId`), for example through a hand-edited or corrupted link, reaches the
+backing Convex query unvalidated. The rejected argument fails argument
+validation and the page crashes with a client-side exception instead of showing
+an unavailable state, and the in-editor document should be preserved. The
+observation came from confirming a pending transition to a malformed target;
+direct navigation shares the same input path, which predates this correction.
+Graceful handling of malformed editor targets belongs with V1-22's page-state
+work and is recorded for a separate bounded fix rather than absorbed into this
+correction.
+
 ### Release readiness
 
 Source: release tasks for Phase 3A.3, recorded at commit `46d26a3` in

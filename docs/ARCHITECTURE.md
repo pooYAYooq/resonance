@@ -579,9 +579,12 @@ shared reader/Review title, H2, and H3 sizes become 36px, 30px, and 26px.
 Publishing remains behind `getReviewSubmitBlock`, which rejects an
 in-flight write, a pending target switch, or a media blocker. A media failure
 while Review is open shows the blocker alert and disables publishing. The
-body editor stays mounted but `hidden`/`inert` so its instance, history, and
-selection survive; the cover, title, and details slots are not rendered by the
-preview shell. Publish/Update reuse the existing attempt and save paths.
+body slot stays at the same React position beneath a shared layout subtree in
+editing and Review. The body editor is `hidden`/`inert` during Review, without
+remounting, so its live document, history, and selection survive. The cover,
+title, and details slots are not rendered in Preview. Target-transition notices
+remain visible above the body in either presentation, including confirmation,
+loading, and error states. Publish/Update reuse the existing attempt and save paths.
 `MediaAuthoring.tsx` reports inline media status, renders image thumbnails or
 audio/video glyphs, and offers replace or remove recovery. `CoverAuthoring.tsx`
 owns the cover dropzone, its published-ratio preview, and the cover recovery
@@ -925,6 +928,11 @@ workspace sidebar at 768px and above and the site Navbar below 768px, without a
 site Footer. `AppNavigation` in `MobileNavMenu.tsx` supplies shared drawer and
 sidebar content; `WorkspacePreviewContext.tsx` suppresses both navigation
 surfaces while Review owns the page.
+The shell measures the mobile Navbar wrapper with `ResizeObserver` and exposes
+`--workspace-navbar-height` to the editing toolbar. The toolbar uses that sticky
+offset below 768px and resets to zero on desktop; the Preview toolbar also uses
+zero because the Navbar is absent. The measured offset follows navbar size and
+breakpoint changes rather than relying on a fixed height.
 Profile editing and Settings live in the authenticated `(site)` shell, with
 Profile owning public identity and Settings owning Appearance and Account.
 Auth pages remain distraction-free, full-screen forms. Route groups express

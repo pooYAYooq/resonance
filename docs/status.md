@@ -16,13 +16,18 @@ on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 
 ## Next action
 
-Reader/Review parity and shared responsive navigation are implemented and
-await PR preparation on `fix/reader-review-parity`. Review uses the reader's
-shared article header and uncapped 16:9 cover in a full-page preview; mobile
-drawers and the desktop workspace sidebar share navigation content. The user
-approved reader/Review parity and the editing flow. Code verification passed
-lint, 504 edge-runtime tests, 552 component tests, and the production build;
-the documentation sync is part of this same change. No Git actions are approved.
+Reader/Review parity and shared responsive navigation are ready for commit on
+`fix/reader-review-parity`. Review uses the reader's shared article header and
+uncapped 16:9 cover in a full-page preview; mobile drawers and the desktop
+workspace sidebar share navigation content. The user approved reader/Review
+parity and the editing flow. Commit `8237f2b` received three Codex findings; the
+follow-up preserves the live editor across Preview, exposes target-transition
+notices, and offsets mobile editing actions below the measured navbar. Fresh
+verification passed lint, 504 edge-runtime tests, 559 component tests, and the
+production build; CodeRabbit's uncommitted review reported no findings, and
+browser verification on the user's Chrome confirmed editor preservation with
+undo history, the Preview transition notice with its action, and the mobile
+toolbar offset. Staging is approved; committing awaits separate approval.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
@@ -102,10 +107,16 @@ remain deferred to a separate comprehensive design session.
   post may show the in-app transition notice.
 - An always-available in-page Discard or Cancel action is not implemented; the
   silent recovery clears the local snapshot on save, revert, or empty.
+- A malformed editor target id in the `/create` URL (`editPostId` or `draftId`)
+  crashes the page with a client-side exception: the raw id fails Convex
+  argument validation instead of producing the unavailable state. Found during
+  the reader/Review parity browser verification by confirming a pending
+  transition to a malformed target; direct navigation shares the same path.
+  Recorded with V1-22 in ROADMAP.md for a separate bounded fix.
 - `pnpm format:check` has a pre-existing baseline of unrelated files. A targeted
-  check also flagged six implementation files on `fix/reader-review-parity`:
-  WorkspaceSidebar, DocumentStudio, ReviewSurface, the create page, MobileNavMenu,
-  and Navbar. They were left untouched to preserve the approved implementation.
+  check also flagged implementation files on `fix/reader-review-parity`:
+  WorkspaceSidebar, ReviewSurface, the create page, MobileNavMenu, and Navbar.
+  Those files remain untouched; DocumentStudio was formatted with its review fix.
 - The title's Enter-to-body focus move depends on the dynamic import forwarding
   the body editor handle; the jsdom component tests cannot exercise it, so it is
   browser-verified only.

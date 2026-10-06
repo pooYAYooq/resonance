@@ -10,6 +10,7 @@ import {
   vi,
 } from "vitest";
 import PostBodyEditor from "./PostBodyEditor";
+import DocumentStudio from "./DocumentStudio";
 import { parsePostBody } from "@/lib/post-content";
 import { draftPostSchema } from "@/schemas/blog";
 
@@ -112,6 +113,67 @@ function getEditor(container: HTMLElement) {
 }
 
 describe("PostBodyEditor standard BlockNote integration", () => {
+  it.each(["new", "draft", "published-edit"] as const)(
+    "preserves the live %s document and undo history across Preview",
+    async (mode) => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const initialContent = {
+        format: "blocknote@1" as const,
+        blocks: [{ type: "paragraph", content: "Saved article" }],
+      };
+      function studio(preview: boolean) {
+        return (
+          <DocumentStudio
+            mode={mode}
+            preview={preview}
+            body={
+              <>
+                <div hidden={preview} inert={preview || undefined}>
+                  <PostBodyEditor
+                    initialContent={initialContent}
+                    isDirty
+                    onChange={onChange}
+                    onBlur={() => {}}
+                  />
+                </div>
+                {preview && <p>Frozen preview</p>}
+              </>
+            }
+          />
+        );
+      }
+      const view = render(studio(false));
+      const editor = getEditor(view.container);
+      await user.click(editor);
+      fireEvent.paste(editor, {
+        clipboardData: {
+          types: ["text/plain"],
+          files: [],
+          getData: (type: string) =>
+            type === "text/plain" ? "Unsaved paragraph" : "",
+        },
+      });
+      await waitFor(() =>
+        expect(editor).toHaveTextContent("Unsaved paragraph"),
+      );
+      expect(screen.getByRole("button", { name: "Undo" })).toBeEnabled();
+
+      view.rerender(studio(true));
+      expect(getEditor(view.container)).toBe(editor);
+      expect(editor).toHaveTextContent("Unsaved paragraph");
+      expect(editor).not.toBeVisible();
+      view.rerender(studio(false));
+      expect(getEditor(view.container)).toBe(editor);
+      expect(editor).toHaveTextContent("Unsaved paragraph");
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      await waitFor(() =>
+        expect(editor).not.toHaveTextContent("Unsaved paragraph"),
+      );
+      expect(editor).toHaveTextContent("Saved article");
+    },
+  );
+
   it("loads an existing post without making its content undoable", async () => {
     const onChange = vi.fn();
     const view = render(

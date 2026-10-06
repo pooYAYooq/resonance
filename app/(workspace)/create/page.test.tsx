@@ -556,6 +556,58 @@ describe("CreateRoute", () => {
     expect(screen.getByDisplayValue("Reviewable")).toBeInTheDocument();
   });
 
+  it("keeps URL target transitions actionable without leaving Preview", async () => {
+    const user = userEvent.setup();
+    const view = render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your post a title"),
+      "Unsaved article",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await enterReview(user);
+    const preview = await screen.findByTestId("review-surface");
+
+    editPostIdParam.value = "post-next";
+    getPublishedPostForEditingMock.mockReturnValue(undefined);
+    view.rerender(<CreateRoute />);
+    await user.click(
+      await screen.findByRole("button", { name: "Load requested document" }),
+    );
+    expect(screen.getByText("Loading the requested document…")).toBeVisible();
+    expect(preview).toHaveTextContent("Unsaved article");
+    await user.click(screen.getByRole("button", { name: "Publish" }));
+    expect(reserveAttemptMock).not.toHaveBeenCalled();
+
+    getPublishedPostForEditingMock.mockReturnValue(null);
+    view.rerender(<CreateRoute />);
+    expect(
+      await screen.findByText("The requested document is unavailable."),
+    ).toBeVisible();
+    expect(preview).toHaveTextContent("Unsaved article");
+
+    editPostIdParam.value = "post-available";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-available",
+      title: "Requested article",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 100,
+    });
+    view.rerender(<CreateRoute />);
+    await user.click(
+      await screen.findByRole("button", { name: "Load requested document" }),
+    );
+    expect(
+      await screen.findByDisplayValue("Requested article"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("review-surface")).toBeNull();
+  });
+
   it("blocks Review while inline media is unresolved", async () => {
     const user = userEvent.setup();
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,28 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const [isPreview, setIsPreview] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const navbarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    const navbar = navbarRef.current;
+    if (!shell || !navbar) return;
+
+    const measure = () => {
+      shell.style.setProperty(
+        "--workspace-navbar-height",
+        `${navbar.getBoundingClientRect().height}px`,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(navbar);
+    return () => {
+      observer.disconnect();
+      shell.style.removeProperty("--workspace-navbar-height");
+    };
+  }, [isPreview, isLoading, isAuthenticated]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -35,11 +57,14 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 
   return (
     <WorkspacePreviewProvider value={{ isPreview, setIsPreview }}>
-      <div className={isPreview ? "min-h-screen" : "flex min-h-screen"}>
+      <div
+        ref={shellRef}
+        className={isPreview ? "min-h-screen" : "flex min-h-screen"}
+      >
         {!isPreview && <WorkspaceSidebar />}
         <div className="flex min-w-0 flex-1 flex-col">
           {!isPreview && (
-            <div className="sticky top-0 z-20 md:hidden">
+            <div ref={navbarRef} className="sticky top-0 z-20 md:hidden">
               <Navbar />
             </div>
           )}

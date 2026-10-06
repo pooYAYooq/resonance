@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import DocumentStudio from "./DocumentStudio";
 
 function renderStudio(
@@ -18,6 +18,61 @@ function renderStudio(
 }
 
 describe("DocumentStudio", () => {
+  it("keeps target confirmation and transition errors actionable in Preview", () => {
+    const confirm = vi.fn();
+    const view = render(
+      <DocumentStudio
+        mode="draft"
+        preview
+        notice={<button onClick={confirm}>Load requested draft</button>}
+        body={<p>Reviewed document</p>}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load requested draft" }),
+    );
+    expect(confirm).toHaveBeenCalledOnce();
+    view.rerender(
+      <DocumentStudio
+        mode="draft"
+        preview
+        notice={<p role="alert">Requested draft is unavailable</p>}
+        body={<p>Reviewed document</p>}
+      />,
+    );
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(screen.getByText("Reviewed document")).toBeVisible();
+  });
+
+  it("offsets editing actions by the navbar height but not Preview actions", () => {
+    const view = renderStudio("new", <button>Review</button>);
+    const editingHeader = screen
+      .getByRole("button", { name: "Review" })
+      .closest("header");
+    // jsdom has no sticky layout. These classes connect the toolbar to the
+    // shell's measured height and reset the offset when its navbar is hidden.
+    expect(editingHeader).toHaveClass(
+      "top-[var(--workspace-navbar-height,0px)]",
+      "md:top-0",
+    );
+    view.rerender(
+      <DocumentStudio
+        mode="new"
+        preview
+        body={<p>Preview body</p>}
+        actions={<button>Publish</button>}
+      />,
+    );
+    const previewHeader = screen
+      .getByRole("button", { name: "Publish" })
+      .closest("header");
+    expect(previewHeader).toHaveClass("top-0");
+    expect(previewHeader).not.toHaveClass(
+      "top-[var(--workspace-navbar-height,0px)]",
+    );
+  });
+
   it("presents a new document as one full-page studio with one details disclosure", () => {
     renderStudio(
       "new",
