@@ -140,7 +140,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
       <Separator className="my-8" orientation="horizontal" decorative={true} />
       <div
         data-testid="reader-prose"
-        className="mx-auto w-full max-w-[700px] xl:mx-0"
+        className="mx-auto w-full max-w-175 xl:mx-0"
       >
         <div className="mt-6 max-w-none">
           <PostBody body={post.body} inlineImages={post.inlineImages} />

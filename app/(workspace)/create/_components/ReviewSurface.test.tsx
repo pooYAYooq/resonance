@@ -111,7 +111,7 @@ describe("ReviewSurface", () => {
     renderSurface();
 
     const prose = screen.getByTestId("review-prose");
-    expect(prose).toHaveClass("max-w-[700px]");
+    expect(prose).toHaveClass("max-w-175");
     expect(prose).toHaveClass("mx-auto");
     expect(prose).toContainElement(screen.getByText("Reviewed body"));
   });

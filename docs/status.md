@@ -116,7 +116,9 @@ remain deferred to a separate comprehensive design session.
 - `pnpm format:check` has a pre-existing baseline of unrelated files. A targeted
   check also flagged implementation files on `fix/reader-review-parity`:
   WorkspaceSidebar, ReviewSurface, the create page, MobileNavMenu, and Navbar.
-  Those files remain untouched; DocumentStudio was formatted with its review fix.
+  They keep the pre-existing formatting baseline; DocumentStudio was formatted
+  with its review fix, and ReviewSurface later received only the prose-width
+  class rename without a full reformat.
 - The title's Enter-to-body focus move depends on the dynamic import forwarding
   the body editor handle; the jsdom component tests cannot exercise it, so it is
   browser-verified only.

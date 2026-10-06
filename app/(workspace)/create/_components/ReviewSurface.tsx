@@ -62,7 +62,7 @@ export default function ReviewSurface({
         <Separator className="my-8" orientation="horizontal" decorative={true} />
         <div
           data-testid="review-prose"
-          className="mx-auto w-full max-w-[700px] xl:mx-0"
+          className="mx-auto w-full max-w-175 xl:mx-0"
         >
           <div className="mt-6 max-w-none">
             <PostBodyPreview body={proposal.body} inlineImages={inlineImages} />

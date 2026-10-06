@@ -231,7 +231,7 @@ describe("blog post timestamps", () => {
     expect(frame).toHaveClass("w-full");
     expect(frame.className).not.toMatch(/\bmax-w-/);
     const prose = screen.getByTestId("reader-prose");
-    expect(prose).toHaveClass("max-w-[700px]");
+    expect(prose).toHaveClass("max-w-175");
     expect(prose).toHaveClass("mx-auto");
     expect(prose).toHaveClass("xl:mx-0");
     expect(frame).toContainElement(prose);
