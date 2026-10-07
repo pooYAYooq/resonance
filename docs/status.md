@@ -31,7 +31,9 @@ remain with their design entries.
 Next: fix the malformed editor-target crash recorded with V1-22 in
 [`ROADMAP.md`](../ROADMAP.md), so a malformed `editPostId` or `draftId` shows
 the unavailable state instead of crashing, on direct navigation and history
-transitions alike. No Git actions are approved for that task yet.
+transitions alike. The malformed fix is out of scope of the tracked tasks and
+remains recorded for a separate bounded fix. No Git actions are approved for
+it yet.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
@@ -76,9 +78,10 @@ reported browser acceptance for covers, Resume, deletion, and responsive themes;
 pagination is automated-test verified. The merged revision re-passed lint, 504
 edge-runtime tests, 552 component tests, and the production build on 2026-10-06.
 
-Next: draft the dedicated spec for V1-15 unsaved-exit guards. Wide-screen reader
-rail contents remain queued, and Dashboard Overview purpose and composition
-remain deferred to a separate comprehensive design session.
+The dedicated spec for V1-15 unsaved-exit guards remains required before
+implementation; see Blockers. Wide-screen reader rail contents remain queued,
+and Dashboard Overview purpose and composition remain deferred to a separate
+comprehensive design session.
 
 ## Blockers
 
