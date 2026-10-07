@@ -28,16 +28,20 @@ The maintainer approved keeping Dashboard in the shared sidebar and drawer;
 the deferred Overview redesign and the drawer's visible Navigation heading
 remain with their design entries.
 
-The malformed editor-target crash recorded with V1-22 is fixed on
-`fix/malformed-target`. `getDraftById` and `getPublishedPostForEditing` accept
-the URL-derived id as a string and resolve it with `ctx.db.normalizeId`, so a
-malformed value returns null and shows the existing unavailable state on direct
-navigation and pending transitions alike, preserving the in-editor document.
-Backend and component regression tests cover both cases. Lint, 506
-edge-runtime tests, 567 component tests, and the production build passed on
-2026-10-07. Next: maintainer review and browser acceptance of the branch. It
-remains a separate bounded fix within V1-22, whose shared page-state work stays
-Todo. No Git actions are approved for it yet.
+The malformed editor-target fix shipped in
+[PR #99](https://github.com/pooYAYooq/resonance/pull/99), merged as `60c992b`,
+and its feature branch was removed. `getDraftById` and
+`getPublishedPostForEditing` accept the URL-derived id as a string and resolve
+it with `ctx.db.normalizeId`, so a malformed value returns null and shows the
+existing unavailable state on direct navigation and pending transitions alike,
+preserving the in-editor document. Backend and component regression tests cover
+both cases; verification passed lint, 506 edge-runtime tests, 567 component
+tests, and the production build on 2026-10-07. Browser acceptance covered
+malformed `draftId` and `editPostId` direct navigation, a dual-target request,
+a history Back transition with unsaved content, and Review preservation, with
+no client-side exceptions and no test data persisted. Next: the remaining
+shared page-state work of V1-22, with the V1-15 unsaved-exit spec still pending
+in Blockers.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.

@@ -210,13 +210,16 @@ verification: a malformed editor target id in the `/create` URL (`editPostId`
 or `draftId`), for example through a hand-edited or corrupted link, reached the
 backing Convex query unvalidated. The rejected argument failed argument
 validation and the page crashed with a client-side exception instead of showing
-an unavailable state. The bounded fix on `fix/malformed-target` changes both
-lookup queries (`getDraftById`, `getPublishedPostForEditing`) to accept a
+an unavailable state. The bounded fix shipped in PR #99 (merged as `60c992b`):
+both lookup queries (`getDraftById`, `getPublishedPostForEditing`) accept a
 string id and resolve it with `ctx.db.normalizeId`; an unparseable id now
 returns null and renders the existing unavailable state, and a rejected pending
 transition preserves the in-editor document. Backend and component regression
-tests cover direct navigation and pending transitions. The remaining shared
-page-state work of V1-22 stays Todo.
+tests cover direct navigation and pending transitions; browser acceptance also
+covered malformed direct navigation for both parameters, a dual-target request,
+a history Back transition with unsaved content, and Review preservation after
+rejection, with no client-side exceptions. The remaining shared page-state work
+of V1-22 stays Todo.
 
 ### Release readiness
 
