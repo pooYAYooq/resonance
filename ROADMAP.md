@@ -196,12 +196,14 @@ acceptance; signed-out browser acceptance at 320px and 375px remains unverified
 and stays with V1-23. This bounded correction does not complete the broader
 responsive and interaction polish item; its status remains Todo.
 
-The late PR #96 review follow-up on `fix/author-review-metadata-auth` locally
-gates the preview identity query and previews the pending edit date. The
-maintainer approved retaining Dashboard in both sidebar and drawer; this
-clarifies access to the existing page without approving its deferred Overview
-redesign (see `docs/PHASE_3A_DECISIONS.md`). The drawer's visible Navigation
-heading remains unchanged and is deferred to a later UI refinement.
+The late PR #96 review follow-up shipped in PR #97 (merged as `d2f9b3d`): the
+preview identity query is locally gated on resolved authentication, and
+published-edit Review previews a pending update date clamped against the saved
+publication and update timestamps. The maintainer approved retaining Dashboard
+in both sidebar and drawer; this clarifies access to the existing page without
+approving its deferred Overview redesign (see `docs/PHASE_3A_DECISIONS.md`).
+The drawer's visible Navigation heading remains unchanged and is deferred to a
+later UI refinement.
 
 V1-22 gained a discovered defect from the reader/Review parity browser
 verification: a malformed editor target id in the `/create` URL (`editPostId`

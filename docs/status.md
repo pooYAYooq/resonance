@@ -18,17 +18,21 @@ on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 
 Reader/Review parity and shared responsive navigation shipped in
 [PR #96](https://github.com/pooYAYooq/resonance/pull/96), merged as `4a306af`.
-Merged main passed lint, 504 edge-runtime tests, 559 component tests, and build.
-The completed local branch was removed after verifying its commits are merged;
-its remote branch remains pending separate deletion approval.
+The late review follow-up shipped in
+[PR #97](https://github.com/pooYAYooq/resonance/pull/97), merged as `d2f9b3d`:
+the preview identity query is locally gated on resolved authentication, and
+published-edit Review previews a monotonic pending-update date. Merged main
+passed lint, 504 edge-runtime tests, 564 component tests, and build. Both
+feature branches were removed after verifying their commits were merged.
+The maintainer approved keeping Dashboard in the shared sidebar and drawer;
+the deferred Overview redesign and the drawer's visible Navigation heading
+remain with their design entries.
 
-Late Codex findings are being addressed on `fix/author-review-metadata-auth`:
-local auth gating for the preview identity query and a frozen pending-update
-date in published-edit Review. The maintainer approved keeping Dashboard in the
-shared sidebar and drawer; the documentation now distinguishes that access
-from the deferred Overview redesign. The visible Navigation drawer heading is
-unchanged and deferred. Next: verify and review this follow-up before Git
-approval gates. No staging, commit, push, or new PR creation is approved.
+Next: fix the malformed editor-target crash recorded with V1-22 in
+[`ROADMAP.md`](../ROADMAP.md), so a malformed `editPostId` or `draftId` shows
+the unavailable state instead of crashing, on direct navigation and history
+transitions alike. It remains a separate bounded fix within V1-22. No Git
+actions are approved for it yet.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
@@ -73,9 +77,10 @@ reported browser acceptance for covers, Resume, deletion, and responsive themes;
 pagination is automated-test verified. The merged revision re-passed lint, 504
 edge-runtime tests, 552 component tests, and the production build on 2026-10-06.
 
-Next: draft the dedicated spec for V1-15 unsaved-exit guards. Wide-screen reader
-rail contents remain queued, and Dashboard Overview purpose and composition
-remain deferred to a separate comprehensive design session.
+The dedicated spec for V1-15 unsaved-exit guards remains required before
+implementation; see Blockers. Wide-screen reader rail contents remain queued,
+and Dashboard Overview purpose and composition remain deferred to a separate
+comprehensive design session.
 
 ## Blockers
 
