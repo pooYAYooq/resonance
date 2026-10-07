@@ -31,9 +31,8 @@ remain with their design entries.
 Next: fix the malformed editor-target crash recorded with V1-22 in
 [`ROADMAP.md`](../ROADMAP.md), so a malformed `editPostId` or `draftId` shows
 the unavailable state instead of crashing, on direct navigation and history
-transitions alike. The malformed fix is out of scope of the tracked tasks and
-remains recorded for a separate bounded fix. No Git actions are approved for
-it yet.
+transitions alike. It remains a separate bounded fix within V1-22. No Git
+actions are approved for it yet.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
