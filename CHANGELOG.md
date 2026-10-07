@@ -117,6 +117,10 @@ work is tracked in `ROADMAP.md`.
 - Pasting a line break into the post title could produce a visually blank
   published heading; line breaks now collapse to spaces and whitespace-only
   titles are rejected.
+- A malformed editor target id in the `/create` URL (`editPostId` or `draftId`)
+  no longer crashes the page: the lookup queries normalize the id and render
+  the existing unavailable state, and a rejected pending transition preserves
+  the in-editor document.
 
 > Earlier phases between 0.1.0 and this entry are recorded in the git history;
 > this changelog resumes at the standard-BlockNote authoring and Review

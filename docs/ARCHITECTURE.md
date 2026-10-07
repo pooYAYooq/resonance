@@ -687,7 +687,9 @@ states above the title.
   the post ID, engagement records, bookmarks, or materialized feed rows, and
   it does not trigger notification or feed fan-out. The create route resolves
   exactly one of `new`, `draft`, or `published-edit`; a dual-target request is
-  rejected rather than falling back to a new post.
+  rejected rather than falling back to a new post. URL-derived target ids are
+  normalized at the query boundary, so a malformed `draftId` or `editPostId`
+  resolves to the unavailable state rather than a validation crash.
 
 - **Publication timestamps** — fresh publication assigns one timestamp to both
   `publishedAt` and `updatedAt`. A published edit advances only `updatedAt`.

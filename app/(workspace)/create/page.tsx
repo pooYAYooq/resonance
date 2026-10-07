@@ -420,27 +420,27 @@ function CreateEditor() {
   const hydratedDraft = useQuery(
     api.posts.getDraftById,
     activeTarget.editorMode === "draft" && activeTarget.id
-      ? { draftId: activeTarget.id as Id<"posts"> }
+      ? { draftId: activeTarget.id }
       : "skip",
   );
   const hydratedPublishedPost = useQuery(
     api.posts.getPublishedPostForEditing,
     activeTarget.editorMode === "published-edit" && activeTarget.id
-      ? { postId: activeTarget.id as Id<"posts"> }
+      ? { postId: activeTarget.id }
       : "skip",
   );
   const pendingDraft = useQuery(
     api.posts.getDraftById,
     sessionState.pendingTarget?.editorMode === "draft" &&
       sessionState.pendingTarget.id
-      ? { draftId: sessionState.pendingTarget.id as Id<"posts"> }
+      ? { draftId: sessionState.pendingTarget.id }
       : "skip",
   );
   const pendingPublishedPost = useQuery(
     api.posts.getPublishedPostForEditing,
     sessionState.pendingTarget?.editorMode === "published-edit" &&
       sessionState.pendingTarget.id
-      ? { postId: sessionState.pendingTarget.id as Id<"posts"> }
+      ? { postId: sessionState.pendingTarget.id }
       : "skip",
   );
   const watchedValues = useWatch({ control: form.control });

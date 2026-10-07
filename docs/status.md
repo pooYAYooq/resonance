@@ -28,11 +28,16 @@ The maintainer approved keeping Dashboard in the shared sidebar and drawer;
 the deferred Overview redesign and the drawer's visible Navigation heading
 remain with their design entries.
 
-Next: fix the malformed editor-target crash recorded with V1-22 in
-[`ROADMAP.md`](../ROADMAP.md), so a malformed `editPostId` or `draftId` shows
-the unavailable state instead of crashing, on direct navigation and history
-transitions alike. It remains a separate bounded fix within V1-22. No Git
-actions are approved for it yet.
+The malformed editor-target crash recorded with V1-22 is fixed on
+`fix/malformed-target`. `getDraftById` and `getPublishedPostForEditing` accept
+the URL-derived id as a string and resolve it with `ctx.db.normalizeId`, so a
+malformed value returns null and shows the existing unavailable state on direct
+navigation and pending transitions alike, preserving the in-editor document.
+Backend and component regression tests cover both cases. Lint, 506
+edge-runtime tests, 567 component tests, and the production build passed on
+2026-10-07. Next: maintainer review and browser acceptance of the branch. It
+remains a separate bounded fix within V1-22, whose shared page-state work stays
+Todo. No Git actions are approved for it yet.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
@@ -113,12 +118,6 @@ comprehensive design session.
   post may show the in-app transition notice.
 - An always-available in-page Discard or Cancel action is not implemented; the
   silent recovery clears the local snapshot on save, revert, or empty.
-- A malformed editor target id in the `/create` URL (`editPostId` or `draftId`)
-  crashes the page with a client-side exception: the raw id fails Convex
-  argument validation instead of producing the unavailable state. Found during
-  the reader/Review parity browser verification by confirming a pending
-  transition to a malformed target; direct navigation shares the same path.
-  Recorded with V1-22 in ROADMAP.md for a separate bounded fix.
 - `pnpm format:check` has a pre-existing baseline of unrelated files. A targeted
   check also flagged implementation files on `fix/reader-review-parity`:
   WorkspaceSidebar, ReviewSurface, the create page, MobileNavMenu, and Navbar.
