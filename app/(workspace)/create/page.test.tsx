@@ -1599,6 +1599,68 @@ describe("CreateRoute", () => {
     expect(pushMock).toHaveBeenCalledWith("/dashboard/drafts");
   });
 
+  it("shows the unavailable state for a malformed draft id on direct navigation", async () => {
+    draftIdParam.value = "hand-edited corrupted draft id";
+    getDraftByIdMock.mockReturnValue(null);
+
+    render(<CreateRoute />);
+
+    expect(await screen.findByText("That draft is unavailable.")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Back to Drafts" }),
+    ).toBeVisible();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed pending target without discarding the in-editor document", async () => {
+    const user = userEvent.setup();
+    const view = render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your post a title"),
+      "Unsaved article",
+    );
+
+    editPostIdParam.value = "hand-edited corrupted post id";
+    getPublishedPostForEditingMock.mockReturnValue(null);
+    view.rerender(<CreateRoute />);
+    await user.click(
+      await screen.findByRole("button", { name: "Load requested document" }),
+    );
+
+    expect(
+      await screen.findByText("The requested document is unavailable."),
+    ).toBeVisible();
+    expect(screen.getByDisplayValue("Unsaved article")).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the Review snapshot when a pending malformed target is rejected", async () => {
+    const user = userEvent.setup();
+    const view = render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your post a title"),
+      "Unsaved article",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+    await enterReview(user);
+    const preview = await screen.findByTestId("review-surface");
+
+    editPostIdParam.value = "hand-edited corrupted post id";
+    getPublishedPostForEditingMock.mockReturnValue(null);
+    view.rerender(<CreateRoute />);
+    await user.click(
+      await screen.findByRole("button", { name: "Load requested document" }),
+    );
+
+    expect(
+      await screen.findByText("The requested document is unavailable."),
+    ).toBeVisible();
+    expect(preview).toHaveTextContent("Unsaved article");
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
   it("shows validation error for empty title", async () => {
     const user = userEvent.setup();
     render(<CreateRoute />);

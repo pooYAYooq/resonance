@@ -1051,6 +1051,32 @@ describe("posts functions", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
+  it("fails softly for a malformed draft target instead of rejecting the id", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(t, "malformed-draft@example.com");
+
+    const result = await t
+      .withIdentity(identity)
+      .query(api.posts.getDraftById, {
+        draftId: "hand-edited-corrupted-draft" as Id<"posts">,
+      });
+
+    expect(result).toBeNull();
+  });
+
+  it("fails softly for a malformed published edit target instead of rejecting the id", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(t, "malformed-post@example.com");
+
+    const result = await t
+      .withIdentity(identity)
+      .query(api.posts.getPublishedPostForEditing, {
+        postId: "hand-edited-corrupted-post" as Id<"posts">,
+      });
+
+    expect(result).toBeNull();
+  });
+
   describe("published edit upload claims", () => {
     it("accepts retained consumed IDs and returns only new claim IDs", async () => {
       const t = convexTest(schema, modules);

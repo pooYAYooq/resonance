@@ -207,15 +207,16 @@ later UI refinement.
 
 V1-22 gained a discovered defect from the reader/Review parity browser
 verification: a malformed editor target id in the `/create` URL (`editPostId`
-or `draftId`), for example through a hand-edited or corrupted link, reaches the
-backing Convex query unvalidated. The rejected argument fails argument
-validation and the page crashes with a client-side exception instead of showing
-an unavailable state, and the in-editor document should be preserved. The
-observation came from confirming a pending transition to a malformed target;
-direct navigation shares the same input path, which predates this correction.
-Graceful handling of malformed editor targets belongs with V1-22's page-state
-work and is recorded for a separate bounded fix rather than absorbed into this
-correction.
+or `draftId`), for example through a hand-edited or corrupted link, reached the
+backing Convex query unvalidated. The rejected argument failed argument
+validation and the page crashed with a client-side exception instead of showing
+an unavailable state. The bounded fix on `fix/malformed-target` changes both
+lookup queries (`getDraftById`, `getPublishedPostForEditing`) to accept a
+string id and resolve it with `ctx.db.normalizeId`; an unparseable id now
+returns null and renders the existing unavailable state, and a rejected pending
+transition preserves the in-editor document. Backend and component regression
+tests cover direct navigation and pending transitions. The remaining shared
+page-state work of V1-22 stays Todo.
 
 ### Release readiness
 

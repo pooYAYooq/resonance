@@ -271,13 +271,19 @@ export const getDrafts = query({
 });
 
 export const getDraftById = query({
-  args: { draftId: v.id("posts") },
+  // A malformed URL-derived id must reach this lookup as a string and fail
+  // softly: `v.id("posts")` would reject it before the unavailable state can
+  // render, crashing the editor instead.
+  args: { draftId: v.string() },
   returns: v.union(draftValidator, v.null()),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
 
-    const draft = await ctx.db.get(args.draftId);
+    const draftId = ctx.db.normalizeId("posts", args.draftId);
+    if (!draftId) return null;
+
+    const draft = await ctx.db.get(draftId);
     if (!draft || draft.authorId !== user._id || draft.status !== "draft") {
       return null;
     }
@@ -311,7 +317,9 @@ export const getDraftById = query({
 });
 
 export const getPublishedPostForEditing = query({
-  args: { postId: v.id("posts") },
+  // URL-derived published edit ids arrive as strings for the same reason as
+  // `getDraftById`: an invalid id must return null, not fail validation.
+  args: { postId: v.string() },
   returns: v.union(
     v.object({
       _id: v.id("posts"),
@@ -335,7 +343,10 @@ export const getPublishedPostForEditing = query({
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
 
-    const post = await ctx.db.get(args.postId);
+    const postId = ctx.db.normalizeId("posts", args.postId);
+    if (!postId) return null;
+
+    const post = await ctx.db.get(postId);
     if (!post || post.authorId !== user._id || post.status !== "published") {
       return null;
     }
