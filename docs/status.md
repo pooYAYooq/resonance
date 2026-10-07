@@ -16,22 +16,19 @@ on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 
 ## Next action
 
-Reader/Review parity and shared responsive navigation are committed on
-`fix/reader-review-parity` and open as
-[PR #96](https://github.com/pooYAYooq/resonance/pull/96). Review uses the
-reader's shared article header and uncapped 16:9 cover in a full-page preview;
-mobile drawers and the desktop workspace sidebar share navigation content. The
-user approved reader/Review parity and the editing flow. Commit `8237f2b`
-received three Codex findings; the follow-up preserves the live editor across
-Preview, exposes target-transition notices, and offsets mobile editing actions
-below the measured navbar. Fresh verification passed lint, 504 edge-runtime
-tests, 559 component tests, and the production build; CodeRabbit's uncommitted
-review reported no findings, and browser verification on the user's Chrome
-confirmed editor preservation with undo history, the Preview transition notice
-with its action, and the mobile toolbar offset. PR review then flagged a stale
-resume note and orphaned workspace drawer modules; the latest commit removes
-the dead navigation code, moves its coverage to the live drawer component, and
-refreshes this note.
+Reader/Review parity and shared responsive navigation shipped in
+[PR #96](https://github.com/pooYAYooq/resonance/pull/96), merged as `4a306af`.
+Merged main passed lint, 504 edge-runtime tests, 559 component tests, and build.
+The completed local branch was removed after verifying its commits are merged;
+its remote branch remains pending separate deletion approval.
+
+Late Codex findings are being addressed on `fix/author-review-metadata-auth`:
+local auth gating for the preview identity query and a frozen pending-update
+date in published-edit Review. The maintainer approved keeping Dashboard in the
+shared sidebar and drawer; the documentation now distinguishes that access
+from the deferred Overview redesign. The visible Navigation drawer heading is
+unchanged and deferred. Next: verify and review this follow-up before Git
+approval gates. No staging, commit, push, or new PR creation is approved.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
@@ -121,8 +118,8 @@ remain deferred to a separate comprehensive design session.
   check also flagged implementation files on `fix/reader-review-parity`:
   WorkspaceSidebar, ReviewSurface, the create page, MobileNavMenu, and Navbar.
   They keep the pre-existing formatting baseline; DocumentStudio was formatted
-  with its review fix, and ReviewSurface later received only the prose-width
-  class rename without a full reformat.
+  with its review fix, and the remaining files received targeted edits without a
+  full reformat.
 - The title's Enter-to-body focus move depends on the dynamic import forwarding
   the body editor handle; the jsdom component tests cannot exercise it, so it is
   browser-verified only.

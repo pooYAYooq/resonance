@@ -115,6 +115,10 @@
   Edit/Preview/Publish-or-Update toolbar. Below 640px, the editing and update
   labels shorten to Edit and Update, and shared title/H2/H3 sizes are
   36px/30px/26px. New posts show Not published yet; published edits show dates.
+  Published-edit Review preserves the original publication date and previews
+  the pending update date, frozen when Review is entered. The server assigns
+  the actual update timestamp on successful submission, so a later submission
+  across a UTC date boundary may display a different date in the reader.
 - Switching between editing and Review preserves the live body editor instance,
   unsaved content, selection, and undo history. URL target-transition
   confirmations, loading states, and errors remain visible in Review. On mobile,

@@ -188,13 +188,20 @@ Source: `docs/PHASE_3A.md` 3A.5.
 V1-21 includes the deferred Follow/Following color treatment and the
 light-theme contrast observations recorded with V1-11: primary button text at
 3.12:1 and the focus border at 2.96:1. The reader/Review parity and shared
-navigation changes on `fix/reader-review-parity` replace inline mobile account
+navigation changes shipped in PR #96 (merged as `4a306af`) and replace inline mobile account
 controls with a drawer below 768px, addressing the layout that caused the
 previously recorded signed-out navbar overflow at 320px and 375px and signed-in
 overflow at 320px. Authenticated responsive navigation received browser
 acceptance; signed-out browser acceptance at 320px and 375px remains unverified
 and stays with V1-23. This bounded correction does not complete the broader
 responsive and interaction polish item; its status remains Todo.
+
+The late PR #96 review follow-up on `fix/author-review-metadata-auth` locally
+gates the preview identity query and previews the pending edit date. The
+maintainer approved retaining Dashboard in both sidebar and drawer; this
+clarifies access to the existing page without approving its deferred Overview
+redesign (see `docs/PHASE_3A_DECISIONS.md`). The drawer's visible Navigation
+heading remains unchanged and is deferred to a later UI refinement.
 
 V1-22 gained a discovered defect from the reader/Review parity browser
 verification: a malformed editor target id in the `/create` URL (`editPostId`

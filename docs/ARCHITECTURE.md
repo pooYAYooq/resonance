@@ -570,7 +570,16 @@ inline images. Review renders the snapshot body through
 diverge. `PostArticleHeader.tsx` shares the reader's title, attribution, dates,
 and topics with Review; preview attribution and topics are noninteractive,
 and Follow, engagement, and comments remain reader-only. The cover is an
-uncapped 16:9 frame on both surfaces. `WorkspacePreviewContext.tsx` lets the
+uncapped 16:9 frame on both surfaces. The authoring component locally gates
+the preview identity query on resolved, authenticated Convex auth state.
+Published-edit snapshots preserve `publishedAt` and capture an estimated
+`updatedAt` when entering Review, rather than displaying the previous saved
+edit date. The estimate mirrors the server's monotonic rule, so it never
+precedes the saved publication or update timestamps. Rerenders do not advance
+the estimate; returning to editing and re-entering Review captures a new
+estimate. The server still owns the actual committed update timestamp, which
+can differ if submission crosses a UTC day.
+`WorkspacePreviewContext.tsx` lets the
 authoring page suppress the sidebar and mobile Navbar during Review.
 `DocumentStudio.tsx` renders a full-page preview with its dedicated
 Edit/Preview/Publish-or-Update toolbar instead of the writing canvas and Post

@@ -118,15 +118,19 @@ are authenticated site-shell surfaces, not workspace-mode pages.
 
 ### Navigation Responsibilities
 
-| Context                  | Primary destinations                                                                   | Utility behavior                                                                                     |
-| ------------------------ | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Anonymous marketing/site | Home, Discover, Log In, Sign Up                                                        | No private data queries before auth resolves.                                                        |
-| Authenticated site       | Discover, Feed, New Post                                                               | Logo -> Dashboard; bell/unread badge; account hub for Profile, Saved, Liked, Settings, and Sign Out. |
-| Workspace sidebar        | New Post, Drafts, My Posts, Analytics, Discover, Feed, Saved, Liked, Profile, Settings | Reader links may leave the workspace shell. No Overview item.                                        |
-| Workspace utilities      | Notification bell and account actions                                                  | Desktop sidebar footer; mobile workspace header; shared behavior may use different presentation.     |
+| Context                  | Primary destinations                                                                              | Utility behavior                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Anonymous marketing/site | Home, Discover, Log In, Sign Up                                                                   | No private data queries before auth resolves.                                                                 |
+| Authenticated site       | Discover, Feed, New Post                                                                          | Logo -> Dashboard; bell/unread badge; account hub for Profile, Saved, Liked, Settings, and Sign Out.          |
+| Workspace sidebar        | Dashboard, New Post, Drafts, My Posts, Analytics, Discover, Feed, Saved, Liked, Profile, Settings | Reader links may leave the workspace shell. Dashboard access is approved; Overview redesign remains deferred. |
+| Workspace utilities      | Notification bell and account actions                                                             | Desktop sidebar footer; mobile workspace header; shared behavior may use different presentation.              |
 
 `Profile` always means public identity at `/u/[userId]`. Its owner action opens
 `/profile/edit`. Settings is not an identity-editing form.
+The sidebar and mobile drawer share the Dashboard destination, explicitly
+approved after the late review of PR #96; see the Dashboard access clarification
+in `docs/PHASE_3A_DECISIONS.md`. This approves navigation access, not the deferred
+Overview redesign.
 
 ### Data and Component Boundaries
 
