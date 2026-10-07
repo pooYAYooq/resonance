@@ -16,7 +16,7 @@ import {
 import { clearDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
 import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useConvex, useMutation, useQuery } from "convex/react";
+import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -412,7 +412,11 @@ function CreateEditor() {
     id: editorMode.id,
   };
   const capabilities = getEditorCapabilities(editorMode.mode);
-  const currentUser = useQuery(api.users.getCurrentUser, {});
+  const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    !isAuthLoading && isAuthenticated ? {} : "skip",
+  );
   const hydratedDraft = useQuery(
     api.posts.getDraftById,
     activeTarget.editorMode === "draft" && activeTarget.id
@@ -1546,6 +1550,23 @@ function CreateEditor() {
           {
             ...(coverImageUrl && { coverPreviewUrl: coverImageUrl }),
             inlineImages: reviewInlineImages,
+            ...(editorMode.mode === "published-edit" &&
+              hydratedPublishedPost && {
+                // Preview the impending update, not the previous saved edit.
+                // Freeze this estimate on entry; the server sets the actual
+                // committed timestamp when Update succeeds. Mirror the
+                // server's monotonic rule so the estimate never precedes the
+                // saved publication or update timestamps.
+                published: {
+                  publishedAt: hydratedPublishedPost.publishedAt,
+                  updatedAt:
+                    Math.max(
+                      Date.now(),
+                      hydratedPublishedPost.updatedAt,
+                      hydratedPublishedPost.publishedAt,
+                    ) + 1,
+                },
+              }),
           },
         ),
       );
@@ -1830,14 +1851,7 @@ function CreateEditor() {
                   name: currentUser?.displayName ?? "You",
                   avatarUrl: currentUser?.avatarUrl,
                 }}
-                published={
-                  editorMode.mode === "published-edit" && hydratedPublishedPost
-                    ? {
-                        publishedAt: hydratedPublishedPost.publishedAt,
-                        updatedAt: hydratedPublishedPost.updatedAt,
-                      }
-                    : undefined
-                }
+                published={reviewSnapshot.published}
                 blockerMessage={
                   reviewBlocker
                     ? REVIEW_BLOCKER_MESSAGES[reviewBlocker]

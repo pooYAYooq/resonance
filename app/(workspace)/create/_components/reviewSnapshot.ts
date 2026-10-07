@@ -16,6 +16,7 @@ export type ReviewedSnapshot = {
   cover: CoverIntent;
   coverPreviewUrl?: string;
   inlineImages: ReviewedInlineImage[];
+  published?: { publishedAt: number; updatedAt: number };
 };
 
 export type CoverState = {
@@ -27,6 +28,7 @@ export type CoverState = {
 export type ReviewPreview = {
   coverPreviewUrl?: string;
   inlineImages: ReviewedInlineImage[];
+  published?: { publishedAt: number; updatedAt: number };
 };
 
 /** What a submission needs, independent of whether it came from the live form
@@ -71,6 +73,7 @@ export function captureReviewedSnapshot(
       coverPreviewUrl: preview.coverPreviewUrl,
     }),
     inlineImages: preview.inlineImages.map((image) => ({ ...image })),
+    ...(preview.published && { published: { ...preview.published } }),
   };
 }
 

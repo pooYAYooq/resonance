@@ -176,6 +176,7 @@ const {
   draftIdParam,
   editPostIdParam,
   useConvexAuthState,
+  viewerQueryMock,
   routerMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
@@ -198,6 +199,7 @@ const {
   draftIdParam: { value: undefined as string | undefined },
   editPostIdParam: { value: undefined as string | undefined },
   useConvexAuthState: vi.fn(),
+  viewerQueryMock: vi.fn(),
   routerMock: { push: vi.fn(), replace: vi.fn() },
 }));
 
@@ -237,6 +239,7 @@ vi.mock("convex/react", () => ({
     return vi.fn();
   },
   useQuery: (apiRef: unknown, args: unknown) => {
+    if (apiRef === "getCurrentUser") return viewerQueryMock(args);
     if (args === "skip") return undefined;
     if (apiRef === "getDraftById") return getDraftByIdMock(args);
     if (apiRef === "getPublishedPostForEditing") {
@@ -299,6 +302,7 @@ describe("CreateRoute", () => {
     updatePublishedPostMock.mockReset();
     reserveAttemptMock.mockReset();
     convexQueryMock.mockReset();
+    viewerQueryMock.mockReset();
     convexQueryMock.mockResolvedValue([]);
     draftIdParam.value = undefined;
     editPostIdParam.value = undefined;
@@ -379,6 +383,126 @@ describe("CreateRoute", () => {
     expect(screen.getAllByText("Post details")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Save Draft" })).toBeVisible();
   });
+
+  it("skips the preview identity subscription during auth refresh and sign-out", () => {
+    const view = render(<CreateRoute />);
+    expect(viewerQueryMock).toHaveBeenLastCalledWith({});
+
+    viewerQueryMock.mockClear();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: true,
+    });
+    view.rerender(<CreateRoute />);
+    expect(viewerQueryMock).toHaveBeenCalled();
+    expect(viewerQueryMock.mock.calls.every(([args]) => args === "skip")).toBe(
+      true,
+    );
+
+    viewerQueryMock.mockClear();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    view.rerender(<CreateRoute />);
+    expect(viewerQueryMock).toHaveBeenCalled();
+    expect(viewerQueryMock.mock.calls.every(([args]) => args === "skip")).toBe(
+      true,
+    );
+
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    view.rerender(<CreateRoute />);
+    expect(viewerQueryMock).toHaveBeenLastCalledWith({});
+  });
+
+  it.each([
+    ["first edit", Date.UTC(2026, 0, 1)],
+    ["subsequent edit", Date.UTC(2026, 1, 1)],
+  ])(
+    "previews the pending update date for a %s without advancing on rerender",
+    async (_, previousUpdatedAt) => {
+      const user = userEvent.setup();
+      const clock = vi
+        .spyOn(Date, "now")
+        .mockReturnValue(Date.UTC(2026, 9, 7, 12));
+      try {
+        editPostIdParam.value = "post-1";
+        getPublishedPostForEditingMock.mockReturnValue({
+          _id: "post-1",
+          title: "Published title",
+          body: JSON.stringify(validEnvelope),
+          tags: [],
+          imageUrl: null,
+          inlineImages: [],
+          publishedAt: Date.UTC(2026, 0, 1),
+          updatedAt: previousUpdatedAt,
+        });
+        const view = render(<CreateRoute />);
+        await screen.findByDisplayValue("Published title");
+        await enterReview(user, "Review Update");
+        const byline = within(
+          await screen.findByTestId("review-surface"),
+        ).getByTestId("article-byline");
+        expect(byline).toHaveTextContent("Published on: January 1, 2026");
+        expect(byline).toHaveTextContent("Updated on: October 7, 2026");
+
+        clock.mockReturnValue(Date.UTC(2026, 9, 8, 12));
+        view.rerender(<CreateRoute />);
+        expect(byline).toHaveTextContent("Updated on: October 7, 2026");
+        await user.click(
+          screen.getByRole("button", { name: "Back to editing" }),
+        );
+        await enterReview(user, "Review Update");
+        expect(
+          within(await screen.findByTestId("review-surface")).getByTestId(
+            "article-byline",
+          ),
+        ).toHaveTextContent("Updated on: October 8, 2026");
+        expect(updatePublishedPostMock).not.toHaveBeenCalled();
+      } finally {
+        clock.mockRestore();
+      }
+    },
+  );
+
+  it.each([
+    ["a first edit", Date.UTC(2026, 0, 1), "January 1, 2026"],
+    ["a later edit", Date.UTC(2026, 1, 1), "February 1, 2026"],
+  ])(
+    "clamps the previewed update date past the saved edit for %s when the clock trails",
+    async (_, savedUpdatedAt, expectedUpdated) => {
+      const user = userEvent.setup();
+      const clock = vi
+        .spyOn(Date, "now")
+        .mockReturnValue(Date.UTC(2025, 11, 20, 12));
+      try {
+        editPostIdParam.value = "post-1";
+        getPublishedPostForEditingMock.mockReturnValue({
+          _id: "post-1",
+          title: "Published title",
+          body: JSON.stringify(validEnvelope),
+          tags: [],
+          imageUrl: null,
+          inlineImages: [],
+          publishedAt: Date.UTC(2026, 0, 1),
+          updatedAt: savedUpdatedAt,
+        });
+        render(<CreateRoute />);
+        await screen.findByDisplayValue("Published title");
+        await enterReview(user, "Review Update");
+        const byline = within(
+          await screen.findByTestId("review-surface"),
+        ).getByTestId("article-byline");
+        expect(byline).toHaveTextContent("Published on: January 1, 2026");
+        expect(byline).toHaveTextContent(`Updated on: ${expectedUpdated}`);
+      } finally {
+        clock.mockRestore();
+      }
+    },
+  );
 
   it("persists a dirty proposal to local storage", async () => {
     render(<CreateRoute />);

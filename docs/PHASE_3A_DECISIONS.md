@@ -3,6 +3,17 @@
 This log records cross-cutting Phase 3A decisions that future slices must not
 silently reverse. Product details live in `docs/PHASE_3A.md`.
 
+## Dashboard access clarification (2026-10-07)
+
+Following the late review of merged PR #96, the maintainer explicitly approved
+keeping **Dashboard** (`/dashboard`) in the shared desktop sidebar and mobile
+drawer. This amends the navigation restriction associated with 3A-007: access
+to the existing Dashboard is approved, but its Overview purpose, composition,
+and redesign remain deferred. The authenticated logo still links to Dashboard.
+Do not remove the destination merely because the redesign is deferred.
+
+## Decisions
+
 | ID     | Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Rationale                                                                                                                                                                                                                  | Affected work                                                                |
 | ------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | 3A-001 | 2026-08-31 | Section 18 is the authoritative scope structure. Section 4 is high-level UX-before-visual ordering only.                                                                                                                                                                                                                                                                                                                                                                    | The working brief contained two incompatible numbered outlines.                                                                                                                                                            | All Phase 3A planning.                                                       |
