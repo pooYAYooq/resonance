@@ -40,8 +40,9 @@ tests, and the production build on 2026-10-07. Browser acceptance covered
 malformed `draftId` and `editPostId` direct navigation, a dual-target request,
 a history Back transition with unsaved content, and Review preservation, with
 no client-side exceptions and no test data persisted. Next: the remaining
-shared page-state work of V1-22, with the V1-15 unsaved-exit spec still pending
-in Blockers.
+Phase 3A.3 Track 4 work, with V1-15 awaiting its dedicated spec (see Blockers)
+and V1-16's accessibility evidence pass open; the V1-22 shared page-state work
+stays Todo.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
