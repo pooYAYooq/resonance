@@ -23,7 +23,8 @@ import {
   parsePostBody,
 } from "../lib/post-content";
 import { validatePostCapacity } from "../lib/post-capacity";
-import { getPublishedPost } from "./postLifecycle";
+import { discardPendingPostEdit, getPublishedPost } from "./postLifecycle";
+import { getPendingPostEdit } from "./pendingPostEdits";
 import {
   executeOwnedAttempt,
   writeProposalValidator,
@@ -59,6 +60,7 @@ const hydratedPostValidator = v.object({
 });
 const draftValidator = v.object({
   _id: v.id("posts"),
+  sourcePostId: v.optional(v.id("posts")),
   title: v.string(),
   body: v.string(),
   tags: v.array(v.string()),
@@ -74,6 +76,7 @@ const draftValidator = v.object({
 });
 const draftListItemValidator = v.object({
   _id: v.id("posts"),
+  sourcePostId: v.optional(v.id("posts")),
   title: v.string(),
   tags: v.array(v.string()),
   updatedAt: v.number(),
@@ -256,6 +259,7 @@ export const getDrafts = query({
               : "";
           return {
             _id: draft._id,
+            ...(draft.sourcePostId && { sourcePostId: draft.sourcePostId }),
             title: draft.title,
             tags: draft.tags,
             updatedAt: draft.updatedAt,
@@ -287,6 +291,15 @@ export const getDraftById = query({
     if (!draft || draft.authorId !== user._id || draft.status !== "draft") {
       return null;
     }
+    if (draft.sourcePostId) {
+      const source = await ctx.db.get(draft.sourcePostId);
+      if (
+        !source ||
+        source.authorId !== user._id ||
+        source.status !== "published"
+      )
+        return null;
+    }
 
     const imageUrl = draft.imageStorageId
       ? await ctx.storage.getUrl(draft.imageStorageId)
@@ -305,6 +318,7 @@ export const getDraftById = query({
 
     return {
       _id: draft._id,
+      ...(draft.sourcePostId && { sourcePostId: draft.sourcePostId }),
       title: draft.title,
       body: draft.body,
       tags: draft.tags,
@@ -336,6 +350,7 @@ export const getPublishedPostForEditing = query({
       ),
       publishedAt: v.number(),
       updatedAt: v.number(),
+      pendingDraftId: v.union(v.id("posts"), v.null()),
     }),
     v.null(),
   ),
@@ -351,12 +366,13 @@ export const getPublishedPostForEditing = query({
       return null;
     }
 
-    const parsed = parsePostBody(post.body);
+    const editing = (await getPendingPostEdit(ctx, post._id)) ?? post;
+    const parsed = parsePostBody(editing.body);
     if (parsed.kind !== "structured" || post.publishedAt === undefined) {
       return null;
     }
-    const imageUrl = post.imageStorageId
-      ? await ctx.storage.getUrl(post.imageStorageId)
+    const imageUrl = editing.imageStorageId
+      ? await ctx.storage.getUrl(editing.imageStorageId)
       : null;
     const inlineStorageIds = extractImageStorageIds(
       parsed.document.blocks,
@@ -370,14 +386,15 @@ export const getPublishedPostForEditing = query({
 
     return {
       _id: post._id,
-      title: post.title,
-      body: post.body,
-      tags: post.tags,
-      imageStorageId: post.imageStorageId ?? null,
+      pendingDraftId: editing.sourcePostId ? editing._id : null,
+      title: editing.title,
+      body: editing.body,
+      tags: editing.tags,
+      imageStorageId: editing.imageStorageId ?? null,
       imageUrl,
       inlineImages,
       publishedAt: post.publishedAt,
-      updatedAt: post.updatedAt,
+      updatedAt: editing.updatedAt,
     };
   },
 });
@@ -414,6 +431,11 @@ export const deleteDraft = mutation({
     const draft = await ctx.db.get(args.draftId);
     if (!draft || draft.authorId !== user._id || draft.status !== "draft") {
       throw new ConvexError("Post not found.");
+    }
+
+    if (draft.sourcePostId) {
+      await discardPendingPostEdit(ctx, draft);
+      return null;
     }
 
     const existingJob = await ctx.db
@@ -465,6 +487,9 @@ export const deletePublishedPost = mutation({
     if (!post || post.authorId !== user._id || post.status !== "published") {
       throw new ConvexError("Post not found.");
     }
+
+    const pending = await getPendingPostEdit(ctx, post._id);
+    if (pending) await ctx.db.delete(pending._id);
 
     const existingJob = await ctx.db
       .query("postDeletionJobs")

@@ -7,6 +7,17 @@ import {
 export const DRAFT_RECOVERY_VERSION = 1;
 const DRAFT_RECOVERY_PREFIX = "resonance:draft-recovery:";
 
+export type RecoveryResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason:
+        | "unavailable"
+        | "write-failed"
+        | "remove-failed"
+        | "verification-failed";
+    };
+
 export type DraftRecoverySnapshot = {
   version: number;
   savedAt: number;
@@ -82,22 +93,28 @@ export function saveDraftRecovery(
   sessionKey: string,
   proposal: ProposalInput,
   savedAt = Date.now(),
-): void {
+): RecoveryResult {
   const storage = getStorage();
-  if (!storage) return;
-  const snapshot: DraftRecoverySnapshot = {
-    version: DRAFT_RECOVERY_VERSION,
-    savedAt,
-    sessionKey,
-    proposal: canonicalizeProposal(proposal),
-  };
+  if (!storage) return { ok: false, reason: "unavailable" };
+  let serialized: string;
   try {
-    storage.setItem(
-      draftRecoveryStorageKey(sessionKey),
-      JSON.stringify(snapshot),
-    );
+    const snapshot: DraftRecoverySnapshot = {
+      version: DRAFT_RECOVERY_VERSION,
+      savedAt,
+      sessionKey,
+      proposal: canonicalizeProposal(proposal),
+    };
+    serialized = JSON.stringify(snapshot);
+    storage.setItem(draftRecoveryStorageKey(sessionKey), serialized);
   } catch {
-    // Best effort: private mode or a full quota must never break editing.
+    return { ok: false, reason: "write-failed" };
+  }
+  try {
+    return storage.getItem(draftRecoveryStorageKey(sessionKey)) === serialized
+      ? { ok: true }
+      : { ok: false, reason: "verification-failed" };
+  } catch {
+    return { ok: false, reason: "verification-failed" };
   }
 }
 
@@ -114,12 +131,19 @@ export function readDraftRecovery(
   }
 }
 
-export function clearDraftRecovery(sessionKey: string): void {
+export function clearDraftRecovery(sessionKey: string): RecoveryResult {
   const storage = getStorage();
-  if (!storage) return;
+  if (!storage) return { ok: false, reason: "unavailable" };
   try {
     storage.removeItem(draftRecoveryStorageKey(sessionKey));
   } catch {
-    // Ignore storage failures.
+    return { ok: false, reason: "remove-failed" };
+  }
+  try {
+    return storage.getItem(draftRecoveryStorageKey(sessionKey)) === null
+      ? { ok: true }
+      : { ok: false, reason: "verification-failed" };
+  } catch {
+    return { ok: false, reason: "verification-failed" };
   }
 }

@@ -13,7 +13,7 @@ import {
 
 type DeletePostDialogProps = {
   title: string;
-  kind?: "published" | "draft";
+  kind?: "published" | "draft" | "pending-update";
   open: boolean;
   pending: boolean;
   error: string | null;
@@ -51,12 +51,18 @@ export function DeletePostDialog({
       >
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {kind === "draft" ? "Delete draft?" : "Delete published post?"}
+            {kind === "pending-update"
+              ? "Delete pending draft?"
+              : kind === "draft"
+                ? "Delete draft?"
+                : "Delete published post?"}
           </AlertDialogTitle>
           <AlertDialogDescription className="wrap-anywhere">
-            {kind === "draft"
-              ? `Permanently delete “${title}”? This draft will be removed. This cannot be undone.`
-              : `Permanently delete “${title}”? The post and its associated discussion and engagement will be removed. This cannot be undone.`}
+            {kind === "pending-update"
+              ? `Delete the pending changes to “${title}”? Your published post stays unchanged.`
+              : kind === "draft"
+                ? `Permanently delete “${title}”? This draft will be removed. This cannot be undone.`
+                : `Permanently delete “${title}”? The post and its associated discussion and engagement will be removed. This cannot be undone.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error && (
@@ -77,7 +83,7 @@ export function DeletePostDialog({
           >
             {pending
               ? "Deleting…"
-              : kind === "draft"
+              : kind !== "published"
                 ? "Delete Draft"
                 : "Delete Post"}
           </AlertDialogAction>

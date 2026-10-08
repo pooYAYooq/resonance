@@ -24,6 +24,7 @@ async function retryFinalize(
 }
 
 export type UseBlockNoteFileUploadOptions = {
+  onUploadActivityChange?: (delta: 1 | -1) => void;
   resolvedImageUrls?: Record<string, string | null>;
   onUploadSessionCreated?: (
     sessionId: Id<"pendingUploads">,
@@ -35,6 +36,7 @@ export type UseBlockNoteFileUploadOptions = {
 export function useBlockNoteFileUpload({
   resolvedImageUrls = {},
   onUploadSessionCreated,
+  onUploadActivityChange,
 }: UseBlockNoteFileUploadOptions = {}) {
   const createPendingUpload = useMutation(
     api.pendingUploads.createPendingUpload,
@@ -46,6 +48,7 @@ export function useBlockNoteFileUpload({
   const objectUrls = useRef(new Map<string, string>());
   const disposed = useRef(false);
   const onUploadSessionCreatedRef = useRef(onUploadSessionCreated);
+  const onUploadActivityChangeRef = useRef(onUploadActivityChange);
   // BlockNote captures resolveFileUrl once when the editor is created, so the
   // resolver must read the latest hydrated URL map at call time instead of the
   // map that was current on first render.
@@ -53,7 +56,8 @@ export function useBlockNoteFileUpload({
 
   useEffect(() => {
     onUploadSessionCreatedRef.current = onUploadSessionCreated;
-  }, [onUploadSessionCreated]);
+    onUploadActivityChangeRef.current = onUploadActivityChange;
+  }, [onUploadSessionCreated, onUploadActivityChange]);
 
   useEffect(() => {
     resolvedImageUrlsRef.current = resolvedImageUrls;
@@ -79,59 +83,65 @@ export function useBlockNoteFileUpload({
       throw new Error("Invalid BlockNote file");
     }
 
-    const session = await createPendingUpload({});
-    let uploadedStorageId: Id<"_storage"> | undefined;
+    const activity = onUploadActivityChangeRef.current;
+    activity?.(1);
     try {
-      const uploadResult = await fetch(session.uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!uploadResult.ok) {
-        throw new Error("Failed to upload inline image");
-      }
-
-      const result = (await uploadResult.json()) as {
-        storageId: Id<"_storage">;
-      };
-      uploadedStorageId = result.storageId;
-      const finalizeResult = await retryFinalize(finalizePendingUpload, {
-        sessionId: session.sessionId,
-        storageId: result.storageId,
-      });
-      if (!finalizeResult.accepted) {
-        throw new Error("Invalid inline upload session");
-      }
-
-      const objectUrl = URL.createObjectURL(file);
-      if (disposed.current) {
-        // The hook unmounted mid-upload; revoke and skip the callback so a
-        // stale, revoked URL is never registered as the media's preview.
-        URL.revokeObjectURL(objectUrl);
-        return result.storageId;
-      }
-      objectUrls.current.set(result.storageId, objectUrl);
-      onUploadSessionCreatedRef.current?.(
-        session.sessionId,
-        result.storageId,
-        objectUrl,
-      );
-      return result.storageId;
-    } catch (error) {
+      const session = await createPendingUpload({});
+      let uploadedStorageId: Id<"_storage"> | undefined;
       try {
-        await cleanupPending({
-          uploads: [
-            {
-              sessionId: session.sessionId,
-              ...(uploadedStorageId && { storageId: uploadedStorageId }),
-            },
-          ],
+        const uploadResult = await fetch(session.uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file,
         });
-      } catch {
-        // Preserve the upload/finalization error if cleanup also fails.
+
+        if (!uploadResult.ok) {
+          throw new Error("Failed to upload inline image");
+        }
+
+        const result = (await uploadResult.json()) as {
+          storageId: Id<"_storage">;
+        };
+        uploadedStorageId = result.storageId;
+        const finalizeResult = await retryFinalize(finalizePendingUpload, {
+          sessionId: session.sessionId,
+          storageId: result.storageId,
+        });
+        if (!finalizeResult.accepted) {
+          throw new Error("Invalid inline upload session");
+        }
+
+        const objectUrl = URL.createObjectURL(file);
+        if (disposed.current) {
+          // The hook unmounted mid-upload; revoke and skip the callback so a
+          // stale, revoked URL is never registered as the media's preview.
+          URL.revokeObjectURL(objectUrl);
+          return result.storageId;
+        }
+        objectUrls.current.set(result.storageId, objectUrl);
+        onUploadSessionCreatedRef.current?.(
+          session.sessionId,
+          result.storageId,
+          objectUrl,
+        );
+        return result.storageId;
+      } catch (error) {
+        try {
+          await cleanupPending({
+            uploads: [
+              {
+                sessionId: session.sessionId,
+                ...(uploadedStorageId && { storageId: uploadedStorageId }),
+              },
+            ],
+          });
+        } catch {
+          // Preserve the upload/finalization error if cleanup also fails.
+        }
+        throw error;
       }
-      throw error;
+    } finally {
+      activity?.(-1);
     }
   };
 

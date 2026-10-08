@@ -20,6 +20,7 @@ import type * as follows from "../follows.js";
 import type * as http from "../http.js";
 import type * as likes from "../likes.js";
 import type * as notifications from "../notifications.js";
+import type * as pendingPostEdits from "../pendingPostEdits.js";
 import type * as pendingUploads from "../pendingUploads.js";
 import type * as postDeletion from "../postDeletion.js";
 import type * as postLifecycle from "../postLifecycle.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   likes: typeof likes;
   notifications: typeof notifications;
+  pendingPostEdits: typeof pendingPostEdits;
   pendingUploads: typeof pendingUploads;
   postDeletion: typeof postDeletion;
   postLifecycle: typeof postLifecycle;

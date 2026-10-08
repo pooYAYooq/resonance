@@ -12,6 +12,22 @@ const draft: ComponentProps<typeof DraftManagementRow>["draft"] = {
 };
 
 describe("DraftManagementRow", () => {
+  it("identifies pending updates and resumes the original published post editor", () => {
+    render(
+      <DraftManagementRow
+        draft={{ ...draft, sourcePostId: "post-1" as typeof draft._id }}
+        deleting={false}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Pending update")).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Resume Unfinished story" }),
+    ).toHaveAttribute("href", "/create?editPostId=post-1");
+    expect(
+      screen.getByRole("link", { name: "Unfinished story" }),
+    ).toHaveAttribute("href", "/create?editPostId=post-1");
+  });
   it("links title and Resume to the saved draft, not the public reader", () => {
     render(
       <DraftManagementRow draft={draft} deleting={false} onDelete={vi.fn()} />,

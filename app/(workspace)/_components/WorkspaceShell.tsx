@@ -9,10 +9,12 @@ import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 import { Navbar } from "@/components/web/Navbar";
 import { WorkspaceSidebar } from "./WorkspaceSidebar";
 import { WorkspacePreviewProvider } from "./WorkspacePreviewContext";
+import { useOptionalAuthoringExit } from "@/components/web/AuthoringExitProvider";
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
+  const isSigningOut = useOptionalAuthoringExit()?.isSigningOut ?? false;
   const [isPreview, setIsPreview] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
   const navbarRef = useRef<HTMLDivElement>(null);
@@ -38,12 +40,12 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   }, [isPreview, isLoading, isAuthenticated]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isSigningOut && !isLoading && !isAuthenticated) {
       router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, isSigningOut, router]);
 
-  if (isLoading || !isAuthenticated) {
+  if (!isSigningOut && (isLoading || !isAuthenticated)) {
     return (
       <div
         className="flex justify-center py-12"
@@ -57,8 +59,20 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 
   return (
     <WorkspacePreviewProvider value={{ isPreview, setIsPreview }}>
+      {isSigningOut && (
+        <div
+          className="flex justify-center py-12"
+          role="status"
+          aria-label="Signing out"
+        >
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
       <div
         ref={shellRef}
+        hidden={isSigningOut}
+        inert={isSigningOut}
+        style={isSigningOut ? { display: "none" } : undefined}
         className={isPreview ? "min-h-screen" : "flex min-h-screen"}
       >
         {!isPreview && <WorkspaceSidebar />}

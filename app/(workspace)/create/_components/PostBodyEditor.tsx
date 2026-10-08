@@ -341,6 +341,7 @@ export type PostBodyEditorProps = {
   labelledBy?: string;
   initialContent?: BlockNoteDocument;
   resolvedImageUrls?: Record<string, string | null>;
+  onUploadActivityChange?: (delta: 1 | -1) => void;
   onUploadSessionCreated?: (
     sessionId: Id<"pendingUploads">,
     storageId: Id<"_storage">,
@@ -399,6 +400,7 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
       historyResetKey = 0,
       resolvedImageUrls = {},
       onUploadSessionCreated,
+      onUploadActivityChange,
       onPasteNotice,
     },
     ref,
@@ -417,6 +419,7 @@ const PostBodyEditor = forwardRef<PostBodyEditorHandle, PostBodyEditorProps>(
     const { uploadFile, resolveFileUrl } = useBlockNoteFileUpload({
       resolvedImageUrls,
       onUploadSessionCreated,
+      onUploadActivityChange,
     });
     const editor = useCreateBlockNote({
       schema: editorSchema,

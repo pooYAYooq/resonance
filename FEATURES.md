@@ -73,6 +73,11 @@
 - Authors can edit published posts in place through `/create?editPostId=<id>`;
   edits preserve the post ID, publication time, engagement records, bookmarks,
   and feed position while advancing `updatedAt`
+- Published editing can save one pending update as a draft linked to the live
+  post; Drafts lists it with the pending title, cover, date, and a Pending
+  update label. Promoting it updates the same post and removes the draft;
+  deleting the pending draft leaves live content and media untouched, and
+  deleting the source post removes the pending draft
 - `/dashboard/published` lists the author's published posts as responsive
   management rows with 16:9 covers, linked titles, publication/update dates,
   tags, read-only like/comment counts, and grouped Edit and Delete actions
@@ -100,6 +105,18 @@
 - Silent local recovery for unsaved new posts and drafts, loaded back during
   hydration with no prompt; published edits stay page-local until Update Post
   succeeds
+- Unsaved-exit guards: app-link departures for new posts and drafts write the
+  latest recovery snapshot before leaving, with a light reminder when storage
+  fails, for published edits, or for a selected cover File; Back/Forward
+  confirms before leaving in Navigation API browsers and replays the exact
+  destination, while older browsers flush recovery synchronously; document
+  switches validate the destination before clearing the current session's
+  recovery; sign-out confirms strongly with save or discard choices; and the
+  native beforeunload warning attaches only while unsaved work or an
+  unresolved operation exists
+- Start fresh (new posts and drafts) and Cancel update (published edits)
+  confirm before discarding, clear only the current session's recovery after
+  verified deletion, and never touch saved drafts, posts, or their media
 - Media panel rows name their kind and type, show image thumbnails or audio and
   video glyphs, use plain lifecycle wording, and offer Replace and Remove for
   failed media while resolved inline editing stays in BlockNote

@@ -38,6 +38,7 @@ export type WritingSessionState = {
   proposal: CanonicalProposal | null;
   baseline: CanonicalProposal | null;
   expectedUpdatedAt?: number;
+  expectedPendingDraftId?: string | null;
   dirty: boolean;
   presentation: WritingSessionPresentation;
   media: WritingSessionMedia;
@@ -72,11 +73,13 @@ export type WritingSessionAction =
       type: "establishBaseline";
       proposal: CanonicalProposal;
       expectedUpdatedAt?: number;
+      expectedPendingDraftId?: string | null;
     }
   | {
       type: "hydrate";
       proposal: CanonicalProposal;
       expectedUpdatedAt?: number;
+      expectedPendingDraftId?: string | null;
     }
   | { type: "setProposal"; proposal: CanonicalProposal }
   | { type: "enterReview" }
@@ -96,6 +99,21 @@ export type WritingSessionAction =
             kind: "succeeded";
             proposal: CanonicalProposal;
             expectedUpdatedAt?: number;
+            expectedPendingDraftId?: string | null;
+          }
+        | { kind: "failed"; message: string }
+        | { kind: "indeterminate"; message: string };
+    }
+  | {
+      type: "settleOperation";
+      attemptId: string;
+      sessionKey?: string;
+      outcome:
+        | {
+            kind: "succeeded";
+            proposal: CanonicalProposal;
+            expectedUpdatedAt?: number;
+            expectedPendingDraftId?: string | null;
           }
         | { kind: "failed"; message: string }
         | { kind: "indeterminate"; message: string };
@@ -117,6 +135,7 @@ export type WritingSessionAction =
       type: "loadLatest";
       proposal: CanonicalProposal;
       expectedUpdatedAt?: number;
+      expectedPendingDraftId?: string | null;
     }
   | {
       type: "setCoverRemoved";
@@ -176,6 +195,7 @@ function adoptBaseline(
   state: WritingSessionState,
   proposal: CanonicalProposal,
   expectedUpdatedAt?: number,
+  expectedPendingDraftId?: string | null,
 ): WritingSessionState {
   return {
     ...state,
@@ -183,12 +203,44 @@ function adoptBaseline(
     baseline: proposal,
     pendingTarget: undefined,
     expectedUpdatedAt,
+    expectedPendingDraftId,
     dirty: false,
     media: { pending: [], failed: [], coverSelected: false },
     presentation: "edit",
     operation: { status: "idle" },
     authLock: "unlocked",
     coverRemoved: false,
+  };
+}
+
+/**
+ * Applies a confirmed save without erasing newer live work. The saved proposal
+ * becomes the baseline; the current proposal survives, so edits or a cover
+ * selection made while the save was in flight stay dirty against what was
+ * actually persisted. The pending target and auth lock clear as before.
+ */
+function adoptSavedBaseline(
+  state: WritingSessionState,
+  proposal: CanonicalProposal,
+  expectedUpdatedAt?: number,
+  expectedPendingDraftId?: string | null,
+): WritingSessionState {
+  const saved = canonicalizeProposal(proposal);
+  const live = state.proposal ?? saved;
+  return {
+    ...state,
+    proposal: live,
+    baseline: saved,
+    pendingTarget: undefined,
+    expectedUpdatedAt,
+    expectedPendingDraftId,
+    dirty: isDirty(live, saved, state.media),
+    presentation: "edit",
+    operation: { status: "idle" },
+    authLock: "unlocked",
+    // A removal that the saved proposal does not include happened while this
+    // save was running and is newer than what was persisted; it stays unsaved.
+    coverRemoved: state.coverRemoved && Boolean(saved.imageStorageId),
   };
 }
 
@@ -227,6 +279,7 @@ export function writingSessionReducer(
         state,
         canonicalizeProposal(action.proposal),
         action.expectedUpdatedAt,
+        action.expectedPendingDraftId,
       );
 
     case "hydrate":
@@ -236,6 +289,7 @@ export function writingSessionReducer(
             state,
             canonicalizeProposal(action.proposal),
             action.expectedUpdatedAt,
+            action.expectedPendingDraftId,
           );
 
     case "setProposal": {
@@ -287,10 +341,11 @@ export function writingSessionReducer(
         return state;
       }
       if (action.outcome.kind === "succeeded") {
-        return adoptBaseline(
+        return adoptSavedBaseline(
           state,
-          canonicalizeProposal(action.outcome.proposal),
+          action.outcome.proposal,
           action.outcome.expectedUpdatedAt,
+          action.outcome.expectedPendingDraftId,
         );
       }
       if (action.outcome.kind === "indeterminate") {
@@ -305,6 +360,29 @@ export function writingSessionReducer(
         };
       }
       return { ...state, operation: { status: "idle" } };
+
+    case "settleOperation": {
+      if (
+        state.operation.status !== "uncertain" ||
+        state.operation.attemptId !== action.attemptId ||
+        (action.sessionKey !== undefined &&
+          state.operation.sessionKey !== action.sessionKey)
+      ) {
+        return state;
+      }
+      if (action.outcome.kind === "succeeded") {
+        return adoptSavedBaseline(
+          state,
+          action.outcome.proposal,
+          action.outcome.expectedUpdatedAt,
+          action.outcome.expectedPendingDraftId,
+        );
+      }
+      if (action.outcome.kind === "failed") {
+        return { ...state, operation: { status: "idle" } };
+      }
+      return state;
+    }
 
     case "lockForAuth":
       return { ...state, authLock: "locked" };
@@ -347,6 +425,7 @@ export function writingSessionReducer(
         state,
         canonicalizeProposal(action.proposal),
         action.expectedUpdatedAt,
+        action.expectedPendingDraftId,
       );
 
     case "setCoverRemoved":

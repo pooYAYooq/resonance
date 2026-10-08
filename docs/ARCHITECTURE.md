@@ -59,7 +59,8 @@ resonance/
 │   │   │       ├── ReviewSurface.tsx     # Frozen read-only preview; header owns Back and Publish/Update
 │   │   │       ├── reviewReadiness.ts    # Blocks Review while inline media or a recovered cover is unresolved
 │   │   │       ├── reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders
-│   │   │       └── useDraftRecovery.ts   # New/draft local recovery; published edits stay page-local
+│   │   │       ├── useDraftRecovery.ts   # New/draft local recovery; published edits stay page-local
+│   │   │       └── EditorAbandonDialog.tsx # Start fresh / Cancel update confirmation with blocked state
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx      # Metadata-only child layout under WorkspaceShell.
 │   │   │   ├── page.tsx        # Dashboard root with independent drafts and published-post previews.
@@ -146,6 +147,8 @@ resonance/
 │   │                           # failed-submit cleanup, and bounded expiry cleanup
 │   ├── sessionMediaClaims.ts   # Short-lived owner/session media protection,
 │   │                           # bounded renewal, release, consumption, and cleanup
+│   ├── pendingPostEdits.ts     # One pending published update per post: ownership/version checks,
+│   │                           # same-post promotion, and pending-draft cleanup
  │   ├── postDeletion.ts         # Versioned, leased bounded cleanup jobs for published
  │   │                           # deletion and draft/published-edit upload reclamation
 │   ├── comments.ts             # createComment mutation, getCommentsByPostId query
@@ -312,6 +315,17 @@ components/
     │     with NEXT_PUBLIC_CONVEX_URL. Must be a client component
     │     ("use client") because it manages a real-time WebSocket.
     │     Wraps children in <AuthSync> so user records stay in sync.
+    │
+    ├── AuthoringExitProvider.tsx
+    │     Root exit coordinator mounted in app/layout.tsx inside the auth
+    │     providers. Editors register their session contract; app-link
+    │     clicks, Back/Forward traversals, and sign-out requests are decided
+    │     by lib/authoring-exit-policy.ts and surfaced one at a time.
+    │     Without a registered editor it is transparent.
+    │
+    ├── AuthoringExitDialog.tsx
+    │     Light/strong/blocking exit surfaces with bounded viewport,
+    │     Escape-as-Cancel, and focus restoration.
     │
     ├── AuthSync.tsx
     │     Client component mounted inside ConvexClientProvider. Fires
@@ -536,8 +550,25 @@ form and editor during hydration with no prompt. The snapshot is cleared when
 the session turns clean, so removed content never resurrects; effectively-empty
 snapshots are ignored. Recovery is best effort and never blocks editing when
 storage is unavailable.
+In-app departures are coordinated by `AuthoringExitProvider`, which owns one
+exit surface at a time and consumes the pure decisions in
+`lib/authoring-exit-policy.ts`; `lib/authoring-unsaved-work.ts` decides whether
+a proposal carries authored work. App-link departures for new posts and drafts
+flush the latest recovery snapshot before continuing, and a failed write is
+surfaced as a light reminder instead of a silent departure. Document switches
+validate the requested target through `getDraftById` /
+`getPublishedPostForEditing` before clearing the current session's recovery.
+Sign-out requires verified recovery deletion only when a dirty recoverable
+session exists. Back/Forward cancels same-document traversals through the
+Navigation API (`lib/authoring-history.ts`) and replays the remembered
+destination once; browsers without it flush recovery synchronously. The native
+`beforeunload` warning attaches only while meaningful unsaved work or an
+unresolved operation exists.
 Published edits are page-local until Review and Update Post succeed. They do
 not read or write recovery snapshots; stale published-edit snapshots are cleared.
+A published edit can save one pending update as a draft linked to the live post
+(`sourcePostId`); promotion publishes onto the same post and removes the pending
+draft, and deletion on either side leaves the other's content intact.
 Existing saved media remains part of the saved post while edits are in progress.
 Media availability is derived from resolved URLs, not from failed claim
 bookkeeping. New upload claim failures retry in the background and on focus or

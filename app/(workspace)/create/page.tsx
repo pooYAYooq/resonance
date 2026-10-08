@@ -14,6 +14,15 @@ import {
   type CanonicalProposal,
 } from "@/lib/write-contract";
 import { clearDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
+import {
+  hasUnsavedAuthoringWork,
+  isEffectivelyEmptyProposal,
+} from "@/lib/authoring-unsaved-work";
+import {
+  useAuthoringExit,
+  type ExitRegistration,
+} from "@/components/web/AuthoringExitProvider";
+import type { ExitSaveResult } from "@/lib/authoring-exit-policy";
 import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
@@ -39,6 +48,7 @@ import {
 } from "./_components/coverResolution";
 import CoverAuthoring from "./_components/CoverAuthoring";
 import DocumentStudio from "./_components/DocumentStudio";
+import { EditorAbandonDialog } from "./_components/EditorAbandonDialog";
 import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
 import {
   getCoverRecoveryBlocker,
@@ -142,23 +152,6 @@ function collectInlineMedia(
   };
   visit(blocks);
   return assets;
-}
-
-/**
- * True when a proposal carries no authored work: no title, no tags, and only
- * empty paragraphs. The editor always materializes one empty paragraph, which
- * otherwise reads as an unsaved change on a brand-new post.
- */
-function isEffectivelyEmptyProposal(proposal: CanonicalProposal): boolean {
-  if (proposal.title.trim() || proposal.tags.length > 0) return false;
-  const document = parseCanonicalDocument(proposal.body);
-  if (!document) return false;
-  return document.blocks.every(
-    (block) =>
-      block.type === "paragraph" &&
-      (block.content?.length ?? 0) === 0 &&
-      (block.children?.length ?? 0) === 0,
-  );
 }
 
 /**
@@ -321,7 +314,15 @@ export default function CreateRoute() {
 
 function CreateEditor() {
   const convex = useConvex();
-  const { uploadFile } = useBlockNoteFileUpload();
+  const activeUploadsRef = useRef(0);
+  const [activeUploads, setActiveUploads] = useState(0);
+  const trackUploadActivity = useCallback((delta: 1 | -1) => {
+    activeUploadsRef.current += delta;
+    setActiveUploads(activeUploadsRef.current);
+  }, []);
+  const { uploadFile } = useBlockNoteFileUpload({
+    onUploadActivityChange: trackUploadActivity,
+  });
   const [isPending, startTransition] = useTransition();
   const [draftId, setDraftId] = useState<Id<"posts"> | undefined>();
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage">>();
@@ -371,15 +372,37 @@ function CreateEditor() {
   const publishPost = useMutation(api.posts.publishPost);
   const updatePublishedPost = useMutation(api.posts.updatePublishedPost);
   const reserveAttempt = useMutation(api.writeAttempts.reserveAttempt);
+  const reconcileAttempt = useMutation(api.writeAttempts.reconcileAttempt);
+  const { register: registerExit } = useAuthoringExit();
+  const exitRegistrationRef = useRef<ExitRegistration | null>(null);
+  const exitListeners = useRef(new Set<() => void>());
+  const exitSaveCompletion = useRef<{
+    resolve: (result: ExitSaveResult) => void;
+    result?: ExitSaveResult;
+  } | null>(null);
+  const reconciliationCompletion = useRef<(() => void) | null>(null);
+  const attemptedWrite = useRef<{
+    attemptId: Id<"writeAttempts">;
+    sessionKey: string;
+    proposal: CanonicalProposal & { imageStorageId?: Id<"_storage"> };
+  } | null>(null);
   const inlineSessions = useRef(
     new Map<Id<"pendingUploads">, Id<"_storage">>(),
   );
   const clearedCoverSelection = useRef<File | undefined>(undefined);
   const selectedCoverRef = useRef<File | undefined>(undefined);
+  // Live removal flag for save completions: their callbacks close over stale
+  // render state, but a cover removed during a save must survive it.
+  const coverRemovedLiveRef = useRef(false);
   const claimedMedia = useRef(new Set<Id<"_storage">>());
   const pendingClaims = useRef(new Set<Id<"_storage">>());
   const [recoveryNonce, setRecoveryNonce] = useState(0);
   const [historyResetKey, setHistoryResetKey] = useState(0);
+  const [abandonOpen, setAbandonOpen] = useState(false);
+  const [abandonError, setAbandonError] = useState<string | null>(null);
+  const abandonButtonRef = useRef<HTMLButtonElement>(null);
+  const resettingTargetRef = useRef<string | null>(null);
+  const recoveryGenerationRef = useRef(0);
 
   const form = useForm<PostFormInput, undefined, PostFormOutput>({
     resolver: zodResolver(draftPostSchema),
@@ -629,6 +652,14 @@ function CreateEditor() {
   );
 
   useEffect(() => {
+    const requestedKey = requestedTarget
+      ? `${requestedTarget.editorMode}:${requestedTarget.id ?? "new"}`
+      : "invalid";
+    if (resettingTargetRef.current !== null) {
+      if (resettingTargetRef.current === requestedKey) return;
+      resettingTargetRef.current = null;
+    }
+    const recoveryGeneration = recoveryGenerationRef.current;
     if (!requestedTarget) {
       if (sessionState.pendingTarget) {
         dispatchSession({ type: "rejectTarget" });
@@ -727,14 +758,32 @@ function CreateEditor() {
         tags: pendingData.tags as PostFormInput["tags"],
         image: undefined,
       });
-      dispatchSession({ type: "acceptTarget", target: pendingTarget });
+      const adoptedTarget: WritingSessionTarget =
+        pendingTarget.editorMode === "draft" && pendingDraft?.sourcePostId
+          ? { editorMode: "published-edit", id: pendingDraft.sourcePostId }
+          : pendingTarget;
+      if (adoptedTarget !== pendingTarget) {
+        resettingTargetRef.current = `${requestedTarget.editorMode}:${requestedTarget.id ?? "new"}`;
+        router.replace(
+          `/create?editPostId=${encodeURIComponent(adoptedTarget.id!)}`,
+          { scroll: false },
+        );
+      }
+      dispatchSession({ type: "acceptTarget", target: adoptedTarget });
       dispatchSession({
         type: "loadLatest",
         proposal: latestProposal,
         expectedUpdatedAt: pendingData.updatedAt,
+        expectedPendingDraftId:
+          adoptedTarget.editorMode === "published-edit"
+            ? pendingTarget.editorMode === "draft"
+              ? pendingData._id
+              : (pendingPublishedPost?.pendingDraftId ?? null)
+            : undefined,
       });
       setAcceptedTargetError(undefined);
-      if (pendingTarget.editorMode === "draft") setDraftId(pendingData._id);
+      if (adoptedTarget.editorMode === "draft") setDraftId(pendingData._id);
+      else setDraftId(undefined);
       resetCoverSelectionRefs();
       setCoverStorageId(pendingData.imageStorageId ?? undefined);
       setCoverImageUrl(pendingData.imageUrl ?? undefined);
@@ -747,7 +796,7 @@ function CreateEditor() {
           ]),
         ),
       );
-      hydratedSessionKey.current = pendingSessionKey;
+      hydratedSessionKey.current = `${adoptedTarget.editorMode}:${adoptedTarget.id ?? "new"}`;
       return;
     }
 
@@ -794,7 +843,11 @@ function CreateEditor() {
         setInitialContent(recovered.document);
         void resolveRecoveredMediaUrls(convex, recovered.document, {}).then(
           (urls) => {
-            if (hydratedSessionKey.current !== sessionKey) return;
+            if (
+              hydratedSessionKey.current !== sessionKey ||
+              recoveryGenerationRef.current !== recoveryGeneration
+            )
+              return;
             setResolvedImageUrls(urls);
             claimRecoveredMedia(urls);
             setRecoveryNonce((nonce) => nonce + 1);
@@ -818,6 +871,19 @@ function CreateEditor() {
 
     const target =
       editorMode.mode === "draft" ? hydratedDraft : hydratedPublishedPost;
+    if (editorMode.mode === "draft" && hydratedDraft?.sourcePostId) {
+      const id = hydratedDraft.sourcePostId;
+      resettingTargetRef.current = requestedSessionKey;
+      dispatchSession({
+        type: "acceptTarget",
+        target: { editorMode: "published-edit", id },
+      });
+      setDraftId(undefined);
+      router.replace(`/create?editPostId=${encodeURIComponent(id)}`, {
+        scroll: false,
+      });
+      return;
+    }
     if (
       (editorMode.mode !== "draft" && editorMode.mode !== "published-edit") ||
       target === undefined
@@ -843,6 +909,10 @@ function CreateEditor() {
       type: "establishBaseline",
       proposal: serverProposal,
       expectedUpdatedAt: target.updatedAt,
+      expectedPendingDraftId:
+        editorMode.mode === "published-edit"
+          ? (hydratedPublishedPost?.pendingDraftId ?? null)
+          : undefined,
     });
     const serverImages = Object.fromEntries(
       target.inlineImages.map(({ storageId, url }) => [storageId, url]),
@@ -895,7 +965,11 @@ function CreateEditor() {
         recovered.document,
         serverImages,
       ).then((urls) => {
-        if (hydratedSessionKey.current !== sessionKey) return;
+        if (
+          hydratedSessionKey.current !== sessionKey ||
+          recoveryGenerationRef.current !== recoveryGeneration
+        )
+          return;
         setResolvedImageUrls(urls);
         claimRecoveredMedia(urls);
         setRecoveryNonce((nonce) => nonce + 1);
@@ -969,6 +1043,10 @@ function CreateEditor() {
     });
   }, [dispatchSession, inlineMedia, sessionState.media, watchedValues.image]);
 
+  useEffect(() => {
+    coverRemovedLiveRef.current = sessionState.coverRemoved;
+  }, [sessionState.coverRemoved]);
+
   useEffect(
     () => () => {
       if (coverObjectUrlRef.current) {
@@ -1000,12 +1078,257 @@ function CreateEditor() {
   const activeSessionKey = `${editorMode.mode}:${editorMode.id ?? "new"}`;
   activeSessionKeyRef.current = activeSessionKey;
 
-  useDraftRecovery({
+  const draftRecovery = useDraftRecovery({
     sessionKey: activeSessionKey,
     ready: sessionState.baseline !== null,
     dirty: sessionState.dirty,
     proposal,
   });
+
+  useEffect(() => {
+    exitRegistrationRef.current = {
+      getSession: () => ({
+        sessionKey: activeSessionKey,
+        mode: editorMode.mode,
+        proposal: {
+          title: form.getValues("title"),
+          body: JSON.stringify(form.getValues("content")),
+          tags: [...(form.getValues("tags") ?? [])],
+          ...(coverStorageId &&
+            !sessionState.coverRemoved && { imageStorageId: coverStorageId }),
+        },
+        baseline: sessionState.baseline,
+        selectedCover: Boolean(form.getValues("image")),
+        pendingUploads: activeUploadsRef.current,
+        failedMedia: sessionState.media.failed.length > 0,
+        saving: isPending,
+        uncertain: sessionState.operation.status === "uncertain",
+        coverRemoved: sessionState.coverRemoved,
+      }),
+      flushRecovery: draftRecovery.flush,
+      clearRecovery: draftRecovery.abandon,
+      resumeRecovery: draftRecovery.resume,
+      saveDraft: async () => {
+        if (!(await form.trigger()))
+          return {
+            kind: "failed",
+            message: "Check the highlighted fields before saving.",
+          };
+        const values = draftPostSchema.safeParse(form.getValues());
+        if (!values.success)
+          return {
+            kind: "failed",
+            message: "Check the highlighted fields before saving.",
+          };
+        return onSubmit(
+          toLiveSubmission(
+            values.data,
+            sessionState.coverRemoved ? undefined : coverStorageId,
+          ),
+          "draft",
+        );
+      },
+      validateTarget: async (requested) => {
+        if (requested.editorMode === "new") return { ok: true };
+        const document =
+          requested.editorMode === "draft"
+            ? await convex.query(api.posts.getDraftById, {
+                draftId: requested.id ?? "",
+              })
+            : await convex.query(api.posts.getPublishedPostForEditing, {
+                postId: requested.id ?? "",
+              });
+        return document && parsePostBody(document.body).kind === "structured"
+          ? { ok: true }
+          : { ok: false, message: "That document is unavailable." };
+      },
+      adoptTarget: (requested) =>
+        dispatchSession({ type: "confirmTarget", target: requested }),
+      startFresh: performEditorAbandon,
+      cancelUpdate: performEditorAbandon,
+      reconcile: async () => {
+        const binding = attemptedWrite.current;
+        if (!binding || binding.sessionKey !== activeSessionKey)
+          throw new Error("No matching save attempt is available.");
+        const result = await reconcileAttempt({
+          attemptId: binding.attemptId,
+          proposal: binding.proposal,
+        });
+        if (activeSessionKeyRef.current !== binding.sessionKey)
+          throw new Error(
+            "The writing session changed. Keep editing the current document.",
+          );
+        if (result.kind === "indeterminate") throw new Error(result.message);
+        const settled = new Promise<void>((resolve) => {
+          reconciliationCompletion.current = resolve;
+        });
+        if (result.kind === "succeeded") {
+          if (result.status === "draft" && editorMode.mode !== "published-edit")
+            setDraftId(result.postId);
+          // A cover removed while the save outcome was unresolved is newer
+          // than the reconciled attempt; do not restore it.
+          if (!coverRemovedLiveRef.current)
+            setCoverStorageId(binding.proposal.imageStorageId);
+        }
+        dispatchSession({
+          type: "settleOperation",
+          attemptId: binding.attemptId,
+          sessionKey: binding.sessionKey,
+          outcome:
+            result.kind === "succeeded"
+              ? {
+                  kind: "succeeded",
+                  proposal: binding.proposal,
+                  expectedUpdatedAt: result.updatedAt,
+                  expectedPendingDraftId: result.pendingDraftId ?? null,
+                }
+              : { kind: "failed", message: result.message },
+        });
+        await settled;
+      },
+    };
+    for (const notify of exitListeners.current) notify();
+  });
+
+  useEffect(
+    () =>
+      registerExit({
+        getSession: () => exitRegistrationRef.current!.getSession(),
+        subscribe: (listener) => {
+          exitListeners.current.add(listener);
+          return () => {
+            exitListeners.current.delete(listener);
+          };
+        },
+        flushRecovery: () => exitRegistrationRef.current!.flushRecovery(),
+        clearRecovery: () => exitRegistrationRef.current!.clearRecovery(),
+        resumeRecovery: () => exitRegistrationRef.current!.resumeRecovery(),
+        saveDraft: () => exitRegistrationRef.current!.saveDraft(),
+        validateTarget: (requested) =>
+          exitRegistrationRef.current!.validateTarget(requested),
+        adoptTarget: (requested) =>
+          exitRegistrationRef.current!.adoptTarget(requested),
+        startFresh: () => exitRegistrationRef.current!.startFresh(),
+        cancelUpdate: () => exitRegistrationRef.current!.cancelUpdate(),
+        reconcile: () => exitRegistrationRef.current!.reconcile(),
+      }),
+    [registerExit],
+  );
+
+  // Resolve exit saves only after React commits the settled operation and
+  // fresh baseline, never merely because startTransition returned.
+  useEffect(() => {
+    const completion = exitSaveCompletion.current;
+    if (!isPending && completion?.result) {
+      exitSaveCompletion.current = null;
+      completion.resolve(completion.result);
+    }
+    if (
+      sessionState.operation.status === "idle" &&
+      reconciliationCompletion.current
+    ) {
+      const resolve = reconciliationCompletion.current;
+      reconciliationCompletion.current = null;
+      resolve();
+    }
+  });
+
+  useEffect(() => {
+    draftRecovery.resume();
+  }, [recoveryNonce, draftRecovery]);
+
+  const abandonBlocked =
+    isPending ||
+    sessionState.operation.status !== "idle" ||
+    sessionState.authLock === "locked" ||
+    sessionState.baseline === null ||
+    Boolean(sessionState.pendingTarget) ||
+    sessionState.media.pending.length > 0 ||
+    activeUploads > 0;
+
+  function performEditorAbandon() {
+    if (abandonBlocked || activeUploadsRef.current > 0) return;
+    if (editorMode.mode === "published-edit") {
+      setAbandonOpen(false);
+      router.push("/dashboard/published");
+      return;
+    }
+    const result = draftRecovery.abandon();
+    if (!result.ok) {
+      draftRecovery.resume();
+      setAbandonError(
+        "Could not clear the recovery copy. Your writing is still here. Try again or keep editing.",
+      );
+      setAbandonOpen(true);
+      return;
+    }
+    // Clear only this session. A different new-post recovery copy is not ours
+    // to discard; hydration is bypassed for this intentional blank session.
+    recoveryGenerationRef.current += 1;
+    if (requestedTarget && requestedTarget.editorMode !== "new") {
+      resettingTargetRef.current = `${requestedTarget.editorMode}:${requestedTarget.id ?? "new"}`;
+    }
+    const storageIds = [...claimedMedia.current];
+    if (storageIds.length > 0) {
+      void Promise.resolve(
+        releaseSessionMedia({ sessionId: activeSessionKey, storageIds }),
+      ).catch(() => undefined);
+    }
+    claimedMedia.current.clear();
+    pendingClaims.current.clear();
+    const uploads = [...inlineSessions.current].map(
+      ([sessionId, storageId]) => ({ sessionId, storageId }),
+    );
+    if (uploads.length > 0) {
+      void Promise.resolve(cleanupPendingUploads({ uploads })).catch(
+        () => undefined,
+      );
+    }
+    inlineSessions.current.clear();
+    selectedCoverRef.current = undefined;
+    clearedCoverSelection.current = undefined;
+    if (coverObjectUrlRef.current)
+      URL.revokeObjectURL(coverObjectUrlRef.current);
+    coverObjectUrlRef.current = undefined;
+    coverResolutionGeneration.current += 1;
+    clearCoverRetry();
+    setCoverRecovery(null);
+    setCoverStorageId(undefined);
+    setCoverImageUrl(undefined);
+    setDraftId(undefined);
+    setReviewSnapshot(null);
+    setAcceptedTargetError(undefined);
+    setResolvedImageUrls({});
+    setInitialContent(emptyDocument);
+    form.reset({
+      title: "",
+      content: emptyDocument,
+      tags: [],
+      image: undefined,
+    });
+    dispatchSession({ type: "acceptTarget", target: { editorMode: "new" } });
+    dispatchSession({
+      type: "establishBaseline",
+      proposal: { title: "", body: JSON.stringify(emptyDocument), tags: [] },
+    });
+    hydratedSessionKey.current = "new:new";
+    setRecoveryNonce((nonce) => nonce + 1);
+    setHistoryResetKey((key) => key + 1);
+    setAbandonOpen(false);
+    router.replace("/create", { scroll: false });
+  }
+
+  function requestEditorAbandon() {
+    if (abandonBlocked || activeUploadsRef.current > 0) return;
+    setAbandonError(null);
+    const unsaved =
+      Boolean(watchedValues.image) ||
+      sessionState.media.failed.length > 0 ||
+      (sessionState.baseline !== null &&
+        hasUnsavedAuthoringWork(proposal, sessionState.baseline));
+    if (unsaved) setAbandonOpen(true);
+    else performEditorAbandon();
+  }
 
   useEffect(() => {
     const sessionKey = activeSessionKey;
@@ -1147,12 +1470,22 @@ function CreateEditor() {
     }
   }
 
-  function onSubmit(submission: ReviewSubmission, mode: SubmitMode) {
-    if (sessionState.pendingTarget) return;
-    if (editorMode.mode === "published-edit") mode = "publish";
+  function onSubmit(
+    submission: ReviewSubmission,
+    mode: SubmitMode,
+  ): Promise<ExitSaveResult> {
+    if (sessionState.pendingTarget || isPending || exitSaveCompletion.current)
+      return Promise.resolve({
+        kind: "failed",
+        message: "Wait for the current operation to finish.",
+      });
     // A recovered cover that is still resolving or failed blocks publishing
     // and updating. Draft saves stay available so the intent is never lost.
-    if (mode === "publish" && coverRecovery) return;
+    if (mode === "publish" && coverRecovery)
+      return Promise.resolve({
+        kind: "failed",
+        message: "Resolve the cover before publishing.",
+      });
     if (mode === "publish") {
       const publishValues = publishPostSchema.safeParse({
         title: submission.title,
@@ -1168,7 +1501,10 @@ function CreateEditor() {
         } else if (issue) {
           toast.error(issue.message);
         }
-        return;
+        return Promise.resolve({
+          kind: "failed",
+          message: issue?.message ?? "Invalid content",
+        });
       }
     }
 
@@ -1176,6 +1512,9 @@ function CreateEditor() {
     const operationSessionKey = `${sessionState.editorMode}:${
       sessionState.targetId ?? "new"
     }`;
+    const completed = new Promise<ExitSaveResult>((resolve) => {
+      exitSaveCompletion.current = { resolve };
+    });
     startTransition(async () => {
       const submitSessions = new Map(inlineSessions.current);
       let draftSaved = false;
@@ -1186,6 +1525,7 @@ function CreateEditor() {
       let mutationSucceeded = false;
       let operationAttemptId: string | undefined;
       let operationSessionKeySettled = false;
+      let operationIndeterminate = false;
       try {
         let storageId: Id<"_storage"> | undefined;
 
@@ -1201,6 +1541,11 @@ function CreateEditor() {
 
           if (!uploadResult.ok) {
             toast.error("Failed to upload image");
+            if (exitSaveCompletion.current)
+              exitSaveCompletion.current.result = {
+                kind: "failed",
+                message: "Failed to upload image",
+              };
             return;
           }
 
@@ -1246,7 +1591,7 @@ function CreateEditor() {
           ...(savedCoverStorageId && { imageStorageId: savedCoverStorageId }),
         };
         const operationKind =
-          editorMode.mode === "published-edit"
+          editorMode.mode === "published-edit" && mode === "publish"
             ? "update-post"
             : mode === "publish"
               ? "publish"
@@ -1262,6 +1607,10 @@ function CreateEditor() {
           ...(sessionState.expectedUpdatedAt !== undefined && {
             expectedUpdatedAt: sessionState.expectedUpdatedAt,
           }),
+          ...(editorMode.mode === "published-edit" && {
+            expectedPendingDraftId: (sessionState.expectedPendingDraftId ??
+              null) as Id<"posts"> | null,
+          }),
           proposal,
         });
         dispatchSession({
@@ -1271,8 +1620,13 @@ function CreateEditor() {
           sessionKey: operationSessionKey,
         });
         operationAttemptId = reservation.attemptId;
+        attemptedWrite.current = {
+          attemptId: reservation.attemptId,
+          sessionKey: operationSessionKey,
+          proposal,
+        };
         const result =
-          editorMode.mode === "published-edit"
+          editorMode.mode === "published-edit" && mode === "publish"
             ? await updatePublishedPost({
                 attemptId: reservation.attemptId,
                 proposal,
@@ -1304,6 +1658,10 @@ function CreateEditor() {
         };
         const isCurrentSession =
           activeSessionKeyRef.current === operationSessionKey;
+        // A cover the author removed while this save was running is newer
+        // than what was submitted; keep it unsaved instead of restoring it.
+        const coverRemovedDuringSave =
+          Boolean(savedCoverStorageId) && coverRemovedLiveRef.current;
         if (
           isCurrentSession &&
           submittedImage &&
@@ -1315,8 +1673,24 @@ function CreateEditor() {
             shouldDirty: true,
             shouldTouch: true,
           });
+          dispatchSession({
+            type: "setMedia",
+            media: { ...sessionState.media, coverSelected: false },
+          });
         }
         if (isCurrentSession) {
+          dispatchSession({
+            type: "setProposal",
+            proposal: {
+              title: form.getValues("title"),
+              body: JSON.stringify(form.getValues("content")),
+              tags: [...(form.getValues("tags") ?? [])],
+              ...(savedCoverStorageId &&
+                !coverRemovedDuringSave && {
+                  imageStorageId: savedCoverStorageId,
+                }),
+            },
+          });
           // Never erase edits made while the submitted save was in flight.
           // Re-hydrate only when the live body still matches the submission;
           // otherwise the editor keeps the newer content and the baseline
@@ -1338,6 +1712,7 @@ function CreateEditor() {
             kind: "succeeded",
             proposal: persistedProposal,
             expectedUpdatedAt: result.updatedAt,
+            expectedPendingDraftId: result.pendingDraftId ?? null,
           },
         });
         const currentCoverSelection = selectedCoverRef.current;
@@ -1355,11 +1730,13 @@ function CreateEditor() {
         if (isCurrentSession) {
           draftSaved = mode === "draft";
           if (result.status === "draft") {
-            setDraftId(result.postId);
-            setCoverStorageId(savedCoverStorageId);
+            if (editorMode.mode !== "published-edit") setDraftId(result.postId);
+            if (!coverRemovedDuringSave) setCoverStorageId(savedCoverStorageId);
           }
         }
         mutationSucceeded = true;
+        if (exitSaveCompletion.current)
+          exitSaveCompletion.current.result = { kind: "saved" };
 
         if (unconsumedUploads.length > 0) {
           try {
@@ -1379,18 +1756,23 @@ function CreateEditor() {
           }
         }
         if (!isCurrentSession) return;
-        if (editorMode.mode === "published-edit") {
+        if (editorMode.mode === "published-edit" && mode === "publish") {
           toast.success("Post updated successfully!");
           router.push("/dashboard/published");
         } else if (mode === "publish") {
           toast.success("Post published successfully!");
           router.push("/blog");
         } else {
-          toast.success("Draft saved successfully!");
+          toast.success(
+            editorMode.mode === "published-edit"
+              ? "Pending update saved as draft."
+              : "Draft saved successfully!",
+          );
         }
       } catch (error) {
         console.error("Save post failed", error);
         if (operationAttemptId && !operationSessionKeySettled) {
+          operationIndeterminate = true;
           dispatchSession({
             type: "finishOperation",
             attemptId: operationAttemptId,
@@ -1403,6 +1785,7 @@ function CreateEditor() {
           operationSessionKeySettled = true;
         }
         if (
+          !operationIndeterminate &&
           !mutationSucceeded &&
           (editorMode.mode === "published-edit" ||
             (!draftSaved && unconsumedUploads.length === 0))
@@ -1411,7 +1794,7 @@ function CreateEditor() {
             ([sessionId, storageId]) => ({ sessionId, storageId }),
           );
         }
-        if (unconsumedUploads.length > 0) {
+        if (!operationIndeterminate && unconsumedUploads.length > 0) {
           try {
             await cleanupPendingUploads({ uploads: unconsumedUploads });
           } catch (cleanupError) {
@@ -1425,6 +1808,11 @@ function CreateEditor() {
         }
 
         const message = error instanceof Error ? error.message : String(error);
+        if (exitSaveCompletion.current)
+          exitSaveCompletion.current.result = {
+            kind: operationIndeterminate ? "uncertain" : "failed",
+            message,
+          };
         toast.error(
           message.includes("Inline image expired")
             ? "An inline image expired. Re-upload it and try again."
@@ -1432,6 +1820,7 @@ function CreateEditor() {
         );
       }
     });
+    return completed;
   }
 
   const coverRemoved = sessionState.coverRemoved;
@@ -1635,7 +2024,7 @@ function CreateEditor() {
           reviewing
             ? "One last look before your readers see it."
             : editorMode.mode === "published-edit"
-              ? "Review your changes before updating your post."
+              ? "Save a draft, or review changes before updating your post."
               : "Make it yours. Review it before publishing."
         }
         cover={
@@ -1784,6 +2173,7 @@ function CreateEditor() {
                       initialContent={initialContent}
                       resolvedImageUrls={resolvedImageUrls}
                       onPasteNotice={(message) => toast(message)}
+                      onUploadActivityChange={trackUploadActivity}
                       onUploadSessionCreated={(
                         sessionId,
                         storageId,
@@ -1903,42 +2293,64 @@ function CreateEditor() {
                 editorMode.mode === "published-edit"
                   ? isPending
                     ? "Updating post"
-                    : "Update Post"
+                    : "Update post"
                   : undefined
               }
               disabled={isPending || Boolean(reviewBlocker)}
               onClick={submitFromReview}
             >
-              {isPending
-                ? editorMode.mode === "published-edit"
-                  ? "Updating..."
-                  : "Publishing..."
-                : editorMode.mode === "published-edit"
-                  ? (
-                      <>
-                        <span className="hidden sm:inline">Update Post</span>
-                        <span className="sm:hidden">Update</span>
-                      </>
-                    )
-                  : "Publish"}
+              {isPending ? (
+                editorMode.mode === "published-edit" ? (
+                  "Updating..."
+                ) : (
+                  "Publishing..."
+                )
+              ) : editorMode.mode === "published-edit" ? (
+                <>
+                  <span className="hidden sm:inline">Update post</span>
+                  <span className="sm:hidden">Update</span>
+                </>
+              ) : (
+                "Publish"
+              )}
             </Button>
           ) : (
             <>
+              <Button
+                ref={abandonButtonRef}
+                type="button"
+                variant="ghost"
+                disabled={abandonBlocked}
+                onClick={requestEditorAbandon}
+              >
+                {editorMode.mode === "published-edit"
+                  ? "Cancel update"
+                  : "Start fresh"}
+              </Button>
               {capabilities.canSaveDraft && (
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={isPending || Boolean(sessionState.pendingTarget)}
+                  disabled={
+                    isPending ||
+                    Boolean(sessionState.pendingTarget) ||
+                    sessionState.operation.status === "uncertain" ||
+                    sessionState.baseline === null ||
+                    (!watchedValues.image &&
+                      !sessionState.coverRemoved &&
+                      sessionState.media.failed.length === 0 &&
+                      !hasUnsavedAuthoringWork(proposal, sessionState.baseline))
+                  }
                   onClick={() => {
-                    void form.handleSubmit((values) =>
-                      onSubmit(
+                    void form.handleSubmit((values) => {
+                      void onSubmit(
                         toLiveSubmission(values, coverStorageId),
                         "draft",
-                      ),
-                    )();
+                      );
+                    })();
                   }}
                 >
-                  Save Draft
+                  Save draft
                 </Button>
               )}
               {capabilities.canPublish && (
@@ -1966,6 +2378,17 @@ function CreateEditor() {
             </>
           )
         }
+      />
+      <EditorAbandonDialog
+        mode={
+          editorMode.mode === "published-edit" ? "cancel-update" : "start-fresh"
+        }
+        open={abandonOpen}
+        blocked={abandonBlocked}
+        error={abandonError}
+        onCancel={() => setAbandonOpen(false)}
+        onConfirm={performEditorAbandon}
+        onRestoreFocus={() => abandonButtonRef.current?.focus()}
       />
     </form>
   );

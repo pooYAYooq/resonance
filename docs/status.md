@@ -39,10 +39,8 @@ both cases; verification passed lint, 506 edge-runtime tests, 567 component
 tests, and the production build on 2026-10-07. Browser acceptance covered
 malformed `draftId` and `editPostId` direct navigation, a dual-target request,
 a history Back transition with unsaved content, and Review preservation, with
-no client-side exceptions and no test data persisted. Next: the remaining
-Phase 3A.3 Track 4 work, with V1-15 awaiting its dedicated spec (see Blockers)
-and V1-16's accessibility evidence pass open; the V1-22 shared page-state work
-stays Todo.
+no client-side exceptions and no test data persisted. Next: V1-16
+accessibility evidence; the V1-22 shared page-state work stays Todo.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
@@ -87,15 +85,20 @@ reported browser acceptance for covers, Resume, deletion, and responsive themes;
 pagination is automated-test verified. The merged revision re-passed lint, 504
 edge-runtime tests, 552 component tests, and the production build on 2026-10-06.
 
-The dedicated spec for V1-15 unsaved-exit guards remains required before
-implementation; see Blockers. Wide-screen reader rail contents remain queued,
-and Dashboard Overview purpose and composition remain deferred to a separate
-comprehensive design session.
+V1-15 unsaved-exit guards are complete on `design/unsaved-exit-guards` and
+ship with their documentation record in the same change: verified silent
+recovery before app-link departures, light Back/Forward and document-switch
+confirmations, stronger sign-out choices, the native warning only while work
+is unsaved, and one pending update for published edits. The history proof
+gate closed by agreeing evergreen browser coverage (the Navigation API is
+Baseline since January 2026) with a synchronous recovery flush on older
+browsers. Next: V1-16 accessibility evidence. Wide-screen reader rail contents
+remain queued, and Dashboard Overview purpose and composition remain deferred
+to a separate comprehensive design session.
 
 ## Blockers
 
-- V1-15 unsaved-exit guards are in v1.0 but need a dedicated spec before
-  implementation.
+- None.
 
 ## Known limitations
 
@@ -132,11 +135,31 @@ comprehensive design session.
 - The title's Enter-to-body focus move depends on the dynamic import forwarding
   the body editor handle; the jsdom component tests cannot exercise it, so it is
   browser-verified only.
+- Browsers without the Navigation API (pre-Firefox 147, pre-Safari 26.2) cannot
+  cancel Back/Forward; they flush the latest new/draft recovery synchronously
+  instead. Published edits and a selected cover File can still be lost on
+  Back/Forward there, with no dialog. Firefox and Safari were not manually
+  exercised.
+- Native beforeunload wording is browser-controlled and may not appear; crashes
+  and forced shutdowns can still lose work, and unload performs no server save
+  or upload.
+- A cover removal alone still confirms lightly on app navigation even though
+  the recovery snapshot can represent it, because an effectively-empty draft
+  cannot (the removal would be lost silently). A validated target switch can
+  clear recovery just before a page-level adoption rejection; the in-memory
+  document is retained in that narrow race.
+- A draft first saved from a new post keeps the `/create` URL, so the sidebar
+  New Post link resolves to the same URL and does nothing in that session
+  (Start fresh opens a new post instead). The URL is not rewritten after the
+  first save.
+- `pnpm test:component` parallel runs are flaky under worker contention; the
+  single-worker run is the authoritative component-suite evidence.
 
 ## Local design and plan artifacts
 
-Active, local, and untracked: none at present. The wide-screen reader rail
-design session will add its spec and plan here.
+None active. The V1-15 spec, plan, and execution ledger were archived to
+`/home/studio/projects/resonance-docs-archive/superpowers-2026-10-09/` on the
+maintainer's workstation and removed from the worktree.
 
 Completed task artifacts are archived and removed rather than preserved in
 place; see the artifact lifecycle in `AGENTS.md` ("Documentation"). The

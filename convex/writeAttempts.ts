@@ -44,6 +44,7 @@ const writeSuccessValidator = v.object({
   kind: v.literal("succeeded"),
   postId: v.id("posts"),
   updatedAt: v.number(),
+  pendingDraftId: v.optional(v.id("posts")),
   status: v.union(v.literal("draft"), v.literal("published")),
 });
 const writeFailureValidator = v.object({
@@ -61,6 +62,7 @@ const reconciliationResultValidator = v.union(
     kind: v.literal("succeeded"),
     postId: v.id("posts"),
     updatedAt: v.number(),
+    pendingDraftId: v.optional(v.id("posts")),
     status: v.union(v.literal("draft"), v.literal("published")),
   }),
   v.object({
@@ -86,6 +88,7 @@ function assertSameBinding(
     operationKind: WriteAttempt["operationKind"];
     postId?: Id<"posts">;
     expectedUpdatedAt?: number;
+    expectedPendingDraftId?: Id<"posts"> | null;
     fingerprint: string;
   },
 ) {
@@ -93,6 +96,10 @@ function assertSameBinding(
     attempt.operationKind !== args.operationKind ||
     !sameOptionalValue(attempt.postId, args.postId) ||
     !sameOptionalValue(attempt.expectedUpdatedAt, args.expectedUpdatedAt) ||
+    !sameOptionalValue(
+      attempt.expectedPendingDraftId,
+      args.expectedPendingDraftId,
+    ) ||
     attempt.fingerprint !== args.fingerprint
   ) {
     throw new ConvexError("Request binding mismatch");
@@ -133,6 +140,9 @@ function getRecordedOutcome(attempt: WriteAttempt) {
       kind: "succeeded" as const,
       postId: attempt.outcome.postId,
       updatedAt: attempt.outcome.updatedAt,
+      ...(attempt.outcome.pendingDraftId && {
+        pendingDraftId: attempt.outcome.pendingDraftId,
+      }),
       status: attempt.outcome.status,
     };
   }
@@ -158,6 +168,7 @@ export const reserveAttempt = mutation({
     operationKind: operationKindValidator,
     postId: v.optional(v.id("posts")),
     expectedUpdatedAt: v.optional(v.number()),
+    expectedPendingDraftId: v.optional(v.union(v.id("posts"), v.null())),
     proposal: writeProposalValidator,
   },
   returns: reserveResultValidator,
@@ -187,6 +198,7 @@ export const reserveAttempt = mutation({
         operationKind: args.operationKind,
         postId: args.postId,
         expectedUpdatedAt: args.expectedUpdatedAt,
+        expectedPendingDraftId: args.expectedPendingDraftId,
         fingerprint,
       });
       return { attemptId: existing._id, expiresAt: existing.expiresAt };
@@ -199,6 +211,7 @@ export const reserveAttempt = mutation({
       operationKind: args.operationKind,
       postId: args.postId,
       expectedUpdatedAt: args.expectedUpdatedAt,
+      expectedPendingDraftId: args.expectedPendingDraftId,
       fingerprint,
       expiresAt,
     });
@@ -289,6 +302,9 @@ export async function executeOwnedAttempt(
       kind: "succeeded",
       postId: attempt.outcome.postId,
       updatedAt: attempt.outcome.updatedAt,
+      ...(attempt.outcome.pendingDraftId && {
+        pendingDraftId: attempt.outcome.pendingDraftId,
+      }),
       status: attempt.outcome.status,
     };
   }
@@ -299,6 +315,7 @@ export async function executeOwnedAttempt(
   const executionArgs = {
     postId: attempt.postId,
     expectedUpdatedAt: attempt.expectedUpdatedAt,
+    expectedPendingDraftId: attempt.expectedPendingDraftId,
     proposal:
       parsedBody.kind === "structured"
         ? { ...proposal, body: JSON.stringify(parsedBody.document) }
@@ -333,6 +350,7 @@ export async function executeOwnedAttempt(
       kind: "succeeded",
       postId: result.postId,
       updatedAt: result.updatedAt,
+      ...(result.pendingDraftId && { pendingDraftId: result.pendingDraftId }),
       status: result.status,
     },
   });

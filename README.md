@@ -136,6 +136,7 @@ app/
         reviewReadiness.ts    # Media gate: blocks Review while inline media or a recovered cover is unresolved
         reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders for frozen Review
         useDraftRecovery.ts   # New/draft local recovery; published edits stay page-local
+        EditorAbandonDialog.tsx # Start fresh / Cancel update confirmation with blocked state
     dashboard/
       layout.tsx              # Metadata-only child layout
       page.tsx                # Dashboard root with drafts and published-post previews
@@ -198,6 +199,7 @@ convex/
   pendingUploads.ts           # Owned inline upload sessions, finalization, failed-submit cleanup, and expiry cleanup
   sessionMediaClaims.ts       # Session-scoped media retention claims with expiry and lifecycle transitions
   writeAttempts.ts             # Author-bound idempotent write reservations, retained outcomes, reconciliation, and cleanup
+  pendingPostEdits.ts          # One pending published update per post: version checks, promotion, cleanup
   comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
   likes.ts                    # toggleLike + toggleCommentLike mutations and private paginated liked-post query
                               # uses by_postId_and_userId for toggles and by_userId_and_createdAt for liked-post pagination
@@ -248,6 +250,8 @@ components/
     EmptyState.tsx
     UserAvatar.tsx
     AuthSync.tsx              # Syncs Better Auth identity → users table
+    AuthoringExitProvider.tsx # Root exit coordinator: recovery, history, sign-out, native warning
+    AuthoringExitDialog.tsx   # Light/strong/blocking exit surfaces
     ConvexClientProvider.tsx
 
 schemas/                      # Zod validation schemas (repo root)
@@ -264,6 +268,9 @@ lib/
   safe-link.ts                # Shared http/https/mailto author-link validator
   cover.ts                    # Shared cover URL resolver; null renders the blank fallback
   draft-recovery.ts           # Versioned localStorage snapshot for unsaved new posts and drafts
+  authoring-exit-policy.ts    # Pure exit decisions: recover, confirm, or block per intent
+  authoring-history.ts        # Navigation API traversal adapter with one-shot replay
+  authoring-unsaved-work.ts   # Meaningful-dirty comparison and blank-proposal detection
   use-inline-image-upload.ts  # Owner-bound BlockNote file upload and preview lifecycle hook
   shiki/                      # Generated editor grammars and server-side highlighting adapter
   discover.ts                 # Discover URL normalization and mode-switch links

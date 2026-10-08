@@ -69,6 +69,22 @@ describe("auth return helpers", () => {
     );
   });
 
+  it.each([
+    "/create",
+    "/create?draftId=draft-1",
+    "/create?editPostId=post-1",
+    "/%63reate?draftId=draft-1",
+    "/dashboard/drafts?sort=recent#list",
+  ])("lands workspace sign-ins on Dashboard: %s", (returnTo) => {
+    expect(getSafeReturnTo(returnTo)).toBe("/dashboard");
+  });
+
+  it("preserves a reader's comment destination", () => {
+    expect(getSafeReturnTo("/blog/post-1?comment=reply#comments")).toBe(
+      "/blog/post-1?comment=reply#comments",
+    );
+  });
+
   it("builds an auth URL with an encoded return path", () => {
     expect(buildAuthHref("/auth/login", "/u/user-1")).toBe(
       "/auth/login?returnTo=%2Fu%2Fuser-1",

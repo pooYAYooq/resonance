@@ -25,6 +25,7 @@ import { FANOUT_BATCH_SIZE } from "./notifications";
 import { FEED_BATCH_SIZE } from "./feed";
 import { consumeSessionMediaClaims } from "./sessionMediaClaims";
 import type { WriteErrorCategory } from "../lib/write-contract";
+import { getPendingPostEdit, getPostMediaStorageIds } from "./pendingPostEdits";
 
 type WriteProposal = {
   title: string;
@@ -36,6 +37,7 @@ type WriteProposal = {
 type WriteExecutionArgs = {
   postId?: Id<"posts">;
   expectedUpdatedAt?: number;
+  expectedPendingDraftId?: Id<"posts"> | null;
   proposal: WriteProposal;
 };
 
@@ -44,6 +46,7 @@ export type WriteExecutionResult =
       kind: "succeeded";
       postId: Id<"posts">;
       updatedAt: number;
+      pendingDraftId?: Id<"posts">;
       status: PostStatus;
     }
   | {
@@ -76,6 +79,7 @@ function assertFinalPostDocumentCapacity(
   updatedAt: number,
   existing?: Doc<"posts">,
   publishedAt?: number,
+  pendingSource?: { sourcePostId: Id<"posts">; sourceUpdatedAt: number },
 ): void {
   const existingBase = existing
     ? Object.fromEntries(
@@ -116,7 +120,10 @@ function assertFinalPostDocumentCapacity(
         createdAt: updatedAt,
         updatedAt,
       };
-  const size = getDocumentSize(candidate as Record<string, Value>);
+  const size = getDocumentSize({ ...candidate, ...pendingSource } as Record<
+    string,
+    Value
+  >);
   if (size > MAX_POST_FINAL_DOCUMENT_BYTES) {
     deterministicFailure(
       "capacity",
@@ -390,6 +397,12 @@ export async function executeSaveDraft(
   validateDraftProposal(args.proposal);
   const draft =
     args.postId === undefined ? null : await ctx.db.get(args.postId);
+  if (draft?.status === "published" || draft?.sourcePostId) {
+    return executeSavePendingEdit(ctx, userId, {
+      ...args,
+      postId: draft.sourcePostId ?? draft._id,
+    });
+  }
   if (
     args.postId !== undefined &&
     (!draft || draft.authorId !== userId || draft.status !== "draft")
@@ -498,6 +511,12 @@ export async function executePublish(
   validatePublicationProposal(args.proposal);
   const draft =
     args.postId === undefined ? null : await ctx.db.get(args.postId);
+  if (draft?.sourcePostId) {
+    return executePublishedUpdate(ctx, userId, {
+      ...args,
+      postId: draft.sourcePostId,
+    });
+  }
   if (
     args.postId !== undefined &&
     (!draft || draft.authorId !== userId || draft.status !== "draft")
@@ -650,7 +669,17 @@ export async function executePublishedUpdate(
   ) {
     deterministicFailure("not-found", "Post not found.");
   }
-  if (post.updatedAt !== args.expectedUpdatedAt) {
+  const pending = await getPendingPostEdit(ctx, post._id);
+  if (
+    args.expectedPendingDraftId !== undefined &&
+    args.expectedPendingDraftId !== (pending?._id ?? null)
+  ) {
+    deterministicFailure("conflict", "Pending draft changed elsewhere.");
+  }
+  if (
+    (pending?.updatedAt ?? post.updatedAt) !== args.expectedUpdatedAt ||
+    (pending && pending.sourceUpdatedAt !== post.updatedAt)
+  ) {
     deterministicFailure("conflict", "Document changed elsewhere.");
   }
 
@@ -668,7 +697,9 @@ export async function executePublishedUpdate(
     now,
     post._id,
   );
-  const updatedAt = Math.max(now, post.updatedAt, post.publishedAt) + 1;
+  const updatedAt =
+    Math.max(now, post.updatedAt, pending?.updatedAt ?? 0, post.publishedAt) +
+    1;
   await validateProjectionCapacity(
     ctx,
     {
@@ -688,9 +719,9 @@ export async function executePublishedUpdate(
     post,
     post.publishedAt,
   );
-  const removedStorageIds = oldStorageIds.filter(
-    (storageId) => !submittedStorageIds.includes(storageId),
-  );
+  const removedStorageIds = [
+    ...new Set([...oldStorageIds, ...getPostMediaStorageIds(pending)]),
+  ].filter((storageId) => !submittedStorageIds.includes(storageId));
   await ctx.db.patch(post._id, {
     title: args.proposal.title,
     body: args.proposal.body,
@@ -698,6 +729,7 @@ export async function executePublishedUpdate(
     imageStorageId: args.proposal.imageStorageId,
     updatedAt,
   });
+  if (pending) await ctx.db.delete(pending._id);
   for (const claimId of claimIds) {
     await ctx.db.patch(claimId, {
       postId: post._id,
@@ -721,4 +753,132 @@ export async function executePublishedUpdate(
     updatedAt,
     status: "published",
   };
+}
+
+async function executeSavePendingEdit(
+  ctx: MutationCtx,
+  userId: string,
+  args: WriteExecutionArgs,
+): Promise<WriteExecutionResult> {
+  const post = args.postId ? await ctx.db.get(args.postId) : null;
+  if (
+    !post ||
+    post.authorId !== userId ||
+    post.status !== "published" ||
+    post.publishedAt === undefined
+  ) {
+    deterministicFailure("not-found", "Post not found.");
+  }
+  const pending = await getPendingPostEdit(ctx, post._id);
+  if (
+    args.expectedPendingDraftId !== undefined &&
+    args.expectedPendingDraftId !== (pending?._id ?? null)
+  ) {
+    deterministicFailure("conflict", "Pending draft changed elsewhere.");
+  }
+  if (
+    args.expectedUpdatedAt === undefined ||
+    args.expectedUpdatedAt !== (pending?.updatedAt ?? post.updatedAt) ||
+    (pending && pending.sourceUpdatedAt !== post.updatedAt)
+  ) {
+    deterministicFailure("conflict", "Document changed elsewhere.");
+  }
+  const now = Date.now();
+  const liveStorageIds = getPostMediaStorageIds(post);
+  const oldPendingStorageIds = getPostMediaStorageIds(pending);
+  const submittedStorageIds = getReferencedStorageIds(
+    args.proposal.body,
+    args.proposal.imageStorageId,
+  );
+  const claimIds = await validatePublishedEditUploadClaims(
+    ctx,
+    [...liveStorageIds, ...oldPendingStorageIds],
+    submittedStorageIds,
+    userId,
+    now,
+    post._id,
+  );
+  const updatedAt = Math.max(now, pending?.updatedAt ?? post.updatedAt) + 1;
+  const source = {
+    sourcePostId: post._id,
+    sourceUpdatedAt: pending?.sourceUpdatedAt ?? post.updatedAt,
+  };
+  assertFinalPostDocumentCapacity(
+    args.proposal,
+    userId,
+    "draft",
+    updatedAt,
+    pending ?? undefined,
+    undefined,
+    source,
+  );
+  let pendingDraftId = pending?._id;
+  if (pending) {
+    await ctx.db.patch(pending._id, {
+      ...args.proposal,
+      imageStorageId: args.proposal.imageStorageId,
+      updatedAt,
+    });
+  } else {
+    pendingDraftId = await ctx.db.insert("posts", {
+      ...args.proposal,
+      ...source,
+      authorId: userId,
+      status: "draft",
+      commentCount: 0,
+      likeCount: 0,
+      uniqueViewCount: 0,
+      createdAt: updatedAt,
+      updatedAt,
+    });
+  }
+  for (const claimId of claimIds) {
+    await ctx.db.patch(claimId, {
+      postId: post._id,
+      expiresAt: Number.MAX_SAFE_INTEGER,
+    });
+  }
+  await consumeSessionMediaClaims(ctx, userId, submittedStorageIds, updatedAt);
+  await scheduleDraftCleanup(
+    ctx,
+    post._id,
+    oldPendingStorageIds.filter(
+      (id) => !submittedStorageIds.includes(id) && !liveStorageIds.includes(id),
+    ),
+    [...liveStorageIds, ...submittedStorageIds],
+    updatedAt,
+    false,
+  );
+  return {
+    kind: "succeeded",
+    postId: post._id,
+    pendingDraftId,
+    updatedAt,
+    status: "draft",
+  };
+}
+
+export async function discardPendingPostEdit(
+  ctx: MutationCtx,
+  draft: Doc<"posts">,
+) {
+  if (!draft.sourcePostId)
+    throw new ConvexError("Pending edit source is required.");
+  const post = await ctx.db.get(draft.sourcePostId);
+  if (
+    post &&
+    (post.authorId !== draft.authorId || post.status !== "published")
+  ) {
+    throw new ConvexError("Post not found.");
+  }
+  const liveStorageIds = getPostMediaStorageIds(post);
+  await ctx.db.delete(draft._id);
+  await scheduleDraftCleanup(
+    ctx,
+    draft.sourcePostId,
+    getPostMediaStorageIds(draft).filter((id) => !liveStorageIds.includes(id)),
+    liveStorageIds,
+    Date.now(),
+    false,
+  );
 }

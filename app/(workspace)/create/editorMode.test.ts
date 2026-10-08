@@ -26,7 +26,7 @@ describe("getEditorCapabilities", () => {
     ["draft", { canSaveDraft: true, canPublish: true, canUpdate: false }],
     [
       "published-edit",
-      { canSaveDraft: false, canPublish: false, canUpdate: true },
+      { canSaveDraft: true, canPublish: false, canUpdate: true },
     ],
   ])("returns capabilities for %s", (mode, capabilities) => {
     expect(

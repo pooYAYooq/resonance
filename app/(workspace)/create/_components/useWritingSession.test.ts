@@ -192,6 +192,246 @@ describe("writingSessionReducer", () => {
     expect(state.operation).toEqual({ status: "idle" });
   });
 
+  it("retains newer edits made while saving and stays dirty against the saved proposal", () => {
+    let state = createInitialWritingSessionState("draft");
+    state = reduce(state, {
+      type: "establishBaseline",
+      proposal: baseline,
+      expectedUpdatedAt: 10,
+    });
+    state = reduce(state, { type: "setProposal", proposal: changedProposal });
+    state = reduce(state, {
+      type: "beginOperation",
+      operation: "save-draft",
+      attemptId: "attempt-1",
+      sessionKey: "draft:new",
+    });
+    const newerProposal: CanonicalProposal = {
+      ...changedProposal,
+      title: "Even newer title",
+    };
+    state = reduce(state, { type: "setProposal", proposal: newerProposal });
+
+    state = reduce(state, {
+      type: "finishOperation",
+      attemptId: "attempt-1",
+      sessionKey: "draft:new",
+      outcome: {
+        kind: "succeeded",
+        proposal: changedProposal,
+        expectedUpdatedAt: 11,
+      },
+    });
+
+    expect(state.baseline).toEqual(changedProposal);
+    expect(state.proposal).toEqual(newerProposal);
+    expect(state.expectedUpdatedAt).toBe(11);
+    expect(state.dirty).toBe(true);
+    expect(state.operation).toEqual({ status: "idle" });
+  });
+
+  it("keeps a cover selected during a save as unsaved work after the save succeeds", () => {
+    let state = createInitialWritingSessionState("draft");
+    state = reduce(state, {
+      type: "establishBaseline",
+      proposal: baseline,
+      expectedUpdatedAt: 10,
+    });
+    state = reduce(state, {
+      type: "beginOperation",
+      operation: "save-draft",
+      attemptId: "attempt-1",
+    });
+    const media = { pending: [], failed: [], coverSelected: true };
+    state = reduce(state, { type: "setMedia", media });
+
+    state = reduce(state, {
+      type: "finishOperation",
+      outcome: {
+        kind: "succeeded",
+        proposal: baseline,
+        expectedUpdatedAt: 11,
+      },
+    });
+
+    expect(state.media).toEqual(media);
+    expect(state.baseline).toEqual(baseline);
+    expect(state.dirty).toBe(true);
+  });
+
+  it("keeps a cover removal that the completed save still contains", () => {
+    const coverBaseline: CanonicalProposal = {
+      ...baseline,
+      imageStorageId: "cover-1",
+    };
+    const removedProposal: CanonicalProposal = {
+      title: coverBaseline.title,
+      body: coverBaseline.body,
+      tags: coverBaseline.tags,
+    };
+
+    let state = createInitialWritingSessionState("draft");
+    state = reduce(state, {
+      type: "establishBaseline",
+      proposal: coverBaseline,
+      expectedUpdatedAt: 10,
+    });
+    state = reduce(state, { type: "setProposal", proposal: removedProposal });
+    state = reduce(state, { type: "setCoverRemoved", removed: true });
+    state = reduce(state, {
+      type: "beginOperation",
+      operation: "save-draft",
+      attemptId: "attempt-1",
+      sessionKey: "draft:new",
+    });
+
+    state = reduce(state, {
+      type: "finishOperation",
+      attemptId: "attempt-1",
+      sessionKey: "draft:new",
+      outcome: {
+        kind: "succeeded",
+        proposal: coverBaseline,
+        expectedUpdatedAt: 11,
+      },
+    });
+
+    expect(state.coverRemoved).toBe(true);
+    expect(state.dirty).toBe(true);
+
+    state = reduce(state, {
+      type: "beginOperation",
+      operation: "save-draft",
+      attemptId: "attempt-2",
+      sessionKey: "draft:new",
+    });
+    state = reduce(state, {
+      type: "finishOperation",
+      attemptId: "attempt-2",
+      sessionKey: "draft:new",
+      outcome: {
+        kind: "succeeded",
+        proposal: removedProposal,
+        expectedUpdatedAt: 12,
+      },
+    });
+
+    expect(state.coverRemoved).toBe(false);
+    expect(state.dirty).toBe(false);
+  });
+
+  it("settles an uncertain operation only with its bound attempt and session", () => {
+    let state = createInitialWritingSessionState("draft");
+    state = reduce(state, {
+      type: "establishBaseline",
+      proposal: baseline,
+      expectedUpdatedAt: 10,
+    });
+    state = reduce(state, { type: "setProposal", proposal: changedProposal });
+    state = reduce(state, {
+      type: "beginOperation",
+      operation: "save-draft",
+      attemptId: "attempt-uncertain",
+      sessionKey: "draft:new",
+    });
+    const newerProposal: CanonicalProposal = {
+      ...changedProposal,
+      title: "Newer while uncertain",
+    };
+    state = reduce(state, { type: "setProposal", proposal: newerProposal });
+    state = reduce(state, {
+      type: "finishOperation",
+      outcome: { kind: "indeterminate", message: "Connection lost" },
+    });
+    const uncertainState = state;
+
+    expect(
+      reduce(state, {
+        type: "settleOperation",
+        attemptId: "attempt-other",
+        sessionKey: "draft:new",
+        outcome: {
+          kind: "succeeded",
+          proposal: changedProposal,
+          expectedUpdatedAt: 12,
+        },
+      }),
+    ).toEqual(state);
+    expect(
+      reduce(state, {
+        type: "settleOperation",
+        attemptId: "attempt-uncertain",
+        sessionKey: "draft:other",
+        outcome: {
+          kind: "succeeded",
+          proposal: changedProposal,
+          expectedUpdatedAt: 12,
+        },
+      }),
+    ).toEqual(state);
+    expect(
+      reduce(uncertainState, {
+        type: "settleOperation",
+        attemptId: "attempt-uncertain",
+        sessionKey: "draft:new",
+        outcome: { kind: "indeterminate", message: "Still unknown" },
+      }),
+    ).toEqual(uncertainState);
+
+    const settled = reduce(state, {
+      type: "settleOperation",
+      attemptId: "attempt-uncertain",
+      sessionKey: "draft:new",
+      outcome: {
+        kind: "succeeded",
+        proposal: changedProposal,
+        expectedUpdatedAt: 12,
+      },
+    });
+    expect(settled.baseline).toEqual(changedProposal);
+    expect(settled.proposal).toEqual(newerProposal);
+    expect(settled.expectedUpdatedAt).toBe(12);
+    expect(settled.dirty).toBe(true);
+    expect(settled.operation).toEqual({ status: "idle" });
+  });
+
+  it("refuses to settle an operation that is not uncertain", () => {
+    let state = createInitialWritingSessionState("draft");
+    state = reduce(state, {
+      type: "beginOperation",
+      operation: "save-draft",
+      attemptId: "attempt-1",
+    });
+    const inFlightState = state;
+
+    expect(
+      reduce(state, {
+        type: "settleOperation",
+        attemptId: "attempt-1",
+        outcome: {
+          kind: "failed",
+          message: "not applicable",
+        },
+      }),
+    ).toEqual(inFlightState);
+
+    state = reduce(state, {
+      type: "finishOperation",
+      outcome: { kind: "failed", message: "Validation failed" },
+    });
+    const idleState = state;
+    expect(
+      reduce(state, {
+        type: "settleOperation",
+        attemptId: "attempt-1",
+        outcome: {
+          kind: "failed",
+          message: "not applicable",
+        },
+      }),
+    ).toEqual(idleState);
+  });
+
   it("ignores a completion from another attempt or session", () => {
     let state = createInitialWritingSessionState("published-edit", "post-1");
     state = reduce(state, { type: "setProposal", proposal: changedProposal });

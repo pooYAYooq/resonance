@@ -116,12 +116,32 @@ Source: Track 4 (recorded in `FEATURES.md` at commit `46d26a3`),
 `docs/PHASE_3A.md` 3A.3 scope, decision 3A-014. Includes the approved dense
 management-row requirement from the 3A.3 detailed requirements.
 
-| ID    | Item                                                              | Status       | Estimate |
-| ----- | ----------------------------------------------------------------- | ------------ | -------- |
-| V1-13 | Published management rows and deletion UI with clear confirmation | Done         | M        |
-| V1-14 | Draft management rows and deletion confirmation check             | Done         | S        |
-| V1-15 | Unsaved-exit guards beyond target switches                        | Pending spec | M        |
-| V1-16 | Accessibility evidence pass                                       | Todo         | M        |
+| ID    | Item                                                              | Status | Estimate |
+| ----- | ----------------------------------------------------------------- | ------ | -------- |
+| V1-13 | Published management rows and deletion UI with clear confirmation | Done   | M        |
+| V1-14 | Draft management rows and deletion confirmation check             | Done   | S        |
+| V1-15 | Unsaved-exit guards beyond target switches                        | Done   | M        |
+| V1-16 | Accessibility evidence pass                                       | Todo   | M        |
+
+V1-15 completion on `design/unsaved-exit-guards` (2026-10-09): new posts and
+drafts keep verified silent recovery before app-link departures, with light
+reminders for published edits, selected covers, and storage failures;
+Back/Forward cancels through the Navigation API with a light confirmation and
+replays the exact destination, and browsers without it flush recovery
+synchronously; document switches validate the destination before clearing
+anything; sign-out confirms strongly with save or discard choices; and the
+native beforeunload warning attaches only while unsaved work or an unresolved
+operation exists. Published editing can save one pending update as a draft
+linked to the live post and promote it without changing identity, URL,
+publication date, or engagement. Responsive Start fresh and Cancel update ship
+with their confirmations. The history proof gate closed by agreeing evergreen
+browser coverage (Navigation API is Baseline since January 2026: Chrome/Edge
+102+, Firefox 147+, Safari 26.2+) plus the older-browser recovery flush.
+Verification passed lint, 619 edge-runtime tests, 642 component tests, and the
+production build; maintainer browser acceptance covered the guard dialogs,
+sign-out routing, recovery behavior, and the pending-update flow. Firefox and
+Safari were not manually exercised and remain a recorded limitation. Next.js
+remains 16.1.6; no upgrade was made.
 
 V1-13 verification on `feat/published-management-rows` (2026-10-05): approved
 desktop rows and mobile title/thumbnail/metadata/action composition; existing
@@ -322,7 +342,6 @@ membership unless that session decides otherwise.
 
 ## Pending scope
 
-- V1-15 unsaved-exit guards: in v1.0, scope pending a dedicated spec.
 - V1-16 accessibility evidence: in v1.0, the exact evidence set is confirmed
   when scoped.
 

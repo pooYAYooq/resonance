@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { extractImageStorageIds, parsePostBody } from "../lib/post-content";
 import { hasActiveSessionMediaClaim } from "./sessionMediaClaims";
+import { getPendingPostEdit, getPostMediaStorageIds } from "./pendingPostEdits";
 
 const BATCH_SIZE = 100;
 const LEASE_MS = 30 * 60 * 1000;
@@ -353,9 +354,14 @@ export const continueDraftUploadCleanup = internalMutation({
         cursor: job.cursor,
       });
     const currentPost = await ctx.db.get(job.postId);
+    const pending =
+      currentPost?.status === "published"
+        ? await getPendingPostEdit(ctx, currentPost._id)
+        : null;
     const retainedStorageIds = new Set([
       ...(job.retainedStorageIds ?? []),
       ...getPostStorageIds(currentPost),
+      ...getPostMediaStorageIds(pending),
     ]);
     const deletedStorageIds = new Set<string>();
     for (const claim of result.page) {
@@ -396,6 +402,7 @@ export const continueDraftUploadCleanup = internalMutation({
       const retained = new Set([
         ...(job.retainedStorageIds ?? []),
         ...getPostStorageIds(currentPost),
+        ...getPostMediaStorageIds(pending),
       ]);
       for (const storageId of job.storageIds ?? []) {
         if (deletedStorageIds.has(storageId)) continue;

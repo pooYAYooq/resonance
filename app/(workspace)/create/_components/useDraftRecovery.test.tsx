@@ -19,6 +19,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("useDraftRecovery", () => {
@@ -142,5 +143,124 @@ describe("useDraftRecovery", () => {
     });
 
     expect(readDraftRecovery("new:new")?.proposal).toEqual(proposal);
+  });
+
+  it("flushes the most recent edit before the debounce runs", () => {
+    const { result, rerender } = renderHook(
+      ({ title }: { title: string }) =>
+        useDraftRecovery({
+          sessionKey: "new:new",
+          ready: true,
+          dirty: true,
+          proposal: { ...proposal, title },
+        }),
+      { initialProps: { title: "Previous" } },
+    );
+    rerender({ title: "Latest keystroke" });
+    expect(result.current.flush()).toEqual({ ok: true });
+    expect(readDraftRecovery("new:new")?.proposal.title).toBe(
+      "Latest keystroke",
+    );
+  });
+
+  it("does not recreate abandoned recovery on debounce or pagehide", () => {
+    saveDraftRecovery("new:new", proposal);
+    const { result } = renderHook(() =>
+      useDraftRecovery({
+        sessionKey: "new:new",
+        ready: true,
+        dirty: true,
+        proposal,
+      }),
+    );
+    expect(result.current.abandon()).toEqual({ ok: true });
+    act(() => {
+      vi.advanceTimersByTime(DRAFT_RECOVERY_DEBOUNCE_MS * 2);
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    expect(readDraftRecovery("new:new")).toBeNull();
+  });
+
+  it("can resume the same session after cancelling abandonment", () => {
+    const { result } = renderHook(() =>
+      useDraftRecovery({
+        sessionKey: "new:new",
+        ready: true,
+        dirty: true,
+        proposal,
+      }),
+    );
+    result.current.abandon();
+    result.current.resume();
+    act(() => window.dispatchEvent(new Event("pagehide")));
+    expect(readDraftRecovery("new:new")?.proposal).toEqual(proposal);
+  });
+
+  it("returns deletion failure and resumes recovery instead of losing writing", () => {
+    const { result } = renderHook(() =>
+      useDraftRecovery({
+        sessionKey: "draft:one",
+        ready: true,
+        dirty: true,
+        proposal,
+      }),
+    );
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw new Error("remove denied");
+    });
+    expect(result.current.abandon()).toEqual({
+      ok: false,
+      reason: "remove-failed",
+    });
+    result.current.resume();
+    act(() => window.dispatchEvent(new Event("pagehide")));
+    expect(readDraftRecovery("draft:one")?.proposal).toEqual(proposal);
+  });
+
+  it("resumes a fresh session without restoring the abandoned session", () => {
+    const { result, rerender } = renderHook(
+      ({ sessionKey }: { sessionKey: string }) =>
+        useDraftRecovery({ sessionKey, ready: true, dirty: true, proposal }),
+      { initialProps: { sessionKey: "draft:one" } },
+    );
+    result.current.abandon();
+    rerender({ sessionKey: "new:new" });
+    act(() => vi.advanceTimersByTime(DRAFT_RECOVERY_DEBOUNCE_MS));
+    expect(readDraftRecovery("draft:one")).toBeNull();
+    expect(readDraftRecovery("new:new")?.proposal).toEqual(proposal);
+  });
+
+  it("writes recovery again after returning to a previously abandoned session", () => {
+    const { result, rerender } = renderHook(
+      ({ sessionKey }: { sessionKey: string }) =>
+        useDraftRecovery({ sessionKey, ready: true, dirty: true, proposal }),
+      { initialProps: { sessionKey: "draft:one" } },
+    );
+
+    expect(result.current.abandon()).toEqual({ ok: true });
+
+    rerender({ sessionKey: "draft:two" });
+    rerender({ sessionKey: "draft:one" });
+
+    act(() => {
+      expect(result.current.flush()).toEqual({ ok: true });
+    });
+    expect(readDraftRecovery("draft:one")?.proposal).toEqual(proposal);
+  });
+
+  it("treats abandonment of a published-edit session as nothing to clear", () => {
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw new Error("remove denied");
+    });
+    const { result } = renderHook(() =>
+      useDraftRecovery({
+        sessionKey: "published-edit:post-1",
+        ready: true,
+        dirty: true,
+        proposal,
+      }),
+    );
+
+    expect(result.current.abandon()).toEqual({ ok: true });
   });
 });

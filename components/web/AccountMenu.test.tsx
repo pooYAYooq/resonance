@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
+import {
+  AuthoringExitProvider,
+  useAuthoringExit,
+} from "./AuthoringExitProvider";
 import userEvent from "@testing-library/user-event";
 import { AccountMenu } from "./AccountMenu";
 
@@ -28,6 +33,7 @@ vi.mock("@/convex/_generated/api", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
+  usePathname: () => "/create",
 }));
 
 vi.mock("@/components/web/account-actions", () => ({
@@ -45,7 +51,67 @@ const currentUser = {
   createdAt: 0,
 };
 
+function DirtyEditor() {
+  const { register } = useAuthoringExit();
+  useEffect(
+    () =>
+      register({
+        getSession: () => ({
+          sessionKey: "published-edit:p1",
+          mode: "published-edit",
+          proposal: {
+            title: "Unsaved",
+            body: '{"format":"blocknote@1","blocks":[]}',
+            tags: [],
+          },
+          baseline: {
+            title: "Saved",
+            body: '{"format":"blocknote@1","blocks":[]}',
+            tags: [],
+          },
+          selectedCover: false,
+          pendingUploads: 0,
+          failedMedia: false,
+          saving: false,
+          uncertain: false,
+          coverRemoved: false,
+        }),
+        flushRecovery: () => ({ ok: true }),
+        clearRecovery: () => ({ ok: true }),
+        resumeRecovery: () => {},
+        saveDraft: async () => ({ kind: "failed", message: "Not used" }),
+        validateTarget: async () => ({ ok: true }),
+        adoptTarget: () => {},
+        startFresh: () => {},
+        cancelUpdate: () => {},
+        reconcile: async () => {},
+      }),
+    [register],
+  );
+  return null;
+}
+
 describe("AccountMenu", () => {
+  it("guards sign out and restores the stable menu trigger on cancellation", async () => {
+    const user = userEvent.setup();
+    render(
+      <AuthoringExitProvider>
+        <DirtyEditor />
+        <AccountMenu presentation="navbar" />
+      </AuthoringExitProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: /open user menu/i });
+    await user.click(trigger);
+    await user.click(screen.getByRole("menuitem", { name: /sign out/i }));
+    expect(signOutUserMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("alertdialog", {
+        name: "Sign out?",
+      }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
   beforeEach(() => {
     useConvexAuthState.mockReturnValue({
       isAuthenticated: true,

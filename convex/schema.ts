@@ -26,6 +26,8 @@ export default defineSchema({
     authorId: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
     status: v.union(v.literal("draft"), v.literal("published")),
+    sourcePostId: v.optional(v.id("posts")),
+    sourceUpdatedAt: v.optional(v.number()),
     publishedAt: v.optional(v.number()),
     commentCount: v.number(),
     /**
@@ -47,6 +49,7 @@ export default defineSchema({
      * user-specific post listings without scanning the entire table.
      */
     .index("by_authorId", ["authorId"])
+    .index("by_sourcePostId", ["sourcePostId"])
     .index("by_authorId_and_createdAt", ["authorId", "createdAt"])
     .index("by_status_and_publishedAt", {
       fields: ["status", "publishedAt"],
@@ -409,6 +412,7 @@ export default defineSchema({
     ),
     postId: v.optional(v.id("posts")),
     expectedUpdatedAt: v.optional(v.number()),
+    expectedPendingDraftId: v.optional(v.union(v.id("posts"), v.null())),
     fingerprint: v.string(),
     expiresAt: v.number(),
     outcome: v.optional(
@@ -418,6 +422,7 @@ export default defineSchema({
           postId: v.id("posts"),
           updatedAt: v.number(),
           status: v.union(v.literal("draft"), v.literal("published")),
+          pendingDraftId: v.optional(v.id("posts")),
         }),
         v.object({
           kind: v.literal("failed"),
