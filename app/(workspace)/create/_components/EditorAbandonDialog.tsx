@@ -15,6 +15,7 @@ type EditorAbandonDialogProps = {
   mode: "start-fresh" | "cancel-update";
   open: boolean;
   blocked: boolean;
+  busy?: boolean;
   error: string | null;
   onCancel: () => void;
   onConfirm: () => void;
@@ -25,6 +26,7 @@ export function EditorAbandonDialog({
   mode,
   open,
   blocked,
+  busy = false,
   error,
   onCancel,
   onConfirm,
@@ -35,7 +37,7 @@ export function EditorAbandonDialog({
     <AlertDialog
       open={open}
       onOpenChange={(nextOpen) => {
-        if (!nextOpen) onCancel();
+        if (!nextOpen && !busy) onCancel();
       }}
     >
       <AlertDialogContent
@@ -57,7 +59,9 @@ export function EditorAbandonDialog({
         </AlertDialogHeader>
         {blocked && (
           <p role="status">
-            Wait for the current save or upload to finish before continuing.
+            {busy
+              ? "Cleaning up temporary uploads. Please wait."
+              : "Wait for the current save or upload to finish before continuing."}
           </p>
         )}
         {error && (
@@ -66,7 +70,7 @@ export function EditorAbandonDialog({
           </p>
         )}
         <AlertDialogFooter>
-          <AlertDialogCancel className="min-h-11">
+          <AlertDialogCancel className="min-h-11" disabled={busy}>
             {fresh ? "Cancel" : "Keep editing"}
           </AlertDialogCancel>
           <AlertDialogAction

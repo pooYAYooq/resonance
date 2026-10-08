@@ -96,6 +96,16 @@ browsers. Next: V1-16 accessibility evidence. Wide-screen reader rail contents
 remain queued, and Dashboard Overview purpose and composition remain deferred
 to a separate comprehensive design session.
 
+PR #101 review follow-up fixes notification-bell navigation bypassing the
+authoring guard and Cancel update skipping temporary inline-upload cleanup.
+Cleanup now waits for claim release and upload cleanup, preserves saved
+pending-update media, and keeps the editor open for retry on failure. The
+staged-index finding does not apply to the recorded undeployed, disposable-data
+setup; a large existing deployment would require a separate staged-index
+backfill before enabling callers. The follow-up passed lint, 619 edge-runtime
+tests, 649 component tests across 82 files, and the production build on
+2026-10-09; Git approval gates are pending before updating the PR.
+
 ## Blockers
 
 - None.

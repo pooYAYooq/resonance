@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExitIntent, ExitSession } from "@/lib/authoring-exit-policy";
 import type { RecoveryResult } from "@/lib/draft-recovery";
+import { NotificationBell } from "./NotificationBell";
 import {
   AuthoringExitProvider,
   useAuthoringExit,
@@ -21,6 +22,11 @@ const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, replace: vi.fn() }),
   usePathname: () => "/create",
+}));
+
+vi.mock("convex/react", () => ({
+  useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+  useQuery: () => 0,
 }));
 
 const emptyBody = JSON.stringify({
@@ -139,6 +145,50 @@ function renderProvider(
     </AuthoringExitProvider>,
   );
 }
+
+it("guards notification navigation from a published edit and preserves Cancel", async () => {
+  const user = userEvent.setup();
+  renderProvider(
+    makeRegistration(session({ mode: "published-edit" })),
+    <NotificationBell />,
+  );
+  await user.click(screen.getByRole("button", { name: "Notifications" }));
+  expect(pushMock).not.toHaveBeenCalled();
+  expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(pushMock).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Notifications" }));
+  await user.click(screen.getByRole("button", { name: "Leave", exact: true }));
+  expect(pushMock).toHaveBeenCalledWith("/notifications");
+});
+
+it("flushes draft recovery before notification navigation", async () => {
+  const registration = makeRegistration();
+  registration.flushRecovery.mockImplementation(() => {
+    expect(pushMock).not.toHaveBeenCalled();
+    return { ok: true };
+  });
+  renderProvider(registration, <NotificationBell />);
+  await userEvent
+    .setup()
+    .click(screen.getByRole("button", { name: "Notifications" }));
+  expect(registration.flushRecovery).toHaveBeenCalledOnce();
+  expect(pushMock).toHaveBeenCalledWith("/notifications");
+});
+
+it("blocks notification navigation while a save outcome is uncertain", async () => {
+  renderProvider(
+    makeRegistration(session({ uncertain: true })),
+    <NotificationBell />,
+  );
+  await userEvent
+    .setup()
+    .click(screen.getByRole("button", { name: "Notifications" }));
+  expect(pushMock).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole("button", { name: "Check status" }),
+  ).toBeInTheDocument();
+});
 
 beforeEach(() => {
   pushMock.mockClear();

@@ -400,6 +400,8 @@ function CreateEditor() {
   const [historyResetKey, setHistoryResetKey] = useState(0);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [abandonError, setAbandonError] = useState<string | null>(null);
+  const [abandonPending, setAbandonPending] = useState(false);
+  const abandonInFlight = useRef(false);
   const abandonButtonRef = useRef<HTMLButtonElement>(null);
   const resettingTargetRef = useRef<string | null>(null);
   const recoveryGenerationRef = useRef(0);
@@ -1101,7 +1103,7 @@ function CreateEditor() {
         selectedCover: Boolean(form.getValues("image")),
         pendingUploads: activeUploadsRef.current,
         failedMedia: sessionState.media.failed.length > 0,
-        saving: isPending,
+        saving: isPending || abandonPending,
         uncertain: sessionState.operation.status === "uncertain",
         coverRemoved: sessionState.coverRemoved,
       }),
@@ -1238,6 +1240,7 @@ function CreateEditor() {
   }, [recoveryNonce, draftRecovery]);
 
   const abandonBlocked =
+    abandonPending ||
     isPending ||
     sessionState.operation.status !== "idle" ||
     sessionState.authLock === "locked" ||
@@ -1247,10 +1250,64 @@ function CreateEditor() {
     activeUploads > 0;
 
   function performEditorAbandon() {
-    if (abandonBlocked || activeUploadsRef.current > 0) return;
+    if (
+      abandonInFlight.current ||
+      abandonBlocked ||
+      activeUploadsRef.current > 0
+    )
+      return;
     if (editorMode.mode === "published-edit") {
-      setAbandonOpen(false);
-      router.push("/dashboard/published");
+      const uploads = [...inlineSessions.current].map(
+        ([sessionId, storageId]) => ({ sessionId, storageId }),
+      );
+      if (uploads.length === 0) {
+        setAbandonOpen(false);
+        router.push("/dashboard/published");
+        return;
+      }
+      abandonInFlight.current = true;
+      setAbandonPending(true);
+      setAbandonOpen(true);
+      setAbandonError(null);
+      void (async () => {
+        try {
+          // Release before cleanup: active session claims protect storage from
+          // deletion. Saved media is excluded from this temporary-upload map,
+          // and cleanupPending also refuses consumed/post-associated uploads.
+          const storageIds = uploads.map(({ storageId }) => storageId);
+          await releaseSessionMedia({
+            sessionId: activeSessionKey,
+            storageIds,
+          });
+          await cleanupPendingUploads({ uploads });
+          for (const { sessionId, storageId } of uploads) {
+            inlineSessions.current.delete(sessionId);
+            claimedMedia.current.delete(storageId);
+            pendingClaims.current.delete(storageId);
+          }
+          setAbandonOpen(false);
+          router.push("/dashboard/published");
+        } catch {
+          // Release may have succeeded even if its response was lost. Restore
+          // protection for surviving media before allowing editing or retry.
+          await Promise.allSettled(
+            uploads.map(async ({ storageId }) => {
+              pendingClaims.current.add(storageId);
+              await claimSessionMedia({
+                sessionId: activeSessionKey,
+                storageId,
+              });
+              pendingClaims.current.delete(storageId);
+            }),
+          );
+          setAbandonError(
+            "Could not clean up temporary uploads. Try again or keep editing.",
+          );
+        } finally {
+          abandonInFlight.current = false;
+          setAbandonPending(false);
+        }
+      })();
       return;
     }
     const result = draftRecovery.abandon();
@@ -1333,6 +1390,7 @@ function CreateEditor() {
   useEffect(() => {
     const sessionKey = activeSessionKey;
     const renew = () => {
+      if (abandonInFlight.current) return;
       const storageIds = [...claimedMedia.current];
       if (storageIds.length === 0) return;
       const isVisible = document.visibilityState === "visible";
@@ -2202,6 +2260,7 @@ function CreateEditor() {
                             // into failed content. Retry only for this live upload.
                             if (
                               activeSessionKeyRef.current !== sessionKey ||
+                              abandonInFlight.current ||
                               inlineSessions.current.get(sessionId) !==
                                 storageId ||
                               !claimedMedia.current.has(storageId)
@@ -2385,8 +2444,11 @@ function CreateEditor() {
         }
         open={abandonOpen}
         blocked={abandonBlocked}
+        busy={abandonPending}
         error={abandonError}
-        onCancel={() => setAbandonOpen(false)}
+        onCancel={() => {
+          if (!abandonInFlight.current) setAbandonOpen(false);
+        }}
         onConfirm={performEditorAbandon}
         onRestoreFocus={() => abandonButtonRef.current?.focus()}
       />

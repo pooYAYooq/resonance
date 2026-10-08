@@ -887,6 +887,163 @@ describe("CreateRoute", () => {
     expect(saveDraftMock).not.toHaveBeenCalled();
   });
 
+  it("releases temporary media before cleanup and waits before canceling a published edit", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    let release!: () => void;
+    let cleanup!: () => void;
+    releaseSessionMediaMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    cleanupPendingUploadsMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          cleanup = resolve;
+        }),
+    );
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Published title");
+    await user.click(
+      screen.getByRole("button", { name: "Register inline upload" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      " changed",
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel update" }));
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(releaseSessionMediaMock).toHaveBeenCalledWith({
+      sessionId: "published-edit:post-1",
+      storageIds: ["storage-inline-1"],
+    });
+    expect(cleanupPendingUploadsMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Discard changes" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Keep editing" })).toBeDisabled();
+    await act(async () => release());
+    expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
+      uploads: [
+        { sessionId: "session-inline-1", storageId: "storage-inline-1" },
+      ],
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+    await act(async () => cleanup());
+    expect(pushMock).toHaveBeenCalledWith("/dashboard/published");
+  });
+
+  it.each(["release", "cleanup"])(
+    "retains the published edit when %s fails and allows retry",
+    async (failure) => {
+      const user = userEvent.setup();
+      editPostIdParam.value = "post-1";
+      getPublishedPostForEditingMock.mockReturnValue({
+        _id: "post-1",
+        title: "Published title",
+        body: JSON.stringify(validEnvelope),
+        tags: [],
+        imageUrl: null,
+        inlineImages: [],
+        updatedAt: 1,
+      });
+      releaseSessionMediaMock.mockResolvedValue(null);
+      cleanupPendingUploadsMock.mockResolvedValue(null);
+      (failure === "release"
+        ? releaseSessionMediaMock
+        : cleanupPendingUploadsMock
+      ).mockRejectedValueOnce(new Error("offline"));
+      render(<CreateRoute />);
+      await screen.findByDisplayValue("Published title");
+      await user.click(
+        screen.getByRole("button", { name: "Register inline upload" }),
+      );
+      await user.type(
+        screen.getByRole("textbox", { name: "Post title" }),
+        " changed",
+      );
+      await user.click(screen.getByRole("button", { name: "Cancel update" }));
+      await user.click(screen.getByRole("button", { name: "Discard changes" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Could not clean up",
+      );
+      expect(pushMock).not.toHaveBeenCalled();
+      expect(
+        screen.getByDisplayValue("Published title changed"),
+      ).toBeInTheDocument();
+      expect(claimSessionMediaMock).toHaveBeenCalledTimes(2);
+      await user.click(screen.getByRole("button", { name: "Discard changes" }));
+      await waitFor(() =>
+        expect(pushMock).toHaveBeenCalledWith("/dashboard/published"),
+      );
+    },
+  );
+
+  it("preserves saved pending-update uploads when discarding later temporary media", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    saveDraftMock.mockResolvedValue({
+      kind: "succeeded",
+      postId: "post-1",
+      pendingDraftId: "pending-1",
+      updatedAt: 2,
+      status: "draft",
+    });
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Published title");
+    await user.click(
+      screen.getByRole("button", { name: "Register inline upload" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Edit inline content" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() =>
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Pending update saved as draft.",
+      ),
+    );
+    cleanupPendingUploadsMock.mockClear();
+    await user.click(
+      screen.getByRole("button", { name: "Register later inline upload" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      " changed",
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel update" }));
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/dashboard/published"),
+    );
+    expect(cleanupPendingUploadsMock).toHaveBeenCalledExactlyOnceWith({
+      uploads: [
+        { sessionId: "session-inline-2", storageId: "storage-inline-2" },
+      ],
+    });
+  });
+
   it("blocks reset even when an active upload is not yet represented in the document", async () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
