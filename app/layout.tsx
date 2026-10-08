@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ConvexClientProvider } from "@/components/web/ConvexClientProvider";
+import { AuthoringExitProvider } from "@/components/web/AuthoringExitProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { SITE_NAME, SITE_DESCRIPTION, getSiteUrl } from "@/lib/constants/seo";
 
@@ -63,7 +64,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ConvexClientProvider>{children}</ConvexClientProvider>
+          <ConvexClientProvider>
+            <AuthoringExitProvider>{children}</AuthoringExitProvider>
+          </ConvexClientProvider>
           <Toaster richColors closeButton />
         </ThemeProvider>
       </body>

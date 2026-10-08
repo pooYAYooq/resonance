@@ -40,7 +40,7 @@ export function getEditorCapabilities(mode: EditorMode): EditorCapabilities {
     new: { canSaveDraft: true, canPublish: true, canUpdate: false },
     draft: { canSaveDraft: true, canPublish: true, canUpdate: false },
     "published-edit": {
-      canSaveDraft: false,
+      canSaveDraft: true,
       canPublish: false,
       canUpdate: true,
     },

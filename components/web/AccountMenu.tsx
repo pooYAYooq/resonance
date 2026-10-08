@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "./UserAvatar";
 import { signOutUser } from "./account-actions";
+import { useOptionalAuthoringExit } from "./AuthoringExitProvider";
 
 type AccountMenuProps = {
   presentation: "navbar" | "workspace";
@@ -25,6 +26,8 @@ type AccountMenuProps = {
 export function AccountMenu({ presentation, onNavigate }: AccountMenuProps) {
   const currentUser = useQuery(api.users.getCurrentUser, {});
   const router = useRouter();
+  const exit = useOptionalAuthoringExit();
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const pointerDismissRef = useRef(false);
 
   if (!currentUser) return null;
@@ -37,6 +40,7 @@ export function AccountMenu({ presentation, onNavigate }: AccountMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        ref={triggerRef}
         aria-label={triggerLabel}
         className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -110,7 +114,12 @@ export function AccountMenu({ presentation, onNavigate }: AccountMenuProps) {
           variant="destructive"
           onSelect={() => {
             onNavigate?.();
-            signOutUser(router);
+            if (exit)
+              exit.requestSignOut(
+                () => signOutUser(router),
+                triggerRef.current,
+              );
+            else void signOutUser(router);
           }}
         >
           <LogOut />

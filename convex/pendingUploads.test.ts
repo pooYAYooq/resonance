@@ -412,6 +412,134 @@ describe("pending upload functions", () => {
     expect(result.hasFile).toBe(false);
   });
 
+  it("releases matching session claims together with the cleaned upload", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "combined-release@example.com",
+    );
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob([new Uint8Array([1])], { type: "image/png" })),
+    );
+    const sessionId = await t.run(async (ctx) =>
+      ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        storageId,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 60 * 60 * 1000,
+      }),
+    );
+    const { claimId } = await t
+      .withIdentity(identity)
+      .mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId,
+      });
+
+    await t.withIdentity(identity).mutation(api.pendingUploads.cleanupPending, {
+      uploads: [{ sessionId, storageId }],
+      releaseSessionId: "editor-1",
+    });
+
+    const result = await t.run(async (ctx) => ({
+      session: await ctx.db.get(sessionId),
+      claim: await ctx.db.get(claimId),
+      hasFile: (await ctx.storage.get(storageId)) !== null,
+    }));
+    expect(result.session).toBeNull();
+    expect(result.hasFile).toBe(false);
+    expect(result.claim?.releasedAt).toBeGreaterThan(0);
+    expect(result.claim?.expiresAt).toBe(0);
+  });
+
+  it("keeps claims and files intact when the combined cleanup request fails", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "combined-rollback@example.com",
+    );
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob([new Uint8Array([1])], { type: "image/png" })),
+    );
+    const sessionId = await t.run(async (ctx) =>
+      ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        storageId,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 60 * 60 * 1000,
+      }),
+    );
+    const { claimId } = await t
+      .withIdentity(identity)
+      .mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId,
+      });
+    const tooMany = [
+      { sessionId, storageId },
+      ...Array.from({ length: 100 }, () => ({ sessionId, storageId })),
+    ];
+
+    await expect(
+      t.withIdentity(identity).mutation(api.pendingUploads.cleanupPending, {
+        uploads: tooMany,
+        releaseSessionId: "editor-1",
+      }),
+    ).rejects.toThrow("Too many inline uploads");
+
+    const result = await t.run(async (ctx) => ({
+      session: await ctx.db.get(sessionId),
+      claim: await ctx.db.get(claimId),
+      hasFile: (await ctx.storage.get(storageId)) !== null,
+    }));
+    expect(result.session?._id).toBe(sessionId);
+    expect(result.hasFile).toBe(true);
+    expect(result.claim?.releasedAt).toBeUndefined();
+    expect(result.claim?.consumedAt).toBeUndefined();
+  });
+
+  it("does not release claims for saved uploads skipped by the cleanup guards", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "combined-consumed@example.com",
+    );
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob([new Uint8Array([1])], { type: "image/png" })),
+    );
+    const sessionId = await t.run(async (ctx) =>
+      ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        storageId,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 60 * 60 * 1000,
+      }),
+    );
+    const { claimId } = await t
+      .withIdentity(identity)
+      .mutation(api.sessionMediaClaims.claim, {
+        sessionId: "editor-1",
+        storageId,
+      });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(sessionId, { consumedAt: Date.now() });
+    });
+
+    await t.withIdentity(identity).mutation(api.pendingUploads.cleanupPending, {
+      uploads: [{ sessionId, storageId }],
+      releaseSessionId: "editor-1",
+    });
+
+    const result = await t.run(async (ctx) => ({
+      session: await ctx.db.get(sessionId),
+      claim: await ctx.db.get(claimId),
+      hasFile: (await ctx.storage.get(storageId)) !== null,
+    }));
+    expect(result.session?._id).toBe(sessionId);
+    expect(result.hasFile).toBe(true);
+    expect(result.claim?.releasedAt).toBeUndefined();
+  });
+
   it("isolates a new cleanup run from a stale continuation after lease expiry", async () => {
     vi.useFakeTimers();
     const t = convexTest(schema, modules);

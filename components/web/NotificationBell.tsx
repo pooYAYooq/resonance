@@ -13,7 +13,7 @@
  * Badge: a destructively-styled round chip with the count, hidden
  * when count is 0, capped at "99+" for display (the underlying
  * `users.unreadNotificationCount` keeps the real number for
- * accuracy). Click navigates to `/notifications` via `useRouter`.
+ * accuracy). Click uses the authoring exit guard when available.
  */
 
 "use client";
@@ -23,10 +23,12 @@ import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
+import { useOptionalAuthoringExit } from "./AuthoringExitProvider";
 
 export function NotificationBell() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
+  const authoringExit = useOptionalAuthoringExit();
   const unread = useQuery(
     api.notifications.getUnreadCount,
     !isLoading && isAuthenticated ? {} : "skip",
@@ -42,7 +44,13 @@ export function NotificationBell() {
       variant="ghost"
       size="icon"
       aria-label={label}
-      onClick={() => router.push("/notifications")}
+      onClick={() => {
+        if (authoringExit) {
+          authoringExit.request({ kind: "navigate", href: "/notifications" });
+        } else {
+          router.push("/notifications");
+        }
+      }}
     >
       <Bell className="size-5" />
       {count > 0 && (

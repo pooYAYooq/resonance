@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ThemePreferenceControl } from "@/components/web/ThemePreferenceControl";
 import { signOutUser } from "@/components/web/account-actions";
+import { useOptionalAuthoringExit } from "@/components/web/AuthoringExitProvider";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 export default function SettingsRoute() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
+  const exit = useOptionalAuthoringExit();
   const currentUser = useQuery(
     api.users.getCurrentUser,
     !isLoading && isAuthenticated ? {} : "skip",
@@ -67,7 +69,10 @@ export default function SettingsRoute() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => signOutUser(router)}
+            onClick={() => {
+              if (exit) exit.requestSignOut(() => signOutUser(router));
+              else void signOutUser(router);
+            }}
           >
             Sign Out
           </Button>

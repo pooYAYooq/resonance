@@ -18,6 +18,33 @@ describe("useInlineImageUpload", () => {
     expect(typeof result.current.resolveFileUrl).toBe("function");
   });
 
+  it("tracks an upload from reservation until a failed reservation settles", async () => {
+    let rejectReservation!: (reason: Error) => void;
+    const reservation = new Promise<never>((_, reject) => {
+      rejectReservation = reject;
+    });
+    const createPendingUpload = vi.fn(() => reservation);
+    vi.mocked(useMutation)
+      .mockImplementationOnce(() => createPendingUpload as never)
+      .mockImplementationOnce(() => vi.fn() as never)
+      .mockImplementationOnce(() => vi.fn() as never);
+    let active = 0;
+    const { result } = renderHook(() =>
+      useInlineImageUpload({
+        onUploadActivityChange: (delta) => {
+          active += delta;
+        },
+      }),
+    );
+    const promise = result.current.uploadFile(
+      new File(["image"], "image.png", { type: "image/png" }),
+    );
+    expect(active).toBe(1);
+    rejectReservation(new Error("reservation failed"));
+    await expect(promise).rejects.toThrow("reservation failed");
+    expect(active).toBe(0);
+  });
+
   it("resolves a resolvedImageUrls fallback when no object URL exists", async () => {
     const { result } = renderHook(() =>
       useInlineImageUpload({

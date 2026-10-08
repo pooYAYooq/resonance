@@ -17,6 +17,7 @@ export function DraftsSection() {
   const [selected, setSelected] = useState<{
     _id: Id<"posts">;
     title: string;
+    sourcePostId?: Id<"posts">;
   } | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -142,6 +143,7 @@ export function DraftsSection() {
                 setSelected({
                   _id: draft._id,
                   title: draft.title.trim() || "Untitled draft",
+                  sourcePostId: draft.sourcePostId,
                 });
               }}
             />
@@ -160,7 +162,7 @@ export function DraftsSection() {
         </div>
       )}
       <DeletePostDialog
-        kind="draft"
+        kind={selected?.sourcePostId ? "pending-update" : "draft"}
         title={selected?.title ?? ""}
         open={selected !== null}
         pending={pending}

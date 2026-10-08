@@ -6,6 +6,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 type DraftRowProps = {
   draft: {
     _id: Id<"posts">;
+    sourcePostId?: Id<"posts">;
     title: string;
     excerpt: string;
     tags: string[];
@@ -22,6 +23,9 @@ export function DraftRow({ draft, onDelete, deleting }: DraftRowProps) {
         <h2 className="truncate text-lg font-semibold">
           {draft.title.trim() || "Untitled draft"}
         </h2>
+        {draft.sourcePostId && (
+          <p className="mt-1 text-xs text-muted-foreground">Pending update</p>
+        )}
         <p className="mt-2 text-sm text-muted-foreground">{draft.excerpt}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {draft.tags.map((tag) => (
@@ -37,7 +41,13 @@ export function DraftRow({ draft, onDelete, deleting }: DraftRowProps) {
       </div>
       <div className="flex shrink-0 gap-2">
         <Button asChild variant="outline">
-          <Link href={`/create?draftId=${encodeURIComponent(draft._id)}`}>
+          <Link
+            href={
+              draft.sourcePostId
+                ? `/create?editPostId=${encodeURIComponent(draft.sourcePostId)}`
+                : `/create?draftId=${encodeURIComponent(draft._id)}`
+            }
+          >
             Resume
           </Link>
         </Button>

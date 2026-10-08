@@ -34,9 +34,23 @@ work is tracked in `ROADMAP.md`.
   Publication is blocked while inline media or a recovered saved cover is
   unresolved; a newly selected cover uploads on submit and does not block.
 - Silent local draft recovery for unsaved new posts and drafts: work is
-  snapshotted to `localStorage` and reloaded on return, with no restore prompt
-  and no `beforeunload` warning. Published edits stay page-local in memory until
-  Update Post succeeds.
+  snapshotted to `localStorage` and reloaded on return, with no restore prompt.
+  Published edits stay page-local in memory until Update Post succeeds.
+- Unsaved-exit guards across authoring: app-link departures for new posts and
+  drafts store the latest recovery snapshot first (light reminder when storage
+  fails, for published edits, or a selected cover File); Back/Forward confirms
+  and replays the exact destination through the Navigation API, with a
+  synchronous recovery flush on older browsers and for traversals the browser
+  cannot cancel; document switches validate the
+  destination before clearing the current session's recovery; sign-out offers
+  save or discard; and a native browser warning attaches only while unsaved
+  work or an unresolved operation exists.
+- Start fresh (new posts and drafts) and Cancel update (published edits)
+  confirmations that clear only the current session's recovery after verified
+  deletion and leave saved drafts, posts, and media untouched.
+- Published editing can save one pending update as a draft linked to the live
+  post, with a Pending update label in Drafts; promotion updates the same post
+  without changing identity, URL, publication date, or engagement.
 - Canonical `blocknote@1` document contract validated at both the browser form
   and the Convex write boundary, covered by an all-block round-trip conformance
   test.
@@ -80,6 +94,13 @@ work is tracked in `ROADMAP.md`.
   outline where its bundled stylesheet suppressed one.
 
 ### Fixed
+
+- Notification-bell navigation now goes through the authoring exit guard, so
+  mobile authors receive the same unsaved-work protection as app-link exits.
+- Cancel update releases the session's media claims and cleans temporary
+  inline uploads in one transaction before returning to My Posts. Saved
+  pending-update media is preserved; a failed request keeps the editor open
+  with a retryable error while the claims keep protecting the media.
 
 - Pasted web pages no longer make a post unsaveable: copied CSS colors and
   alignments are normalized to supported values when they enter the editor,

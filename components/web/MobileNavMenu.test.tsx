@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useEffect } from "react";
 
-const { pathnameState, useQueryState } = vi.hoisted(() => ({
+const { pathnameState, useQueryState, signOutMock } = vi.hoisted(() => ({
   pathnameState: vi.fn(),
   useQueryState: vi.fn(),
+  signOutMock: vi.fn(),
 }));
 
 vi.mock("convex/react", () => ({
@@ -24,12 +26,62 @@ vi.mock("@/convex/_generated/api", () => ({
 }));
 
 vi.mock("@/lib/auth-client", () => ({
-  authClient: { signOut: vi.fn() },
+  authClient: { signOut: signOutMock },
 }));
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
-import { MobileNavMenu } from "./MobileNavMenu";
+import { AppNavigation, MobileNavMenu } from "./MobileNavMenu";
+import {
+  AuthoringExitProvider,
+  useAuthoringExit,
+} from "./AuthoringExitProvider";
+
+const authoredBody = JSON.stringify({
+  format: "blocknote@1",
+  blocks: [
+    {
+      type: "paragraph",
+      content: [{ type: "text", text: "Draft work", styles: {} }],
+    },
+  ],
+});
+const emptyBody = JSON.stringify({
+  format: "blocknote@1",
+  blocks: [{ type: "paragraph", content: [] }],
+});
+
+function DirtyRegistrationBinder() {
+  const { register } = useAuthoringExit();
+  useEffect(
+    () =>
+      register({
+        getSession: () => ({
+          sessionKey: "draft:d1",
+          mode: "draft",
+          proposal: { title: "", body: authoredBody, tags: [] },
+          baseline: { title: "", body: emptyBody, tags: [] },
+          selectedCover: false,
+          pendingUploads: 0,
+          failedMedia: false,
+          saving: false,
+          uncertain: false,
+          coverRemoved: false,
+        }),
+        flushRecovery: () => ({ ok: true }),
+        clearRecovery: () => ({ ok: true }),
+        saveDraft: async () => ({ kind: "saved" }),
+        validateTarget: async () => ({ ok: true }),
+        adoptTarget: () => {},
+        startFresh: () => {},
+        cancelUpdate: () => {},
+        reconcile: async () => {},
+        resumeRecovery: () => {},
+      }),
+    [register],
+  );
+  return null;
+}
 
 describe("MobileNavMenu", () => {
   beforeEach(() => {
@@ -183,5 +235,84 @@ describe("MobileNavMenu", () => {
     expect(
       screen.queryByRole("dialog", { name: "Navigation" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("routes drawer sign out through the exit coordinator and restores focus", async () => {
+    const user = userEvent.setup();
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 0
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
+
+    render(
+      <AuthoringExitProvider>
+        <DirtyRegistrationBinder />
+        <MobileNavMenu isAuthenticated />
+      </AuthoringExitProvider>,
+    );
+
+    const trigger = screen.getByRole("button", {
+      name: "Open navigation menu",
+    });
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "Sign Out" }));
+
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+    expect(signOutMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it("restores focus to the clicked sign-out control when no drawer trigger owns it", async () => {
+    const user = userEvent.setup();
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 0
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
+
+    render(
+      <AuthoringExitProvider>
+        <DirtyRegistrationBinder />
+        <button
+          aria-label="Open navigation menu"
+          hidden
+          type="button"
+          data-testid="hidden-nav-trigger"
+        />
+        <AppNavigation isAuthenticated />
+      </AuthoringExitProvider>,
+    );
+
+    const signOut = screen.getByRole("button", { name: "Sign Out" });
+    await user.click(signOut);
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(signOut));
+    expect(signOutMock).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,15 @@ export function getSafeReturnTo(returnTo: string | null | undefined): string {
         return DASHBOARD_PATH;
       }
     }
+    const pathname = decodedReturnTo.split(/[?#]/, 1)[0];
+    if (
+      pathname === "/create" ||
+      pathname.startsWith("/create/") ||
+      pathname === "/dashboard" ||
+      pathname.startsWith("/dashboard/")
+    ) {
+      return DASHBOARD_PATH;
+    }
   } catch {
     return DASHBOARD_PATH;
   }

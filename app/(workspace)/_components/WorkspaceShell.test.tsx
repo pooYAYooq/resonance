@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import {
+  AuthoringExitProvider,
+  useAuthoringExit,
+} from "@/components/web/AuthoringExitProvider";
 
 const { authState, pushMock } = vi.hoisted(() => ({
   authState: vi.fn(),
@@ -12,6 +17,7 @@ vi.mock("convex/react", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
+  usePathname: () => "/create",
 }));
 
 vi.mock("./WorkspaceSidebar", () => ({
@@ -25,7 +31,64 @@ vi.mock("@/components/web/Navbar", () => ({
 import { WorkspaceShell } from "./WorkspaceShell";
 import DocumentStudio from "../create/_components/DocumentStudio";
 
+function SignOutControl({
+  action,
+}: {
+  action: () => Promise<{ ok: boolean }>;
+}) {
+  const { requestSignOut } = useAuthoringExit();
+  return <button onClick={() => requestSignOut(action)}>Sign out test</button>;
+}
+
 describe("WorkspaceShell", () => {
+  it("hides the workspace and does not race sign-out with a login redirect", async () => {
+    const user = userEvent.setup();
+    let settle!: (result: { ok: boolean }) => void;
+    const action = () =>
+      new Promise<{ ok: boolean }>((resolve) => {
+        settle = resolve;
+      });
+    const view = () => (
+      <AuthoringExitProvider>
+        <SignOutControl action={action} />
+        <WorkspaceShell>
+          <p>Private workspace content</p>
+        </WorkspaceShell>
+      </AuthoringExitProvider>
+    );
+    const { rerender } = render(view());
+    await user.click(screen.getByRole("button", { name: "Sign out test" }));
+    expect(screen.getByText("Private workspace content")).not.toBeVisible();
+    authState.mockReturnValue({ isAuthenticated: false, isLoading: false });
+    rerender(view());
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("status", { name: "Signing out" })).toBeVisible();
+    await act(async () => settle({ ok: true }));
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.getByText("Private workspace content")).not.toBeVisible();
+  });
+
+  it("restores the mounted workspace when sign-out fails", async () => {
+    const user = userEvent.setup();
+    let settle!: (result: { ok: boolean }) => void;
+    const action = () =>
+      new Promise<{ ok: boolean }>((resolve) => {
+        settle = resolve;
+      });
+    render(
+      <AuthoringExitProvider>
+        <SignOutControl action={action} />
+        <WorkspaceShell>
+          <p>Private workspace content</p>
+        </WorkspaceShell>
+      </AuthoringExitProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Sign out test" }));
+    expect(screen.getByText("Private workspace content")).not.toBeVisible();
+    await act(async () => settle({ ok: false }));
+    expect(screen.getByText("Private workspace content")).toBeVisible();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();

@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   fireEvent,
-  render,
+  render as renderUI,
   screen,
   waitFor,
   within,
@@ -11,6 +12,34 @@ import type { BlockNoteDocument } from "@/lib/post-content";
 import { saveDraftRecovery, readDraftRecovery } from "@/lib/draft-recovery";
 import type { Id } from "@/convex/_generated/dataModel";
 import CreateRoute from "./page";
+import {
+  AuthoringExitProvider,
+  useAuthoringExit,
+} from "@/components/web/AuthoringExitProvider";
+
+function ExitTestControl() {
+  const { request } = useAuthoringExit();
+  return (
+    <button
+      onClick={() =>
+        request({ kind: "history", key: "test-entry", href: "/blog" })
+      }
+    >
+      Try leaving
+    </button>
+  );
+}
+
+function render(ui: React.ReactNode) {
+  return renderUI(ui, {
+    wrapper: ({ children }) => (
+      <AuthoringExitProvider>
+        {children}
+        <ExitTestControl />
+      </AuthoringExitProvider>
+    ),
+  });
+}
 
 const validEnvelope: BlockNoteDocument = {
   format: "blocknote@1",
@@ -69,6 +98,7 @@ const shortEnvelope: BlockNoteDocument = {
 };
 
 type MockPostBodyEditorProps = {
+  onUploadActivityChange?: (delta: 1 | -1) => void;
   onChange: (value: BlockNoteDocument) => void;
   onPasteNotice?: (message: string) => void;
   onUploadSessionCreated?: (
@@ -85,10 +115,17 @@ vi.mock("./_components/PostBodyEditor", () => ({
     onChange,
     onPasteNotice,
     onUploadSessionCreated,
+    onUploadActivityChange,
     initialContent,
     resolvedImageUrls,
   }: MockPostBodyEditorProps) => (
     <>
+      <button type="button" onClick={() => onUploadActivityChange?.(1)}>
+        Begin media upload
+      </button>
+      <button type="button" onClick={() => onUploadActivityChange?.(-1)}>
+        Finish media upload
+      </button>
       {initialContent && <output>{JSON.stringify(initialContent)}</output>}
       {resolvedImageUrls && (
         <output>{JSON.stringify(resolvedImageUrls)}</output>
@@ -172,6 +209,7 @@ const {
   getPublishedPostForEditingMock,
   updatePublishedPostMock,
   reserveAttemptMock,
+  reconcileAttemptMock,
   convexQueryMock,
   draftIdParam,
   editPostIdParam,
@@ -195,6 +233,7 @@ const {
   getPublishedPostForEditingMock: vi.fn(),
   updatePublishedPostMock: vi.fn(),
   reserveAttemptMock: vi.fn(),
+  reconcileAttemptMock: vi.fn(),
   convexQueryMock: vi.fn(),
   draftIdParam: { value: undefined as string | undefined },
   editPostIdParam: { value: undefined as string | undefined },
@@ -207,6 +246,7 @@ let fetchMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => routerMock,
+  usePathname: () => "/create",
   useSearchParams: () => ({
     get: (key: string) => {
       if (key === "draftId") return draftIdParam.value ?? null;
@@ -236,6 +276,7 @@ vi.mock("convex/react", () => ({
     if (apiRef === "publishPost") return publishPostMock;
     if (apiRef === "updatePublishedPost") return updatePublishedPostMock;
     if (apiRef === "reserveAttempt") return reserveAttemptMock;
+    if (apiRef === "reconcileAttempt") return reconcileAttemptMock;
     return vi.fn();
   },
   useQuery: (apiRef: unknown, args: unknown) => {
@@ -267,6 +308,7 @@ vi.mock("@/convex/_generated/api", () => ({
     },
     writeAttempts: {
       reserveAttempt: "reserveAttempt",
+      reconcileAttempt: "reconcileAttempt",
     },
     users: {
       getCurrentUser: "getCurrentUser",
@@ -281,6 +323,200 @@ vi.mock("@/convex/_generated/api", () => ({
 }));
 
 describe("CreateRoute", () => {
+  it("keeps newer writing when an exit save completes", async () => {
+    const user = userEvent.setup();
+    let resolveSave!: (value: unknown) => void;
+    saveDraftMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    render(<CreateRoute />);
+    const title = screen.getByRole("textbox", { name: "Post title" });
+    fireEvent.change(title, { target: { value: "Submitted writing" } });
+    await user.click(screen.getByRole("button", { name: "Try leaving" }));
+    await user.click(screen.getByRole("button", { name: "Save & leave" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
+    fireEvent.change(title, { target: { value: "Newer writing" } });
+    await act(async () => {
+      resolveSave({
+        kind: "succeeded",
+        postId: "draft-1",
+        updatedAt: 2,
+        status: "draft",
+      });
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Save & leave" }),
+      ).toBeEnabled(),
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(title).toHaveValue("Newer writing");
+  });
+
+  it("reconciles a disconnected exit save using the original attempt and proposal", async () => {
+    const user = userEvent.setup();
+    saveDraftMock.mockRejectedValue(new Error("Connection lost"));
+    reconcileAttemptMock.mockResolvedValue({
+      kind: "succeeded",
+      postId: "draft-1",
+      updatedAt: 2,
+      status: "draft",
+    });
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Attempted writing",
+    );
+    await user.click(screen.getByRole("button", { name: "Try leaving" }));
+    await user.click(screen.getByRole("button", { name: "Save & leave" }));
+    await screen.findByRole("alertdialog", {
+      name: "We couldn’t confirm your save",
+    });
+    await user.click(screen.getByRole("button", { name: "Check status" }));
+    await waitFor(() =>
+      expect(reconcileAttemptMock).toHaveBeenCalledWith(
+        saveDraftMock.mock.calls[0]![0],
+      ),
+    );
+    expect(reserveAttemptMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    saveDraftMock.mockResolvedValue({
+      kind: "succeeded",
+      postId: "draft-1",
+      updatedAt: 3,
+      status: "draft",
+    });
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      " newer",
+    );
+    await user.click(screen.getByRole("button", { name: /^Save draft$/ }));
+    await waitFor(() =>
+      expect(reserveAttemptMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ postId: "draft-1", expectedUpdatedAt: 2 }),
+      ),
+    );
+  });
+
+  it("keeps an indeterminate reconciliation blocked without reserving another attempt", async () => {
+    const user = userEvent.setup();
+    saveDraftMock.mockRejectedValue(new Error("Connection lost"));
+    reconcileAttemptMock.mockResolvedValue({
+      kind: "indeterminate",
+      message: "Still checking the original save",
+    });
+    render(<CreateRoute />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Post title" }), {
+      target: { value: "Retained uncertain writing" },
+    });
+    await user.click(screen.getByRole("button", { name: "Try leaving" }));
+    await user.click(screen.getByRole("button", { name: "Save & leave" }));
+    await screen.findByRole("alertdialog", {
+      name: "We couldn’t confirm your save",
+    });
+    await user.click(screen.getByRole("button", { name: "Check status" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Still checking the original save",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Leave" }),
+    ).not.toBeInTheDocument();
+    expect(reserveAttemptMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+      "Retained uncertain writing",
+    );
+    expect(screen.getByRole("button", { name: /^Save draft$/ })).toBeDisabled();
+  });
+
+  it("preserves writing and permits retry after reconciliation confirms failure", async () => {
+    const user = userEvent.setup();
+    saveDraftMock.mockRejectedValue(new Error("Connection lost"));
+    reconcileAttemptMock.mockResolvedValue({
+      kind: "failed",
+      message: "The original save failed",
+    });
+    render(<CreateRoute />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Post title" }), {
+      target: { value: "Retained failed writing" },
+    });
+    await user.click(screen.getByRole("button", { name: "Try leaving" }));
+    await user.click(screen.getByRole("button", { name: "Save & leave" }));
+    await screen.findByRole("alertdialog", {
+      name: "We couldn’t confirm your save",
+    });
+    await user.click(screen.getByRole("button", { name: "Check status" }));
+    await screen.findByRole("alertdialog", { name: "Leave this page?" });
+    expect(reserveAttemptMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+      "Retained failed writing",
+    );
+    expect(screen.getByRole("button", { name: /^Save draft$/ })).toBeEnabled();
+  });
+
+  it("waits for the actual draft save before continuing an exit", async () => {
+    const user = userEvent.setup();
+    let resolveSave!: (value: unknown) => void;
+    saveDraftMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Current work",
+    );
+    await user.click(screen.getByRole("button", { name: "Try leaving" }));
+    await user.click(screen.getByRole("button", { name: "Save & leave" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    await act(async () => {
+      resolveSave({
+        kind: "succeeded",
+        postId: "draft-1",
+        updatedAt: 2,
+        status: "draft",
+      });
+    });
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/blog"));
+  });
+
+  it("keeps the editor when an exit draft save fails", async () => {
+    const user = userEvent.setup();
+    saveDraftMock.mockResolvedValue({
+      kind: "failed",
+      message: "Draft quota reached",
+    });
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Current work",
+    );
+    await user.click(screen.getByRole("button", { name: "Try leaving" }));
+    await user.click(screen.getByRole("button", { name: "Save & leave" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Draft quota reached",
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+      "Current work",
+    );
+  });
+
   beforeEach(() => {
     routerMock.push = pushMock;
     routerMock.replace = pushMock;
@@ -301,6 +537,7 @@ describe("CreateRoute", () => {
     getPublishedPostForEditingMock.mockReset();
     updatePublishedPostMock.mockReset();
     reserveAttemptMock.mockReset();
+    reconcileAttemptMock.mockReset();
     convexQueryMock.mockReset();
     viewerQueryMock.mockReset();
     convexQueryMock.mockResolvedValue([]);
@@ -356,7 +593,7 @@ describe("CreateRoute", () => {
 
   async function submitFromReview(
     user: ReturnType<typeof userEvent.setup>,
-    label: "Publish" | "Update Post" = "Publish",
+    label: "Publish" | "Update post" = "Publish",
   ) {
     await user.click(await screen.findByRole("button", { name: label }));
   }
@@ -381,7 +618,7 @@ describe("CreateRoute", () => {
       "new",
     );
     expect(screen.getAllByText("Post details")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Save Draft" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeVisible();
   });
 
   it("skips the preview identity subscription during auth refresh and sign-out", () => {
@@ -514,6 +751,429 @@ describe("CreateRoute", () => {
     await waitFor(() => expect(readDraftRecovery("new:new")).not.toBeNull(), {
       timeout: 2500,
     });
+  });
+
+  it("keeps writing when Start fresh is cancelled and clears it only after confirmation", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.type(
+      await screen.findByRole("textbox", { name: "Post title" }),
+      "Unsaved title",
+    );
+    await user.click(screen.getByRole("button", { name: "Edit blog content" }));
+    saveDraftRecovery("new:new", {
+      title: "Unsaved title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+    });
+    await user.click(screen.getByRole("button", { name: "Start fresh" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+      "Unsaved title",
+    );
+    expect(readDraftRecovery("new:new")).not.toBeNull();
+    await user.click(screen.getByRole("button", { name: "Start fresh" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Start fresh",
+      }),
+    );
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue("");
+    expect(screen.getByText(JSON.stringify(emptyDocument))).toBeVisible();
+    window.dispatchEvent(new Event("pagehide"));
+    expect(readDraftRecovery("new:new")).toBeNull();
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Fresh writing",
+    );
+    window.dispatchEvent(new Event("pagehide"));
+    expect(readDraftRecovery("new:new")?.proposal.title).toBe("Fresh writing");
+    expect(saveDraftMock).not.toHaveBeenCalled();
+    expect(publishPostMock).not.toHaveBeenCalled();
+  });
+
+  it("starts fresh from a saved draft without rehydrating it from stale URL parameters", async () => {
+    const user = userEvent.setup();
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Saved draft",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Saved draft");
+    await user.click(screen.getByRole("button", { name: "Start fresh" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue("");
+    expect(screen.getByTestId("document-studio")).toHaveAttribute(
+      "data-editor-mode",
+      "new",
+    );
+    expect(pushMock).toHaveBeenCalledWith("/create", { scroll: false });
+    expect(saveDraftMock).not.toHaveBeenCalled();
+  });
+
+  it("retains writing when recovery deletion fails", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.type(
+      await screen.findByRole("textbox", { name: "Post title" }),
+      "Keep this",
+    );
+    const remove = vi
+      .spyOn(Storage.prototype, "removeItem")
+      .mockImplementation(() => {
+        throw new Error("denied");
+      });
+    try {
+      await user.click(screen.getByRole("button", { name: "Start fresh" }));
+      await user.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "Start fresh",
+        }),
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent("Could not clear");
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+        "Keep this",
+      );
+      window.dispatchEvent(new Event("pagehide"));
+      expect(readDraftRecovery("new:new")?.proposal.title).toBe("Keep this");
+      expect(pushMock).not.toHaveBeenCalled();
+    } finally {
+      remove.mockRestore();
+    }
+  });
+
+  it("cancels a published update to My Posts without saving the changes", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Published title");
+    expect(
+      screen.queryByRole("button", { name: "Start fresh" }),
+    ).not.toBeInTheDocument();
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      " changed",
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel update" }));
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+      "Published title changed",
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Cancel update" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Discard changes",
+      }),
+    );
+    expect(pushMock).toHaveBeenCalledWith("/dashboard/published");
+    expect(updatePublishedPostMock).not.toHaveBeenCalled();
+    expect(saveDraftMock).not.toHaveBeenCalled();
+  });
+
+  it("confirms Cancel update when the only change is a removed cover", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageStorageId: "cover-1",
+      imageUrl: "https://cover.example/image.png",
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Published title");
+    // The loaded revision is clean, so the dialog below can only be caused by
+    // the removed cover.
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Remove cover" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove cover" })).toBeNull(),
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel update" }));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(pushMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Cancel update" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Discard changes",
+      }),
+    );
+    expect(pushMock).toHaveBeenCalledWith("/dashboard/published");
+  });
+
+  it("confirms Start fresh when the only change is a removed cover", async () => {
+    const user = userEvent.setup();
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Covered draft",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageStorageId: "cover-1",
+      imageUrl: "https://cover.example/image.png",
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Covered draft");
+    // The loaded revision is clean, so the dialog below can only be caused by
+    // the removed cover.
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Remove cover" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove cover" })).toBeNull(),
+    );
+    await user.click(screen.getByRole("button", { name: "Start fresh" }));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByDisplayValue("Covered draft")).toBeInTheDocument();
+  });
+
+  it("cleans canceled temporary uploads in one protected request before leaving a published edit", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    let resolveCleanup!: () => void;
+    cleanupPendingUploadsMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCleanup = resolve;
+        }),
+    );
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Published title");
+    await user.click(
+      screen.getByRole("button", { name: "Register inline upload" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      " changed",
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel update" }));
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    // One mutation releases the session claims and cleans the uploads in the
+    // same transaction, so there is nothing to compensate on failure.
+    expect(cleanupPendingUploadsMock).toHaveBeenCalledExactlyOnceWith({
+      uploads: [
+        { sessionId: "session-inline-1", storageId: "storage-inline-1" },
+      ],
+      releaseSessionId: "published-edit:post-1",
+    });
+    expect(releaseSessionMediaMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Discard changes" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Keep editing" })).toBeDisabled();
+    await act(async () => resolveCleanup());
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/dashboard/published"),
+    );
+  });
+
+  it("keeps the published edit protected and retryable when the cleanup request fails", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    cleanupPendingUploadsMock.mockRejectedValueOnce(new Error("offline"));
+    cleanupPendingUploadsMock.mockResolvedValue(null);
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Published title");
+    await user.click(
+      screen.getByRole("button", { name: "Register inline upload" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      " changed",
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel update" }));
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not clean up",
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByDisplayValue("Published title changed"),
+    ).toBeInTheDocument();
+    // A failed transaction leaves the live claim in place: no compensating
+    // claim is needed, so the only claim call is the original registration.
+    expect(claimSessionMediaMock).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/dashboard/published"),
+    );
+    expect(cleanupPendingUploadsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves saved pending-update uploads when discarding later temporary media", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    saveDraftMock.mockResolvedValue({
+      kind: "succeeded",
+      postId: "post-1",
+      pendingDraftId: "pending-1",
+      updatedAt: 2,
+      status: "draft",
+    });
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Published title");
+    await user.click(
+      screen.getByRole("button", { name: "Register inline upload" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Edit inline content" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() =>
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Pending update saved as draft.",
+      ),
+    );
+    cleanupPendingUploadsMock.mockClear();
+    await user.click(
+      screen.getByRole("button", { name: "Register later inline upload" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      " changed",
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel update" }));
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/dashboard/published"),
+    );
+    expect(cleanupPendingUploadsMock).toHaveBeenCalledExactlyOnceWith({
+      uploads: [
+        { sessionId: "session-inline-2", storageId: "storage-inline-2" },
+      ],
+      releaseSessionId: "published-edit:post-1",
+    });
+  });
+
+  it("blocks reset even when an active upload is not yet represented in the document", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.type(
+      await screen.findByRole("textbox", { name: "Post title" }),
+      "Writing",
+    );
+    await user.click(screen.getByRole("button", { name: "Start fresh" }));
+    // Exercise a background upload completing/starting while the dialog is open.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Begin media upload", hidden: true }),
+    );
+    expect(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Start fresh",
+      }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "Start fresh" })).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Finish media upload" }),
+    );
+    expect(screen.getByRole("button", { name: "Start fresh" })).toBeEnabled();
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+      "Writing",
+    );
+  });
+
+  it("blocks Start fresh while a draft save is pending or uncertain", async () => {
+    const user = userEvent.setup();
+    let rejectSave!: (reason: Error) => void;
+    saveDraftMock.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectSave = reject;
+        }),
+    );
+    render(<CreateRoute />);
+    await user.type(
+      await screen.findByRole("textbox", { name: "Post title" }),
+      "Writing",
+    );
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalled());
+    expect(screen.getByRole("button", { name: "Start fresh" })).toBeDisabled();
+    rejectSave(new Error("network outcome unknown"));
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled());
+    expect(screen.getByRole("button", { name: "Start fresh" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+      "Writing",
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("cleans up only newly uploaded temporary media when starting fresh", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.click(
+      await screen.findByRole("button", { name: "Register inline upload" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Unsaved title",
+    );
+    await user.click(screen.getByRole("button", { name: "Start fresh" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Start fresh",
+      }),
+    );
+    expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
+      uploads: [
+        { sessionId: "session-inline-1", storageId: "storage-inline-1" },
+      ],
+    });
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue("");
+    expect(saveDraftMock).not.toHaveBeenCalled();
   });
 
   it("ignores and clears an empty recovered snapshot", async () => {
@@ -785,6 +1445,74 @@ describe("CreateRoute", () => {
     );
   });
 
+  it("keeps a cover removal made while a draft save is running", async () => {
+    const user = userEvent.setup();
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Covered draft",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: "cover-1",
+      imageUrl: "https://cover.example/image.png",
+      inlineImages: [],
+      updatedAt: 1,
+    });
+    let resolveSave!: (value: unknown) => void;
+    saveDraftMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Covered draft");
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      " edited",
+    );
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "Remove cover" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove cover" })).toBeNull(),
+    );
+
+    await act(async () => {
+      resolveSave({
+        kind: "succeeded",
+        postId: "draft-1",
+        updatedAt: 2,
+        status: "draft",
+      });
+    });
+    await waitFor(() =>
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Draft saved successfully!",
+      ),
+    );
+
+    // The removal is newer than the completed save and stays unsaved: the
+    // next save submits the document without the cover it just captured.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save draft" })).toBeEnabled(),
+    );
+    saveDraftMock.mockResolvedValue({
+      kind: "succeeded",
+      postId: "draft-1",
+      updatedAt: 3,
+      status: "draft",
+    });
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(2));
+    expect(reserveAttemptMock).toHaveBeenCalledTimes(2);
+    expect(reserveAttemptMock.mock.calls[1]?.[0]?.proposal).not.toHaveProperty(
+      "imageStorageId",
+    );
+  });
+
   it("hydrates a draft when opened with a draft ID", async () => {
     draftIdParam.value = "draft-1";
     getDraftByIdMock.mockReturnValue({
@@ -947,13 +1675,13 @@ describe("CreateRoute", () => {
       await screen.findByDisplayValue("Published title"),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review Update" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Save Draft" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Edit blog content" }));
     await enterReview(user, "Review Update");
-    await submitFromReview(user, "Update Post");
+    await submitFromReview(user, "Update post");
 
     await waitFor(() => {
       expect(updatePublishedPostMock).toHaveBeenCalledWith(
@@ -997,6 +1725,109 @@ describe("CreateRoute", () => {
     ).toBeInTheDocument();
   });
 
+  it("saves unfinished published edits as a draft without publishing or leaving the editor", async () => {
+    const user = userEvent.setup();
+    editPostIdParam.value = "post-1";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-1",
+      title: "Published title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 1,
+      publishedAt: 1,
+    });
+    saveDraftMock.mockResolvedValue({
+      kind: "succeeded",
+      postId: "post-1",
+      pendingDraftId: "pending-1",
+      updatedAt: 2,
+      status: "draft",
+    });
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Published title");
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
+    await user.clear(screen.getByRole("textbox", { name: "Post title" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Pending update saved as draft.",
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled(),
+    );
+    expect(reserveAttemptMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operationKind: "save-draft",
+        postId: "post-1",
+        expectedUpdatedAt: 1,
+        expectedPendingDraftId: null,
+        proposal: expect.objectContaining({ title: "" }),
+      }),
+    );
+    expect(updatePublishedPostMock).not.toHaveBeenCalled();
+    expect(publishPostMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Review Update" })).toBeVisible();
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Resaved pending title",
+    );
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(2));
+    expect(reserveAttemptMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operationKind: "save-draft",
+        postId: "post-1",
+        expectedUpdatedAt: 2,
+        expectedPendingDraftId: "pending-1",
+      }),
+    );
+  });
+
+  it("disables Save Draft on a blank editor and when edits are reverted", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    const save = screen.getByRole("button", { name: "Save draft" });
+    expect(save).toBeDisabled();
+    const title = screen.getByRole("textbox", { name: "Post title" });
+    await user.type(title, "Temporary edit");
+    expect(save).toBeEnabled();
+    await user.clear(title);
+    expect(save).toBeDisabled();
+    expect(reserveAttemptMock).not.toHaveBeenCalled();
+  });
+
+  it("resumes a linked draft URL in published-edit mode", async () => {
+    draftIdParam.value = "pending-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "pending-1",
+      sourcePostId: "post-1",
+      title: "Pending title",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 2,
+    });
+    render(<CreateRoute />);
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/create?editPostId=post-1", {
+        scroll: false,
+      }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Review for publication" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("document-studio")).toHaveAttribute(
+      "data-editor-mode",
+      "published-edit",
+    );
+  });
+
   it("keeps the active published target when the URL changes while dirty", async () => {
     const user = userEvent.setup();
     editPostIdParam.value = "post-1";
@@ -1035,7 +1866,7 @@ describe("CreateRoute", () => {
     expect(screen.queryByDisplayValue("Post two")).toBeNull();
 
     await enterReview(user, "Review Update");
-    await submitFromReview(user, "Update Post");
+    await submitFromReview(user, "Update post");
     await waitFor(() => {
       expect(reserveAttemptMock).toHaveBeenCalledWith(
         expect.objectContaining({ postId: "post-1" }),
@@ -1409,12 +2240,20 @@ describe("CreateRoute", () => {
       screen.getByLabelText("Image (optional)"),
       new File(["cover"], "cover.png", { type: "image/png" }),
     );
-    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
     expect(claimSessionMediaMock).toHaveBeenCalledWith({
       sessionId: "new:new",
       storageId: "storage-cover",
     });
+    await waitFor(() =>
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Draft saved successfully!",
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled(),
+    );
 
     editPostIdParam.value = "post-2";
     getPublishedPostForEditingMock.mockReturnValue({
@@ -1428,7 +2267,9 @@ describe("CreateRoute", () => {
       publishedAt: 200,
       updatedAt: 201,
     });
-    view.rerender(<CreateRoute />);
+    await act(async () => {
+      view.rerender(<CreateRoute />);
+    });
 
     expect(await screen.findByDisplayValue("Post two")).toBeInTheDocument();
     expect(
@@ -1468,7 +2309,7 @@ describe("CreateRoute", () => {
       "Covered draft",
     );
     await user.upload(imageInput, firstCover);
-    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
 
     await user.upload(imageInput, laterCover);
@@ -1694,7 +2535,7 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your post a title"),
       "Unfinished thought",
     );
-    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
 
     await waitFor(() => {
       expect(saveDraftMock).toHaveBeenCalledWith({
@@ -1733,14 +2574,17 @@ describe("CreateRoute", () => {
       "Two saves",
     );
 
-    const saveButton = screen.getByRole("button", { name: "Save Draft" });
+    const saveButton = screen.getByRole("button", { name: "Save draft" });
     await user.click(saveButton);
     await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
 
-    // The button is disabled while the first save is in flight. Wait for it to
-    // settle so the second click starts a real consecutive save.
+    // A saved proposal stays disabled until there is another meaningful edit.
+    await waitFor(() => expect(saveButton).toBeDisabled());
+    await user.type(
+      screen.getByPlaceholderText("Give your post a title"),
+      " again",
+    );
     await waitFor(() => expect(saveButton).toBeEnabled());
-
     await user.click(saveButton);
     await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(2), {
       timeout: 3_000,
@@ -2025,7 +2869,10 @@ describe("CreateRoute", () => {
 
   it("cleans up only the current submit's inline sessions after a failure", async () => {
     const user = userEvent.setup();
-    publishPostMock.mockRejectedValue(new Error("Invalid inline upload claim"));
+    publishPostMock.mockResolvedValue({
+      kind: "failed",
+      message: "Invalid inline upload claim",
+    });
     cleanupPendingUploadsMock.mockResolvedValue(null);
 
     render(<CreateRoute />);
@@ -2055,7 +2902,10 @@ describe("CreateRoute", () => {
 
   it("shows the inline expiry recovery message and preserves it when cleanup fails", async () => {
     const user = userEvent.setup();
-    publishPostMock.mockRejectedValue(new Error("Inline image expired"));
+    publishPostMock.mockResolvedValue({
+      kind: "failed",
+      message: "Inline image expired",
+    });
     cleanupPendingUploadsMock.mockRejectedValue(new Error("cleanup failed"));
 
     render(<CreateRoute />);
@@ -2092,11 +2942,11 @@ describe("CreateRoute", () => {
     // The second upload is newer than the submission snapshot and must not
     // be cleaned up with the first submission's upload.
     const user = userEvent.setup();
-    let rejectPublishPost: ((error: Error) => void) | undefined;
+    let resolvePublishPost: ((result: unknown) => void) | undefined;
     publishPostMock.mockImplementation(
       () =>
-        new Promise((_, reject) => {
-          rejectPublishPost = reject;
+        new Promise((resolve) => {
+          resolvePublishPost = resolve;
         }),
     );
     cleanupPendingUploadsMock.mockResolvedValue(null);
@@ -2124,7 +2974,10 @@ describe("CreateRoute", () => {
         hidden: true,
       }),
     );
-    rejectPublishPost?.(new Error("Invalid inline upload claim"));
+    resolvePublishPost?.({
+      kind: "failed",
+      message: "Invalid inline upload claim",
+    });
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith("Failed to save post");
@@ -2526,7 +3379,7 @@ describe("CreateRoute", () => {
       "cover.example%2Ftwo.png",
     );
 
-    await submitFromReview(user, "Update Post");
+    await submitFromReview(user, "Update post");
 
     await waitFor(() =>
       expect(reserveAttemptMock).toHaveBeenCalledWith(
@@ -2978,7 +3831,7 @@ describe("CreateRoute", () => {
     );
     expect(screen.getByText(JSON.stringify(emptyDocument))).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Set short blog content" }),
     );

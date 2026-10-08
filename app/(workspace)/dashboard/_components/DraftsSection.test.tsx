@@ -91,6 +91,24 @@ describe("DraftsSection", () => {
     tags: [],
     imageUrl: null,
   };
+  it("explains that deleting a pending update keeps the published post live", async () => {
+    const user = userEvent.setup();
+    paginatedState.mockReturnValue({
+      results: [{ ...draft, sourcePostId: "post-1" }],
+      status: "Exhausted",
+      isLoading: false,
+      loadMore: loadMoreMock,
+    });
+    render(<DraftsSection />);
+    await user.click(screen.getByRole("button", { name: "Delete My draft" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      "published post stays unchanged",
+    );
+    await user.click(screen.getByRole("button", { name: "Delete Draft" }));
+    await waitFor(() =>
+      expect(deleteMock).toHaveBeenCalledWith({ draftId: "draft-1" }),
+    );
+  });
   function showDrafts(
     results = [draft],
     status = "Exhausted",

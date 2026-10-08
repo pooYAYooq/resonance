@@ -17,6 +17,7 @@ const managementDate = new Intl.DateTimeFormat("en-GB", {
 type DraftManagementRowProps = {
   draft: {
     _id: Id<"posts">;
+    sourcePostId?: Id<"posts">;
     title: string;
     updatedAt: number;
     tags: string[];
@@ -36,7 +37,9 @@ export function DraftManagementRow({
   resumeLinkRef,
 }: DraftManagementRowProps) {
   const title = draft.title.trim() || "Untitled draft";
-  const resumeHref = `/create?draftId=${encodeURIComponent(draft._id)}`;
+  const resumeHref = draft.sourcePostId
+    ? `/create?editPostId=${encodeURIComponent(draft.sourcePostId)}`
+    : `/create?draftId=${encodeURIComponent(draft._id)}`;
 
   return (
     <article
@@ -63,6 +66,9 @@ export function DraftManagementRow({
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-1 sm:col-start-2 sm:row-start-2 sm:flex-none">
+          {draft.sourcePostId && (
+            <p className="text-xs text-muted-foreground">Pending update</p>
+          )}
           <div className="flex h-5 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
             <time
               className="min-w-0 truncate"
