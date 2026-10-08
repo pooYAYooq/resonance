@@ -227,6 +227,29 @@ export const renew = mutation({
   },
 });
 
+/**
+ * Marks one live claim for a session's media as released. Terminal claims
+ * (already released or consumed) are left untouched. Returns whether this call
+ * changed the claim, so callers that batch releases can report a count.
+ */
+export async function releaseSessionClaim(
+  ctx: MutationCtx,
+  userId: string,
+  sessionId: string,
+  storageId: Id<"_storage">,
+): Promise<boolean> {
+  const claim = await getSessionClaim(ctx, userId, sessionId, storageId);
+  if (
+    !claim ||
+    claim.releasedAt !== undefined ||
+    claim.consumedAt !== undefined
+  ) {
+    return false;
+  }
+  await ctx.db.patch(claim._id, { releasedAt: Date.now(), expiresAt: 0 });
+  return true;
+}
+
 export const release = mutation({
   args: {
     sessionId: v.string(),
@@ -237,21 +260,9 @@ export const release = mutation({
     const user = await requireAuthUser(ctx);
     assertBatchSize(args.storageIds);
     const requestedStorageIds = new Set(args.storageIds);
-    const releasedAt = Date.now();
     let released = 0;
     for (const storageId of requestedStorageIds) {
-      const claim = await getSessionClaim(
-        ctx,
-        user._id,
-        args.sessionId,
-        storageId,
-      );
-      if (
-        claim &&
-        claim.releasedAt === undefined &&
-        claim.consumedAt === undefined
-      ) {
-        await ctx.db.patch(claim._id, { releasedAt, expiresAt: 0 });
+      if (await releaseSessionClaim(ctx, user._id, args.sessionId, storageId)) {
         released += 1;
       }
     }

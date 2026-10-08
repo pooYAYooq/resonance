@@ -11,7 +11,10 @@ import {
   isAllowedBlockNoteFile,
   MAX_BLOCKNOTE_FILE_SIZE_BYTES,
 } from "../lib/inline-image";
-import { hasActiveSessionMediaClaim } from "./sessionMediaClaims";
+import {
+  hasActiveSessionMediaClaim,
+  releaseSessionClaim,
+} from "./sessionMediaClaims";
 
 export const PENDING_UPLOAD_TTL_MS = 60 * 60 * 1000;
 const CLEANUP_BATCH_SIZE = 100;
@@ -166,6 +169,13 @@ export const cleanupPending = mutation({
         storageId: v.optional(v.id("_storage")),
       }),
     ),
+    /**
+     * When provided, live claims for this editor session are released in the
+     * same transaction as the cleanup. Combining both makes a failed cleanup
+     * leave the claims untouched, so a retry never needs to reactivate a
+     * released claim (which the claim mutation refuses by design).
+     */
+    releaseSessionId: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -184,6 +194,17 @@ export const cleanupPending = mutation({
       }
       if (session.postId !== undefined) {
         continue;
+      }
+      if (args.releaseSessionId !== undefined) {
+        const claimStorageId = session.storageId ?? upload.storageId;
+        if (claimStorageId !== undefined) {
+          await releaseSessionClaim(
+            ctx,
+            user._id,
+            args.releaseSessionId,
+            claimStorageId,
+          );
+        }
       }
       if (session.storageId === undefined) {
         const storageId = upload.storageId;

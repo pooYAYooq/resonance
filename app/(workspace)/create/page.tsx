@@ -1271,15 +1271,15 @@ function CreateEditor() {
       setAbandonError(null);
       void (async () => {
         try {
-          // Release before cleanup: active session claims protect storage from
-          // deletion. Saved media is excluded from this temporary-upload map,
-          // and cleanupPending also refuses consumed/post-associated uploads.
-          const storageIds = uploads.map(({ storageId }) => storageId);
-          await releaseSessionMedia({
-            sessionId: activeSessionKey,
-            storageIds,
+          // One transaction releases this session's claims and cleans the
+          // uploads, so a failed request leaves the claims in place and this
+          // stays a safe retry. Saved media is excluded from this
+          // temporary-upload map, and cleanupPending also refuses
+          // consumed/post-associated uploads.
+          await cleanupPendingUploads({
+            uploads,
+            releaseSessionId: activeSessionKey,
           });
-          await cleanupPendingUploads({ uploads });
           for (const { sessionId, storageId } of uploads) {
             inlineSessions.current.delete(sessionId);
             claimedMedia.current.delete(storageId);
@@ -1288,18 +1288,6 @@ function CreateEditor() {
           setAbandonOpen(false);
           router.push("/dashboard/published");
         } catch {
-          // Release may have succeeded even if its response was lost. Restore
-          // protection for surviving media before allowing editing or retry.
-          await Promise.allSettled(
-            uploads.map(async ({ storageId }) => {
-              pendingClaims.current.add(storageId);
-              await claimSessionMedia({
-                sessionId: activeSessionKey,
-                storageId,
-              });
-              pendingClaims.current.delete(storageId);
-            }),
-          );
           setAbandonError(
             "Could not clean up temporary uploads. Try again or keep editing.",
           );

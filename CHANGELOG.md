@@ -96,9 +96,10 @@ work is tracked in `ROADMAP.md`.
 
 - Notification-bell navigation now goes through the authoring exit guard, so
   mobile authors receive the same unsaved-work protection as app-link exits.
-- Cancel update releases temporary inline-media claims before cleaning uploads
-  and returning to My Posts. Saved pending-update media is preserved; cleanup
-  failures keep the editor open with a retryable error.
+- Cancel update releases the session's media claims and cleans temporary
+  inline uploads in one transaction before returning to My Posts. Saved
+  pending-update media is preserved; a failed request keeps the editor open
+  with a retryable error while the claims keep protecting the media.
 
 - Pasted web pages no longer make a post unsaveable: copied CSS colors and
   alignments are normalized to supported values when they enter the editor,
