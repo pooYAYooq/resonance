@@ -96,21 +96,21 @@ browsers. Next: V1-16 accessibility evidence. Wide-screen reader rail contents
 remain queued, and Dashboard Overview purpose and composition remain deferred
 to a separate comprehensive design session.
 
-PR #101 review follow-ups fixed notification-bell navigation bypassing the
-authoring guard and closed two cleanup-review rounds: Cancel update now
-releases the session's media claims and cleans temporary inline uploads in
-one transaction, so a failed request leaves the claims protecting the media
-and retry stays safe, while saved pending-update media is preserved and the
-editor stays open on failure. The claim mutation keeps refusing released
-claims by design; the release helper is shared with the standalone release
-mutation. Cover-removal-only Start fresh and Cancel update were verified to
-already confirm (removing a cover clears the proposal's cover id, which
-differs from the baseline) and are pinned by regression tests. The
-staged-index finding does not apply to the recorded undeployed, disposable-
-data setup; a large existing deployment would require a separate staged-index
-backfill before enabling callers. The follow-up passed lint, 622 edge-runtime
-tests, 650 component tests across 82 files, and the production build on
-2026-10-09; Git approval gates are pending before updating the PR.
+PR #101 completed three review rounds on `design/unsaved-exit-guards`. Codex
+findings fixed the notification bell bypassing the authoring guard and made
+Cancel update release its media claims and clean temporary inline uploads in
+one transaction (a failed request leaves claims protecting the media; saved
+pending-update media is preserved and the editor stays open on failure), and
+cover-removal-only exits were verified and pinned as already confirming. The
+CodeRabbit round fixed a clean-switch busy-dialog flash, focus return for the
+shared sign-out control, uncancelable Back/Forward traversals (they now flush
+recovery synchronously instead of opening a dialog over a committed page),
+and stale dashboard wording in `ARCHITECTURE.md` and the 3A-030 decision row.
+The staged-index finding does not apply to the recorded undeployed,
+disposable-data setup; a large existing deployment would need a staged
+backfill before enabling callers. Post-fix verification on 2026-10-09: lint,
+623 edge-runtime tests, 654 component tests across 82 files, and the
+production build pass; Git approval gates are pending before updating the PR.
 
 ## Blockers
 
@@ -153,9 +153,10 @@ tests, 650 component tests across 82 files, and the production build on
   browser-verified only.
 - Browsers without the Navigation API (pre-Firefox 147, pre-Safari 26.2) cannot
   cancel Back/Forward; they flush the latest new/draft recovery synchronously
-  instead. Published edits and a selected cover File can still be lost on
-  Back/Forward there, with no dialog. Firefox and Safari were not manually
-  exercised.
+  instead. Traversals the API reports as uncancelable (for example, without a
+  history-action user activation) take the same flush path without a dialog.
+  Published edits and a selected cover File can still be lost on Back/Forward
+  there. Firefox and Safari were not manually exercised.
 - Native beforeunload wording is browser-controlled and may not appear; crashes
   and forced shutdowns can still lose work, and unload performs no server save
   or upload.

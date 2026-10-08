@@ -26,6 +26,7 @@ function fakeNavigation() {
   function emit(overrides: Partial<NavigateEventLike> = {}) {
     const event: NavigateEventLike = {
       canIntercept: true,
+      cancelable: true,
       hashChange: false,
       downloadRequest: null,
       formData: null,
@@ -66,6 +67,23 @@ describe("createHistoryTraversalGuard", () => {
       href: "/blog/post-1?x=1#top",
     });
     expect(interceptCalls()).toBe(1);
+  });
+
+  it("asks the provider to flush instead of pretending to cancel an uncancelable traversal", () => {
+    const { navigation, emit, interceptCalls } = fakeNavigation();
+    const onTraverse = vi.fn(() => true);
+    const onUncancelableTraverse = vi.fn();
+    createHistoryTraversalGuard({
+      navigation,
+      onTraverse,
+      onUncancelableTraverse,
+    });
+
+    emit({ cancelable: false });
+
+    expect(onTraverse).not.toHaveBeenCalled();
+    expect(onUncancelableTraverse).toHaveBeenCalledTimes(1);
+    expect(interceptCalls()).toBe(0);
   });
 
   it("leaves the traversal alone when the callback allows it", () => {

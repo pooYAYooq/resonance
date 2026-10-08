@@ -31,7 +31,7 @@ vi.mock("@/lib/auth-client", () => ({
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
-import { MobileNavMenu } from "./MobileNavMenu";
+import { AppNavigation, MobileNavMenu } from "./MobileNavMenu";
 import {
   AuthoringExitProvider,
   useAuthoringExit,
@@ -273,6 +273,46 @@ describe("MobileNavMenu", () => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
     );
     await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it("restores focus to the clicked sign-out control when no drawer trigger owns it", async () => {
+    const user = userEvent.setup();
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 0
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
+
+    render(
+      <AuthoringExitProvider>
+        <DirtyRegistrationBinder />
+        <button
+          aria-label="Open navigation menu"
+          hidden
+          type="button"
+          data-testid="hidden-nav-trigger"
+        />
+        <AppNavigation isAuthenticated />
+      </AuthoringExitProvider>,
+    );
+
+    const signOut = screen.getByRole("button", { name: "Sign Out" });
+    await user.click(signOut);
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(signOut));
     expect(signOutMock).not.toHaveBeenCalled();
   });
 });

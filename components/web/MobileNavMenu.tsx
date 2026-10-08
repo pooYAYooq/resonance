@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { useTheme } from "next-themes";
@@ -62,10 +62,12 @@ export function MobileNavMenu({
   isAuthenticated: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="ghost"
           size="icon"
           className="size-11 md:hidden"
@@ -85,6 +87,7 @@ export function MobileNavMenu({
         <AppNavigation
           isAuthenticated={isAuthenticated}
           onNavigate={() => setOpen(false)}
+          returnFocusRef={triggerRef}
         />
       </SheetContent>
     </Sheet>
@@ -95,9 +98,15 @@ export function MobileNavMenu({
 export function AppNavigation({
   isAuthenticated,
   onNavigate,
+  returnFocusRef,
 }: {
   isAuthenticated: boolean;
   onNavigate?: () => void;
+  /**
+   * Focus target that survives the owner's close. Owners whose trigger stays
+   * mounted pass it here; otherwise focus returns to the clicked control.
+   */
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const router = useRouter();
   const exit = useOptionalAuthoringExit();
@@ -211,15 +220,12 @@ export function AppNavigation({
             <Button
               variant="ghost"
               className="min-h-11 justify-start gap-3 px-3"
-              onClick={() => {
+              onClick={(event) => {
+                const returnFocus =
+                  returnFocusRef?.current ?? event.currentTarget;
                 close();
                 if (exit)
-                  exit.requestSignOut(
-                    () => signOutUser(router),
-                    document.querySelector<HTMLButtonElement>(
-                      '[aria-label="Open navigation menu"]',
-                    ),
-                  );
+                  exit.requestSignOut(() => signOutUser(router), returnFocus);
                 else void signOutUser(router);
               }}
             >

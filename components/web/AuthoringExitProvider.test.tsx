@@ -380,6 +380,68 @@ describe("AuthoringExitProvider", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
+  it("switches a clean session to another document without a busy dialog", async () => {
+    const user = userEvent.setup();
+    const registration = makeRegistration(cleanSession);
+    const check = deferred<{ ok: true }>();
+    registration.validateTarget.mockReturnValue(check.promise);
+    renderProvider(
+      registration,
+      <Trigger
+        intent={{
+          kind: "target",
+          href: "/create?draftId=d2",
+          target: { editorMode: "draft", id: "d2" },
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Trigger exit" }));
+    await waitFor(() => expect(registration.validateTarget).toHaveBeenCalled());
+    // A switch that loses nothing interrupts nothing while it validates.
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    await act(async () => check.resolve({ ok: true }));
+    await waitFor(() =>
+      expect(registration.adoptTarget).toHaveBeenCalledWith({
+        editorMode: "draft",
+        id: "d2",
+      }),
+    );
+    expect(pushMock).toHaveBeenCalledWith("/create?draftId=d2");
+  });
+
+  it("keeps the switch surface while a confirmed switch validates", async () => {
+    const user = userEvent.setup();
+    const registration = makeRegistration();
+    const check = deferred<{ ok: true }>();
+    registration.validateTarget.mockReturnValue(check.promise);
+    renderProvider(
+      registration,
+      <Trigger
+        intent={{
+          kind: "target",
+          href: "/create?draftId=d2",
+          target: { editorMode: "draft", id: "d2" },
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Trigger exit" }));
+    await user.click(screen.getByRole("button", { name: "Switch" }));
+    expect(
+      screen.getByRole("alertdialog", { name: "Switch documents?" }),
+    ).toBeVisible();
+
+    await act(async () => check.resolve({ ok: true }));
+    await waitFor(() =>
+      expect(registration.adoptTarget).toHaveBeenCalledWith({
+        editorMode: "draft",
+        id: "d2",
+      }),
+    );
+  });
+
   it("validates a target before abandoning recovery and adopting it", async () => {
     const user = userEvent.setup();
     const registration = makeRegistration();
@@ -895,9 +957,13 @@ describe("AuthoringExitProvider history traversal", () => {
         traversed.push(key);
       },
     };
-    function emitTraverse(key: string) {
+    function emitTraverse(
+      key: string,
+      overrides: Record<string, unknown> = {},
+    ) {
       const event = {
         canIntercept: true,
+        cancelable: true,
         hashChange: false,
         downloadRequest: null,
         formData: null,
@@ -910,6 +976,7 @@ describe("AuthoringExitProvider history traversal", () => {
         preventDefault: () => {
           interceptCalls.push(1);
         },
+        ...overrides,
       };
       for (const listener of listeners) listener(event);
     }
@@ -959,6 +1026,20 @@ describe("AuthoringExitProvider history traversal", () => {
     expect(
       screen.getByRole("alertdialog", { name: "Leave this page?" }),
     ).toBeVisible();
+  });
+
+  it("flushes recovery for a traversal the browser cannot cancel", () => {
+    const fake = installFakeNavigation();
+    const registration = makeRegistration();
+    renderProvider(registration);
+
+    act(() => {
+      fake.emitTraverse("entry-9", { cancelable: false });
+    });
+
+    expect(registration.flushRecovery).toHaveBeenCalledTimes(1);
+    expect(fake.interceptCalls).toHaveLength(0);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
   it("does not touch history when no editor is registered", () => {

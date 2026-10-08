@@ -40,7 +40,8 @@ work is tracked in `ROADMAP.md`.
   drafts store the latest recovery snapshot first (light reminder when storage
   fails, for published edits, or a selected cover File); Back/Forward confirms
   and replays the exact destination through the Navigation API, with a
-  synchronous recovery flush on older browsers; document switches validate the
+  synchronous recovery flush on older browsers and for traversals the browser
+  cannot cancel; document switches validate the
   destination before clearing the current session's recovery; sign-out offers
   save or discard; and a native browser warning attaches only while unsaved
   work or an unresolved operation exists.

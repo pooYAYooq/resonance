@@ -160,7 +160,7 @@ export function AuthoringExitProvider({
   }, []);
 
   const continueIntent = useCallback(
-    (intent: ExitIntent) => {
+    (intent: ExitIntent, quiet = false) => {
       switch (intent.kind) {
         case "navigate":
           routerRef.current.push(intent.href);
@@ -181,7 +181,10 @@ export function AuthoringExitProvider({
               risk: "abandon",
               canSaveDraft: true,
             };
-            updateSurface({ intent, decision, busy: true, error: null });
+            // A switch that loses nothing needs no progress surface; only a
+            // confirmed abandon keeps the dialog while the target validates.
+            if (!quiet)
+              updateSurface({ intent, decision, busy: true, error: null });
             try {
               const checked = await registration.validateTarget(intent.target);
               if (
@@ -333,7 +336,7 @@ export function AuthoringExitProvider({
 
   const proceed = useCallback((intent: ExitIntent, decision: ExitDecision) => {
     if (decision.kind === "allow") {
-      continueIntentRef.current(intent);
+      continueIntentRef.current(intent, true);
       return;
     }
     if (decision.kind === "recover") {
@@ -645,6 +648,11 @@ export function AuthoringExitProvider({
     }
     const guard = createHistoryTraversalGuard({
       navigation,
+      // The traversal commits either way, so the best protection is
+      // persisting recoverable work before the editor unmounts.
+      onUncancelableTraverse: () => {
+        registrationRef.current?.flushRecovery();
+      },
       onTraverse: (destination) => {
         const registration = registrationRef.current;
         if (!registration) return false;

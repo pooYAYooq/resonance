@@ -561,14 +561,16 @@ validate the requested target through `getDraftById` /
 Sign-out requires verified recovery deletion only when a dirty recoverable
 session exists. Back/Forward cancels same-document traversals through the
 Navigation API (`lib/authoring-history.ts`) and replays the remembered
-destination once; browsers without it flush recovery synchronously. The native
+destination once; browsers without it, and traversals the browser reports as
+uncancelable, flush recovery synchronously instead of showing a dialog. The native
 `beforeunload` warning attaches only while meaningful unsaved work or an
 unresolved operation exists.
 Published edits are page-local until Review and Update Post succeed. They do
 not read or write recovery snapshots; stale published-edit snapshots are cleared.
 A published edit can save one pending update as a draft linked to the live post
 (`sourcePostId`); promotion publishes onto the same post and removes the pending
-draft, and deletion on either side leaves the other's content intact.
+draft. Deleting the pending draft leaves the live post intact; deleting the live
+post removes any pending draft.
 Existing saved media remains part of the saved post while edits are in progress.
 Media availability is derived from resolved URLs, not from failed claim
 bookkeeping. New upload claim failures retry in the background and on focus or
@@ -731,7 +733,9 @@ states above the title.
   The private dashboard lists owner-scoped drafts at `/dashboard/drafts` as
   My Posts-style management rows: 16:9 cover with the shared blank fallback,
   linked title, tags, Last saved date, and Resume plus Delete actions. Resuming
-  opens `/create?draftId=...`; deletion only removes drafts. `DraftsSection` and
+  opens `/create?draftId=...`, or `/create?editPostId=<sourcePostId>` for a
+  pending update, which resumes the live-post editor; deleting a pending update
+  removes only the draft while the source post stays. `DraftsSection` and
   `PublishedSection` each own 12-item pagination, confirmation selection,
   duplicate-submission protection, retryable errors, and focus restoration
   across asynchronous query updates; `getDrafts` resolves cover URLs per page
@@ -740,8 +744,9 @@ states above the title.
   through the current user's auth identity after authentication resolves.
   `DeletePostDialog` uses the generated Radix/shadcn AlertDialog for both
   deletion flows and calls the owner-authorized `deleteDraft` or
-  `deletePublishedPost` lifecycle through its parent. No schema or backend
-  deletion change is needed.
+  `deletePublishedPost` lifecycle through its parent. Deleting a pending update
+  goes through `discardPendingPostEdit` and removes only the pending draft;
+  deleting a published post also removes its pending draft when one exists.
   `/saved` is the client-gated, paginated private reader
   collection for bookmarks, and `/liked` is the equivalent collection for the
   current user's liked posts. The deferred `/dashboard` root composes

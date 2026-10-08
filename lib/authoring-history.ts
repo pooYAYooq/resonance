@@ -11,6 +11,7 @@
 
 export type NavigateEventLike = {
   canIntercept: boolean;
+  cancelable: boolean;
   hashChange: boolean;
   downloadRequest: string | null;
   formData: unknown;
@@ -80,10 +81,16 @@ export function getNavigationApi(): NavigationLike | null {
 export function createHistoryTraversalGuard({
   navigation,
   onTraverse,
+  onUncancelableTraverse,
 }: {
   navigation: NavigationLike;
   /** Return true to cancel this traversal and keep the destination pending. */
   onTraverse: (destination: TraversalDestination) => boolean;
+  /**
+   * Called when the browser will commit this traversal regardless, so the
+   * only available protection is persisting recoverable work immediately.
+   */
+  onUncancelableTraverse?: () => void;
 }): HistoryTraversalGuard {
   let pendingReplayKey: string | null = null;
 
@@ -105,6 +112,13 @@ export function createHistoryTraversalGuard({
 
     const href = toAppHref(event.destination.url);
     if (href === null) return;
+    if (!event.cancelable) {
+      // preventDefault() is a no-op here and the traversal commits, so a
+      // cancelled-looking dialog would sit over the wrong page. Let the
+      // provider persist recoverable work synchronously instead.
+      onUncancelableTraverse?.();
+      return;
+    }
     if (onTraverse({ key, href })) {
       try {
         // intercept() handles a navigation but still commits its destination.
