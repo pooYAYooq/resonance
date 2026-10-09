@@ -32,7 +32,12 @@ vi.mock("@/convex/_generated/api", () => ({
 }));
 
 vi.mock("@/components/web/PostCard", () => ({
-  PostCard: ({ title }: { title: string }) => <div>{title}</div>,
+  PostCard: ({ title }: { title: string }) => (
+    <div>
+      {title}
+      <button aria-label={`Remove ${title}`}>Remove</button>
+    </div>
+  ),
 }));
 
 import { SavedSection } from "./SavedSection";
@@ -140,5 +145,57 @@ describe("SavedSection", () => {
     rerender(<SavedSection />);
 
     expect(screen.getByText("Another saved post")).toBeInTheDocument();
+  });
+
+  it("moves focus to the nearest surviving item when a saved post is removed", async () => {
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Remove Another saved post" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("moves focus to the recovery link when the last saved post is removed", async () => {
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("link", { name: "Browse the Blog" }),
+      ).toHaveFocus(),
+    );
   });
 });

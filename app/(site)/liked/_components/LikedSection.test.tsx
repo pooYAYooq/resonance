@@ -32,7 +32,12 @@ vi.mock("@/convex/_generated/api", () => ({
 }));
 
 vi.mock("@/components/web/PostCard", () => ({
-  PostCard: ({ title }: { title: string }) => <article>{title}</article>,
+  PostCard: ({ title }: { title: string }) => (
+    <article>
+      {title}
+      <button aria-label={`Unlike ${title}`}>Unlike</button>
+    </article>
+  ),
 }));
 
 import { LikedSection } from "./LikedSection";
@@ -131,5 +136,58 @@ describe("LikedSection", () => {
     expect(screen.getByText("A liked post")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Load more" }));
     expect(loadMore).toHaveBeenCalledWith(12);
+  });
+
+  it("moves focus to the nearest surviving item when a liked post is removed", async () => {
+    const secondPost = { ...post, _id: "post-2", title: "Another liked post" };
+    paginatedState.mockReturnValue({
+      results: [post, secondPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [secondPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<LikedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Unlike Another liked post" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("moves focus to the recovery link when the last liked post is removed", async () => {
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<LikedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("link", { name: "Browse the Blog" }),
+      ).toHaveFocus(),
+    );
   });
 });

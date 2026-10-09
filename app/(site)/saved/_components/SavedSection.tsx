@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, usePaginatedQuery } from "convex/react";
 import Link from "next/link";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Loader2, Bookmark } from "lucide-react";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+import { useListFocusRestore } from "@/lib/use-list-focus-restore";
 
 export function SavedSection() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -31,6 +32,9 @@ export function SavedSection() {
   } = usePaginatedQuery(api.bookmarks.getBookmarkedPosts, queryArgs, {
     initialNumItems: 12,
   });
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  useListFocusRestore(rootRef, results.length);
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -54,21 +58,23 @@ export function SavedSection() {
 
   if (!listLoading && results.length === 0) {
     return (
-      <EmptyState
-        icon={Bookmark}
-        title="No saved posts"
-        description="Bookmark posts to read later and they'll appear here."
-        action={
-          <Button asChild variant="outline">
-            <Link href="/blog">Browse the Blog</Link>
-          </Button>
-        }
-      />
+      <div ref={rootRef}>
+        <EmptyState
+          icon={Bookmark}
+          title="No saved posts"
+          description="Bookmark posts to read later and they'll appear here."
+          action={
+            <Button asChild variant="outline">
+              <Link href="/blog">Browse the Blog</Link>
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div ref={rootRef} className="space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {results.map((post) => (
           <PostCard
