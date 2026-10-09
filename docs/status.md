@@ -7,9 +7,9 @@ live in [`../ROADMAP.md`](../ROADMAP.md); shipped history lives in
 
 ## Current focus
 
-v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3 is the active slice:
-Track 4 management, navigation, and accessibility, followed by 3A.4, 3A.5, and
-release readiness. The single remaining-work list is
+v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3's Track 4 completed
+with the V1-16 accessibility evidence pass; 3A.4, 3A.5, and release readiness
+continue as the remaining work. The single remaining-work list is
 in [`../ROADMAP.md`](../ROADMAP.md). The content width design session completed
 on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 (merged as `d64cab5`).
@@ -50,10 +50,12 @@ clear of the first row. Signed-in dark-theme browser verification at 375px and
 320px confirmed the hidden heading, the clearance, and the unchanged
 `dialog { name: "Navigation" }`; lint, 623 edge-runtime tests, 654 component
 tests, and the production build passed on 2026-10-09. V1-16 accessibility
-evidence is in progress on `accessibility/behavioral-evidence`, verifying the
-agreed keyboard, focus, names, and mobile-navigation bar across all user
-journeys with results recorded in `docs/ACCESSIBILITY.md`; the V1-22 shared
-page-state work stays Todo.
+evidence is complete on `accessibility/behavioral-evidence`: the agreed
+keyboard, focus, names, and mobile-navigation bar is verified across all five
+user journeys in both themes at the tiered widths, with results, fixes, and
+limitations in `docs/ACCESSIBILITY.md`; the branch awaits review and PR. The
+V1-22 shared page-state work stays Todo, and the next v1.0 item is the
+maintainer's choice among V1-17 and V1-22.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
@@ -105,9 +107,9 @@ confirmations, stronger sign-out choices, the native warning only while work
 is unsaved, and one pending update for published edits. The history proof
 gate closed by agreeing evergreen browser coverage (the Navigation API is
 Baseline since January 2026) with a synchronous recovery flush on older
-browsers. Next: V1-16 accessibility evidence. Wide-screen reader rail contents
-remain queued, and Dashboard Overview purpose and composition remain deferred
-to a separate comprehensive design session.
+browsers. Wide-screen reader rail contents remain queued, and Dashboard
+Overview purpose and composition remain deferred to a separate comprehensive
+design session.
 
 PR #101 completed three review rounds on `design/unsaved-exit-guards`. Codex
 findings fixed the notification bell bypassing the authoring guard and made
@@ -187,9 +189,11 @@ production build pass; Git approval gates are pending before updating the PR.
 
 ## Local design and plan artifacts
 
-Active: the V1-16 accessibility evidence spec and implementation plan under
-`docs/superpowers/` (local, untracked). The V1-15 spec, plan, and execution
-ledger were archived to
+None active. The V1-16 accessibility evidence spec, implementation plan, and
+execution ledger were archived to
+`/home/studio/projects/resonance-docs-archive/superpowers-2026-10-10/` on the
+maintainer's workstation and removed from the worktree. The V1-15 spec, plan,
+and execution ledger were archived to
 `/home/studio/projects/resonance-docs-archive/superpowers-2026-10-09/` on the
 maintainer's workstation and removed from the worktree.
 

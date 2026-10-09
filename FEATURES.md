@@ -244,6 +244,10 @@
 - `EmptyState` and `SectionHeading` primitives; `FooterCTA` remains limited to
   the legacy footer variant and is not rendered by the workspace shell
 - Dark/light/system theme toggle; toast notifications (Sonner)
+- Accessibility verification across the five v1.0 journeys: keyboard, focus,
+  names, and mobile navigation checked in both themes at the tiered widths on
+  Chromium, with fixes, owner handoffs, and limitations recorded in
+  `docs/ACCESSIBILITY.md`
 - Keyboard focus renders as a single solid 1px line: bordered controls recolor
   their rounded edge, other targets use an offset outline, and the BlockNote
   editor canvas shows an outline where its own stylesheet suppresses one

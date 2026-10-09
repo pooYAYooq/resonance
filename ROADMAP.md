@@ -116,12 +116,25 @@ Source: Track 4 (recorded in `FEATURES.md` at commit `46d26a3`),
 `docs/PHASE_3A.md` 3A.3 scope, decision 3A-014. Includes the approved dense
 management-row requirement from the 3A.3 detailed requirements.
 
-| ID    | Item                                                              | Status      | Estimate |
-| ----- | ----------------------------------------------------------------- | ----------- | -------- |
-| V1-13 | Published management rows and deletion UI with clear confirmation | Done        | M        |
-| V1-14 | Draft management rows and deletion confirmation check             | Done        | S        |
-| V1-15 | Unsaved-exit guards beyond target switches                        | Done        | M        |
-| V1-16 | Accessibility evidence pass                                       | In progress | M        |
+| ID    | Item                                                              | Status | Estimate |
+| ----- | ----------------------------------------------------------------- | ------ | -------- |
+| V1-13 | Published management rows and deletion UI with clear confirmation | Done   | M        |
+| V1-14 | Draft management rows and deletion confirmation check             | Done   | S        |
+| V1-15 | Unsaved-exit guards beyond target switches                        | Done   | M        |
+| V1-16 | Accessibility evidence pass                                       | Done   | M        |
+
+V1-16 completion on `accessibility/behavioral-evidence` (2026-10-10): the
+agreed keyboard, focus, names, and mobile-navigation bar was verified across
+all five user journeys in both themes at the tiered widths, with results,
+fixes, and limitations recorded in [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md).
+The pass fixed raw validation messages, login invalid-state signaling,
+unassociated auth-form labels, and focus restoration when Liked or Saved
+items are removed, each with regression tests. Verification passed lint, 623
+edge-runtime tests, 659 component tests, the production build, and changed-file
+formatting. Touch operability and real screen-reader acceptance remain
+recorded limitations. Owner handoffs: V1-18 (notifications empty-state
+recovery), V1-21/V1-23 (Review/Back focus reset and deferred polish), and
+V1-24 (release consolidation).
 
 V1-15 completion on `design/unsaved-exit-guards` (2026-10-09): new posts and
 drafts keep verified silent recovery before app-link departures, with light
@@ -346,8 +359,8 @@ membership unless that session decides otherwise.
 
 ## Pending scope
 
-- None. The V1-16 evidence set is confirmed by the approved implementation
-  scope and recorded in `docs/ACCESSIBILITY.md` while the pass is in progress.
+- None. The V1-16 accessibility evidence pass completed on 2026-10-10; the
+  durable record is `docs/ACCESSIBILITY.md`.
 
 ## How to update this file
 
