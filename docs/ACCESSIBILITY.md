@@ -20,9 +20,12 @@ behavioral failure.
 
 ## Method and environment
 
-- Chromium 154 (Windows x64), attached over the maintainer's Chrome extension
-  and driven through the Windows `resonance` Playwright session. No new
-  repository tooling.
+- Chromium on the maintainer's Windows host, driven through the Windows-side
+  Playwright CLI with no new repository tooling. The signed-in pass ran on
+  Chrome 154 attached over the maintainer's Chrome extension (`resonance`
+  session); the signed-out pass and the validation fixes ran in a
+  Playwright-managed Chrome window (`reswin` session, fresh profile) after the
+  extension attach proved unstable across navigations.
 - Per surface: keyboard-only traversal, accessibility-tree name/role
   inspection, visible focus observation, and dialog focus behavior. Tree
   inspection is not screen-reader acceptance; no screen reader was used.
@@ -30,9 +33,9 @@ behavioral failure.
   320px and 768px. Additional widths are named per row.
 - Chrome only. Firefox and Safari are not verified by this pass.
 - Touch: programmatic touch emulation is unavailable in the attached session
-  (CDP is denied and the CLI has no touch primitive). Narrow-width
-  operability is checked with the keyboard; human touch acceptance is
-  required for navigation and is recorded in the results when performed.
+  (CDP is denied and the CLI has no touch primitive), and no touch device was
+  available to the maintainer. Touch operability of the drawer is recorded as
+  an accepted limitation for this pass.
 - Fixtures: purpose-created drafts, posts, and comments only, deleted after
   use with cleanup recorded. Pre-existing content is never modified.
   Sign-out/sign-in transitions are performed by the maintainer on request.
@@ -49,54 +52,227 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 
 ### Journey 1: Discover and read
 
-| Check ID    | Journey / surface / state                     | Check                  | Width / theme | Result                 | Evidence / revision | Finding |
-| ----------- | --------------------------------------------- | ---------------------- | ------------- | ---------------------- | ------------------- | ------- |
-| J1-Home     | `/` marketing home                            | keyboard, names, focus | Standard      | Blocked - Not executed |                     |         |
-| J1-Discover | `/blog` search, topics, latest, empty/results | keyboard, names, focus | Standard      | Blocked - Not executed |                     |         |
-| J1-Post     | `/blog/[postId]` article and actions          | keyboard, names, focus | Deep          | Blocked - Not executed |                     |         |
-| J1-Profile  | `/u/[userId]` profile and activity            | keyboard, names, focus | Standard      | Blocked - Not executed |                     |         |
+| Check ID    | Journey / surface / state                     | Check                  | Width / theme | Result | Evidence / revision | Finding |
+| ----------- | --------------------------------------------- | ---------------------- | ------------- | ------ | ------------------- | ------- |
+| J1-Home     | `/` marketing home                            | keyboard, names, focus | Standard      | Pass   | See notes           | None    |
+| J1-Discover | `/blog` search, topics, latest, empty/results | keyboard, names, focus | Standard      | Pass   | See notes           | None    |
+| J1-Post     | `/blog/[postId]` article and actions          | keyboard, names, focus | Deep          | Pass   | See notes           | None    |
+| J1-Profile  | `/u/[userId]` profile and activity            | keyboard, names, focus | Standard      | Pass   | See notes           | None    |
+
+**Journey 1 notes (2026-10-09, `d68b9c9+dirty`)**
+
+- J1-Home: signed-in `/` redirects to `/dashboard` at 1280 and 375. The
+  signed-out marketing page was traversed at 1280 and 375 in both themes:
+  navigation, hero, Get Started, View All Posts, card controls, and footer
+  links are all reachable with visible focus. Screenshots
+  `home-signedout-375-light.png`, `home-signedout-dark.png`.
+- J1-Discover: signed-in, 1280 dark full 26-control traversal in logical order
+  with no traps, and landmarks/names verified from the accessibility snapshot.
+  Focus visuals: search input border recolors to orange against gray at rest;
+  card link gets a 1px orange outline against none at rest; theme button edge
+  lightens; the same comparisons hold in light. 375 dark and light: content
+  reachable, named navigation trigger, card outlines visible. Signed-out
+  sweeps at 1280 and 375 in both themes. Search `zzzqqq` shows the named empty
+  state with Clear search recovery; `the` renders results; a topic link
+  navigates; pagination not applicable with the current data. Screenshots
+  `discover-focus-input-dark.png`, `discover-focus-theme-dark.png`,
+  `discover-focus-card-dark.png`, `discover-focus-input-light.png`,
+  `discover-focus-card-light.png`, `discover-375-dark.png`,
+  `discover-375-light.png`.
+- J1-Post: signed-in, 1280 light and dark full traversals reach author link,
+  Like (accessible name includes the count), Save, comment textarea, Comment,
+  and Back to all posts, wrapping without a trap; compact traversals at 768,
+  375, and 320 in both themes. Signed-out, 1280 light plus 768/375/320 in
+  both themes reach author link, Follow, Like, Save, the Sign in and Sign up
+  comment prompt, and Back to all posts. Focus visuals: Like ring in dark,
+  link outlines, input border. Comments resolve to a named empty state; the
+  comment form is labeled. Authored body links: none exist in the five
+  published posts; topic links verified on the tagged post. Screenshots
+  `post-focus-like-dark.png`, `post-320-light.png`,
+  `post-signedout-dark.png`.
+- J1-Profile: signed-in, 1280 and 375 in both themes; Edit Profile, named
+  Profile stats group, post cards with Like, Save, Read More, author and tag
+  links are all reachable with focus styles. Signed-out, 1280 and 375 in both
+  themes show the Follow button and card controls instead. Screenshots
+  `profile-375-dark.png`, `profile-1280-light.png`.
+- Anonymous engagement starts authentication with the originating context
+  preserved: Like from Home reached `/auth/login?returnTo=%2F` and Follow from
+  the profile reached `/auth/login?returnTo=%2Fu%2F<id>` (console-log
+  evidence). Save, comment reply, and the other follow surface use the same
+  `buildAuthHref` path, with component tests pinning their return contexts
+  (`%23save`, `%23comments`, `%23follow`).
+- The transient `beforeunload` dialog (J1-Post finding) was not reproduced in
+  two later navigation passes, and no unload handler was attached on reader
+  pages when probed.
 
 ### Journey 2: Engage
 
-| Check ID       | Journey / surface / state                                        | Check                              | Width / theme | Result                 | Evidence / revision | Finding |
-| -------------- | ---------------------------------------------------------------- | ---------------------------------- | ------------- | ---------------------- | ------------------- | ------- |
-| J2-Auth        | `/auth/login`, `/auth/sign-up`                                   | keyboard, names, focus, validation | Standard      | Blocked - Not executed |                     |         |
-| J2-Actions     | post like, save, follow, comments; anonymous redirect and return | keyboard, names, focus, states     | Deep          | Blocked - Not executed |                     |         |
-| J2-Feed        | `/feed` feed and empty states                                    | keyboard, names, focus             | Standard      | Blocked - Not executed |                     |         |
-| J2-Collections | `/liked`, `/saved`, focus after removal                          | keyboard, names, focus             | Standard      | Blocked - Not executed |                     |         |
+| Check ID       | Journey / surface / state                                        | Check                              | Width / theme | Result                   | Evidence / revision | Finding                               |
+| -------------- | ---------------------------------------------------------------- | ---------------------------------- | ------------- | ------------------------ | ------------------- | ------------------------------------- |
+| J2-Auth        | `/auth/login`, `/auth/sign-up`                                   | keyboard, names, focus, validation | Standard      | Pass (signed-out states) | See Journey 2 notes | OAuth handoff not exercised           |
+| J2-Actions     | post like, save, follow, comments; anonymous redirect and return | keyboard, names, focus, states     | Deep          | Pass                     | See Journey 2 notes | None                                  |
+| J2-Feed        | `/feed` feed and empty states                                    | keyboard, names, focus             | Standard      | Pass (empty state)       | See Journey 2 notes |                                       |
+| J2-Collections | `/liked`, `/saved`, focus after removal                          | keyboard, names, focus             | Standard      | Pass                     | See Journey 2 notes | Fixed focus restoration after removal |
+
+**Journey 2 notes (light, managed Chrome)**
+
+- J2-Auth: login and sign-up are keyboard-operable at 1280 and 375 in both
+  themes; controls are named and focus is visible. Submitting invalid input
+  keeps focus in the form, moves it to the first invalid field, announces
+  plain-English messages in `role="alert"` elements, and marks the inputs
+  `aria-invalid` with `data-invalid` on their Fields. OAuth provider handoff
+  is external and was not exercised.
+- J2-Actions: on the article at 1280, keyboard activation of Like and Save
+  updates the pressed state, accessible name, and count ("Unlike this post,
+  1 like", "Remove from reading list") and was restored to the original state.
+  The comment textarea accepts and clears typed text without submitting; the
+  reader comment prompt and comment controls remain reachable. Comment
+  submission was additionally browser-verified in a maintainer-requested
+  multi-account demo: a signed-in second account liked the demo post and
+  posted a comment that appeared with its author name and timestamp. Follow
+  was verified against a second account: keyboard activation toggles
+  Follow -> Unfollow with `aria-pressed` and back, restoring the original
+  state.
+- J2-Feed: with no followed authors, the empty state reads "Your feed is
+  empty / Follow authors to see their latest posts here." and offers a
+  keyboard-reachable Discover link; the page traversal is clean.
+- J2-Collections: after liking and saving two posts, removing an item moves
+  focus to a surviving control in the list, and removing the last item moves
+  focus to the empty state's Browse the Blog recovery link. Toggles were
+  restored to their original state. The shared fix is recorded under Findings.
+- Dark theme: post actions at 1280 and 375, the Feed empty state at 1280 and
+  375, and the empty Liked and Saved states were re-verified with visible
+  focus.
 
 ### Journey 3: Author
 
-| Check ID  | Journey / surface / state                                                       | Check                                   | Width / theme | Result                 | Evidence / revision | Finding |
-| --------- | ------------------------------------------------------------------------------- | --------------------------------------- | ------------- | ---------------------- | ------------------- | ------- |
-| J3-Editor | `/create` new, draft, and published-edit modes; title, body, menus, tags, media | keyboard, names, focus                  | Deep          | Blocked - Not executed |                     |         |
-| J3-Review | Review/Back, publish/update, pending update                                     | keyboard, names, focus, dialog behavior | Deep          | Blocked - Not executed |                     |         |
-| J3-Guards | exit, recovery, document-switch, sign-out guards                                | keyboard, names, focus, dialog behavior | Deep          | Blocked - Not executed |                     |         |
+| Check ID  | Journey / surface / state                                                       | Check                                   | Width / theme | Result | Evidence / revision | Finding                                            |
+| --------- | ------------------------------------------------------------------------------- | --------------------------------------- | ------------- | ------ | ------------------- | -------------------------------------------------- |
+| J3-Editor | `/create` new, draft, and published-edit modes; title, body, menus, tags, media | keyboard, names, focus                  | Deep          | Pass   | See notes           | Review/Back reset focus to body (polish follow-up) |
+| J3-Review | Review/Back, publish/update, pending update                                     | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                               |
+| J3-Guards | exit, recovery, document-switch, sign-out guards                                | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                               |
+
+**Journey 3 notes (dark and light)**
+
+- J3-Editor: the title receives focus when a writing view opens, and typing
+  works in the title and the BlockNote editor at 1280 plus 375 and 320
+  (compact) and 1280/375 in light. The `/` slash menu opens 18 named items and
+  keyboard selection inserts blocks; tags render as a named fieldset with
+  named checkboxes; Undo/Redo are named; formatting and side-menu affordances
+  keep keyboard paths through shortcuts and the slash menu. A disposable
+  new-post draft was saved ("Draft saved successfully!"), published through
+  Review, opened in published-edit mode, and removed through management
+  deletion afterwards.
+- J3-Review: Review opens with named Back to editing and Publish controls.
+  Publishing announced "Post published successfully!" and landed on `/blog`.
+  Published-edit mode showed its mode label with Cancel update, Save draft,
+  and Review Update controls. Saving a pending update announced "Pending
+  update saved as draft." and the draft appeared in Drafts labeled Pending
+  update; Cancel update exits without discarding the saved pending draft and
+  the live post stayed unchanged. Promotion was performed during the pass on
+  the disposable post (a full body edit from published-edit mode announced
+  "Post updated successfully!" and the live reader showed the new content,
+  with the updated timestamp); the pending-update flow's acceptance remains
+  recorded in V1-15.
+- J3-Guards: an app-link departure from a new post recovers silently (no
+  dialog) and the content was restored on return. The Start fresh
+  confirmation is a named alertdialog ("Start fresh?") with focus inside,
+  Cancel semantics on Escape, and focus restored to the trigger. Native
+  document-level warnings attach only while unsaved authoring work exists
+  (observed when navigating away from the editor with unsaved content).
 
 ### Journey 4: Manage
 
-| Check ID     | Journey / surface / state                        | Check                                   | Width / theme | Result                 | Evidence / revision | Finding |
-| ------------ | ------------------------------------------------ | --------------------------------------- | ------------- | ---------------------- | ------------------- | ------- |
-| J4-Published | `/dashboard/published` rows, actions, pagination | keyboard, names, focus                  | Deep          | Blocked - Not executed |                     |         |
-| J4-Drafts    | `/dashboard/drafts` rows, actions, pagination    | keyboard, names, focus                  | Deep          | Blocked - Not executed |                     |         |
-| J4-Delete    | deletion confirmation and focus restoration      | keyboard, names, focus, dialog behavior | Deep          | Blocked - Not executed |                     |         |
-| J4-Dashboard | `/dashboard` overview                            | keyboard, names, focus                  | Standard      | Blocked - Not executed |                     |         |
-| J4-Analytics | `/dashboard/analytics`                           | keyboard, names, focus                  | Standard      | Blocked - Not executed |                     |         |
+| Check ID     | Journey / surface / state                        | Check                                   | Width / theme | Result | Evidence / revision | Finding                     |
+| ------------ | ------------------------------------------------ | --------------------------------------- | ------------- | ------ | ------------------- | --------------------------- |
+| J4-Published | `/dashboard/published` rows, actions, pagination | keyboard, names, focus                  | Deep          | Pass   | See notes           | Pagination N/A (five posts) |
+| J4-Drafts    | `/dashboard/drafts` rows, actions, pagination    | keyboard, names, focus                  | Deep          | Pass   | See notes           | Pagination N/A              |
+| J4-Delete    | deletion confirmation and focus restoration      | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                        |
+| J4-Dashboard | `/dashboard` overview                            | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                        |
+| J4-Analytics | `/dashboard/analytics`                           | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                        |
+
+**Journey 4 notes (dark and light)**
+
+- Rows expose the title link (View), Edit, and Delete with per-post accessible
+  names at 1280 and 375 in both themes. Deletions used disposable draft and
+  published content created during the pass. Confirmation is a named
+  alertdialog (Delete pending draft? / Delete published post?) with Cancel and
+  Delete Draft or Delete Post, focus inside, and Escape returning focus to the
+  per-row trigger. Confirming shows success feedback, removes the row, and
+  moves focus to the next row's Edit link or to the empty state's Create a
+  post action. Pagination did not render with five posts, matching the
+  accepted pagination behavior and component coverage.
+- Dashboard and Analytics headings ("Your writing workspace", "Analytics",
+  "Follower growth") and every sidebar control are reachable with visible
+  focus; chart internals are not claimed as screen-reader verified.
 
 ### Journey 5: Navigate and account
 
-| Check ID         | Journey / surface / state                                | Check                                   | Width / theme | Result                 | Evidence / revision | Finding |
-| ---------------- | -------------------------------------------------------- | --------------------------------------- | ------------- | ---------------------- | ------------------- | ------- |
-| J5-Nav           | navbar, sidebar, mobile drawer; signed-in and signed-out | keyboard, names, focus, dialog behavior | Deep          | Blocked - Not executed |                     |         |
-| J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Blocked - Not executed |                     |         |
-| J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Blocked - Not executed |                     |         |
-| J5-Settings      | `/settings` appearance and account                       | keyboard, names, focus                  | Standard      | Blocked - Not executed |                     |         |
-| J5-ProfileEdit   | `/profile/edit` validation and save                      | keyboard, names, focus                  | Standard      | Blocked - Not executed |                     |         |
-| J5-SignOut       | sign-out confirmation choices                            | keyboard, names, focus, dialog behavior | Standard      | Blocked - Not executed |                     |         |
+| Check ID         | Journey / surface / state                                | Check                                   | Width / theme | Result | Evidence / revision | Finding                                 |
+| ---------------- | -------------------------------------------------------- | --------------------------------------- | ------------- | ------ | ------------------- | --------------------------------------- |
+| J5-Nav           | navbar, sidebar, mobile drawer; signed-in and signed-out | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                    |
+| J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Pass   | See notes           | Bell-from-editor not activated          |
+| J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Pass   | See notes           | No recovery link in empty state (V1-18) |
+| J5-Settings      | `/settings` appearance and account                       | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                    |
+| J5-ProfileEdit   | `/profile/edit` validation and save                      | keyboard, names, focus                  | Standard      | Pass   | See notes           | Save not exercised (no changes)         |
+| J5-SignOut       | sign-out confirmation choices                            | keyboard, names, focus, dialog behavior | Standard      | Pass   | See notes           | None                                    |
+
+**Journey 5 notes (dark and light)**
+
+- J5-Nav: desktop sidebar and navbar traversals pass in both themes. At 375
+  and 320 the drawer opens as a dialog named Navigation with focus inside,
+  contains Tab traversal, lists every destination, and Escape restores focus
+  to the hamburger trigger. The light-theme probe returned no aria-label
+  through a raw DOM query while focus containment held; the dark evidence and
+  the V1-15 record confirm the accessible name.
+- J5-Menus: the account menu opens with named items (Profile, Saved, Liked,
+  Settings, Sign Out) and closes on Escape with focus back on Open user menu.
+  The theme menu is named with three options and was used throughout the
+  pass. The notification bell is reachable from every surface; its
+  editor-context behavior follows the same silent-recovery mechanism verified
+  for app-link departures and was not re-activated with typed content.
+- J5-Notifications: the page and its empty state ("No notifications yet...")
+  are keyboard clean; the empty state has no recovery link, recorded for
+  V1-18's approved recover-to-Discover requirement.
+- J5-Settings: Appearance is a named combobox (Light, Dark, System) and
+  Account shows the signed-in email with a named Sign Out button; neither was
+  activated destructively.
+- J5-ProfileEdit: groups and fields are named (disabled Email with
+  explanation, Display Name, Bio with a live character counter) and Save
+  Changes is reachable; no changes were saved.
+- J5-SignOut: with unsaved authoring content, the sidebar Sign Out opens a
+  named alertdialog ("Sign out?") with Cancel, Discard & sign out, and Save &
+  sign out choices and focus inside. Escape closes it, keeps the session, and
+  preserves the editor content. Touch acceptance for the drawer remains an
+  accepted limitation (no touch device available).
 
 ## Findings
 
-None recorded yet.
+- Auth and editor forms exposed raw Zod messages to users ("Too small:
+  expected string to have >=8 characters"). Replaced with plain-English
+  messages in `schemas/auth.ts` (name and password) and `schemas/blog.ts`
+  (title), with login, sign-up, and create tests updated (RED then GREEN; 117
+  targeted tests pass). Also aligned login invalid-state signaling with
+  sign-up: `aria-invalid` on the inputs and `data-invalid` on their Fields,
+  with new test coverage. Browser-verified: login and sign-up validation shows
+  the new messages and the invalid attributes; the editor title message is
+  verified when Journey 3 runs. Requested by the maintainer during the
+  signed-out pass.
+- Liked and Saved lists dropped keyboard focus to the document body when the
+  focused item was removed (`/liked`, `/saved`). Added a shared
+  `useListFocusRestore` hook so focus moves to a surviving control in the
+  list, or to the empty state's Browse the Blog recovery link when the list
+  empties. Tests written first (RED) and passing (14/14 in the two section
+  files); browser-verified with two-item flows that were fully restored to
+  their original state. Found during the J2-Collections check.
+- The editor's Review and Back to editing transitions reset focus to the
+  document body (J3-Editor). A bounded follow-up would focus the Review
+  heading when Review opens and the editor or its trigger on return;
+  classified as interaction polish for V1-21/V1-23 rather than a required-bar
+  failure.
+- The Notifications empty state offers no recovery link (J5-Notifications).
+  The approved reader-utilities requirement says empty states recover to
+  Discover; recorded for V1-18's notifications slice rather than fixed here.
 
 ## Limitations
 
@@ -104,11 +280,26 @@ None recorded yet.
   the repository, not of this pass.
 - No real screen-reader testing. Accessibility-tree inspection covers names,
   roles, and states only.
-- Touch behavior needs human acceptance; it cannot be proven through the
-  attached session.
 - Real fault injection (network failure, mutation rejection) is covered by
   component tests where marked; browser rows describe observed browser
   behavior only.
+- Scripted navigation intermittently raised a spurious `beforeunload` prompt
+  in both browser contexts. No app listener is attached on reader pages when
+  probed, the dev-overlay listener found does not call `preventDefault`, and
+  no Chrome crash logs exist, so it is classified as a Playwright/Chrome
+  artifact as of this pass. Navigation was resumed by accepting the prompt;
+  later checks used a fresh-tab pattern that avoids the prompt entirely.
+- Touch operability of the drawer could not be verified: programmatic touch
+  emulation is unavailable in the attached session and the maintainer had no
+  touch device available (accepted 2026-10-10). Keyboard operability at 320,
+  375, 768, and 1280 is covered instead.
+- The Chrome-extension attach dropped the attached tab on in-page navigations
+  and eventually stopped surviving navigations entirely. No Chrome crash dumps
+  exist and app console logs showed the correct pages loading, so this is
+  tooling instability, not an app defect. The signed-out pass and the
+  validation fixes moved to a Playwright-managed Chrome window with a fresh
+  profile and no maintainer cookies; checks recorded in each context are
+  labeled in the rows, and no evidence was inferred across contexts.
 
 ## Re-verification
 
