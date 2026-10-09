@@ -163,6 +163,23 @@ describe("SavedSection", () => {
     expect(paginatedArgs).toHaveBeenCalledWith({});
   });
 
+  it("keeps loading available when the current page only contains unavailable posts", async () => {
+    const loadMore = vi.fn();
+    const user = userEvent.setup();
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "CanLoadMore",
+      loadMore,
+      isLoading: false,
+    });
+
+    render(<SavedSection />);
+
+    expect(screen.queryByText("No saved posts")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    expect(loadMore).toHaveBeenCalledWith(12);
+  });
+
   it("requests and renders a subsequent page of saved posts", async () => {
     let page = 1;
     const loadMore = vi.fn(() => {
@@ -400,6 +417,42 @@ describe("SavedSection", () => {
       expect(
         screen.getByRole("button", { name: "Remove A locked like post" }),
       ).toHaveFocus(),
+    );
+  });
+
+  it("moves focus to the first appended item after Load more on an empty page", async () => {
+    const user = userEvent.setup();
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Load more" }).focus();
+    await user.keyboard("{Enter}");
+
+    // The empty page swaps to a spinner without the list root while loading.
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "LoadingMore",
+      loadMore: vi.fn(),
+      isLoading: true,
+    });
+    rerender(<SavedSection />);
+
+    // The next page arrives and renders the first card.
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Author" })).toHaveFocus(),
     );
   });
 });

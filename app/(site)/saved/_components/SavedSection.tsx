@@ -56,7 +56,7 @@ export function SavedSection() {
     );
   }
 
-  if (!listLoading && results.length === 0) {
+  if (!listLoading && results.length === 0 && status === "Exhausted") {
     return (
       <div ref={rootRef}>
         <EmptyState

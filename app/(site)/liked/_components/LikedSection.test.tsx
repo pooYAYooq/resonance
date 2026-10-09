@@ -390,4 +390,71 @@ describe("LikedSection", () => {
       expect(screen.getByRole("link", { name: "Author" })).toHaveFocus(),
     );
   });
+
+  it("moves focus to the first appended item after Load more on an empty page", async () => {
+    const user = userEvent.setup();
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Load more" }).focus();
+    await user.keyboard("{Enter}");
+
+    // The empty page swaps to a spinner without the list root while loading.
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "LoadingMore",
+      loadMore: vi.fn(),
+      isLoading: true,
+    });
+    rerender(<LikedSection />);
+
+    // The next page arrives and renders the first card.
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<LikedSection />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Author" })).toHaveFocus(),
+    );
+  });
+
+  it("does not restore focus after the user leaves the list", async () => {
+    paginatedState.mockReturnValue({
+      results: [post, secondPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const view = () => (
+      <>
+        <button type="button">Outside target</button>
+        <LikedSection />
+      </>
+    );
+    const { rerender } = render(view());
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
+    screen.getByRole("button", { name: "Outside target" }).focus();
+    (document.activeElement as HTMLElement).blur();
+
+    // The stale control is removed while focus rests on the document body.
+    paginatedState.mockReturnValue({
+      results: [secondPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(view());
+
+    await waitFor(() => expect(document.body).toHaveFocus());
+  });
 });

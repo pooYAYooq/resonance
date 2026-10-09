@@ -23,6 +23,10 @@ const TOGGLE_SELECTOR = "button[aria-pressed]";
  * appended item once the next page arrives instead of jumping back to the
  * top of the list while the page is still loading.
  *
+ * Tracking is dropped when focus deliberately leaves the list while its
+ * control still exists, so a later removal cannot pull focus back
+ * unexpectedly.
+ *
  * Tracking the control's identity rather than a count keeps the restore
  * working when a paginated query refills a removed row without changing the
  * item count. Tracking the item and toggle action rather than a global
@@ -54,7 +58,9 @@ export function useListFocusRestore(
   useEffect(() => {
     const root = rootRef.current;
     if (!root) {
-      clearTracking();
+      // The list root can disappear for a loading render, such as an empty
+      // page swapping to a spinner. Keep pending tracking so the append
+      // restore still runs when the root and its items come back.
       return;
     }
 
@@ -85,6 +91,17 @@ export function useListFocusRestore(
     };
 
     root.addEventListener("focusin", onFocusIn);
+
+    // When focus deliberately leaves the list while its control still exists,
+    // drop the tracking so a later removal cannot pull focus back. Element
+    // removal does not fire focusout, so the restore path is unaffected.
+    const onFocusOut = (event: FocusEvent) => {
+      const next = event.relatedTarget as Node | null;
+      if (next && root.contains(next)) return;
+      const focused = focusedRef.current;
+      if (focused && focused.isConnected) clearTracking();
+    };
+    root.addEventListener("focusout", onFocusOut);
 
     const focused = focusedRef.current;
     if (focused && !focused.isConnected) {
@@ -138,6 +155,9 @@ export function useListFocusRestore(
       }
     }
 
-    return () => root.removeEventListener("focusin", onFocusIn);
+    return () => {
+      root.removeEventListener("focusin", onFocusIn);
+      root.removeEventListener("focusout", onFocusOut);
+    };
   });
 }

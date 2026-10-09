@@ -46,8 +46,8 @@ behavioral failure.
   2026-10-09). Committed revisions in this branch: `a954036` (scope),
   `455501b` (validation messages and invalid state), `9e1aa09` (list focus
   restoration), `b7d9b12` (this evidence record), followed by the
-  label-association fix, the completion documents, and the list
-  focus-restore rework.
+  label-association fix, the completion documents, the list focus-restore
+  rework, and the PR review follow-ups.
 - Baseline on 2026-10-09 at `d68b9c9`: lint, 623 edge-runtime tests, 654
   component tests (single worker), and the production build passed.
 
@@ -170,8 +170,8 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 **Journey 3 notes (managed Chrome, dark and light)**
 
 - J3-Editor: the title receives focus when a writing view opens, and typing
-  works in the title and the BlockNote editor at 1280 plus 375 and 320
-  (compact) and 1280/375 in light. The `/` slash menu opens 18 named items and
+  works in the title and the BlockNote editor at 1280, 768, 375, and 320 in
+  both themes (768 and 320 light added during PR review). The `/` slash menu opens 18 named items and
   keyboard selection inserts blocks; tags render as a named fieldset with
   named checkboxes; Undo/Redo are named; formatting and side-menu affordances
   keep keyboard paths through shortcuts and the slash menu. A disposable
@@ -240,7 +240,7 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 | J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Pass   | See notes           | None                                    |
 | J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Pass   | See notes           | No recovery link in empty state (V1-18) |
 | J5-Settings      | `/settings` appearance and account                       | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                    |
-| J5-ProfileEdit   | `/profile/edit` validation and save                      | keyboard, names, focus                  | Standard      | Pass   | See notes           | Save not exercised (no changes)         |
+| J5-ProfileEdit   | `/profile/edit` validation and save                      | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                    |
 | J5-SignOut       | sign-out confirmation choices                            | keyboard, names, focus, dialog behavior | Standard      | Pass   | See notes           | None                                    |
 
 **Journey 5 notes (managed Chrome, dark and light; extension attach for the bell check)**
@@ -266,8 +266,10 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   Account shows the signed-in email with a named Sign Out button; neither was
   activated destructively.
 - J5-ProfileEdit: groups and fields are named (disabled Email with
-  explanation, Display Name, Bio with a live character counter) and Save
-  Changes is reachable; no changes were saved.
+  explanation, Display Name, Bio with a live character counter). Save Changes
+  was activated from the keyboard with the values unchanged (nothing was
+  modified) during PR review; the form announced "Profile updated" and
+  redirected to the profile.
 - J5-SignOut: with unsaved authoring content, the sidebar Sign Out opens a
   named alertdialog ("Sign out?") with Cancel, Discard & sign out, and Save &
   sign out choices and focus inside. Escape closes it, keeps the session, and
@@ -319,6 +321,10 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   document body (J3-Editor). Fixed during PR review: entering Review focuses
   Back to editing and returning focuses the Review control, covered by editor
   tests.
+- Two evidence-completion gaps were closed during PR review: the editor at
+  768 in both themes and 320 in light was run at the same checks, and the
+  profile save was activated from the keyboard with the values unchanged
+  (the form announced "Profile updated" and redirected to the profile).
 - The Notifications empty state offers no recovery link (J5-Notifications).
   The approved reader-utilities requirement says empty states recover to
   Discover; recorded for V1-18's notifications slice rather than fixed here.
