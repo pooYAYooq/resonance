@@ -2,8 +2,7 @@
 
 Behavioral accessibility evidence for v1.0, recorded by the V1-16 pass. This is
 not a WCAG conformance claim. Method and per-surface results live here; scope
-requirements live in `ROADMAP.md` and the active local spec under
-`docs/superpowers/`.
+requirements live in `ROADMAP.md`.
 
 ## Required bar
 
@@ -39,9 +38,15 @@ behavioral failure.
 - Fixtures: purpose-created drafts, posts, and comments only, deleted after
   use with cleanup recorded. Pre-existing content is never modified.
   Sign-out/sign-in transitions are performed by the maintainer on request.
+  Exception: the maintainer-requested demo post ("The Lost Art of Writing by
+  Hand in a World of Blinking Cursors"), its cover and inline image, and the
+  follow, like, and comment exchanged between the two demo accounts were
+  intentionally left in place on 2026-10-10.
 - Base revision: `d68b9c9` on `accessibility/behavioral-evidence` (started
-  2026-10-09). Evidence rows recorded before batch commits name this base plus
-  the dirty worktree; committed ranges are added as batches land.
+  2026-10-09). Committed revisions in this branch: `a954036` (scope),
+  `455501b` (validation messages and invalid state), `9e1aa09` (list focus
+  restoration), `b7d9b12` (this evidence record), followed by the
+  label-association fix and the completion documents.
 - Baseline on 2026-10-09 at `d68b9c9`: lint, 623 edge-runtime tests, 654
   component tests (single worker), and the production build passed.
 
@@ -114,14 +119,15 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 | J2-Feed        | `/feed` feed and empty states                                    | keyboard, names, focus             | Standard      | Pass (empty state)       | See Journey 2 notes |                                       |
 | J2-Collections | `/liked`, `/saved`, focus after removal                          | keyboard, names, focus             | Standard      | Pass                     | See Journey 2 notes | Fixed focus restoration after removal |
 
-**Journey 2 notes (light, managed Chrome)**
+**Journey 2 notes (light and dark; managed Chrome and extension contexts)**
 
 - J2-Auth: login and sign-up are keyboard-operable at 1280 and 375 in both
-  themes; controls are named and focus is visible. Submitting invalid input
-  keeps focus in the form, moves it to the first invalid field, announces
-  plain-English messages in `role="alert"` elements, and marks the inputs
-  `aria-invalid` with `data-invalid` on their Fields. OAuth provider handoff
-  is external and was not exercised.
+  themes; controls are named, with labels programmatically associated to
+  their inputs (`Email`, `Password`, `Full Name`), and focus is visible.
+  Submitting invalid input keeps focus in the form, moves it to the first
+  invalid field, announces plain-English messages in `role="alert"` elements,
+  and marks the inputs `aria-invalid` with `data-invalid` on their Fields.
+  OAuth provider handoff is external and was not exercised.
 - J2-Actions: on the article at 1280, keyboard activation of Like and Save
   updates the pressed state, accessible name, and count ("Unlike this post,
   1 like", "Remove from reading list") and was restored to the original state.
@@ -143,6 +149,12 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 - Dark theme: post actions at 1280 and 375, the Feed empty state at 1280 and
   375, and the empty Liked and Saved states were re-verified with visible
   focus.
+- Automated evidence: pending and repeated toggles, rejected submissions,
+  failed-submit toasts, validation and invalid-state wiring, label
+  association, return paths, and auth guards are covered by
+  `app/auth/login/page.test.tsx`, `app/auth/sign-up/page.test.tsx`,
+  `components/web/LikeToggle.test.tsx`, `BookmarkButton.test.tsx`,
+  `FollowButton.test.tsx`, and `CommentSection.test.tsx`.
 
 ### Journey 3: Author
 
@@ -152,7 +164,7 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 | J3-Review | Review/Back, publish/update, pending update                                     | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                               |
 | J3-Guards | exit, recovery, document-switch, sign-out guards                                | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                               |
 
-**Journey 3 notes (dark and light)**
+**Journey 3 notes (managed Chrome, dark and light)**
 
 - J3-Editor: the title receives focus when a writing view opens, and typing
   works in the title and the BlockNote editor at 1280 plus 375 and 320
@@ -180,6 +192,11 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   Cancel semantics on Escape, and focus restored to the trigger. Native
   document-level warnings attach only while unsaved authoring work exists
   (observed when navigating away from the editor with unsaved content).
+- Automated evidence: rejected save and publish, busy and repeated
+  submissions, failed target validation, unsaved-work preservation, recovery
+  resumption, and guard cancellation are covered by
+  `app/(workspace)/create/page.test.tsx` and the editor component tests under
+  `app/(workspace)/create/_components/`.
 
 ### Journey 4: Manage
 
@@ -191,7 +208,7 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 | J4-Dashboard | `/dashboard` overview                            | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                        |
 | J4-Analytics | `/dashboard/analytics`                           | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                        |
 
-**Journey 4 notes (dark and light)**
+**Journey 4 notes (managed Chrome, dark and light)**
 
 - Rows expose the title link (View), Edit, and Delete with per-post accessible
   names at 1280 and 375 in both themes. Deletions used disposable draft and
@@ -205,32 +222,38 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 - Dashboard and Analytics headings ("Your writing workspace", "Analytics",
   "Follower growth") and every sidebar control are reachable with visible
   focus; chart internals are not claimed as screen-reader verified.
+- Automated evidence: pending and duplicate protection, failed deletion and
+  retry, auth guards, and focus restoration when query updates arrive before
+  or after mutation resolution are covered by
+  `app/(workspace)/dashboard/_components/*.test.tsx`.
 
 ### Journey 5: Navigate and account
 
 | Check ID         | Journey / surface / state                                | Check                                   | Width / theme | Result | Evidence / revision | Finding                                 |
 | ---------------- | -------------------------------------------------------- | --------------------------------------- | ------------- | ------ | ------------------- | --------------------------------------- |
 | J5-Nav           | navbar, sidebar, mobile drawer; signed-in and signed-out | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                    |
-| J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Pass   | See notes           | Bell-from-editor not activated          |
+| J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Pass   | See notes           | None                                    |
 | J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Pass   | See notes           | No recovery link in empty state (V1-18) |
 | J5-Settings      | `/settings` appearance and account                       | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                    |
 | J5-ProfileEdit   | `/profile/edit` validation and save                      | keyboard, names, focus                  | Standard      | Pass   | See notes           | Save not exercised (no changes)         |
 | J5-SignOut       | sign-out confirmation choices                            | keyboard, names, focus, dialog behavior | Standard      | Pass   | See notes           | None                                    |
 
-**Journey 5 notes (dark and light)**
+**Journey 5 notes (managed Chrome, dark and light; extension attach for the bell check)**
 
-- J5-Nav: desktop sidebar and navbar traversals pass in both themes. At 375
-  and 320 the drawer opens as a dialog named Navigation with focus inside,
-  contains Tab traversal, lists every destination, and Escape restores focus
-  to the hamburger trigger. The light-theme probe returned no aria-label
-  through a raw DOM query while focus containment held; the dark evidence and
-  the V1-15 record confirm the accessible name.
+- J5-Nav: desktop sidebar and navbar traversals pass in both themes; the
+  signed-out navigation states are covered in Journey 1. At 375 and 320 the
+  drawer opens as a dialog named Navigation with focus inside, contains Tab
+  traversal, lists every destination, and Escape restores focus to the
+  hamburger trigger. The light-theme probe returned no aria-label through a
+  raw DOM query while focus containment held; the dark evidence and the V1-15
+  record confirm the accessible name.
 - J5-Menus: the account menu opens with named items (Profile, Saved, Liked,
   Settings, Sign Out) and closes on Escape with focus back on Open user menu.
   The theme menu is named with three options and was used throughout the
-  pass. The notification bell is reachable from every surface; its
-  editor-context behavior follows the same silent-recovery mechanism verified
-  for app-link departures and was not re-activated with typed content.
+  pass. The notification bell was executed from the editor with unsaved
+  content: it navigated silently to `/notifications`, and returning to
+  `/create` restored the typed title through the same silent-recovery
+  mechanism verified for app-link departures.
 - J5-Notifications: the page and its empty state ("No notifications yet...")
   are keyboard clean; the empty state has no recovery link, recorded for
   V1-18's approved recover-to-Discover requirement.
@@ -255,9 +278,15 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   targeted tests pass). Also aligned login invalid-state signaling with
   sign-up: `aria-invalid` on the inputs and `data-invalid` on their Fields,
   with new test coverage. Browser-verified: login and sign-up validation shows
-  the new messages and the invalid attributes; the editor title message is
-  verified when Journey 3 runs. Requested by the maintainer during the
+  the new messages and the invalid attributes; the editor title message was
+  browser-verified during Journey 3. Requested by the maintainer during the
   signed-out pass.
+- Login and sign-up labels were not programmatically associated with their
+  inputs, so accessible names fell back to placeholder samples (for example
+  the sign-up password name was the dot placeholder). Paired `FieldLabel`
+  `htmlFor` with input `id`s, moved the tests to `getByLabelText` (RED then
+  GREEN; 16/16), and browser-verified: the accessibility trees now report
+  textbox Email, Password, and Full Name. Found in the branch review.
 - Liked and Saved lists dropped keyboard focus to the document body when the
   focused item was removed (`/liked`, `/saved`). Added a shared
   `useListFocusRestore` hook so focus moves to a surviving control in the

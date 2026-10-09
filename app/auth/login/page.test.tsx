@@ -51,8 +51,8 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
     render(<LoginPage />);
 
-    const emailInput = screen.getByPlaceholderText("Enter your email");
-    const passwordInput = screen.getByPlaceholderText("Enter your password");
+    const emailInput = screen.getByLabelText("Email");
+    const passwordInput = screen.getByLabelText("Password");
     await user.type(emailInput, "not-an-email");
     await user.type(passwordInput, "password123");
     await user.click(screen.getByRole("button", { name: /login/i }));
@@ -75,11 +75,8 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
     render(<LoginPage />);
 
-    await user.type(
-      screen.getByPlaceholderText("Enter your email"),
-      "jane@example.com",
-    );
-    const passwordInput = screen.getByPlaceholderText("Enter your password");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    const passwordInput = screen.getByLabelText("Password");
     await user.type(passwordInput, "short");
     await user.click(screen.getByRole("button", { name: /login/i }));
 
@@ -107,14 +104,8 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
 
-    await user.type(
-      screen.getByPlaceholderText("Enter your email"),
-      "jane@example.com",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Enter your password"),
-      "password123",
-    );
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /login/i }));
 
     await waitFor(() => {
@@ -144,14 +135,8 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
 
-    await user.type(
-      screen.getByPlaceholderText("Enter your email"),
-      "jane@example.com",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Enter your password"),
-      "password123",
-    );
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /login/i }));
 
     await waitFor(() => {
@@ -219,14 +204,8 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
 
-    await user.type(
-      screen.getByPlaceholderText("Enter your email"),
-      "jane@example.com",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Enter your password"),
-      "password123",
-    );
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /login/i }));
 
     await waitFor(() => {

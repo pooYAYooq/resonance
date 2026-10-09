@@ -109,8 +109,9 @@ function LoginForm() {
                     data-invalid={fieldState.invalid ? "true" : undefined}
                     className="gap-y-3"
                   >
-                    <FieldLabel>Email</FieldLabel>
+                    <FieldLabel htmlFor="login-email">Email</FieldLabel>
                     <Input
+                      id="login-email"
                       aria-invalid={fieldState.invalid}
                       placeholder="Enter your email"
                       {...field}
@@ -129,8 +130,9 @@ function LoginForm() {
                     data-invalid={fieldState.invalid ? "true" : undefined}
                     className="gap-y-3"
                   >
-                    <FieldLabel>Password</FieldLabel>
+                    <FieldLabel htmlFor="login-password">Password</FieldLabel>
                     <Input
+                      id="login-password"
                       aria-invalid={fieldState.invalid}
                       type="password"
                       placeholder="Enter your password"

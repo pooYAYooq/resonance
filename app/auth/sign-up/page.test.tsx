@@ -52,13 +52,10 @@ describe("SignUpPage", () => {
     const user = userEvent.setup();
     render(<SignUpPage />);
 
-    const nameInput = screen.getByPlaceholderText("John Doe");
+    const nameInput = screen.getByLabelText("Full Name");
     await user.type(nameInput, "ab");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "password123");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
@@ -80,12 +77,9 @@ describe("SignUpPage", () => {
     const user = userEvent.setup();
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "Jane Doe");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "short");
+    await user.type(screen.getByLabelText("Full Name"), "Jane Doe");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "short");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
@@ -106,12 +100,9 @@ describe("SignUpPage", () => {
 
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "Jane Doe");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "password123");
+    await user.type(screen.getByLabelText("Full Name"), "Jane Doe");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
@@ -144,12 +135,9 @@ describe("SignUpPage", () => {
 
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "Jane Doe");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "password123");
+    await user.type(screen.getByLabelText("Full Name"), "Jane Doe");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
@@ -217,12 +205,9 @@ describe("SignUpPage", () => {
 
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "Jane Doe");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "password123");
+    await user.type(screen.getByLabelText("Full Name"), "Jane Doe");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {

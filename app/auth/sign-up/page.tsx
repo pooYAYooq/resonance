@@ -113,8 +113,9 @@ function SignUpForm() {
                     data-invalid={fieldState.invalid ? "true" : undefined}
                     className="gap-y-3"
                   >
-                    <FieldLabel>Full Name</FieldLabel>
+                    <FieldLabel htmlFor="signup-name">Full Name</FieldLabel>
                     <Input
+                      id="signup-name"
                       aria-invalid={fieldState.invalid}
                       placeholder="John Doe"
                       {...field}
@@ -133,8 +134,9 @@ function SignUpForm() {
                     data-invalid={fieldState.invalid ? "true" : undefined}
                     className="gap-y-3"
                   >
-                    <FieldLabel>Email</FieldLabel>
+                    <FieldLabel htmlFor="signup-email">Email</FieldLabel>
                     <Input
+                      id="signup-email"
                       aria-invalid={fieldState.invalid}
                       placeholder="john@example.com"
                       {...field}
@@ -153,8 +155,9 @@ function SignUpForm() {
                     data-invalid={fieldState.invalid ? "true" : undefined}
                     className="gap-y-3"
                   >
-                    <FieldLabel>Password</FieldLabel>
+                    <FieldLabel htmlFor="signup-password">Password</FieldLabel>
                     <Input
+                      id="signup-password"
                       aria-invalid={fieldState.invalid}
                       type="password"
                       placeholder="••••••••"
