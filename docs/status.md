@@ -49,8 +49,11 @@ text is hidden, and a fixed 56px header strip keeps the close control 8px
 clear of the first row. Signed-in dark-theme browser verification at 375px and
 320px confirmed the hidden heading, the clearance, and the unchanged
 `dialog { name: "Navigation" }`; lint, 623 edge-runtime tests, 654 component
-tests, and the production build passed on 2026-10-09. Next: V1-16
-accessibility evidence; the V1-22 shared page-state work stays Todo.
+tests, and the production build passed on 2026-10-09. V1-16 accessibility
+evidence is in progress on `accessibility/behavioral-evidence`, verifying the
+agreed keyboard, focus, names, and mobile-navigation bar across all user
+journeys with results recorded in `docs/ACCESSIBILITY.md`; the V1-22 shared
+page-state work stays Todo.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
@@ -184,7 +187,9 @@ production build pass; Git approval gates are pending before updating the PR.
 
 ## Local design and plan artifacts
 
-None active. The V1-15 spec, plan, and execution ledger were archived to
+Active: the V1-16 accessibility evidence spec and implementation plan under
+`docs/superpowers/` (local, untracked). The V1-15 spec, plan, and execution
+ledger were archived to
 `/home/studio/projects/resonance-docs-archive/superpowers-2026-10-09/` on the
 maintainer's workstation and removed from the worktree.
 
