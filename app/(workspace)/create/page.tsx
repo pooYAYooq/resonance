@@ -531,6 +531,9 @@ function CreateEditor() {
   const bodyEditorRef = useRef<PostBodyEditorHandle>(null);
   const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const hasFocusedTitleRef = useRef(false);
+  const reviewEntryRef = useRef<HTMLButtonElement>(null);
+  const reviewBackRef = useRef<HTMLButtonElement>(null);
+  const wasReviewingRef = useRef(reviewing);
   // The title wraps instead of scrolling: keep the textarea height in sync
   // with its content, including when returning from the hidden Review view and
   // when a viewport change rewraps the text at a new width.
@@ -552,6 +555,18 @@ function CreateEditor() {
     observer.observe(element);
     return () => observer.disconnect();
   }, [watchedValues.title, sessionState.presentation]);
+  // Entering and leaving Review replaces the focused control with the other
+  // view's action row. Move focus to the replacement control so a keyboard
+  // transition keeps a visible focus position.
+  useEffect(() => {
+    if (wasReviewingRef.current === reviewing) return;
+    wasReviewingRef.current = reviewing;
+    if (reviewing) {
+      reviewBackRef.current?.focus();
+    } else {
+      reviewEntryRef.current?.focus();
+    }
+  }, [reviewing]);
   const claimRecoveredMedia = useCallback(
     (urls: Record<string, string | null>) => {
       const sessionId = activeSessionKeyRef.current ?? "new:new";
@@ -2043,6 +2058,7 @@ function CreateEditor() {
         previewBackAction={
           reviewing ? (
             <Button
+              ref={reviewBackRef}
               type="button"
               variant="outline"
               aria-label="Back to editing"
@@ -2402,6 +2418,7 @@ function CreateEditor() {
               )}
               {capabilities.canPublish && (
                 <Button
+                  ref={reviewEntryRef}
                   type="button"
                   className="bg-foreground text-background hover:bg-foreground/80"
                   disabled={isPending || Boolean(sessionState.pendingTarget)}
@@ -2413,6 +2430,7 @@ function CreateEditor() {
               )}
               {capabilities.canUpdate && (
                 <Button
+                  ref={reviewEntryRef}
                   type="button"
                   className="bg-foreground text-background hover:bg-foreground/80"
                   disabled={isPending || Boolean(sessionState.pendingTarget)}

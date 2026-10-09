@@ -161,11 +161,11 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 
 ### Journey 3: Author
 
-| Check ID  | Journey / surface / state                                                       | Check                                   | Width / theme | Result | Evidence / revision | Finding                                            |
-| --------- | ------------------------------------------------------------------------------- | --------------------------------------- | ------------- | ------ | ------------------- | -------------------------------------------------- |
-| J3-Editor | `/create` new, draft, and published-edit modes; title, body, menus, tags, media | keyboard, names, focus                  | Deep          | Pass   | See notes           | Review/Back reset focus to body (polish follow-up) |
-| J3-Review | Review/Back, publish/update, pending update                                     | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                               |
-| J3-Guards | exit, recovery, document-switch, sign-out guards                                | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                               |
+| Check ID  | Journey / surface / state                                                       | Check                                   | Width / theme | Result | Evidence / revision | Finding |
+| --------- | ------------------------------------------------------------------------------- | --------------------------------------- | ------------- | ------ | ------------------- | ------- |
+| J3-Editor | `/create` new, draft, and published-edit modes; title, body, menus, tags, media | keyboard, names, focus                  | Deep          | Pass   | See notes           | None    |
+| J3-Review | Review/Back, publish/update, pending update                                     | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None    |
+| J3-Guards | exit, recovery, document-switch, sign-out guards                                | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None    |
 
 **Journey 3 notes (managed Chrome, dark and light)**
 
@@ -177,7 +177,9 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   keep keyboard paths through shortcuts and the slash menu. A disposable
   new-post draft was saved ("Draft saved successfully!"), published through
   Review, opened in published-edit mode, and removed through management
-  deletion afterwards.
+  deletion afterwards. Entering Review moves focus to Back to editing and
+  returning moves focus back to the Review control (added during PR review;
+  covered by editor tests).
 - J3-Review: Review opens with named Back to editing and Publish controls.
   Publishing announced "Post published successfully!" and landed on `/blog`.
   Published-edit mode showed its mode label with Cancel update, Save draft,
@@ -299,6 +301,13 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   enabled toggle in the successor card, with regression tests for refills,
   tag-count drift, and disabled targets (RED then GREEN; 20/20 in the section
   suites).
+- A second review round found two follow-on issues in the reworked list
+  focus hook: activating Load more (a control outside the items) sent focus
+  back to the first card, and the enabled-only toggle lookup could substitute
+  a different toggle action when a sibling was disabled. The hook now moves
+  focus to the first appended item after a page loads and resolves the
+  recorded toggle ordinal against the full toggle list before requiring it to
+  be enabled; both paths are pinned by new regression tests.
 - Liked and Saved lists dropped keyboard focus to the document body when the
   focused item was removed (`/liked`, `/saved`). Added a shared
   `useListFocusRestore` hook so focus moves to a surviving control in the
@@ -307,10 +316,9 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   files); browser-verified with two-item flows that were fully restored to
   their original state. Found during the J2-Collections check.
 - The editor's Review and Back to editing transitions reset focus to the
-  document body (J3-Editor). A bounded follow-up would focus the Review
-  heading when Review opens and the editor or its trigger on return;
-  classified as interaction polish for V1-21/V1-23 rather than a required-bar
-  failure.
+  document body (J3-Editor). Fixed during PR review: entering Review focuses
+  Back to editing and returning focuses the Review control, covered by editor
+  tests.
 - The Notifications empty state offers no recovery link (J5-Notifications).
   The approved reader-utilities requirement says empty states recover to
   Discover; recorded for V1-18's notifications slice rather than fixed here.

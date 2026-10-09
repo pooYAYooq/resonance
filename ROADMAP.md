@@ -128,14 +128,15 @@ agreed keyboard, focus, names, and mobile-navigation bar was verified across
 all five user journeys in both themes at the tiered widths, with results,
 fixes, and limitations recorded in [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md).
 The pass fixed raw validation messages, login invalid-state signaling,
-unassociated auth-form labels, and focus restoration when Liked or Saved
-items are removed (reworked after PR review to track the focused card and
-toggle action across refilled pages and cards with different tag counts),
-each with regression tests. Verification passed lint, 623 edge-runtime tests,
-665 component tests, the production build, and changed-file formatting. Touch operability and real screen-reader acceptance remain
+unassociated auth-form labels, focus restoration when Liked or Saved items
+are removed (reworked after PR review to track the focused card and toggle
+action across refilled, mixed-layout, and appended pages), and the editor
+Review and Back focus transitions. Verification passed lint, 623 edge-runtime
+tests, 670 component tests, the production build, and changed-file
+formatting. Touch operability and real screen-reader acceptance remain
 recorded limitations. Owner handoffs: V1-18 (notifications empty-state
-recovery), V1-21/V1-23 (Review/Back focus reset and deferred polish), and
-V1-24 (release consolidation).
+recovery), V1-21/V1-23 (deferred visual and responsive polish), and V1-24
+(release consolidation).
 
 V1-15 completion on `design/unsaved-exit-guards` (2026-10-09): new posts and
 drafts keep verified silent recovery before app-link departures, with light

@@ -53,7 +53,7 @@ tests, and the production build passed on 2026-10-09. V1-16 accessibility
 evidence is complete on `accessibility/behavioral-evidence`: the agreed
 keyboard, focus, names, and mobile-navigation bar is verified across all five
 user journeys in both themes at the tiered widths, with results, fixes, and
-limitations in `docs/ACCESSIBILITY.md`; the branch awaits review and PR. The
+limitations in `docs/ACCESSIBILITY.md`; the pull request is under review. The
 V1-22 shared page-state work stays Todo, and the next v1.0 item is the
 maintainer's choice among V1-17 and V1-22.
 

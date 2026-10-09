@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 
 const FOCUSABLE_SELECTOR = "button:not([disabled]), a[href]";
-const TOGGLE_SELECTOR = "button[aria-pressed]:not([disabled])";
+const TOGGLE_SELECTOR = "button[aria-pressed]";
 
 /**
  * Restores keyboard focus after a list item is removed.
@@ -14,8 +14,14 @@ const TOGGLE_SELECTOR = "button[aria-pressed]:not([disabled])";
  * the item that contains it. When the control disconnects, focus moves to the
  * same toggle action in the item now occupying the removed item's position
  * (or the last item when the removed one was last), or to that item's first
- * enabled control when no matching enabled toggle exists. An emptied list
- * falls back to the first enabled control in the root (the recovery action).
+ * enabled control when the recorded toggle is missing or disabled. An emptied
+ * list falls back to the first enabled control in the root (the recovery
+ * action).
+ *
+ * Appending pagination is handled as well: when the disconnected control was
+ * outside the items, such as the Load more button, focus moves to the first
+ * appended item once the next page arrives instead of jumping back to the
+ * top of the list while the page is still loading.
  *
  * Tracking the control's identity rather than a count keeps the restore
  * working when a paginated query refills a removed row without changing the
@@ -34,15 +40,21 @@ export function useListFocusRestore(
   const focusedRef = useRef<HTMLElement | null>(null);
   const itemIndexRef = useRef<number | null>(null);
   const toggleIndexRef = useRef<number | null>(null);
+  const outsideItemCountRef = useRef<number | null>(null);
+
+  const clearTracking = () => {
+    focusedRef.current = null;
+    itemIndexRef.current = null;
+    toggleIndexRef.current = null;
+    outsideItemCountRef.current = null;
+  };
 
   // Runs after every render so a refilled list of the same length is still
   // detected through the removed control's disconnection.
   useEffect(() => {
     const root = rootRef.current;
     if (!root) {
-      focusedRef.current = null;
-      itemIndexRef.current = null;
-      toggleIndexRef.current = null;
+      clearTracking();
       return;
     }
 
@@ -52,53 +64,78 @@ export function useListFocusRestore(
 
       const item = target.closest<HTMLElement>(itemSelector);
       if (!item) {
+        // A control outside the removable items, such as Load more. Record
+        // how many items existed so an append can move focus to the new page.
         itemIndexRef.current = null;
         toggleIndexRef.current = null;
+        outsideItemCountRef.current =
+          root.querySelectorAll(itemSelector).length;
         return;
       }
 
       itemIndexRef.current = Array.from(
         root.querySelectorAll<HTMLElement>(itemSelector),
       ).indexOf(item);
-      toggleIndexRef.current = target.matches("button[aria-pressed]")
+      toggleIndexRef.current = target.matches(TOGGLE_SELECTOR)
         ? Array.from(
-            item.querySelectorAll<HTMLElement>("button[aria-pressed]"),
+            item.querySelectorAll<HTMLElement>(TOGGLE_SELECTOR),
           ).indexOf(target)
         : null;
+      outsideItemCountRef.current = null;
     };
 
     root.addEventListener("focusin", onFocusIn);
 
     const focused = focusedRef.current;
     if (focused && !focused.isConnected) {
-      if (document.activeElement === document.body) {
+      if (document.activeElement !== document.body) {
+        clearTracking();
+      } else {
+        const itemIndex = itemIndexRef.current;
+        const toggleIndex = toggleIndexRef.current;
+        const outsideItemCount = outsideItemCountRef.current;
         const items = Array.from(
           root.querySelectorAll<HTMLElement>(itemSelector),
         );
-        const item =
-          items.length > 0
-            ? items[Math.min(itemIndexRef.current ?? 0, items.length - 1)]
-            : null;
 
-        let target: HTMLElement | null = null;
-        if (item) {
-          if (toggleIndexRef.current !== null) {
-            target =
-              Array.from(item.querySelectorAll<HTMLElement>(TOGGLE_SELECTOR))[
-                toggleIndexRef.current
-              ] ?? null;
+        if (itemIndex !== null) {
+          const item =
+            items.length > 0
+              ? items[Math.min(itemIndex, items.length - 1)]
+              : null;
+
+          let target: HTMLElement | null = null;
+          if (item) {
+            if (toggleIndex !== null) {
+              // Resolve the recorded ordinal against the full toggle list so
+              // a disabled sibling cannot shift the action, then require the
+              // recorded toggle itself to be enabled.
+              const recordedToggle = Array.from(
+                item.querySelectorAll<HTMLElement>(TOGGLE_SELECTOR),
+              )[toggleIndex];
+              if (recordedToggle && !recordedToggle.hasAttribute("disabled")) {
+                target = recordedToggle;
+              }
+            }
+            target ??= item.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+          } else {
+            target = root.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
           }
-          target ??= item.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-        } else {
-          target = root.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+
+          target?.focus();
+          clearTracking();
+        } else if (
+          outsideItemCount !== null &&
+          items.length > outsideItemCount
+        ) {
+          items[outsideItemCount]
+            .querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+            ?.focus();
+          clearTracking();
         }
-
-        target?.focus();
+        // Otherwise keep tracking while the next page is still loading; the
+        // activeElement guard above clears it once focus moves elsewhere.
       }
-
-      focusedRef.current = null;
-      itemIndexRef.current = null;
-      toggleIndexRef.current = null;
     }
 
     return () => root.removeEventListener("focusin", onFocusIn);

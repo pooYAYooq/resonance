@@ -55,12 +55,12 @@ vi.mock("@/components/web/PostCard", async () => {
             {tag}
           </Link>
         ))}
-        {/* The "locked" title convention lets tests pin the disabled-target fallback. */}
+        {/* Titles with "locked like" or "locked bookmark" pin disabled toggles for fallback tests. */}
         {isLiked && (
           <button
             aria-label={`Unlike ${title}`}
             aria-pressed="true"
-            disabled={title.includes("locked")}
+            disabled={title.includes("locked like")}
           >
             Unlike
           </button>
@@ -69,7 +69,7 @@ vi.mock("@/components/web/PostCard", async () => {
           <button
             aria-label={`Remove ${title}`}
             aria-pressed="true"
-            disabled={title.includes("locked")}
+            disabled={title.includes("locked bookmark")}
           >
             Remove
           </button>
@@ -100,6 +100,7 @@ const nextPost = {
   ...post,
   _id: "post-2",
   title: "Another saved post",
+  authorName: "Second Author",
 };
 
 describe("SavedSection", () => {
@@ -302,7 +303,7 @@ describe("SavedSection", () => {
     const lockedPost = {
       ...post,
       _id: "post-2",
-      title: "A locked saved post",
+      title: "A locked bookmark post",
     };
     paginatedState.mockReturnValue({
       results: [post, lockedPost],
@@ -324,6 +325,81 @@ describe("SavedSection", () => {
 
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "Author" })).toHaveFocus(),
+    );
+  });
+
+  it("moves focus to the first appended item after activating Load more", async () => {
+    const user = userEvent.setup();
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Load more" }).focus();
+    await user.keyboard("{Enter}");
+
+    // The pagination control unmounts while the next page loads.
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "LoadingMore",
+      loadMore: vi.fn(),
+      isLoading: true,
+    });
+    rerender(<SavedSection />);
+
+    // The next page arrives and appends after the existing item.
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Second Author" })).toHaveFocus(),
+    );
+  });
+
+  it("does not substitute a different toggle when the recorded one is disabled", async () => {
+    const likedSavedPost = {
+      ...post,
+      _id: "post-1",
+      title: "A liked saved post",
+      isLiked: true,
+    };
+    const lockedPost = {
+      ...post,
+      _id: "post-2",
+      title: "A locked like post",
+      isLiked: true,
+      isBookmarked: true,
+    };
+    paginatedState.mockReturnValue({
+      results: [likedSavedPost, lockedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Remove A liked saved post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [lockedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Remove A locked like post" }),
+      ).toHaveFocus(),
     );
   });
 });

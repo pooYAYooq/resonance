@@ -2502,6 +2502,32 @@ describe("CreateRoute", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
+  it("moves focus to Back to editing when entering Review and back to the Review control", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your post a title"),
+      "Focus transition article",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+
+    await enterReview(user);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Back to editing" }),
+      ).toHaveFocus(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Back to editing" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Review for publication" }),
+      ).toHaveFocus(),
+    );
+  });
+
   it("shows validation error for empty title", async () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
