@@ -105,9 +105,16 @@ function LoginForm() {
                 name="email"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field className="gap-y-3">
+                  <Field
+                    data-invalid={fieldState.invalid ? "true" : undefined}
+                    className="gap-y-3"
+                  >
                     <FieldLabel>Email</FieldLabel>
-                    <Input placeholder="Enter your email" {...field} />
+                    <Input
+                      aria-invalid={fieldState.invalid}
+                      placeholder="Enter your email"
+                      {...field}
+                    />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}
@@ -118,9 +125,13 @@ function LoginForm() {
                 name="password"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field className="gap-y-3">
+                  <Field
+                    data-invalid={fieldState.invalid ? "true" : undefined}
+                    className="gap-y-3"
+                  >
                     <FieldLabel>Password</FieldLabel>
                     <Input
+                      aria-invalid={fieldState.invalid}
                       type="password"
                       placeholder="Enter your password"
                       {...field}

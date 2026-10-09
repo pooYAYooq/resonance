@@ -109,7 +109,10 @@ function SignUpForm() {
                 name="name"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field className="gap-y-3">
+                  <Field
+                    data-invalid={fieldState.invalid ? "true" : undefined}
+                    className="gap-y-3"
+                  >
                     <FieldLabel>Full Name</FieldLabel>
                     <Input
                       aria-invalid={fieldState.invalid}
@@ -126,7 +129,10 @@ function SignUpForm() {
                 name="email"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field className="gap-y-3">
+                  <Field
+                    data-invalid={fieldState.invalid ? "true" : undefined}
+                    className="gap-y-3"
+                  >
                     <FieldLabel>Email</FieldLabel>
                     <Input
                       aria-invalid={fieldState.invalid}
@@ -143,7 +149,10 @@ function SignUpForm() {
                 name="password"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field className="gap-y-3">
+                  <Field
+                    data-invalid={fieldState.invalid ? "true" : undefined}
+                    className="gap-y-3"
+                  >
                     <FieldLabel>Password</FieldLabel>
                     <Input
                       aria-invalid={fieldState.invalid}

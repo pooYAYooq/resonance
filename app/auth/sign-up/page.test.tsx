@@ -52,7 +52,8 @@ describe("SignUpPage", () => {
     const user = userEvent.setup();
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "ab");
+    const nameInput = screen.getByPlaceholderText("John Doe");
+    await user.type(nameInput, "ab");
     await user.type(
       screen.getByPlaceholderText("john@example.com"),
       "jane@example.com",
@@ -62,9 +63,15 @@ describe("SignUpPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText((t) => t.includes("Too small")),
+        screen.getByText("Name must be at least 3 characters."),
       ).toBeInTheDocument();
     });
+
+    expect(nameInput).toHaveAttribute("aria-invalid", "true");
+    expect(nameInput.closest("[data-slot=field]")).toHaveAttribute(
+      "data-invalid",
+      "true",
+    );
 
     expect(signUpMock).not.toHaveBeenCalled();
   });
@@ -83,7 +90,7 @@ describe("SignUpPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText((t) => t.includes("Too small")),
+        screen.getByText("Password must be at least 8 characters."),
       ).toBeInTheDocument();
     });
 

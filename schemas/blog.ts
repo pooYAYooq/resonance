@@ -56,7 +56,7 @@ const blockNoteDocumentSchema = z.custom<BlockNoteDocument>(
 );
 
 export const draftPostSchema = z.object({
-  title: z.string().trim().max(100),
+  title: z.string().trim().max(100, "Title must be at most 100 characters."),
   content: blockNoteDocumentSchema,
   tags: postTagsSchema,
   image: z
@@ -72,7 +72,11 @@ export const draftPostSchema = z.object({
 });
 
 export const publishPostSchema = draftPostSchema.extend({
-  title: z.string().trim().min(1).max(100),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Title is required.")
+    .max(100, "Title must be at most 100 characters."),
   content: blockNoteDocumentSchema.refine(
     (document) =>
       getCodePointCount(getCanonicalBodyText(document.blocks)) >=

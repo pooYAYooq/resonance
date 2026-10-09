@@ -2518,9 +2518,7 @@ describe("CreateRoute", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText((t) => t.includes("Too small")),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Title is required.")).toBeInTheDocument();
     });
 
     expect(saveDraftMock).not.toHaveBeenCalled();
