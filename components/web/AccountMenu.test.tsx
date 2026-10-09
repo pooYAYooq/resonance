@@ -151,7 +151,9 @@ describe("AccountMenu", () => {
 
   it("uses workspace presentation and notifies the drawer on actions", async () => {
     const user = userEvent.setup();
-    render(<AccountMenu presentation="workspace" onNavigate={navigateMock} />);
+    render(
+      <AccountMenu presentation="workspace" onNavigateAction={navigateMock} />,
+    );
 
     expect(
       screen.getByRole("button", { name: /open workspace account menu/i }),

@@ -92,6 +92,10 @@ work is tracked in `ROADMAP.md`.
 - Keyboard focus is one solid 1px line across controls and links; the soft focus
   halo and double outlines are gone, and the BlockNote editor canvas shows an
   outline where its bundled stylesheet suppressed one.
+- The mobile navigation drawer no longer shows a visible Navigation heading:
+  the title stays available to screen readers as the dialog's name, and the
+  drawer opens straight into its content with the close control clear of the
+  first row.
 
 ### Fixed
 
