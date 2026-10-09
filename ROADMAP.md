@@ -222,8 +222,12 @@ published-edit Review previews a pending update date clamped against the saved
 publication and update timestamps. The maintainer approved retaining Dashboard
 in both sidebar and drawer; this clarifies access to the existing page without
 approving its deferred Overview redesign (see `docs/PHASE_3A_DECISIONS.md`).
-The drawer's visible Navigation heading remains unchanged and is deferred to a
-later UI refinement.
+The drawer's visible Navigation heading refinement is complete on
+`ui/drawer-heading-refinement` and ships with its documentation record in the
+same change: the title is visually hidden while remaining the dialog's
+accessible name, and the drawer opens straight into its content with the close
+control clear of the first row. The broader responsive and interaction polish
+item remains Todo.
 
 V1-22 gained a discovered defect from the reader/Review parity browser
 verification: a malformed editor target id in the `/create` URL (`editPostId`

@@ -20,10 +20,13 @@ import { useOptionalAuthoringExit } from "./AuthoringExitProvider";
 
 type AccountMenuProps = {
   presentation: "navbar" | "workspace";
-  onNavigate?: () => void;
+  onNavigateAction?: () => void;
 };
 
-export function AccountMenu({ presentation, onNavigate }: AccountMenuProps) {
+export function AccountMenu({
+  presentation,
+  onNavigateAction,
+}: AccountMenuProps) {
   const currentUser = useQuery(api.users.getCurrentUser, {});
   const router = useRouter();
   const exit = useOptionalAuthoringExit();
@@ -86,25 +89,25 @@ export function AccountMenu({ presentation, onNavigate }: AccountMenuProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href={`/u/${currentUser.userId}`} onClick={onNavigate}>
+          <Link href={`/u/${currentUser.userId}`} onClick={onNavigateAction}>
             <User />
             <span>Profile</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/saved" onClick={onNavigate}>
+          <Link href="/saved" onClick={onNavigateAction}>
             <Bookmark />
             <span>Saved</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/liked" onClick={onNavigate}>
+          <Link href="/liked" onClick={onNavigateAction}>
             <Heart />
             <span>Liked</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings" onClick={onNavigate}>
+          <Link href="/settings" onClick={onNavigateAction}>
             <Settings />
             <span>Settings</span>
           </Link>
@@ -113,7 +116,7 @@ export function AccountMenu({ presentation, onNavigate }: AccountMenuProps) {
         <DropdownMenuItem
           variant="destructive"
           onSelect={() => {
-            onNavigate?.();
+            onNavigateAction?.();
             if (exit)
               exit.requestSignOut(
                 () => signOutUser(router),

@@ -3,8 +3,12 @@
 import Link from "next/link";
 import { AppNavigation } from "@/components/web/MobileNavMenu";
 
-export function WorkspaceNavigation({ onNavigate }: { onNavigate?: () => void }) {
-  return <AppNavigation isAuthenticated onNavigate={onNavigate} />;
+export function WorkspaceNavigation({
+  onNavigateAction,
+}: {
+  onNavigateAction?: () => void;
+}) {
+  return <AppNavigation isAuthenticated onNavigateAction={onNavigateAction} />;
 }
 
 export function WorkspaceSidebar() {

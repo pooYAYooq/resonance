@@ -25,8 +25,9 @@ published-edit Review previews a monotonic pending-update date. Merged main
 passed lint, 504 edge-runtime tests, 564 component tests, and build. Both
 feature branches were removed after verifying their commits were merged.
 The maintainer approved keeping Dashboard in the shared sidebar and drawer;
-the deferred Overview redesign and the drawer's visible Navigation heading
-remain with their design entries.
+the deferred Overview redesign remains with its design entry, and the drawer's
+visible Navigation heading refinement is complete on
+`ui/drawer-heading-refinement` (see Next action).
 
 The malformed editor-target fix shipped in
 [PR #99](https://github.com/pooYAYooq/resonance/pull/99), merged as `60c992b`,
@@ -39,7 +40,16 @@ both cases; verification passed lint, 506 edge-runtime tests, 567 component
 tests, and the production build on 2026-10-07. Browser acceptance covered
 malformed `draftId` and `editPostId` direct navigation, a dual-target request,
 a history Back transition with unsaved content, and Review preservation, with
-no client-side exceptions and no test data persisted. Next: V1-16
+no client-side exceptions and no test data persisted.
+
+The drawer's visible Navigation heading refinement is complete on
+`ui/drawer-heading-refinement` and ships with its documentation record in the
+same change: the title stays available to screen readers while its visible
+text is hidden, and a fixed 56px header strip keeps the close control 8px
+clear of the first row. Signed-in dark-theme browser verification at 375px and
+320px confirmed the hidden heading, the clearance, and the unchanged
+`dialog { name: "Navigation" }`; lint, 623 edge-runtime tests, 654 component
+tests, and the production build passed on 2026-10-09. Next: V1-16
 accessibility evidence; the V1-22 shared page-state work stays Todo.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged

@@ -81,12 +81,12 @@ export function MobileNavMenu({
         aria-describedby={undefined}
         className="data-[side=right]:w-[min(360px,100%)] gap-0"
       >
-        <SheetHeader>
-          <SheetTitle>Navigation</SheetTitle>
+        <SheetHeader className="h-14">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
         </SheetHeader>
         <AppNavigation
           isAuthenticated={isAuthenticated}
-          onNavigate={() => setOpen(false)}
+          onNavigateAction={() => setOpen(false)}
           returnFocusRef={triggerRef}
         />
       </SheetContent>
@@ -97,11 +97,11 @@ export function MobileNavMenu({
 /** Shared destinations and account controls for the drawer and workspace sidebar. */
 export function AppNavigation({
   isAuthenticated,
-  onNavigate,
+  onNavigateAction,
   returnFocusRef,
 }: {
   isAuthenticated: boolean;
-  onNavigate?: () => void;
+  onNavigateAction?: () => void;
   /**
    * Focus target that survives the owner's close. Owners whose trigger stays
    * mounted pass it here; otherwise focus returns to the clicked control.
@@ -120,7 +120,7 @@ export function AppNavigation({
     api.notifications.getUnreadCount,
     isAuthenticated ? {} : "skip",
   );
-  const close = () => onNavigate?.();
+  const close = () => onNavigateAction?.();
   const linkClass =
     "flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted";
   const sectionClass =
