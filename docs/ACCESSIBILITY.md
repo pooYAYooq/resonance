@@ -46,7 +46,8 @@ behavioral failure.
   2026-10-09). Committed revisions in this branch: `a954036` (scope),
   `455501b` (validation messages and invalid state), `9e1aa09` (list focus
   restoration), `b7d9b12` (this evidence record), followed by the
-  label-association fix and the completion documents.
+  label-association fix, the completion documents, and the list
+  focus-restore rework.
 - Baseline on 2026-10-09 at `d68b9c9`: lint, 623 edge-runtime tests, 654
   component tests (single worker), and the production build passed.
 
@@ -143,9 +144,11 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   empty / Follow authors to see their latest posts here." and offers a
   keyboard-reachable Discover link; the page traversal is clean.
 - J2-Collections: after liking and saving two posts, removing an item moves
-  focus to a surviving control in the list, and removing the last item moves
-  focus to the empty state's Browse the Blog recovery link. Toggles were
-  restored to their original state. The shared fix is recorded under Findings.
+  focus to the same toggle action on the card that takes its place, or to the
+  previous card when the removed one was last; removing the last item moves
+  focus to the empty state's Browse the Blog recovery link. Refilled pages and
+  disabled successor controls are covered by regression tests. Toggles were
+  restored to their original state. The fixes are recorded under Findings.
 - Dark theme: post actions at 1280 and 375, the Feed empty state at 1280 and
   375, and the empty Liked and Saved states were re-verified with visible
   focus.
@@ -287,6 +290,15 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   `htmlFor` with input `id`s, moved the tests to `getByLabelText` (RED then
   GREEN; 16/16), and browser-verified: the accessibility trees now report
   textbox Email, Password, and Full Name. Found in the branch review.
+- The first list focus-restore implementation tracked a global control index
+  and only reacted to shrinking lists. Review found that cards with different
+  tag counts could shift the target onto a different control, and that a
+  paginated refill of a removed row kept the count unchanged so focus stayed
+  on the document body. Reworked to track the focused control's card and
+  toggle action, restore when the control disconnects, and prefer the same
+  enabled toggle in the successor card, with regression tests for refills,
+  tag-count drift, and disabled targets (RED then GREEN; 20/20 in the section
+  suites).
 - Liked and Saved lists dropped keyboard focus to the document body when the
   focused item was removed (`/liked`, `/saved`). Added a shared
   `useListFocusRestore` hook so focus moves to a surviving control in the

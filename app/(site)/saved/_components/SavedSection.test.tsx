@@ -31,14 +31,53 @@ vi.mock("@/convex/_generated/api", () => ({
   },
 }));
 
-vi.mock("@/components/web/PostCard", () => ({
-  PostCard: ({ title }: { title: string }) => (
-    <div>
-      {title}
-      <button aria-label={`Remove ${title}`}>Remove</button>
-    </div>
-  ),
-}));
+vi.mock("@/components/web/PostCard", async () => {
+  const Link = (await import("next/link")).default;
+  return {
+    PostCard: ({
+      title,
+      tags,
+      authorName,
+      isLiked,
+      isBookmarked,
+    }: {
+      title: string;
+      tags?: string[];
+      authorName: string | null;
+      isLiked: boolean;
+      isBookmarked: boolean;
+    }) => (
+      <article data-slot="card">
+        <Link href="/u/author">{authorName}</Link>
+        <Link href={`/blog/${title}`}>{title}</Link>
+        {(tags ?? []).map((tag) => (
+          <Link key={tag} href={`/blog?tag=${tag}`}>
+            {tag}
+          </Link>
+        ))}
+        {/* The "locked" title convention lets tests pin the disabled-target fallback. */}
+        {isLiked && (
+          <button
+            aria-label={`Unlike ${title}`}
+            aria-pressed="true"
+            disabled={title.includes("locked")}
+          >
+            Unlike
+          </button>
+        )}
+        {isBookmarked && (
+          <button
+            aria-label={`Remove ${title}`}
+            aria-pressed="true"
+            disabled={title.includes("locked")}
+          >
+            Remove
+          </button>
+        )}
+      </article>
+    ),
+  };
+});
 
 import { SavedSection } from "./SavedSection";
 
@@ -196,6 +235,95 @@ describe("SavedSection", () => {
       expect(
         screen.getByRole("link", { name: "Browse the Blog" }),
       ).toHaveFocus(),
+    );
+  });
+
+  it("restores focus when a paginated refill replaces a removed saved post", async () => {
+    const thirdPost = { ...post, _id: "post-3", title: "A third saved post" };
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+
+    // The refilled page keeps two items, replacing the removed one.
+    paginatedState.mockReturnValue({
+      results: [nextPost, thirdPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Remove Another saved post" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("restores focus to the same toggle when items have different tag counts", async () => {
+    const taggedPost = {
+      ...post,
+      _id: "post-2",
+      title: "A tagged saved post",
+      tags: ["alpha", "beta"],
+    };
+    paginatedState.mockReturnValue({
+      results: [post, taggedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [taggedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Remove A tagged saved post" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("restores focus to the first enabled control when the matching toggle is disabled", async () => {
+    const lockedPost = {
+      ...post,
+      _id: "post-2",
+      title: "A locked saved post",
+    };
+    paginatedState.mockReturnValue({
+      results: [post, lockedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [lockedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Author" })).toHaveFocus(),
     );
   });
 });

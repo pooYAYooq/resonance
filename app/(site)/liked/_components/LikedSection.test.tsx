@@ -31,14 +31,53 @@ vi.mock("@/convex/_generated/api", () => ({
   },
 }));
 
-vi.mock("@/components/web/PostCard", () => ({
-  PostCard: ({ title }: { title: string }) => (
-    <article>
-      {title}
-      <button aria-label={`Unlike ${title}`}>Unlike</button>
-    </article>
-  ),
-}));
+vi.mock("@/components/web/PostCard", async () => {
+  const Link = (await import("next/link")).default;
+  return {
+    PostCard: ({
+      title,
+      tags,
+      authorName,
+      isLiked,
+      isBookmarked,
+    }: {
+      title: string;
+      tags?: string[];
+      authorName: string | null;
+      isLiked: boolean;
+      isBookmarked: boolean;
+    }) => (
+      <article data-slot="card">
+        <Link href="/u/author">{authorName}</Link>
+        <Link href={`/blog/${title}`}>{title}</Link>
+        {(tags ?? []).map((tag) => (
+          <Link key={tag} href={`/blog?tag=${tag}`}>
+            {tag}
+          </Link>
+        ))}
+        {/* The "locked" title convention lets tests pin the disabled-target fallback. */}
+        {isLiked && (
+          <button
+            aria-label={`Unlike ${title}`}
+            aria-pressed="true"
+            disabled={title.includes("locked")}
+          >
+            Unlike
+          </button>
+        )}
+        {isBookmarked && (
+          <button
+            aria-label={`Remove ${title}`}
+            aria-pressed="true"
+            disabled={title.includes("locked")}
+          >
+            Remove
+          </button>
+        )}
+      </article>
+    ),
+  };
+});
 
 import { LikedSection } from "./LikedSection";
 
@@ -57,6 +96,8 @@ const post = {
   authorAvatarUrl: null,
   tags: [],
 };
+
+const secondPost = { ...post, _id: "post-2", title: "Another liked post" };
 
 describe("LikedSection", () => {
   beforeEach(() => {
@@ -139,7 +180,6 @@ describe("LikedSection", () => {
   });
 
   it("moves focus to the nearest surviving item when a liked post is removed", async () => {
-    const secondPost = { ...post, _id: "post-2", title: "Another liked post" };
     paginatedState.mockReturnValue({
       results: [post, secondPost],
       status: "CanLoadMore",
@@ -188,6 +228,95 @@ describe("LikedSection", () => {
       expect(
         screen.getByRole("link", { name: "Browse the Blog" }),
       ).toHaveFocus(),
+    );
+  });
+
+  it("restores focus when a paginated refill replaces a removed liked post", async () => {
+    const thirdPost = { ...post, _id: "post-3", title: "A third liked post" };
+    paginatedState.mockReturnValue({
+      results: [post, secondPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
+
+    // The refilled page keeps two items, replacing the removed one.
+    paginatedState.mockReturnValue({
+      results: [secondPost, thirdPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<LikedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Unlike Another liked post" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("restores focus to the same toggle when items have different tag counts", async () => {
+    const taggedPost = {
+      ...post,
+      _id: "post-2",
+      title: "A tagged liked post",
+      tags: ["alpha", "beta"],
+    };
+    paginatedState.mockReturnValue({
+      results: [post, taggedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [taggedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<LikedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Unlike A tagged liked post" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("restores focus to the first enabled control when the matching toggle is disabled", async () => {
+    const lockedPost = {
+      ...post,
+      _id: "post-2",
+      title: "A locked liked post",
+    };
+    paginatedState.mockReturnValue({
+      results: [post, lockedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [lockedPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<LikedSection />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Author" })).toHaveFocus(),
     );
   });
 });
