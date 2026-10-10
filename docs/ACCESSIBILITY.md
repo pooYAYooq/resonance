@@ -216,13 +216,13 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 
 ### Journey 4: Manage
 
-| Check ID     | Journey / surface / state                        | Check                                   | Width / theme | Result | Evidence / revision | Finding                     |
-| ------------ | ------------------------------------------------ | --------------------------------------- | ------------- | ------ | ------------------- | --------------------------- |
-| J4-Published | `/dashboard/published` rows, actions, pagination | keyboard, names, focus                  | Deep          | Pass   | See notes           | Pagination N/A (five posts) |
-| J4-Drafts    | `/dashboard/drafts` rows, actions, pagination    | keyboard, names, focus                  | Deep          | Pass   | See notes           | Pagination N/A              |
-| J4-Delete    | deletion confirmation and focus restoration      | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                        |
-| J4-Dashboard | `/dashboard` overview                            | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                        |
-| J4-Analytics | `/dashboard/analytics`                           | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                        |
+| Check ID     | Journey / surface / state                        | Check                                   | Width / theme | Result | Evidence / revision | Finding                                            |
+| ------------ | ------------------------------------------------ | --------------------------------------- | ------------- | ------ | ------------------- | -------------------------------------------------- |
+| J4-Published | `/dashboard/published` rows, actions, pagination | keyboard, names, focus                  | Deep          | Pass   | See notes           | Fixed collapsed title focus target; pagination N/A |
+| J4-Drafts    | `/dashboard/drafts` rows, actions, pagination    | keyboard, names, focus                  | Deep          | Pass   | See notes           | Fixed collapsed title focus target; pagination N/A |
+| J4-Delete    | deletion confirmation and focus restoration      | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                               |
+| J4-Dashboard | `/dashboard` overview                            | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                               |
+| J4-Analytics | `/dashboard/analytics`                           | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                               |
 
 **Journey 4 notes (managed Chrome, dark and light)**
 
@@ -242,6 +242,103 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   retry, auth guards, and focus restoration when query updates arrive before
   or after mutation resolution are covered by
   `app/(workspace)/dashboard/_components/*.test.tsx`.
+
+**Management breakpoint follow-up (2026-10-10, `f56a8b9`)**
+
+Executed against `http://localhost:3000` in Windows Chrome 154 attached through
+the Playwright extension (`mainaccount` session), signed in as the maintainer's
+main demo account. Actual viewport sizes were 320×900 and 768×900; each route
+was reloaded after selecting light/dark through the stored theme preference.
+This does not establish operation of the Settings Appearance control.
+
+| Width | Theme | Published rows                       | Draft rows                           | Delete dialogs                    |
+| ----- | ----- | ------------------------------------ | ------------------------------------ | --------------------------------- |
+| 320   | Dark  | Pass                                 | Pass                                 | Pass (open, trap, Escape, Cancel) |
+| 320   | Light | Pass                                 | Pass                                 | Pass (open, trap, Escape, Cancel) |
+| 768   | Dark  | Fail: title focus visually collapsed | Fail: title focus visually collapsed | Pass (open, trap, Escape, Cancel) |
+| 768   | Light | Fail: title focus visually collapsed | Fail: title focus visually collapsed | Pass (open, trap, Escape, Cancel) |
+
+- Traversed all 15 row controls across four existing published posts and all
+  six controls across two purpose-created drafts using Tab. These include
+  title links, Edit/Resume, Delete, and the published tagged row's topic links.
+  Activated the first title and Edit/Resume links with Enter and returned to
+  management without modifying content. Screenshots verified visible focus
+  on the mobile row actions and desktop action groups in both themes.
+- At 768px the sidebar, thumbnail, and actions consume the row width, leaving
+  title/metadata visually collapsed. Both first-row headings measured **0px wide**
+  with `overflow: hidden`; its title link still receives keyboard focus and
+  activates, but no visible title focus target appears. Published rows show
+  the same visual collapse. DOM focus and `:focus-visible` alone therefore
+  do not establish a passing visible-focus result. This was the pre-fix
+  failure, subsequently repaired and retested below. At 320px long titles
+  are ellipsized but remain visible.
+- At every combination, Enter on a per-row Delete button opened the named
+  `Delete published post?` or `Delete draft?` alertdialog. Tab and Shift+Tab
+  remained inside its enabled controls; focused controls and dialog text were
+  visible within the viewport. Escape and keyboard-activated Cancel closed
+  the dialog and restored its original per-row Delete trigger.
+- Actual draft deletion was exercised at **320 dark** and **768 light**, not
+  all four combinations. Deleting fixture B at 320 dark restored focus to
+  fixture A's Resume link; deleting the final fixture A at 768 light restored
+  focus to the empty state's Create a post link. Both fixture rows disappeared.
+  Existing published posts were never deleted; published confirmation here
+  covers cancellation, not a new destructive-operation pass.
+- Fixture cleanup: `Management breakpoint fixture A 2026-10-10`
+  (`j978v6ct5txsf60wy2k9tagnh18g07t0`) and fixture B
+  (`j977srf5s77zfwmtbd1w1qprr58g0rrk`) were created with Save draft and
+  deleted through the UI. Drafts returned to its original empty state. No
+  images were uploaded; the retained demo post and its engagement were untouched.
+  Pagination did not render for either list and remains unexercised here.
+- Local evidence archive:
+  `/home/studio/projects/resonance-docs-archive/browser-evidence-2026-10-10-management/`.
+  `management-browser-results.json` contains per-control traversal, viewport,
+  focus and dialog observations. Screenshots follow
+  `management-{published|drafts}-{320|768}-{dark|light}-{row|dialog}.png`;
+  `management-{drafts|published}-768-title-focus.png` records failing title focus,
+  and `management-cleanup-{320-dark|768-light}.png` records deletion restoration.
+  Scripts and cleanup results are archived alongside them; artifacts are local,
+  not a portable CI/browser test suite.
+
+**Collapsed-title fix and retest (2026-10-10, based on `f56a8b9` plus row fix)**
+
+- Root cause: both row grids reserved 11rem for the cover and 12rem for
+  actions starting at 768px, where the sidebar also appears. Those fixed
+  columns, gaps, and padding exhausted the content width. Both rows now keep
+  their existing two-column composition through 1023px, with actions on the
+  following row; the third action column begins at 1024px. Sidebar and mobile
+  layouts are unchanged.
+- The browser regression script first failed on all four published headings
+  measuring 0px at 768 dark. After the fix, all **24 route/width/theme runs**
+  completed: Published and Drafts at 320, 375, 768, and 1280 in both themes,
+  plus 900 and 1024 in both themes to check the revised breakpoint boundary.
+  Every heading had positive width. At 768px the first draft and published
+  headings both measured **198px**, and screenshots show the title text and
+  its keyboard-focus outline. Long titles still truncate intentionally.
+- Each run repeated full row traversal, title and Edit/Resume activation,
+  named deletion-dialog opening, bidirectional focus trapping, Escape,
+  keyboard Cancel, and trigger restoration. Existing published posts stayed
+  untouched; pagination and actual published deletion are not newly verified.
+- Recreated only the two approved draft fixtures for this retest: A
+  (`j97698whqyq0kabv1jvcyad2td8g14qw`) and B
+  (`j973jw3d7bsgkdbnav981t1mt98g0fae`). Both were deleted through keyboard
+  confirmation afterward, again at 320 dark and 768 light. Focus returned to
+  the surviving Resume link and then the empty-state Create a post link;
+  zero drafts remained. No cover/media uploads or existing-content edits.
+- Post-fix evidence is archived separately, preserving the failure evidence:
+  `/home/studio/projects/resonance-docs-archive/browser-evidence-2026-10-10-management-layout-fix/`.
+  It includes the executable browser regression script, RED/GREEN logs,
+  `management-layout-results.json`, cleanup results, and screenshots using
+  the same naming scheme with additional 375/900/1024/1280 widths.
+  The script is local evidence tooling, not a new repository dependency.
+
+**Retest after design changes:** this is evidence for the current revision,
+not final acceptance of the ongoing Dashboard/management design. Repeat the
+full Deep matrix (320/375/768/1280, both themes) whenever sidebar width,
+responsive row composition, title truncation, action placement, dialog layout,
+or focus restoration changes. Use long titles and mixed tag/cover states;
+inspect screenshots as well as DOM focus to catch collapsed targets. Keep
+existing content read-only; create disposable drafts/posts for destructive
+checks, record cleanup, and exercise pagination only with sufficient fixtures.
 
 ### Journey 5: Navigate and account
 

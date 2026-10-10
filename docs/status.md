@@ -146,7 +146,15 @@ The remaining findings await the maintainer's one-at-a-time scope decisions.
 The disabled-Review focus finding also has a local fix: Back to editing
 returns focus to Post title while a requested document is loading, otherwise
 to Review. Component regressions cover new-post and published-edit modes;
-no new browser evidence is claimed. The change is not committed or pushed.
+no new browser evidence is claimed. Committed locally as `f56a8b9`, not pushed.
+
+Management browser checks exposed collapsed published/draft titles at 768px.
+Both rows now delay their third action column until 1024px. The full Deep
+matrix plus 900/1024 breakpoint checks passed for both lists in both themes;
+results, historical failures, cleanup, and future retest triggers are recorded
+in `docs/ACCESSIBILITY.md`. The two approved disposable drafts were deleted
+and the empty state restored. Remaining findings await the maintainer's next
+one-at-a-time decision; this does not finalize the ongoing management design.
 
 ## Blockers
 
