@@ -113,12 +113,12 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 
 ### Journey 2: Engage
 
-| Check ID       | Journey / surface / state                                        | Check                              | Width / theme | Result                                   | Evidence / revision | Finding                                     |
-| -------------- | ---------------------------------------------------------------- | ---------------------------------- | ------------- | ---------------------------------------- | ------------------- | ------------------------------------------- |
-| J2-Auth        | `/auth/login`, `/auth/sign-up`                                   | keyboard, names, focus, validation | Standard      | Pass (signed-out states)                 | See Journey 2 notes | OAuth handoff not exercised                 |
-| J2-Actions     | post like, save, follow, comments; anonymous redirect and return | keyboard, names, focus, states     | Deep          | Pass                                     | See Journey 2 notes | None                                        |
-| J2-Feed        | `/feed` feed and empty states                                    | keyboard, names, focus             | Standard      | Fail (populated focus); empty state Pass | See Journey 2 notes | Pending Like/Save and pagination lose focus |
-| J2-Collections | `/liked`, `/saved`, focus after removal                          | keyboard, names, focus             | Standard      | Pass                                     | See Journey 2 notes | Fixed focus restoration after removal       |
+| Check ID       | Journey / surface / state                                        | Check                              | Width / theme | Result                                                    | Evidence / revision | Finding                                               |
+| -------------- | ---------------------------------------------------------------- | ---------------------------------- | ------------- | --------------------------------------------------------- | ------------------- | ----------------------------------------------------- |
+| J2-Auth        | `/auth/login`, `/auth/sign-up`                                   | keyboard, names, focus, validation | Standard      | Pass (signed-out states)                                  | See Journey 2 notes | OAuth handoff not exercised                           |
+| J2-Actions     | post like, save, follow, comments; anonymous redirect and return | keyboard, names, focus, states     | Deep          | Pass                                                      | See Journey 2 notes | None                                                  |
+| J2-Feed        | `/feed` feed and empty states                                    | keyboard, names, focus             | Standard      | Fail (pending Like/Save); pagination and empty state Pass | See Journey 2 notes | Fixed pagination focus; pending Like/Save loses focus |
+| J2-Collections | `/liked`, `/saved`, focus after removal                          | keyboard, names, focus             | Standard      | Pass                                                      | See Journey 2 notes | Fixed focus restoration after removal                 |
 
 **Journey 2 notes (light and dark; managed Chrome and extension contexts)**
 
@@ -588,8 +588,9 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   `document.body`. A MutationObserver recorded that pending state. The final
   page rendered 21 unique fixture titles with no Load more, but focus remained
   on body after settling instead of moving to the appended card. No feed or
-  shared-control code was changed; these failures await the maintainer's
-  decision. Only the final-page append was exercised, not nonfinal pagination.
+  shared-control code was changed during that evidence task. The subsequently
+  approved pagination fix is recorded below; pending Like/Save remains open.
+  Only the final-page append was exercised, not nonfinal pagination.
 - Deleted all 21 fixture posts through the published-post confirmation. The
   initial cleanup deleted 21/20 before a native navigation interruption; its
   log has no complete result object. The continuation records deletion of
@@ -614,6 +615,64 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   acceptance. Retest after changes to cards, pending actions, pagination,
   navigation, or focus behavior. Touch and real screen-reader acceptance remain
   outside this browser evidence.
+
+**Feed pagination focus fix (2026-10-11, `c0a9c54` plus pagination fix)**
+
+- Root cause: changing the cursor makes the current `useQuery` result
+  temporarily undefined. Feed previously replaced all loaded cards and the
+  focused Load more button with a spinner, then provided no restoration when
+  the new page arrived. The fix retains the accumulated cards and pagination
+  button through loading. Load more remains focusable with `aria-disabled`
+  and an activation guard; its pending label reads Loading more. Initial
+  loading and authentication gating still use the existing spinner.
+- A request-scoped focus record captures the unique-item boundary and active
+  pagination control. A settled page focuses the first enabled control in the
+  first appended card; a page with no new unique cards keeps the available
+  pagination button, or falls back to the last surviving card/Discover when
+  exhausted. Deliberate focus departure cancels restoration, including blur
+  without a next target. Chromium's blur-before-disconnection ordering is
+  accounted for. The shared collection hook and Like/Save code are untouched;
+  this does not fix their pending-focus defect.
+- Eleven new component cases cover pending preservation and repeated
+  activation, final/nonfinal appends, deduplicated/repeated page boundaries,
+  empty/duplicate-only pages, empty scanning exhaustion, Chromium removal
+  ordering, and departure to an outside control/card/body. Nine failed on the
+  original code; two departure guards already passed. All 18 Feed tests passed
+  after the fix. Query cutoff, bounds, bookmark hydration, and auth checks
+  remain covered by the existing tests.
+- Recreated 21 disposable publications with distinct `Feed pagination fixture`
+  titles/IDs. All four Standard combinations passed real final-page pagination.
+  A MutationObserver captured **20 retained cards, active pagination focus,
+  `aria-disabled` loading, and its status label** during each request. After
+  settling, all 21 cards rendered with no Load more, and visible focus landed
+  on the author link of appended fixture 01. Screenshots inspected at mobile
+  dark and desktop light confirm its visible outline. This retest asserts
+  both the pending and settled outcomes, not only row count. Nonfinal and
+  filtered-page fallbacks are component evidence, not browser-fixture evidence.
+- All 21 repeat publications were deleted; the completed author cleanup log
+  records each title and zero remaining rows/no Load more. Main Feed returned
+  to empty and its original 375px/light presentation was restored. The main
+  cleanup probe encountered the already-recorded native `beforeunload` harness
+  interruption; it is not a completed result object. Final empty-feed state is
+  checked separately. No existing publications or demo engagement/follow
+  relationships were changed, and no new engagement was created in this retest.
+- Verification passed lint, 624 edge-runtime tests, 712 component tests,
+  production build, and changed-file formatting. A local CodeRabbit review
+  raised one minor advisory: a status region mounted together with its loading
+  text may not announce reliably in some screen readers; a persistently mounted
+  region could improve that. Its boolean `aria-disabled` observation requires
+  no change because React serializes the expected strings. The announcement
+  advisory is not treated as verified screen-reader behavior or automatically
+  folded into this keyboard-focus fix; real screen-reader acceptance remains
+  an explicit limitation.
+- Archive:
+  `/home/studio/projects/resonance-docs-archive/browser-evidence-2026-10-11-feed-pagination-focus-fix/`.
+  It preserves RED/GREEN and full verification logs, local review output,
+  repeat fixture URLs, pending/settled browser results, screenshots, scripts,
+  and cleanup records separately from the prior failures. Feed's current
+  design remains changeable; retest pagination after relevant layout, query,
+  control, or focus changes. Pending Like/Save is the next separate maintainer
+  decision, not resolved by the pagination acceptance.
 
 ## Findings
 

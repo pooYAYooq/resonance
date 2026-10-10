@@ -198,6 +198,17 @@ and main Feed returned to empty. Evidence and interrupted-harness-log limits
 are in `docs/ACCESSIBILITY.md`. Next action is the maintainer's decision on
 these focus defects, one at a time; no push or reviewer reply is authorized.
 
+The approved Feed pagination-only fix retains loaded cards and the focused
+Load more control during requests, guards repeat activation, and moves focus
+to appended content or the settled fallback without stealing it after departure.
+Nine RED regressions turned GREEN; all 18 Feed tests pass. Chrome captured
+pending preservation and visible appended focus at 375/1280 in both themes.
+The 21 repeat publications were removed, and the author list/main Feed are
+empty again. Full gates passed lint, 624 edge tests, 712 component tests, and
+build. Current-design evidence, archive, and a minor unverified screen-reader
+announcement advisory are in `docs/ACCESSIBILITY.md`. Shared Like/Save code
+is untouched; its pending-focus defect awaits the next one-at-a-time decision.
+
 ## Blockers
 
 - None.

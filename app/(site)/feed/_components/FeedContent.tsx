@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -29,6 +29,11 @@ export function FeedContent() {
   const [asOf] = useState(() => Date.now());
   const [cursor, setCursor] = useState<string | null>(null);
   const [pages, setPages] = useState<FeedPost[]>([]);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const paginationFocusRef = useRef<{
+    control: HTMLButtonElement;
+    itemCount: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -50,7 +55,39 @@ export function FeedContent() {
       : "skip",
   );
 
-  if (isLoading || !isAuthenticated || !page) {
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) {
+      paginationFocusRef.current = null;
+      return;
+    }
+    const request = paginationFocusRef.current;
+    const root = rootRef.current;
+    if (!request || !page || !root) return;
+    paginationFocusRef.current = null;
+
+    // A retained pagination control owns focus through loading. A final page
+    // removes it, in which case Chromium falls back to body. Do not restore
+    // when the user has deliberately moved to another control in the meantime.
+    if (
+      document.activeElement !== request.control &&
+      (request.control.isConnected || document.activeElement !== document.body)
+    )
+      return;
+
+    const cards = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-slot="card"]'),
+    );
+    const firstControl = "a[href], button:not([disabled])";
+    const appended =
+      cards[request.itemCount]?.querySelector<HTMLElement>(firstControl);
+    const recovery = Array.from(
+      root.querySelectorAll<HTMLElement>(firstControl),
+    ).find((control) => !control.closest('[data-slot="card"]'));
+    const surviving = cards.at(-1)?.querySelector<HTMLElement>(firstControl);
+    (appended ?? recovery ?? surviving)?.focus();
+  });
+
+  if (isLoading || !isAuthenticated || (!page && cursor === null)) {
     return (
       <div className="flex justify-center py-12">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
@@ -59,27 +96,31 @@ export function FeedContent() {
   }
 
   const uniquePosts = Array.from(
-    new Map([...pages, ...page.page].map((post) => [post._id, post])).values(),
+    new Map(
+      [...pages, ...(page?.page ?? [])].map((post) => [post._id, post]),
+    ).values(),
   );
 
-  if (uniquePosts.length === 0 && page.isDone) {
+  if (uniquePosts.length === 0 && page?.isDone) {
     return (
-      <EmptyState
-        icon={Rss}
-        title="Your feed is empty"
-        description="Follow authors to see their latest posts here."
-        // Feed is retention; Discover is the recovery path for authors/topics.
-        action={
-          <Button asChild variant="outline">
-            <Link href="/blog">Discover</Link>
-          </Button>
-        }
-      />
+      <div ref={rootRef}>
+        <EmptyState
+          icon={Rss}
+          title="Your feed is empty"
+          description="Follow authors to see their latest posts here."
+          // Feed is retention; Discover is the recovery path for authors/topics.
+          action={
+            <Button asChild variant="outline">
+              <Link href="/blog">Discover</Link>
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={rootRef} className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {uniquePosts.map((post) => (
           <PostCard
@@ -101,16 +142,38 @@ export function FeedContent() {
         ))}
       </div>
 
-      {!page.isDone && (
+      {!page?.isDone && (
         <div className="flex justify-center">
           <Button
             variant="outline"
-            onClick={() => {
+            aria-disabled={!page}
+            onBlur={(event) => {
+              const control = event.currentTarget;
+              // Chromium can emit blur while a removed element is still
+              // connected. Classify deliberate departures after DOM removal.
+              queueMicrotask(() => {
+                if (
+                  paginationFocusRef.current?.control === control &&
+                  control.isConnected &&
+                  document.activeElement !== control
+                )
+                  paginationFocusRef.current = null;
+              });
+            }}
+            onClick={(event) => {
+              if (!page) return;
+              paginationFocusRef.current =
+                document.activeElement === event.currentTarget
+                  ? {
+                      control: event.currentTarget,
+                      itemCount: uniquePosts.length,
+                    }
+                  : null;
               setPages((current) => [...current, ...page.page]);
               setCursor(page.continueCursor);
             }}
           >
-            Load more
+            {page ? "Load more" : <span role="status">Loading more...</span>}
           </Button>
         </div>
       )}
