@@ -188,7 +188,8 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   new-post draft was saved ("Draft saved successfully!"), published through
   Review, opened in published-edit mode, and removed through management
   deletion afterwards. Entering Review moves focus to Back to editing and
-  returning moves focus back to the Review control (added during PR review;
+  returning moves focus back to the Review control, or to Post title when
+  Review is disabled while a requested document loads (added during PR review;
   covered by editor tests).
 - J3-Review: Review opens with named Back to editing and Publish controls.
   Publishing announced "Post published successfully!" and landed on `/blog`.

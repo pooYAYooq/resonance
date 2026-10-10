@@ -143,6 +143,11 @@ or Load more control. This is scoped to the current collection design, which
 may change as those pages evolve; it is not a page-wide accessibility sign-off.
 The remaining findings await the maintainer's one-at-a-time scope decisions.
 
+The disabled-Review focus finding also has a local fix: Back to editing
+returns focus to Post title while a requested document is loading, otherwise
+to Review. Component regressions cover new-post and published-edit modes;
+no new browser evidence is claimed. The change is not committed or pushed.
+
 ## Blockers
 
 - None.

@@ -138,8 +138,7 @@ append no visible posts), the Saved list no longer showing its empty state
 while more pages remain, and the editor's Review and Back-to-editing focus
 handling. Verification on `a0015cf` passed lint, 624 edge-runtime tests, 682
 component tests, the production build, and changed-file formatting. Open
-review items are the Back-to-editing return while a target switch leaves
-Review temporarily disabled, and browser evidence for the management deep
+review items concern browser evidence for the management deep
 breakpoints, the Appearance control, a populated notifications list, a
 populated feed, and both sign-out choices. Touch operability and real
 screen-reader acceptance remain recorded limitations. Owner handoffs: V1-18

@@ -564,7 +564,14 @@ function CreateEditor() {
     if (reviewing) {
       reviewBackRef.current?.focus();
     } else {
-      reviewEntryRef.current?.focus();
+      const reviewControl = reviewEntryRef.current;
+      if (reviewControl && !reviewControl.disabled) {
+        reviewControl.focus();
+      } else {
+        // A confirmed target switch can leave Review disabled while Back is
+        // still available. Return to the enabled title instead of the body.
+        titleTextareaRef.current?.focus();
+      }
     }
   }, [reviewing]);
   const claimRecoveredMedia = useCallback(
