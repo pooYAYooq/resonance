@@ -125,7 +125,15 @@ The staged-index finding does not apply to the recorded undeployed,
 disposable-data setup; a large existing deployment would need a staged
 backfill before enabling callers. Post-fix verification on 2026-10-09: lint,
 623 edge-runtime tests, 654 component tests across 82 files, and the
-production build pass; Git approval gates are pending before updating the PR.
+production build pass; merged as `89b1eaa`.
+
+The post-deletion storage cleanup fix shipped in
+[PR #104](https://github.com/pooYAYooq/resonance/pull/104), merged as `6f6718d`.
+Deleting a published post whose cover was also a consumed upload claim no
+longer wedges the deletion job: storage cleanup treats an already-removed object
+as reclaimed, the four stalled development jobs drained, and a regression test
+pins the case. The next task is addressing the remaining review items on the
+V1-16 accessibility evidence pull request.
 
 ## Blockers
 
@@ -195,6 +203,9 @@ execution ledger were archived to
 maintainer's workstation and removed from the worktree. The V1-15 spec, plan,
 and execution ledger were archived to
 `/home/studio/projects/resonance-docs-archive/superpowers-2026-10-09/` on the
+maintainer's workstation and removed from the worktree. The post-deletion
+storage cleanup plan was archived to
+`/home/studio/projects/resonance-docs-archive/superpowers-2026-10-10/` on the
 maintainer's workstation and removed from the worktree.
 
 Completed task artifacts are archived and removed rather than preserved in

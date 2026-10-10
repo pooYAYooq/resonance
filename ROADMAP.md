@@ -116,12 +116,12 @@ Source: Track 4 (recorded in `FEATURES.md` at commit `46d26a3`),
 `docs/PHASE_3A.md` 3A.3 scope, decision 3A-014. Includes the approved dense
 management-row requirement from the 3A.3 detailed requirements.
 
-| ID    | Item                                                              | Status | Estimate |
-| ----- | ----------------------------------------------------------------- | ------ | -------- |
-| V1-13 | Published management rows and deletion UI with clear confirmation | Done   | M        |
-| V1-14 | Draft management rows and deletion confirmation check             | Done   | S        |
-| V1-15 | Unsaved-exit guards beyond target switches                        | Done   | M        |
-| V1-16 | Accessibility evidence pass                                       | Done   | M        |
+| ID    | Item                                                              | Status    | Estimate |
+| ----- | ----------------------------------------------------------------- | --------- | -------- |
+| V1-13 | Published management rows and deletion UI with clear confirmation | Done      | M        |
+| V1-14 | Draft management rows and deletion confirmation check             | Done      | S        |
+| V1-15 | Unsaved-exit guards beyond target switches                        | Done      | M        |
+| V1-16 | Accessibility evidence pass                                       | In review | M        |
 
 V1-16 completion on `accessibility/behavioral-evidence` (2026-10-10): the
 agreed keyboard, focus, names, and mobile-navigation bar was verified across
