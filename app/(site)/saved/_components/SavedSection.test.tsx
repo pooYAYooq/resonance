@@ -381,6 +381,175 @@ describe("SavedSection", () => {
     );
   });
 
+  it("keeps focus on the replacement Load more when the next page appends nothing", async () => {
+    const user = userEvent.setup();
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Load more" }).focus();
+    await user.keyboard("{Enter}");
+
+    // The pagination control unmounts while the next page loads.
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "LoadingMore",
+      loadMore: vi.fn(),
+      isLoading: true,
+    });
+    rerender(<SavedSection />);
+
+    // The page contained only unavailable posts: nothing was appended and
+    // more pages remain, so the replacement control keeps focus.
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Load more" })).toHaveFocus(),
+    );
+  });
+
+  it("moves focus to the last item when the final page appends nothing", async () => {
+    const user = userEvent.setup();
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Load more" }).focus();
+    await user.keyboard("{Enter}");
+
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "LoadingMore",
+      loadMore: vi.fn(),
+      isLoading: true,
+    });
+    rerender(<SavedSection />);
+
+    // The unavailable page was the last one, so the pagination control
+    // disappears and focus returns to the final item.
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Second Author" })).toHaveFocus(),
+    );
+  });
+
+  it("keeps tracking a repeated Load more after a page appends nothing", async () => {
+    const user = userEvent.setup();
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Load more" }).focus();
+    await user.keyboard("{Enter}");
+
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "LoadingMore",
+      loadMore: vi.fn(),
+      isLoading: true,
+    });
+    rerender(<SavedSection />);
+
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Load more" })).toHaveFocus(),
+    );
+
+    // A directly repeated activation is still tracked; this page exhausts
+    // the list, so focus returns to the final item.
+    await user.keyboard("{Enter}");
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "LoadingMore",
+      loadMore: vi.fn(),
+      isLoading: true,
+    });
+    rerender(<SavedSection />);
+
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Second Author" })).toHaveFocus(),
+    );
+  });
+
+  it("restores focus again when the control it restored is later removed", async () => {
+    paginatedState.mockReturnValue({
+      results: [post, nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const { rerender } = render(<SavedSection />);
+    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+
+    paginatedState.mockReturnValue({
+      results: [nextPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Remove Another saved post" }),
+      ).toHaveFocus(),
+    );
+
+    // Removing the item that received the restored focus restores again.
+    paginatedState.mockReturnValue({
+      results: [],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(<SavedSection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("link", { name: "Browse the Blog" }),
+      ).toHaveFocus(),
+    );
+  });
+
   it("does not substitute a different toggle when the recorded one is disabled", async () => {
     const likedSavedPost = {
       ...post,

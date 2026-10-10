@@ -146,9 +146,12 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 - J2-Collections: after liking and saving two posts, removing an item moves
   focus to the same toggle action on the card that takes its place, or to the
   previous card when the removed one was last; removing the last item moves
-  focus to the empty state's Browse the Blog recovery link. Refilled pages and
-  disabled successor controls are covered by regression tests. Toggles were
-  restored to their original state. The fixes are recorded under Findings.
+  focus to the empty state's Browse the Blog recovery link. A Load more page
+  that appends no visible posts keeps focus on the replacement pagination
+  control, or moves it to the final card or the empty state when the list
+  exhausts. Refilled pages and disabled successor controls are covered by
+  regression tests. Toggles were restored to their original state. The fixes
+  are recorded under Findings.
 - Dark theme: post actions at 1280 and 375, the Feed empty state at 1280 and
   375, and the empty Liked and Saved states were re-verified with visible
   focus.
@@ -317,6 +320,15 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   empties. Tests written first (RED) and passing (14/14 in the two section
   files); browser-verified with two-item flows that were fully restored to
   their original state. Found during the J2-Collections check.
+- A later review round found that a Load more page consisting only of
+  deleted or unpublished posts appended no visible card, so the append
+  restore never ran: the replacement pagination control was left unfocused,
+  or the exhausted list dropped focus to the document body. The hook now
+  waits for the pending request, restores to the replacement control, the
+  final card, or the empty state action when the list exhausts, and keeps
+  tracking the restored control so a later removal restores focus again,
+  with regression tests for both sections (RED then GREEN; 36/36 in the
+  section suites).
 - The editor's Review and Back to editing transitions reset focus to the
   document body (J3-Editor). Fixed during PR review: entering Review focuses
   Back to editing and returning focuses the Review control, covered by editor

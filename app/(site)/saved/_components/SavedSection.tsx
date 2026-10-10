@@ -34,7 +34,7 @@ export function SavedSection() {
   });
 
   const rootRef = useRef<HTMLDivElement>(null);
-  useListFocusRestore(rootRef, '[data-slot="card"]');
+  useListFocusRestore(rootRef, '[data-slot="card"]', listLoading);
 
   if (isLoading || !isAuthenticated) {
     return (

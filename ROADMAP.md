@@ -131,11 +131,12 @@ The pass fixed raw validation messages, login invalid-state signaling,
 unassociated auth-form labels, focus restoration when Liked or Saved items
 are removed (reworked after PR review to track the focused card and toggle
 action across refilled, mixed-layout, and appended pages, including a
-transient loading render that removes the list), the Saved list no longer
-showing its empty state while more pages remain, and the editor Review and
-Back focus transitions. Verification passed lint, 623 edge-runtime tests,
-674 component tests, the production build, and changed-file formatting. Touch operability and real screen-reader acceptance remain
-recorded limitations. Owner handoffs: V1-18 (notifications empty-state
+transient loading render that removes the list and pagination pages that
+append no visible posts), the Saved list no longer showing its empty state
+while more pages remain, and the editor Review and Back focus transitions.
+Verification passed lint, 624 edge-runtime tests, 682 component tests, the
+production build, and changed-file formatting. Touch operability and real
+screen-reader acceptance remain recorded limitations. Owner handoffs: V1-18 (notifications empty-state
 recovery), V1-21/V1-23 (deferred visual and responsive polish), and V1-24
 (release consolidation).
 

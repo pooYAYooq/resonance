@@ -21,10 +21,15 @@ const TOGGLE_SELECTOR = "button[aria-pressed]";
  * Appending pagination is handled as well: when the disconnected control was
  * outside the items, such as the Load more button, focus moves to the first
  * appended item once the next page arrives instead of jumping back to the
- * top of the list while the page is still loading.
+ * top of the list while the page is still loading. While `pending` reports
+ * the request as in flight, that disconnect keeps waiting; when the request
+ * settles without appending a visible item, focus moves to the replacement
+ * control outside the items, or to the last item when none remains.
  *
- * Tracking is dropped when focus deliberately leaves the list while its
- * control still exists, so a later removal cannot pull focus back
+ * Restoration keeps tracking through the focus event, which records the
+ * restored control, so a later removal of that control restores focus in
+ * turn. Tracking is dropped when focus deliberately leaves the list while
+ * its control still exists, so a later removal cannot pull focus back
  * unexpectedly.
  *
  * Tracking the control's identity rather than a count keeps the restore
@@ -36,10 +41,13 @@ const TOGGLE_SELECTOR = "button[aria-pressed]";
  * @param rootRef - Ref to the list container; focus events inside it are
  *   tracked, and it is the last-resort scope for a restore target.
  * @param itemSelector - Selector for the removable items within the root.
+ * @param pending - Whether the next page request is still in flight; a
+ *   disconnected outside-item control waits for the settled render.
  */
 export function useListFocusRestore(
   rootRef: RefObject<HTMLElement | null>,
   itemSelector: string,
+  pending: boolean,
 ) {
   const focusedRef = useRef<HTMLElement | null>(null);
   const itemIndexRef = useRef<number | null>(null);
@@ -140,18 +148,33 @@ export function useListFocusRestore(
           }
 
           target?.focus();
-          clearTracking();
-        } else if (
-          outsideItemCount !== null &&
-          items.length > outsideItemCount
-        ) {
-          items[outsideItemCount]
-            .querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
-            ?.focus();
-          clearTracking();
+        } else if (outsideItemCount !== null) {
+          if (items.length > outsideItemCount) {
+            items[outsideItemCount]
+              .querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+              ?.focus();
+          } else if (!pending) {
+            // The request settled without appending a visible item, such as
+            // a page containing only deleted or unpublished posts. Focus the
+            // first control outside the items (a replacement Load more
+            // button or the empty state action), or the last item when the
+            // exhausted list has no trailing control left.
+            const replacement = Array.from(
+              root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+            ).find((control) => !control.closest(itemSelector));
+            if (replacement) {
+              replacement.focus();
+            } else if (items.length > 0) {
+              items[items.length - 1]
+                .querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+                ?.focus();
+            }
+          }
         }
-        // Otherwise keep tracking while the next page is still loading; the
-        // activeElement guard above clears it once focus moves elsewhere.
+        // Restores keep tracking through the focus event, which records the
+        // restored control; a pending append keeps waiting instead. The
+        // activeElement guard above clears tracking once focus moves
+        // elsewhere.
       }
     }
 

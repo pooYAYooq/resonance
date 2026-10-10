@@ -34,7 +34,7 @@ export function LikedSection() {
   );
 
   const rootRef = useRef<HTMLDivElement>(null);
-  useListFocusRestore(rootRef, '[data-slot="card"]');
+  useListFocusRestore(rootRef, '[data-slot="card"]', listLoading);
 
   if (isLoading || !isAuthenticated || (listLoading && results.length === 0)) {
     return (
