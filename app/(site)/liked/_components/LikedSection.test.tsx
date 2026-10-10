@@ -210,6 +210,88 @@ describe("LikedSection", () => {
     );
   });
 
+  it.each(["insertion", "removal"] as const)(
+    "uses the focused card's latest position after an earlier %s",
+    (change) => {
+      const earlierPost = { ...post, _id: "earlier", title: "Earlier post" };
+      const successorPost = {
+        ...post,
+        _id: "successor",
+        title: "Successor post",
+      };
+      const lastPost = { ...post, _id: "last", title: "Last post" };
+      const setResults = (results: (typeof post)[]) =>
+        paginatedState.mockReturnValue({
+          results,
+          status: "CanLoadMore",
+          loadMore: vi.fn(),
+          isLoading: false,
+        });
+      setResults(
+        change === "insertion"
+          ? [post, secondPost, successorPost, lastPost]
+          : [earlierPost, post, secondPost, successorPost, lastPost],
+      );
+      const { rerender } = render(<LikedSection />);
+      const focused = screen.getByRole("button", {
+        name: "Unlike Another liked post",
+      });
+      focused.focus();
+
+      setResults(
+        change === "insertion"
+          ? [earlierPost, post, secondPost, successorPost, lastPost]
+          : [post, secondPost, successorPost, lastPost],
+      );
+      rerender(<LikedSection />);
+      expect(
+        screen.getByRole("button", { name: "Unlike Another liked post" }),
+      ).toBe(focused);
+      expect(focused).toHaveFocus();
+
+      setResults(
+        change === "insertion"
+          ? [earlierPost, post, successorPost, lastPost]
+          : [post, successorPost, lastPost],
+      );
+      rerender(<LikedSection />);
+      expect(
+        screen.getByRole("button", { name: "Unlike Successor post" }),
+      ).toHaveFocus();
+    },
+  );
+
+  it.each(["insertion", "removal"] as const)(
+    "refreshes the pagination boundary after an earlier %s while Load more stays focused",
+    (change) => {
+      const earlierPost = { ...post, _id: "earlier", title: "Earlier post" };
+      const setPage = (results: (typeof post)[], status = "CanLoadMore") =>
+        paginatedState.mockReturnValue({
+          results,
+          status,
+          loadMore: vi.fn(),
+          isLoading: status === "LoadingMore",
+        });
+      setPage(change === "insertion" ? [post] : [earlierPost, post]);
+      const { rerender } = render(<LikedSection />);
+      const focused = screen.getByRole("button", { name: "Load more" });
+      focused.focus();
+
+      const currentPosts =
+        change === "insertion" ? [earlierPost, post] : [post];
+      setPage(currentPosts);
+      rerender(<LikedSection />);
+      expect(screen.getByRole("button", { name: "Load more" })).toBe(focused);
+      expect(focused).toHaveFocus();
+
+      setPage(currentPosts, "LoadingMore");
+      rerender(<LikedSection />);
+      setPage([...currentPosts, secondPost]);
+      rerender(<LikedSection />);
+      expect(screen.getByRole("link", { name: "Second Author" })).toHaveFocus();
+    },
+  );
+
   it("moves focus to the recovery link when the last liked post is removed", async () => {
     paginatedState.mockReturnValue({
       results: [post],

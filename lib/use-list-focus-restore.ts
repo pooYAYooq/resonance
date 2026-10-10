@@ -72,8 +72,7 @@ export function useListFocusRestore(
       return;
     }
 
-    const onFocusIn = (event: FocusEvent) => {
-      const target = event.target as HTMLElement;
+    const trackControl = (target: HTMLElement) => {
       focusedRef.current = target;
 
       const item = target.closest<HTMLElement>(itemSelector);
@@ -98,6 +97,10 @@ export function useListFocusRestore(
       outsideItemCountRef.current = null;
     };
 
+    const onFocusIn = (event: FocusEvent) => {
+      trackControl(event.target as HTMLElement);
+    };
+
     root.addEventListener("focusin", onFocusIn);
 
     // When focus deliberately leaves the list while its control still exists,
@@ -112,7 +115,11 @@ export function useListFocusRestore(
     root.addEventListener("focusout", onFocusOut);
 
     const focused = focusedRef.current;
-    if (focused && !focused.isConnected) {
+    if (focused && focused.isConnected && root.contains(focused)) {
+      // Keyed cards can move without another focusin event. Keep their latest
+      // position (and a focused pagination control's boundary) until removal.
+      trackControl(focused);
+    } else if (focused && !focused.isConnected) {
       if (document.activeElement !== document.body) {
         clearTracking();
       } else {

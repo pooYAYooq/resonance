@@ -123,22 +123,28 @@ management-row requirement from the 3A.3 detailed requirements.
 | V1-15 | Unsaved-exit guards beyond target switches                        | Done      | M        |
 | V1-16 | Accessibility evidence pass                                       | In review | M        |
 
-V1-16 completion on `accessibility/behavioral-evidence` (2026-10-10): the
-agreed keyboard, focus, names, and mobile-navigation bar was verified across
-all five user journeys in both themes at the tiered widths, with results,
-fixes, and limitations recorded in [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md).
-The pass fixed raw validation messages, login invalid-state signaling,
+V1-16 in review on `accessibility/behavioral-evidence` (2026-10-10): the
+evidence pass is under review, with the remaining focus fixes and
+browser-evidence items still being addressed. The agreed keyboard, focus,
+names, and mobile-navigation bar has been verified on the journeys exercised
+so far in both themes at the tiered widths, with results, fixes, and
+limitations recorded in [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md). The
+pass fixed raw validation messages, login invalid-state signaling,
 unassociated auth-form labels, focus restoration when Liked or Saved items
 are removed (reworked after PR review to track the focused card and toggle
 action across refilled, mixed-layout, and appended pages, including a
 transient loading render that removes the list and pagination pages that
 append no visible posts), the Saved list no longer showing its empty state
-while more pages remain, and the editor Review and Back focus transitions.
-Verification passed lint, 624 edge-runtime tests, 682 component tests, the
-production build, and changed-file formatting. Touch operability and real
-screen-reader acceptance remain recorded limitations. Owner handoffs: V1-18 (notifications empty-state
-recovery), V1-21/V1-23 (deferred visual and responsive polish), and V1-24
-(release consolidation).
+while more pages remain, and the editor's Review and Back-to-editing focus
+handling. Verification on `a0015cf` passed lint, 624 edge-runtime tests, 682
+component tests, the production build, and changed-file formatting. Open
+review items are the Back-to-editing return while a target switch leaves
+Review temporarily disabled, and browser evidence for the management deep
+breakpoints, the Appearance control, a populated notifications list, a
+populated feed, and both sign-out choices. Touch operability and real
+screen-reader acceptance remain recorded limitations. Owner handoffs: V1-18
+(notifications empty-state recovery), V1-21/V1-23 (deferred visual and
+responsive polish), and V1-24 (release consolidation).
 
 V1-15 completion on `design/unsaved-exit-guards` (2026-10-09): new posts and
 drafts keep verified silent recovery before app-link departures, with light
@@ -363,8 +369,8 @@ membership unless that session decides otherwise.
 
 ## Pending scope
 
-- None. The V1-16 accessibility evidence pass completed on 2026-10-10; the
-  durable record is `docs/ACCESSIBILITY.md`.
+- None. The V1-16 accessibility evidence pass is in review as of 2026-10-10;
+  the durable record is `docs/ACCESSIBILITY.md`.
 
 ## How to update this file
 

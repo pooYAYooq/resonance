@@ -152,6 +152,13 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   exhausts. Refilled pages and disabled successor controls are covered by
   regression tests. Toggles were restored to their original state. The fixes
   are recorded under Findings.
+  PR review follow-up: the hook now refreshes the focused card's position and
+  the focused Load more control's item count after reactive list changes.
+  Component regression tests cover insertion and removal ahead of the same
+  connected control in both collections; this is automated evidence, not a
+  new browser pass. This behavior applies to the current Liked/Saved design
+  and may need revisiting as those pages and their controls evolve; it does
+  not establish accessibility completion for their future designs.
 - Dark theme: post actions at 1280 and 375, the Feed empty state at 1280 and
   375, and the empty Liked and Saved states were re-verified with visible
   focus.

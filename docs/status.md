@@ -7,9 +7,10 @@ live in [`../ROADMAP.md`](../ROADMAP.md); shipped history lives in
 
 ## Current focus
 
-v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3's Track 4 completed
-with the V1-16 accessibility evidence pass; 3A.4, 3A.5, and release readiness
-continue as the remaining work. The single remaining-work list is
+v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3's Track 4 is awaiting
+the V1-16 accessibility evidence pass, currently under review; 3A.4, 3A.5, and
+release readiness continue as the remaining work. The single remaining-work
+list is
 in [`../ROADMAP.md`](../ROADMAP.md). The content width design session completed
 on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 (merged as `d64cab5`).
@@ -50,10 +51,11 @@ clear of the first row. Signed-in dark-theme browser verification at 375px and
 320px confirmed the hidden heading, the clearance, and the unchanged
 `dialog { name: "Navigation" }`; lint, 623 edge-runtime tests, 654 component
 tests, and the production build passed on 2026-10-09. V1-16 accessibility
-evidence is complete on `accessibility/behavioral-evidence`: the agreed
-keyboard, focus, names, and mobile-navigation bar is verified across all five
-user journeys in both themes at the tiered widths, with results, fixes, and
-limitations in `docs/ACCESSIBILITY.md`; the pull request is under review. The
+evidence is in review on `accessibility/behavioral-evidence`: the agreed
+keyboard, focus, names, and mobile-navigation bar has been verified on the
+journeys exercised so far in both themes at the tiered widths, with results,
+fixes, and limitations in `docs/ACCESSIBILITY.md`; remaining review items are
+listed in `ROADMAP.md`; the pull request is under review. The
 V1-22 shared page-state work stays Todo, and the next v1.0 item is the
 maintainer's choice among V1-17 and V1-22.
 
@@ -134,6 +136,12 @@ longer wedges the deletion job: storage cleanup treats an already-removed object
 as reclaimed, the four stalled development jobs drained, and a regression test
 pins the case. The next task is addressing the remaining review items on the
 V1-16 accessibility evidence pull request.
+
+The stale-position finding in the Liked/Saved focus hook has a local fix and
+regression coverage for reactive insertion/removal ahead of a focused card
+or Load more control. This is scoped to the current collection design, which
+may change as those pages evolve; it is not a page-wide accessibility sign-off.
+The remaining findings await the maintainer's one-at-a-time scope decisions.
 
 ## Blockers
 
