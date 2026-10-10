@@ -24,7 +24,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Bell, Loader2 } from "lucide-react";
 import { NotificationRow, type NotificationRowData } from "./NotificationRow";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+import { useListFocusRestore } from "@/lib/use-list-focus-restore";
 
 export function NotificationsList() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -68,6 +69,9 @@ export function NotificationsList() {
     initialNumItems: 12,
   });
 
+  const rootRef = useRef<HTMLDivElement>(null);
+  useListFocusRestore(rootRef, "article", listLoading);
+
   if (isLoading || !isAuthenticated) {
     return (
       <div className="py-12 flex justify-center">
@@ -90,17 +94,25 @@ export function NotificationsList() {
 
   if (!listLoading && visible.length === 0 && status !== "CanLoadMore") {
     return (
-      <EmptyState
-        icon={Bell}
-        title="No notifications yet"
-        description="When an author you follow publishes a new post, it'll show up here."
-      />
+      <div
+        ref={rootRef}
+        role="region"
+        aria-label="Notifications list"
+        tabIndex={-1}
+        className="focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-ring"
+      >
+        <EmptyState
+          icon={Bell}
+          title="No notifications yet"
+          description="When an author you follow publishes a new post, it'll show up here."
+        />
+      </div>
     );
   }
 
   if (!listLoading && visible.length === 0 && status === "CanLoadMore") {
     return (
-      <div className="flex justify-center py-4">
+      <div ref={rootRef} className="flex justify-center py-4">
         <Button variant="outline" onClick={() => loadMore(12)}>
           Load more
         </Button>
@@ -109,7 +121,7 @@ export function NotificationsList() {
   }
 
   return (
-    <div className="space-y-2">
+    <div ref={rootRef} className="space-y-2">
       {visible.map((notification) => (
         <NotificationRow key={notification._id} notification={notification} />
       ))}

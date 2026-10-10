@@ -171,6 +171,14 @@ disposable author posts were deleted and the main account's empty state
 returned. Notifications remains subject to redesign, with fresh acceptance
 required after relevant changes; evidence is in `docs/ACCESSIBILITY.md`.
 
+The notification-pagination focus fix now reuses the shared list hook and
+accounts for Chromium's focusout-before-disconnection ordering. Standard
+browser checks restored visible focus to the first appended notification in
+both themes at both widths; component regressions cover filtered/empty pages
+and deliberate departures. Repeat publication fixtures were deleted, and the
+empty state was rechecked. Remaining review evidence is both sign-out choices
+and populated feed, awaiting the maintainer's next decision.
+
 ## Blockers
 
 - None.

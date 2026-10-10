@@ -14,7 +14,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -258,6 +258,179 @@ describe("NotificationsList", () => {
 
     await user.click(screen.getByRole("button", { name: /load more/i }));
     expect(loadMore).toHaveBeenCalledWith(12);
+  });
+
+  describe("pagination focus", () => {
+    const first = baseNotification({ _id: "first", actorName: "Ada" });
+    const appended = baseNotification({
+      _id: "next",
+      actorName: "Bob",
+      actorId: "actor-2",
+    });
+    const setPage = (
+      results: ReturnType<typeof baseNotification>[],
+      status: string,
+    ) => {
+      usePaginatedState.mockReturnValue({
+        results,
+        status,
+        loadMore: vi.fn(),
+        isLoading: status === "LoadingMore",
+      });
+    };
+
+    beforeEach(() => {
+      useConvexAuthState.mockReturnValue({
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    });
+
+    it.each(["CanLoadMore", "Exhausted"])(
+      "focuses the first appended notification when the page settles as %s",
+      async (status) => {
+        const user = userEvent.setup();
+        setPage([first], "CanLoadMore");
+        const view = render(<NotificationsList />);
+        screen.getByRole("button", { name: "Load more" }).focus();
+        await user.keyboard("{Enter}");
+        setPage([first], "LoadingMore");
+        view.rerender(<NotificationsList />);
+        expect(
+          screen.getByRole("link", { name: "Open Ada's profile" }),
+        ).not.toHaveFocus();
+        setPage([first, appended], status);
+        view.rerender(<NotificationsList />);
+        expect(
+          screen.getByRole("link", { name: "Open Bob's profile" }),
+        ).toHaveFocus();
+      },
+    );
+
+    it("preserves pagination tracking across an empty loading render", async () => {
+      const user = userEvent.setup();
+      const deleted = baseNotification({ postTitle: null });
+      setPage([deleted], "CanLoadMore");
+      const view = render(<NotificationsList />);
+      screen.getByRole("button", { name: "Load more" }).focus();
+      await user.keyboard("{Enter}");
+      setPage([deleted], "LoadingMore");
+      view.rerender(<NotificationsList />);
+      setPage([deleted, appended], "Exhausted");
+      view.rerender(<NotificationsList />);
+      expect(
+        screen.getByRole("link", { name: "Open Bob's profile" }),
+      ).toHaveFocus();
+    });
+
+    it("preserves tracking when Chromium emits focusout before disconnecting pagination", () => {
+      setPage([first], "CanLoadMore");
+      const view = render(<NotificationsList />);
+      const button = screen.getByRole("button", { name: "Load more" });
+      button.focus();
+      // Chromium emits this during DOM removal, while isConnected is still
+      // true. jsdom does not emit it automatically when a node is removed.
+      fireEvent.focusOut(button, { relatedTarget: null });
+      setPage([first], "LoadingMore");
+      view.rerender(<NotificationsList />);
+      setPage([first, appended], "Exhausted");
+      view.rerender(<NotificationsList />);
+      expect(
+        screen.getByRole("link", { name: "Open Bob's profile" }),
+      ).toHaveFocus();
+    });
+
+    it("drops tracking after a deliberate blur while pagination remains connected", async () => {
+      setPage([first], "CanLoadMore");
+      const view = render(<NotificationsList />);
+      const button = screen.getByRole("button", { name: "Load more" });
+      button.focus();
+      button.blur();
+      await Promise.resolve();
+      setPage([first], "LoadingMore");
+      view.rerender(<NotificationsList />);
+      setPage([first, appended], "Exhausted");
+      view.rerender(<NotificationsList />);
+      expect(document.body).toHaveFocus();
+    });
+
+    it("restores the replacement pagination control when a page adds no visible notifications", async () => {
+      const user = userEvent.setup();
+      setPage([first], "CanLoadMore");
+      const view = render(<NotificationsList />);
+      screen.getByRole("button", { name: "Load more" }).focus();
+      await user.keyboard("{Enter}");
+      setPage([first], "LoadingMore");
+      view.rerender(<NotificationsList />);
+      setPage(
+        [first, baseNotification({ _id: "deleted", postTitle: null })],
+        "CanLoadMore",
+      );
+      view.rerender(<NotificationsList />);
+      expect(screen.getByRole("button", { name: "Load more" })).toHaveFocus();
+
+      await user.keyboard("{Enter}");
+      setPage([first], "LoadingMore");
+      view.rerender(<NotificationsList />);
+      setPage([first, appended], "Exhausted");
+      view.rerender(<NotificationsList />);
+      expect(
+        screen.getByRole("link", { name: "Open Bob's profile" }),
+      ).toHaveFocus();
+    });
+
+    it("returns to a surviving row when an exhausted page adds no visible notifications", async () => {
+      const user = userEvent.setup();
+      setPage([first], "CanLoadMore");
+      const view = render(<NotificationsList />);
+      screen.getByRole("button", { name: "Load more" }).focus();
+      await user.keyboard("{Enter}");
+      setPage([first], "LoadingMore");
+      view.rerender(<NotificationsList />);
+      setPage([first], "Exhausted");
+      view.rerender(<NotificationsList />);
+      expect(
+        screen.getByRole("link", { name: "Open Ada's profile" }),
+      ).toHaveFocus();
+    });
+
+    it("focuses the empty notification context when pagination exhausts with no visible rows", async () => {
+      const user = userEvent.setup();
+      setPage([], "CanLoadMore");
+      const view = render(<NotificationsList />);
+      screen.getByRole("button", { name: "Load more" }).focus();
+      await user.keyboard("{Enter}");
+      setPage([], "LoadingMore");
+      view.rerender(<NotificationsList />);
+      setPage([], "Exhausted");
+      view.rerender(<NotificationsList />);
+      expect(
+        screen.getByRole("region", { name: "Notifications list" }),
+      ).toHaveFocus();
+      expect(screen.getByText("No notifications yet")).toBeVisible();
+    });
+
+    it("does not pull focus back when the user leaves pagination before loading", async () => {
+      const user = userEvent.setup();
+      setPage([first], "CanLoadMore");
+      const content = () => (
+        <>
+          <NotificationsList />
+          <button>Outside target</button>
+        </>
+      );
+      const view = render(content());
+      screen.getByRole("button", { name: "Load more" }).focus();
+      await user.keyboard("{Enter}");
+      screen.getByRole("button", { name: "Outside target" }).focus();
+      setPage([first], "LoadingMore");
+      view.rerender(content());
+      setPage([first, appended], "Exhausted");
+      view.rerender(content());
+      expect(
+        screen.getByRole("button", { name: "Outside target" }),
+      ).toHaveFocus();
+    });
   });
 
   it("calls markAllRead exactly once on mount when authenticated", async () => {

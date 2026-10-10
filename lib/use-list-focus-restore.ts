@@ -16,7 +16,8 @@ const TOGGLE_SELECTOR = "button[aria-pressed]";
  * (or the last item when the removed one was last), or to that item's first
  * enabled control when the recorded toggle is missing or disabled. An emptied
  * list falls back to the first enabled control in the root (the recovery
- * action).
+ * action), or to the root itself if it is programmatically focusable and has
+ * no enabled controls.
  *
  * Appending pagination is handled as well: when the disconnected control was
  * outside the items, such as the Load more button, focus moves to the first
@@ -103,14 +104,23 @@ export function useListFocusRestore(
 
     root.addEventListener("focusin", onFocusIn);
 
-    // When focus deliberately leaves the list while its control still exists,
-    // drop the tracking so a later removal cannot pull focus back. Element
-    // removal does not fire focusout, so the restore path is unaffected.
+    // A known outside target is a deliberate departure. With no next target,
+    // Chromium can fire focusout during removal before isConnected changes;
+    // wait until the DOM operation finishes before classifying it as a blur.
     const onFocusOut = (event: FocusEvent) => {
       const next = event.relatedTarget as Node | null;
       if (next && root.contains(next)) return;
       const focused = focusedRef.current;
-      if (focused && focused.isConnected) clearTracking();
+      if (!focused) return;
+      if (next) {
+        clearTracking();
+      } else {
+        queueMicrotask(() => {
+          if (focusedRef.current === focused && focused.isConnected) {
+            clearTracking();
+          }
+        });
+      }
     };
     root.addEventListener("focusout", onFocusOut);
 
@@ -151,7 +161,8 @@ export function useListFocusRestore(
             }
             target ??= item.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
           } else {
-            target = root.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+            target =
+              root.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? root;
           }
 
           target?.focus();
@@ -175,6 +186,10 @@ export function useListFocusRestore(
               items[items.length - 1]
                 .querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
                 ?.focus();
+            } else {
+              // An empty list may have no recovery action. Consumers can make
+              // its named context focusable without adding a new tab stop.
+              root.focus();
             }
           }
         }
