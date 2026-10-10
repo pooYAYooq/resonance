@@ -156,6 +156,13 @@ in `docs/ACCESSIBILITY.md`. The two approved disposable drafts were deleted
 and the empty state restored. Remaining findings await the maintainer's next
 one-at-a-time decision; this does not finalize the ongoing management design.
 
+Settings Appearance was operated by keyboard at 375/1280 in Light, Dark,
+and System on `345a2f7`; theme changes, focus/traversal, and reload persistence
+were verified. No app-code change was needed. Current-design evidence and
+retest triggers are recorded in `docs/ACCESSIBILITY.md`, not a Settings
+completion claim. Remaining review items are populated notifications, both
+sign-out choices, and populated feed, each awaiting the maintainer's decision.
+
 ## Blockers
 
 - None.

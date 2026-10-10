@@ -370,9 +370,10 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
 - J5-Notifications: the page and its empty state ("No notifications yet...")
   are keyboard clean; the empty state has no recovery link, recorded for
   V1-18's approved recover-to-Discover requirement.
-- J5-Settings: Appearance is a named combobox (Light, Dark, System) and
-  Account shows the signed-in email with a named Sign Out button; neither was
-  activated destructively.
+- J5-Settings: Appearance is a named combobox (Light, Dark, System). The
+  initial pass identified the control without selecting options; the PR
+  follow-up below exercises its keyboard behavior. Account shows the signed-in
+  email with a named Sign Out button; sign-out was not activated in this check.
 - J5-ProfileEdit: groups and fields are named (disabled Email with
   explanation, Display Name, Bio with a live character counter). Save Changes
   was activated from the keyboard with the values unchanged (nothing was
@@ -383,6 +384,38 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   sign out choices and focus inside. Escape closes it, keeps the session, and
   preserves the editor content. Touch acceptance for the drawer remains an
   accepted limitation (no touch device available).
+
+**Settings Appearance follow-up (2026-10-10, `345a2f7`)**
+
+- Executed on the current `/settings` design at 375×900 and 1280×900 in
+  Windows Chrome 154, attached via the Playwright extension (`mainaccount`),
+  signed in as the main demo account. The six runs selected Light, Dark, and
+  System at each width; Light/Dark cover both Standard themes.
+- Used Tab to reach the named Appearance combobox, then Home/ArrowDown/End
+  and Enter to select options through the native control. Selection invoked
+  the page's theme behavior: the combobox value, stored preference, rendered
+  document theme, and foreground/background colors changed consistently.
+  Screenshots show the selected option, visible keyboard focus, and resulting
+  light/dark appearance. No direct localStorage assignment or mocked theme
+  mutation was used to establish these results.
+- After each selection, Tab reached Sign Out and Shift+Tab returned to
+  Appearance, with no unintended trap. Sign Out was never activated. Reload
+  preserved all six selections. System resolved to Dark, matching the host's
+  actual `prefers-color-scheme: dark`; live OS changes and System resolving
+  to Light were not exercised. Light was restored after the successful run,
+  along with its starting 1280×900 viewport. No account/content data changed.
+- Pass is limited to this control's current keyboard/theme behavior. It does
+  **not** mean Settings is finished, its responsive layout is universally
+  accepted, or its design cannot change. Repeat the Standard matrix and
+  screenshot inspection when the control, theme provider, navigation, or
+  Settings layout changes; extend widths as needed for the new design.
+- Local evidence:
+  `/home/studio/projects/resonance-docs-archive/browser-evidence-2026-10-10-settings-appearance/`.
+  `settings-appearance-results.json` records selection, persistence, rendered
+  theme/colors, focus, geometry, and traversal for every run. The executable
+  script and CLI output are preserved alongside
+  `settings-appearance-{375|1280}-{light|dark|system}.png`. These are local
+  browser artifacts, not new repository tooling or a claim of CI coverage.
 
 ## Findings
 
