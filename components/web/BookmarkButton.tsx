@@ -62,6 +62,7 @@ export function BookmarkButton({
   }
 
   const handleClick = () => {
+    if (isPending || isLoading) return;
     if (!isAuthenticated) {
       router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
       return;
@@ -88,7 +89,8 @@ export function BookmarkButton({
       size={presentation === "reader" ? "lg" : size}
       className={presentation === "reader" ? "min-w-24" : undefined}
       onClick={handleClick}
-      disabled={isPending || isLoading}
+      disabled={isLoading}
+      aria-disabled={isPending || isLoading}
       aria-label={
         localSaved ? "Remove from reading list" : "Save to reading list"
       }

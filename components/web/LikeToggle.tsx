@@ -71,6 +71,7 @@ export function LikeToggle({
   }
 
   const handleClick = () => {
+    if (isPending || isLoading) return;
     if (!isAuthenticated) {
       router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
       return;
@@ -93,7 +94,8 @@ export function LikeToggle({
       variant={presentation === "reader" ? "outline" : "ghost"}
       size={presentation === "reader" ? "lg" : size}
       onClick={handleClick}
-      disabled={isPending || isLoading}
+      disabled={isLoading}
+      aria-disabled={isPending || isLoading}
       aria-label={
         presentation === "reader"
           ? `${localLiked ? ariaLabelLiked : ariaLabelNotLiked}, ${localCount.toLocaleString("en-US")} ${localCount === 1 ? "like" : "likes"}`

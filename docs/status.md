@@ -209,6 +209,18 @@ build. Current-design evidence, archive, and a minor unverified screen-reader
 announcement advisory are in `docs/ACCESSIBILITY.md`. Shared Like/Save code
 is untouched; its pending-focus defect awaits the next one-at-a-time decision.
 
+The approved shared Like/Save fix now preserves focusability while mutations
+are pending and guards repeat activation; auth loading stays natively disabled.
+Eight RED regressions turned GREEN, with reader/comment and real collection
+removal integration checks; the targeted run passed 123 tests. Chrome passed
+all 16 Feed activation/reversal checks across 375/1280 and light/dark, including
+observed pending focus and final persisted reversal. The one disposable post
+was deleted; the author list/main Feed returned to empty. Full gates passed
+lint, 624 edge tests, 731 component tests, and build. Current-design evidence
+and the local review's completion-warning limits are in `docs/ACCESSIBILITY.md`.
+Next is the separate loading-announcement advisory, under the maintainer's
+one-at-a-time workflow; no push or reviewer reply has been authorized.
+
 ## Blockers
 
 - None.

@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LikeToggle } from "./LikeToggle";
 
@@ -173,5 +173,94 @@ describe("LikeToggle", () => {
     await Promise.resolve();
 
     expect(toastErrorMock).toHaveBeenCalledWith("Something went wrong");
+  });
+
+  describe.each(["compact", "reader"] as const)(
+    "%s pending focus",
+    (presentation) => {
+      it.each(["success", "failure"])(
+        "retains focus and prevents repeat activation through %s",
+        async (outcome) => {
+          let resolve!: (value: { liked: boolean; likeCount: number }) => void;
+          let reject!: (error: Error) => void;
+          onToggleMock.mockImplementation(
+            () =>
+              new Promise((yes, no) => {
+                resolve = yes;
+                reject = no;
+              }),
+          );
+          const user = userEvent.setup();
+          render(<LikeToggle {...baseProps} presentation={presentation} />);
+          const button = screen.getByRole("button");
+          button.focus();
+          await user.keyboard("{Enter}");
+          // jsdom does not reproduce Chromium blurring newly disabled buttons.
+          // Requiring an enabled, aria-disabled control pins the browser fix.
+          expect(button).toBeEnabled();
+          expect(button).toHaveAttribute("aria-disabled", "true");
+          expect(button).toHaveFocus();
+          await user.keyboard("{Enter} ");
+          await user.click(button);
+          expect(onToggleMock).toHaveBeenCalledTimes(1);
+          await act(async () => {
+            if (outcome === "success") resolve({ liked: true, likeCount: 1 });
+            else reject(new Error("Rejected test mutation"));
+          });
+          await waitFor(() =>
+            expect(button).toHaveAttribute("aria-disabled", "false"),
+          );
+          expect(button).toHaveFocus();
+          expect(button).toHaveAttribute(
+            "aria-pressed",
+            outcome === "success" ? "true" : "false",
+          );
+          expect(button).toHaveAccessibleName(
+            presentation === "reader"
+              ? outcome === "success"
+                ? "Unlike, 1 like"
+                : "Like, 0 likes"
+              : outcome === "success"
+                ? "Unlike"
+                : "Like",
+          );
+        },
+      );
+
+      it("does not pull focus back after the user leaves during a mutation", async () => {
+        let resolve!: (value: { liked: boolean; likeCount: number }) => void;
+        onToggleMock.mockImplementation(
+          () =>
+            new Promise((yes) => {
+              resolve = yes;
+            }),
+        );
+        const user = userEvent.setup();
+        render(
+          <>
+            <LikeToggle {...baseProps} presentation={presentation} />
+            <button>Other control</button>
+          </>,
+        );
+        screen.getByRole("button", { name: /^Like/ }).focus();
+        await user.keyboard("{Enter}{Tab}");
+        const outside = screen.getByRole("button", { name: "Other control" });
+        expect(outside).toHaveFocus();
+        await act(async () => resolve({ liked: true, likeCount: 1 }));
+        expect(outside).toHaveFocus();
+      });
+    },
+  );
+
+  it("remains natively disabled and cannot mutate while authentication is loading", async () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: true,
+    });
+    render(<LikeToggle {...baseProps} />);
+    const button = screen.getByRole("button");
+    expect(button).toBeDisabled();
+    await userEvent.setup().click(button);
+    expect(onToggleMock).not.toHaveBeenCalled();
   });
 });

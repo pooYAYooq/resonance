@@ -138,12 +138,15 @@ append no visible posts), the Saved list no longer showing its empty state
 while more pages remain, and the editor's Review and Back-to-editing focus
 handling. Verification on `a0015cf` passed lint, 624 edge-runtime tests, 682
 component tests, the production build, and changed-file formatting. Open
-review items now concern pending Like/Save controls losing focus. Feed pagination
+review follow-up now concerns the separate loading-announcement advisory and
+reviewer/GitHub wrap-up. Shared Like/Save controls now preserve pending focus
+with guarded activation, with comment/reader/collection regressions and all
+16 Standard-width Feed activation/reversal checks passing. Feed pagination
 now retains cards and focused Load more while pending, then focuses appended
 content; final-page browser checks pass in all Standard combinations, with
 component coverage for nonfinal/empty pages and deliberate departures. The
-pending-action fix awaits a separate maintainer decision; V1-16 remains in
-review. Both unsaved-work
+announcement advisory awaits its separate maintainer decision; V1-16 remains
+in review. Both unsaved-work
 sign-out choices now have executed Standard-width evidence with saved/discarded
 outcomes and fixture cleanup recorded in `docs/ACCESSIBILITY.md`. Touch
 operability and real screen-reader acceptance remain recorded limitations. Owner handoffs: V1-18

@@ -113,12 +113,12 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 
 ### Journey 2: Engage
 
-| Check ID       | Journey / surface / state                                        | Check                              | Width / theme | Result                                                    | Evidence / revision | Finding                                               |
-| -------------- | ---------------------------------------------------------------- | ---------------------------------- | ------------- | --------------------------------------------------------- | ------------------- | ----------------------------------------------------- |
-| J2-Auth        | `/auth/login`, `/auth/sign-up`                                   | keyboard, names, focus, validation | Standard      | Pass (signed-out states)                                  | See Journey 2 notes | OAuth handoff not exercised                           |
-| J2-Actions     | post like, save, follow, comments; anonymous redirect and return | keyboard, names, focus, states     | Deep          | Pass                                                      | See Journey 2 notes | None                                                  |
-| J2-Feed        | `/feed` feed and empty states                                    | keyboard, names, focus             | Standard      | Fail (pending Like/Save); pagination and empty state Pass | See Journey 2 notes | Fixed pagination focus; pending Like/Save loses focus |
-| J2-Collections | `/liked`, `/saved`, focus after removal                          | keyboard, names, focus             | Standard      | Pass                                                      | See Journey 2 notes | Fixed focus restoration after removal                 |
+| Check ID       | Journey / surface / state                                        | Check                              | Width / theme | Result                                | Evidence / revision | Finding                                      |
+| -------------- | ---------------------------------------------------------------- | ---------------------------------- | ------------- | ------------------------------------- | ------------------- | -------------------------------------------- |
+| J2-Auth        | `/auth/login`, `/auth/sign-up`                                   | keyboard, names, focus, validation | Standard      | Pass (signed-out states)              | See Journey 2 notes | OAuth handoff not exercised                  |
+| J2-Actions     | post like, save, follow, comments; anonymous redirect and return | keyboard, names, focus, states     | Deep          | Pass                                  | See Journey 2 notes | None                                         |
+| J2-Feed        | `/feed` feed and empty states                                    | keyboard, names, focus             | Standard      | Pass (current-design keyboard checks) | See Journey 2 notes | Fixed pagination and pending Like/Save focus |
+| J2-Collections | `/liked`, `/saved`, focus after removal                          | keyboard, names, focus             | Standard      | Pass                                  | See Journey 2 notes | Fixed focus restoration after removal        |
 
 **Journey 2 notes (light and dark; managed Chrome and extension contexts)**
 
@@ -582,7 +582,7 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   it remained there after the action settled, including after reversal. The
   probe had to Tab back to the settled control to execute the reverse action.
   Successful data mutation is not a focus pass. This concerns shared card
-  controls and needs its own approved regression/fix scope.
+  controls; the subsequently approved regression/fix scope is recorded below.
 - **Pagination focus Fail in all four combinations:** Tab/Enter activated
   Load more, the cards were replaced by a loading spinner, and focus fell to
   `document.body`. A MutationObserver recorded that pending state. The final
@@ -673,6 +673,67 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   design remains changeable; retest pagination after relevant layout, query,
   control, or focus changes. Pending Like/Save is the next separate maintainer
   decision, not resolved by the pagination acceptance.
+
+**Shared Like/Save pending focus fix (2026-10-11, `72cc138` plus toggle fix)**
+
+- The pending transitions in `LikeToggle` and `BookmarkButton` set native
+  `disabled`, causing Chrome to blur the active control to body. They now
+  preserve focusability with `aria-disabled` during a mutation, while their
+  click handlers reject repeated activation. Native `disabled` remains for
+  authentication loading, and anonymous redirect/query gating is unchanged.
+  There is no forced focus restoration after settlement, so a user who tabs
+  elsewhere remains there. Styling, mutations, names, counts, and error toasts
+  retain their existing contracts. No Follow or other pending-control redesign
+  is implied by this scope.
+- Eight new success/failure regressions failed against the native-disabled
+  implementation for compact and reader Like/Save, then passed with the fix.
+  Deferred mutations keep the actual controls pending while tests check focus,
+  Enter/Space/pointer repeat guards, enabled-but-aria-disabled state, settlement,
+  and correct labels/pressed states. Existing tests plus new guards cover auth
+  loading, anonymous redirects, bookmark reconciliation, and deliberate focus
+  departure. Component tests don't simulate Chrome's native disabled-button
+  blur, so the enabled-control assertion pins that browser-specific cause.
+- Because post and comment likes share `LikeToggle`, a deferred real
+  `CommentLikeButton` test also verifies pending focus and one mutation with
+  the correct comment ID. Four integration cases combine the real shared
+  toggles with `useListFocusRestore`: when a reactive collection slice removes
+  a pending row, focus reaches the surviving like/save action or empty-state
+  recovery link and stays there after the removed mutation settles. These
+  supplement, rather than rely only on, the existing Liked/Saved tests that
+  use card doubles. The targeted eight-file run passed 123 tests.
+- Published one disposable post from the already-followed author:
+  `Pending toggle focus fixture 2026-10-11`
+  (`j979n37zey0nnq2zqrhae7vxeh8g0ykh`). At 375/1280 in both themes, keyboard
+  activation and reversal of Like and Save passed all **16 action checks**.
+  The MutationObserver captured active focus on the same enabled toggle during
+  `aria-disabled` pending in every check. After settlement each control still
+  had keyboard-visible focus and the expected name/state, within the viewport.
+  Settled screenshots inspected at mobile dark and desktop light show the
+  themed focus borders. Each following page reload confirmed prior reversals;
+  a separate final reload confirmed the last reversal as well.
+- Deleted that post alone through author management. The completed cleanup
+  records zero published rows/no Load more; a separate main Feed check records
+  zero cards/no Load more at the restored 375px/light presentation. Existing
+  publications, the follow relationship, and demo like/comment were not
+  modified. No new comment fixture was needed; comment-like behavior here is
+  component evidence, not a new browser comment acceptance claim.
+- Full verification passed lint, 624 edge-runtime tests, 731 component tests
+  across 83 files, build, and changed-file formatting. The first gate attempt
+  stopped on a raw-link lint error in the new integration test; using Next.js
+  `Link` corrected it before the successful full rerun. Local CodeRabbit output
+  returned no actionable finding but reported `completed_with_warnings`
+  ("unverified findings"); it is not claimed as a clean independent review.
+  Its reviewed-file list covers tracked controls and their tests, not the new
+  untracked integration file; that file was checked by the tests/lint/build.
+- Archive:
+  `/home/studio/projects/resonance-docs-archive/browser-evidence-2026-10-11-pending-toggle-focus-fix/`.
+  It preserves RED/GREEN/full gate logs, local review limitations, fixture URL,
+  pending/settled browser results, screenshots, reversal and cleanup records,
+  and the local verification checklist. Retest after changes to pending-state
+  semantics, mutation guards, auth gating, card removal, or focus styling.
+  Current-design acceptance does not finalize Feed or shared-action design.
+  The loading-announcement advisory remains the next separate item; real
+  screen-reader and touch acceptance remain limitations.
 
 ## Findings
 

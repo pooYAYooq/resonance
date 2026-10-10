@@ -1,13 +1,13 @@
 /**
  * Component tests for `BookmarkButton`.
  *
- * Verifies the saved / unsaved icon transition, the pending disabled state,
+ * Verifies the saved / unsaved icon transition, the pending guarded state,
  * the success toasts, and that `toggleBookmark` is invoked with the correct
  * `postId`. Mirrors `FollowButton.test.tsx`'s harness.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -188,5 +188,90 @@ describe("BookmarkButton", () => {
     render(<BookmarkButton {...baseProps} />);
 
     expect(useQueryMock).toHaveBeenLastCalledWith({ postId: "post-1" });
+  });
+
+  describe.each(["compact", "reader"] as const)(
+    "%s pending focus",
+    (presentation) => {
+      it.each(["success", "failure"])(
+        "retains focus and prevents repeat activation through %s",
+        async (outcome) => {
+          let resolve!: (value: { bookmarked: boolean }) => void;
+          let reject!: (error: Error) => void;
+          useMutationMock.mockImplementation(
+            () =>
+              new Promise((yes, no) => {
+                resolve = yes;
+                reject = no;
+              }),
+          );
+          const user = userEvent.setup();
+          render(<BookmarkButton {...baseProps} presentation={presentation} />);
+          const button = screen.getByRole("button");
+          button.focus();
+          await user.keyboard("{Enter}");
+          expect(button).toBeEnabled();
+          expect(button).toHaveAttribute("aria-disabled", "true");
+          expect(button).toHaveFocus();
+          await user.keyboard("{Enter} ");
+          await user.click(button);
+          expect(useMutationMock).toHaveBeenCalledTimes(1);
+          expect(useMutationMock).toHaveBeenCalledWith({ postId: "post-1" });
+          await act(async () => {
+            if (outcome === "success") resolve({ bookmarked: true });
+            else reject(new Error("Rejected test mutation"));
+          });
+          await waitFor(() =>
+            expect(button).toHaveAttribute("aria-disabled", "false"),
+          );
+          expect(button).toHaveFocus();
+          expect(button).toHaveAttribute(
+            "aria-pressed",
+            outcome === "success" ? "true" : "false",
+          );
+          expect(button).toHaveAccessibleName(
+            outcome === "success"
+              ? "Remove from reading list"
+              : "Save to reading list",
+          );
+        },
+      );
+
+      it("does not pull focus back after the user leaves during a mutation", async () => {
+        let resolve!: (value: { bookmarked: boolean }) => void;
+        useMutationMock.mockImplementation(
+          () =>
+            new Promise((yes) => {
+              resolve = yes;
+            }),
+        );
+        const user = userEvent.setup();
+        render(
+          <>
+            <BookmarkButton {...baseProps} presentation={presentation} />
+            <button>Other control</button>
+          </>,
+        );
+        screen.getByRole("button", { name: "Save to reading list" }).focus();
+        await user.keyboard("{Enter}{Tab}");
+        const outside = screen.getByRole("button", { name: "Other control" });
+        expect(outside).toHaveFocus();
+        await act(async () => resolve({ bookmarked: true }));
+        expect(outside).toHaveFocus();
+      });
+    },
+  );
+
+  it("remains natively disabled and cannot mutate while authentication is loading", async () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: true,
+    });
+    render(<BookmarkButton {...baseProps} />);
+    const button = screen.getByRole("button");
+    expect(button).toBeDisabled();
+    await userEvent.setup().click(button);
+    expect(useMutationMock).not.toHaveBeenCalled();
+    expect(useQueryMock).toHaveBeenLastCalledWith("skip");
   });
 });
