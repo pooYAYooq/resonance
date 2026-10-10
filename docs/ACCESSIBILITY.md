@@ -113,12 +113,12 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 
 ### Journey 2: Engage
 
-| Check ID       | Journey / surface / state                                        | Check                              | Width / theme | Result                   | Evidence / revision | Finding                               |
-| -------------- | ---------------------------------------------------------------- | ---------------------------------- | ------------- | ------------------------ | ------------------- | ------------------------------------- |
-| J2-Auth        | `/auth/login`, `/auth/sign-up`                                   | keyboard, names, focus, validation | Standard      | Pass (signed-out states) | See Journey 2 notes | OAuth handoff not exercised           |
-| J2-Actions     | post like, save, follow, comments; anonymous redirect and return | keyboard, names, focus, states     | Deep          | Pass                     | See Journey 2 notes | None                                  |
-| J2-Feed        | `/feed` feed and empty states                                    | keyboard, names, focus             | Standard      | Pass (empty state)       | See Journey 2 notes |                                       |
-| J2-Collections | `/liked`, `/saved`, focus after removal                          | keyboard, names, focus             | Standard      | Pass                     | See Journey 2 notes | Fixed focus restoration after removal |
+| Check ID       | Journey / surface / state                                        | Check                              | Width / theme | Result                                   | Evidence / revision | Finding                                     |
+| -------------- | ---------------------------------------------------------------- | ---------------------------------- | ------------- | ---------------------------------------- | ------------------- | ------------------------------------------- |
+| J2-Auth        | `/auth/login`, `/auth/sign-up`                                   | keyboard, names, focus, validation | Standard      | Pass (signed-out states)                 | See Journey 2 notes | OAuth handoff not exercised                 |
+| J2-Actions     | post like, save, follow, comments; anonymous redirect and return | keyboard, names, focus, states     | Deep          | Pass                                     | See Journey 2 notes | None                                        |
+| J2-Feed        | `/feed` feed and empty states                                    | keyboard, names, focus             | Standard      | Fail (populated focus); empty state Pass | See Journey 2 notes | Pending Like/Save and pagination lose focus |
+| J2-Collections | `/liked`, `/saved`, focus after removal                          | keyboard, names, focus             | Standard      | Pass                                     | See Journey 2 notes | Fixed focus restoration after removal       |
 
 **Journey 2 notes (light and dark; managed Chrome and extension contexts)**
 
@@ -142,7 +142,9 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   state.
 - J2-Feed: with no followed authors, the empty state reads "Your feed is
   empty / Follow authors to see their latest posts here." and offers a
-  keyboard-reachable Discover link; the page traversal is clean.
+  keyboard-reachable Discover link; the page traversal is clean. That initial
+  check did not cover populated cards. The follow-up below records actual
+  populated traversal/actions/navigation and reproduced focus failures.
 - J2-Collections: after liking and saving two posts, removing an item moves
   focus to the same toggle action on the card that takes its place, or to the
   previous card when the removed one was last; removing the last item moves
@@ -551,6 +553,67 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   after CSS transitions. Retest after changes to navigation, dialog layout,
   save/discard sequencing, recovery, or authentication. No page design is
   finalized by this evidence.
+
+**Populated-feed follow-up (2026-10-10–11, `c7d624c`)**
+
+- Published 21 disposable `Feed keyboard fixture 01` through `21 2026-10-10`
+  posts from the already-followed second account, without changing the follow
+  relationship. The feed's initial page contains 20 items. Its Standard matrix
+  was executed at 375×900 and 1280×900 in both rendered themes.
+- Each initial page had 101 main-content tab stops: five controls per card
+  (author link, post-title link, Like, Save, Read More), then Load more. Every
+  recorded target was within the viewport after keyboard scrolling. The avatar
+  is an image, not another profile link. Accessible control names and toggle
+  states were recorded. Focus was sampled after a 250ms settling interval;
+  screenshots show the themed outline or border on representative links,
+  Like/Save, and Load more. Existing horizontal-scroll/layout observations
+  remain with the separately led responsive work, not an automatic fix here.
+- Separately activated the author, title, and Read More links with Tab/Enter
+  in all four combinations. Author navigated to the second account's profile;
+  title and Read More navigated to fixture 21's reader. Browser Back returned
+  to Feed. The completed navigation logs, not the interrupted combined probe,
+  are the acceptance evidence.
+- Like and Save on fixture 21 were each activated and reversed by keyboard
+  in every combination. Accessible names and `aria-pressed` changed in both
+  directions. Separate navigation runs after reload confirmed both reversals
+  persisted (`false`). No demo-post engagement was changed.
+- **Pending-action focus Fail in all four combinations:** after Like/Save
+  activation the temporarily disabled control lost focus to `document.body`;
+  it remained there after the action settled, including after reversal. The
+  probe had to Tab back to the settled control to execute the reverse action.
+  Successful data mutation is not a focus pass. This concerns shared card
+  controls and needs its own approved regression/fix scope.
+- **Pagination focus Fail in all four combinations:** Tab/Enter activated
+  Load more, the cards were replaced by a loading spinner, and focus fell to
+  `document.body`. A MutationObserver recorded that pending state. The final
+  page rendered 21 unique fixture titles with no Load more, but focus remained
+  on body after settling instead of moving to the appended card. No feed or
+  shared-control code was changed; these failures await the maintainer's
+  decision. Only the final-page append was exercised, not nonfinal pagination.
+- Deleted all 21 fixture posts through the published-post confirmation. The
+  initial cleanup deleted 21/20 before a native navigation interruption; its
+  log has no complete result object. The continuation records deletion of
+  19–01 and a freshly visited author list with zero rows/no Load more. Main
+  Feed returned to its empty state with zero cards/no Load more; final-state
+  evidence confirms 375px/light and removal of temporary session evidence.
+  The cleanup probe also reached the empty Notifications state, checked the
+  existing Unfollow state without activating it, and returned to Feed; its
+  navigation-interrupted log is not a complete result object. Existing posts,
+  the follow relationship, and demo like/comment were preserved.
+- Some full-document harness navigations raised native `beforeunload`
+  prompts, including on reader/management routes. Their cause was not diagnosed
+  in this evidence-only task. Interrupted combined logs are not passing runs;
+  completed card/action/pagination and navigation probes are separate. No
+  reviewer replies or unrelated warning/layout fixes were made.
+- Evidence archive:
+  `/home/studio/projects/resonance-docs-archive/browser-evidence-2026-10-11-populated-feed/`.
+  It includes fixture URLs, per-combination execution logs, consolidated
+  `feed-populated-browser.json` and `feed-navigation-results.json`, scripts,
+  settled screenshots, interrupted probes, and cleanup/final-state records.
+  This documents the current design, not a finalized Feed layout or page-wide
+  acceptance. Retest after changes to cards, pending actions, pagination,
+  navigation, or focus behavior. Touch and real screen-reader acceptance remain
+  outside this browser evidence.
 
 ## Findings
 

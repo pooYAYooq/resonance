@@ -188,6 +188,16 @@ current-design limits, and retest triggers are in `docs/ACCESSIBILITY.md`.
 The remaining finding is populated-feed browser evidence, awaiting the
 maintainer's separate scope decision. Nothing has been pushed or replied to.
 
+Populated-feed browser evidence on `c7d624c` now covers 20 cards plus a real
+final-page append at 375/1280 in both themes. Traversal, settled focus styling,
+post/author navigation, and reversible Like/Save data outcomes passed. Load more
+lost focus to body during loading and after append in every combination;
+pending Like/Save controls also lost focus on both activation and reversal.
+No app-code fix was made. All 21 disposable posts were removed; the author list
+and main Feed returned to empty. Evidence and interrupted-harness-log limits
+are in `docs/ACCESSIBILITY.md`. Next action is the maintainer's decision on
+these focus defects, one at a time; no push or reviewer reply is authorized.
+
 ## Blockers
 
 - None.
