@@ -179,6 +179,15 @@ and deliberate departures. Repeat publication fixtures were deleted, and the
 empty state was rechecked. Remaining review evidence is both sign-out choices
 and populated feed, awaiting the maintainer's next decision.
 
+Both unsaved-work sign-out choices now have executed new-post browser evidence
+on `44149c0` at 375/1280 in light/dark. Every run cleared recovery and refused
+the private Drafts route after logout; reauthentication confirmed Discard left
+no draft and Save persisted the exact title/body. All four saved fixtures were
+deleted, leaving Drafts empty. No app-code changes were needed. Evidence,
+current-design limits, and retest triggers are in `docs/ACCESSIBILITY.md`.
+The remaining finding is populated-feed browser evidence, awaiting the
+maintainer's separate scope decision. Nothing has been pushed or replied to.
+
 ## Blockers
 
 - None.

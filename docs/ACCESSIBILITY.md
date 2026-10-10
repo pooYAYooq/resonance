@@ -383,7 +383,9 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
 - J5-SignOut: with unsaved authoring content, the sidebar Sign Out opens a
   named alertdialog ("Sign out?") with Cancel, Discard & sign out, and Save &
   sign out choices and focus inside. Escape closes it, keeps the session, and
-  preserves the editor content. Touch acceptance for the drawer remains an
+  preserves the editor content. That initial check did not execute either
+  sign-out choice; the follow-up below records both actual outcomes.
+  Touch acceptance for the drawer remains an
   accepted limitation (no touch device available).
 
 **Settings Appearance follow-up (2026-10-10, `345a2f7`)**
@@ -507,6 +509,48 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   changes to paging, focus behavior, row links, or navigation.
 - Repository verification passed lint, 624 edge-runtime tests, 701 component
   tests (single worker), the production build, and changed-file formatting.
+
+**Unsaved-work sign-out choices (2026-10-10, `44149c0`)**
+
+- Executed Discard & sign out and Save & sign out with disposable new-post
+  title/body content in the second account at 375×900 and 1280×900, in light
+  and dark: eight actual sign-outs. Tab/Enter opened the mobile Navigation
+  drawer or reached desktop sidebar Sign Out, opened the named alertdialog,
+  and activated each choice. Every active choice matched `:focus-visible`
+  inside the dialog and had a bounding box within the viewport. Choice and signed-out
+  screenshots accompany the results.
+- Every execution cleared the fixture's `new:new` local recovery copy and
+  returned to Home. Attempting `/dashboard/drafts` afterward redirected to
+  `/auth/login?returnTo=%2Fdashboard%2Fdrafts`. The maintainer signed the same
+  account back in between runs so the actual persisted outcome could be checked.
+- All four Discard runs left Drafts empty after signing back in. The dark
+  mobile and both desktop runs additionally reopened Create and verified an
+  empty title and absent recovery copy; the mobile/light run checked absent
+  recovery immediately after logout and the empty Drafts list after login.
+- All four Save runs produced a draft. Resuming each draft verified the exact
+  title **and body**, not just its presence in the list. Each saved fixture was
+  then deleted individually through the draft confirmation; the list returned
+  to zero rows after each cleanup. Existing publications, engagement, and the
+  follow relationship were untouched. No app-code change was needed.
+- A harness navigation from an untouched Create page raised a native
+  `beforeunload` prompt before the mobile/dark Save script could finish. After
+  accepting that navigation, execution continued to the chosen sign-out;
+  its focused-choice screenshot, subsequent Login/recovery-state check, and
+  exact persisted draft verification provide the evidence. Its initial CLI
+  log has no final result object and must not be read as one. Later runs reused
+  the already-open empty editor instead of forcing that extra navigation.
+  This is consistent with the known empty-paragraph dirty-state limitation
+  in `docs/status.md`, not a new sign-out failure.
+- Evidence archive:
+  `/home/studio/projects/resonance-docs-archive/browser-evidence-2026-10-10-signout-choices/`.
+  It contains execution/outcome logs, saved draft IDs, scripts, and screenshots.
+  This acceptance covers successful new-post save/discard sign-out in the
+  current design, not failed-network saves, every authoring mode, touch, or
+  screen-reader behavior. The choice screenshots were taken immediately after
+  focus movement, so they are not separate proof of settled focus-ring contrast
+  after CSS transitions. Retest after changes to navigation, dialog layout,
+  save/discard sequencing, recovery, or authentication. No page design is
+  finalized by this evidence.
 
 ## Findings
 
