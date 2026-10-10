@@ -163,6 +163,14 @@ retest triggers are recorded in `docs/ACCESSIBILITY.md`, not a Settings
 completion claim. Remaining review items are populated notifications, both
 sign-out choices, and populated feed, each awaiting the maintainer's decision.
 
+Notifications now has executed empty and populated Standard-width evidence
+on `a970753`: empty state and row-link navigation passed, but Load more
+appending the final page left focus on document.body in both themes at both
+widths. No code fix was made; this is the next maintainer decision. All 13
+disposable author posts were deleted and the main account's empty state
+returned. Notifications remains subject to redesign, with fresh acceptance
+required after relevant changes; evidence is in `docs/ACCESSIBILITY.md`.
+
 ## Blockers
 
 - None.

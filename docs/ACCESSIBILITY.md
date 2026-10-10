@@ -342,14 +342,14 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
 
 ### Journey 5: Navigate and account
 
-| Check ID         | Journey / surface / state                                | Check                                   | Width / theme | Result | Evidence / revision | Finding                                 |
-| ---------------- | -------------------------------------------------------- | --------------------------------------- | ------------- | ------ | ------------------- | --------------------------------------- |
-| J5-Nav           | navbar, sidebar, mobile drawer; signed-in and signed-out | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                    |
-| J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Pass   | See notes           | None                                    |
-| J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Pass   | See notes           | No recovery link in empty state (V1-18) |
-| J5-Settings      | `/settings` appearance and account                       | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                    |
-| J5-ProfileEdit   | `/profile/edit` validation and save                      | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                    |
-| J5-SignOut       | sign-out confirmation choices                            | keyboard, names, focus, dialog behavior | Standard      | Pass   | See notes           | None                                    |
+| Check ID         | Journey / surface / state                                | Check                                   | Width / theme | Result                                    | Evidence / revision | Finding                                                     |
+| ---------------- | -------------------------------------------------------- | --------------------------------------- | ------------- | ----------------------------------------- | ------------------- | ----------------------------------------------------------- |
+| J5-Nav           | navbar, sidebar, mobile drawer; signed-in and signed-out | keyboard, names, focus, dialog behavior | Deep          | Pass                                      | See notes           | None                                                        |
+| J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Pass                                      | See notes           | None                                                        |
+| J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Fail (pagination focus); empty state Pass | See notes           | Load more loses focus; no empty-state recovery link (V1-18) |
+| J5-Settings      | `/settings` appearance and account                       | keyboard, names, focus                  | Standard      | Pass                                      | See notes           | None                                                        |
+| J5-ProfileEdit   | `/profile/edit` validation and save                      | keyboard, names, focus                  | Standard      | Pass                                      | See notes           | None                                                        |
+| J5-SignOut       | sign-out confirmation choices                            | keyboard, names, focus, dialog behavior | Standard      | Pass                                      | See notes           | None                                                        |
 
 **Journey 5 notes (managed Chrome, dark and light; extension attach for the bell check)**
 
@@ -367,9 +367,10 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   content: it navigated silently to `/notifications`, and returning to
   `/create` restored the typed title through the same silent-recovery
   mechanism verified for app-link departures.
-- J5-Notifications: the page and its empty state ("No notifications yet...")
-  are keyboard clean; the empty state has no recovery link, recorded for
-  V1-18's approved recover-to-Discover requirement.
+- J5-Notifications: the initial pass covered only the empty state. The
+  follow-up below executes both empty and populated states and records a
+  pagination-focus failure. The empty state has no recovery link, recorded
+  for V1-18's approved recover-to-Discover requirement.
 - J5-Settings: Appearance is a named combobox (Light, Dark, System). The
   initial pass identified the control without selecting options; the PR
   follow-up below exercises its keyboard behavior. Account shows the signed-in
@@ -416,6 +417,57 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   script and CLI output are preserved alongside
   `settings-appearance-{375|1280}-{light|dark|system}.png`. These are local
   browser artifacts, not new repository tooling or a claim of CI coverage.
+
+**Notifications empty/populated follow-up (2026-10-10, `a970753`)**
+
+- Current implementation only: Notifications remains a placeholder subject
+  to redesign. These results neither finalize its layout nor constrain future
+  changes. Repeat both states, link navigation, pagination, and screenshot
+  inspection after changes to the rows, navigation, focus handling, or paging.
+- Ran Windows Chrome 154 against `http://localhost:3000`, main account
+  `k176zm7fveh74x08673t5wnqs988ertx` via the Playwright extension. A separate
+  visible managed Chrome window authenticated author account
+  `k178crg6qv41q70qrhaszw4jm58c256f`. The main account already followed that
+  author; no follow/unfollow operations were needed.
+- **Empty state Pass:** before fixture creation, checked 375×900 and 1280×900
+  in light and dark. Heading and empty-state copy were visible, no notification
+  rows or Load more rendered, and navigation traversal did not trap focus.
+  There are no actionable controls inside the empty-state main content; no
+  recovery-link operation is claimed. Themes here were setup through the
+  stored preference, not an additional Appearance operation test.
+- **Populated links Pass:** published 13 uniquely numbered disposable posts
+  through the second account's editor and Review/Publish UI. At each Standard
+  width/theme combination the main account initially received 12 rows, with
+  36 row links (avatar, author, and post per row). Tab traversal reached every
+  link with `:focus-visible`; screenshots show title focus and wrapping.
+  Keyboard-activated avatar/author links opened the correct second-account
+  profile, and the first post link opened fixture 13's reader. Back returned
+  to Notifications. Visiting the page marks these fixture notifications read
+  by existing behavior; no pre-existing notifications were present to alter.
+- **Pagination Fail in all four combinations:** reached Load more using Tab
+  and activated it with Enter. The list appended the 13th notification and
+  exhausted pagination correctly, but the removed button left active focus
+  on **`document.body`**, with no visible focus target. DOM observation and
+  before/after screenshots are recorded. This is not a passing keyboard-focus
+  result. No pagination code change was made during this evidence task; the
+  maintainer must decide the next action.
+- **Cleanup verified:** deleted only
+  `Notification keyboard fixture 01` through `13 2026-10-10` using their
+  per-row published deletion confirmations. The first 12 deletions exhausted
+  the loaded management slice; reloading exposed fixture 01, which was also
+  deleted. After reload the second account had zero published rows and no
+  Load more; the main account returned to No notifications yet. No images
+  were uploaded, and no pre-existing content, retained demo post, likes,
+  comments, or follow relationships were edited.
+- Evidence archive:
+  `/home/studio/projects/resonance-docs-archive/browser-evidence-2026-10-10-notifications/`.
+  `notifications-fixtures.json` lists all 13 titles/post URLs;
+  `notifications-empty-results.json` and `notifications-populated-results.json`
+  record every combination, traversal, navigation, and the body-focus failure.
+  Screenshots use `notifications-empty-{375|1280}-{light|dark}.png` and
+  `notifications-populated-{375|1280}-{light|dark}-{title|load-more|appended}.png`.
+  Executable browser scripts, CLI output, and cleanup records are local
+  artifacts, not additional repository dependencies or CI coverage.
 
 ## Findings
 
