@@ -99,6 +99,9 @@ work is tracked in `ROADMAP.md`.
 
 ### Fixed
 
+- Deleting a published post whose cover was also a consumed upload claim could
+  wedge the deletion job and leave its dependent rows behind; cleanup now treats
+  an already-removed storage object as reclaimed, so the job completes.
 - Notification-bell navigation now goes through the authoring exit guard, so
   mobile authors receive the same unsaved-work protection as app-link exits.
 - Cancel update releases the session's media claims and cleans temporary
