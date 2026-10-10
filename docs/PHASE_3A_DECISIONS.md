@@ -12,7 +12,24 @@ to the existing Dashboard is approved, but its Overview purpose, composition,
 and redesign remain deferred. The authenticated logo still links to Dashboard.
 Do not remove the destination merely because the redesign is deferred.
 
+## Documentation governance amendment (2026-10-11)
+
+The maintainer approved revision-based documentation: implementation,
+verification, and completion wording ship in the same PR. GitHub owns review
+and merge state; no routine merge-record PR is needed. Operational rules live
+in [AGENTS.md](../AGENTS.md#documentation) and [the PR workflow](PR_CHECKLIST.md).
+
+This supersedes the **intentionally not gitignored** clause of 3A-017.
+Known local-artifact paths, including `docs/superpowers/`, are now ignored and
+checked against the Git index locally and in CI. Manual inspection still
+covers arbitrary filenames. Artifacts remain local-only, with the archive and
+removal lifecycle of 3A-028 unchanged. The earlier choice relied on manual
+staging review alone; the extra checks reduce accidental inclusion without
+adding dependencies or a paid service.
+
 ## Decisions
+
+Dated entries retain their original rationale; amendments above take precedence.
 
 | ID     | Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Rationale                                                                                                                                                                                                                  | Affected work                                                                |
 | ------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |

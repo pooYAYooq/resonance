@@ -256,6 +256,8 @@ components/
 
 schemas/                      # Zod validation schemas (repo root)
 
+scripts/                      # Dependency-free Git artifact check and tooling tests
+
 lib/
   constants/                  # Site-wide constants (seo, footer, canonical post tags)
   avatar.ts                   # DiceBear fallback + initials helpers
@@ -321,10 +323,24 @@ User and session records live in the same Convex DB as application data.
 
 ## Contributing
 
-1. Create a feature branch from `main`
-2. Follow **Conventional Commits** (active voice, subject ≤72 chars)
-3. Run the full CI pipeline before opening a PR
-4. **Open a Pull Request** — do not merge directly to `main`
+Follow [the PR workflow](docs/PR_CHECKLIST.md) for new PRs, review updates, and
+merge handoff. [AGENTS.md](AGENTS.md) defines message and approval rules.
+
+- Work on a non-`main` branch and deliver code and its documentation together.
+- Use full Conventional Commits with an imperative subject and a meaningful
+  what/why body. PR descriptions include rationale, actual verification,
+  relevant links, and limitations. Use no en/em dashes in either message.
+- Run the applicable checks before handoff. Keep local plans and raw evidence
+  out of commits; `pnpm check:artifacts` checks known local-only paths in the
+  Git index, and `pnpm test:tooling` exercises that check in temporary repos.
+- Use the existing PR for review fixes. Merge through GitHub after the final
+  documentation and verification gate; cleanup needs no merge-record PR.
+
+No paid project-management service is required. The roadmap holds scope and
+GitHub holds review/merge state. Issues can capture actionable bugs, labels
+can classify them, milestones can group release work, and Projects can provide
+an optional board. Link to the authoritative record instead of maintaining
+duplicate status lists.
 
 ---
 

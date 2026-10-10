@@ -71,8 +71,11 @@ Before PR: `pnpm lint` → `pnpm test:ci` → `pnpm test:component` → `pnpm bu
 
 ## Documentation
 
-Keep the docs in sync as part of every change — stale docs cost more than
-no docs.
+Code and its documentation ship in the same PR. Documents describe the
+checked-out revision: proposed behavior on a working branch, integrated
+behavior on `main`. GitHub owns PR review, approval, and merge state; deployment
+and release are separate events. No routine follow-up PR is needed just to
+record a merge.
 
 **Progressive loading:** start with `docs/status.md` to identify the current
 focus and resume point. Read only the relevant group or row in `ROADMAP.md` when
@@ -84,29 +87,61 @@ capability changes, and `docs/ARCHITECTURE.md` plus the README project tree when
 the change affects architecture, directories, schema, or auth. Read only the
 active local spec or plan for the current implementation unit.
 
-- `ROADMAP.md`: the single source of truth for scope, remaining work, and
-  delivery status. Shipping an item, changing scope, or deferring work means
-  updating its row here and the linked docs in the same PR.
-- `FEATURES.md`: shipped capability catalog. Shipping a capability means adding
-  or updating its entry.
-- `docs/status.md`: the short resume note. Changing the current focus, next
-  action, or a blocker means updating it.
-- `docs/ARCHITECTURE.md` + README's Project Structure — changing directory
-  structure, schema, or auth → update both.
-- Task design and implementation artifacts → `docs/superpowers/specs|plans/`
-  while active (local, untracked, and intentionally not gitignored; the
-  staging gate prevents commits). When the task's completion is recorded in
-  the permanent docs, archive its artifacts under the local docs archive
-  (`/home/studio/projects/resonance-docs-archive/`, maintainer's
-  workstation) and remove them from the worktree.
+- `ROADMAP.md`: scope, remaining work, estimates, dependencies, and completion.
+  Done means the agreed scope is implemented and verified in this revision,
+  with accepted limitations recorded. It does not assert merge or deployment.
+  Keep scope notes short and link to evidence rather than copying it.
+- `FEATURES.md`: capabilities of this revision, updated when behavior changes.
+- `docs/status.md`: current focus, next substantive action, and blockers.
+  Replace superseded information; do not append a task diary, authorization
+  history, test-count history, or duplicate roadmap table.
+- `docs/KNOWN_LIMITATIONS.md`: current constraints and verification gaps. Add
+  evidence or an owning roadmap item where known; remove entries when resolved.
+- `docs/ARCHITECTURE.md` and README's Project Structure: update affected
+  descriptions when structure, schema, or auth changes.
+- Evidence documents retain actual tested revisions, outcomes, and retest
+  triggers. Historical failures must be clearly distinguished from current
+  results. Link to PRs for review history; merge SHAs are not required for
+  documentation completion. Existing evidence hashes remain valid references.
+- `CHANGELOG.md`: notable release-facing changes under Unreleased until a
+  release, not a log of every commit or merge.
+
+Give each fact one authoritative home and link to it elsewhere. When shortening
+docs, preserve unique requirements, decisions, limitations, and evidence in an
+appropriate tracked document or an explicit historical Git/PR reference.
+
+### Local artifacts
+
+`docs/superpowers/` specs/plans, scratch notes, execution ledgers, browser dumps,
+screenshots, logs, and draft commit/PR messages are local task artifacts. Never
+stage, commit, or include them in a PR. Use an external temporary directory for
+raw output; active specs/plans may live under `docs/superpowers/` when allowed
+by the harness. Tracked evidence is curated Markdown, not raw output.
+
+Inspect explicit paths before staging and inspect the staged diff afterward;
+run `pnpm check:artifacts` before committing. Known local-only paths are ignored
+and checked against the full Git index locally and in CI. This is not an
+installed Git hook, and arbitrary artifact names still require manual review.
+Once durable docs record completion, archive local task artifacts under
+`/home/studio/projects/resonance-docs-archive/` on the maintainer's workstation
+and remove them from the worktree. A clone must remain understandable without
+that local archive.
 
 ## Status and PR workflow
 
-- When a task or plan step is genuinely complete, update its checkbox in the relevant plan and update `docs/status.md` in the same change when the resume point changes.
-- When a tracked delivery item ships, update its row in `ROADMAP.md` and the resume note in `docs/status.md` in the same change.
+- Update completed local plan steps and reconcile the affected permanent docs
+  before the final commit for the task.
 - Do not assume implementation must follow roadmap phase numbering. Use the currently approved product/system slice or task as the delivery unit.
 - Never mark work complete without fresh verification evidence. Record known limitations rather than marking incomplete work as complete.
-- Before preparing a PR, follow the local procedure in `docs/PR_CHECKLIST.md`. This is an agent workflow document, not a GitHub PR template.
+- Follow `docs/PR_CHECKLIST.md` when preparing a new PR, updating an existing
+  PR after review, and handing it back for merge. Finalize docs inside that PR
+  after the last relevant fix. If review changes scope or behavior again,
+  reopen the affected verification and documentation steps.
+- Keep incomplete acceptance visible. A deferral requires the maintainer's
+  decision and a durable scope/limitation record; it is not a passing check.
+- Write clear, human-sounding commit and PR messages. PR descriptions include
+  what changed, why, verification with actual results, relevant links, and any
+  limitations or approved deferrals. Omit empty boilerplate sections.
 - PR titles must describe the actual product, system, documentation, or engineering outcome.
 - Do not include roadmap or planning identifiers such as phase, step, task, or slice numbers in PR titles.
 - Completion of the PR checklist does not authorize staging, committing, pushing, or opening a PR. Follow the repository's human approval gates for each Git action.
@@ -116,6 +151,10 @@ active local spec or plan for the current implementation unit.
 Use Conventional Commits with a valid prefix type and optional scope.
 
 Write commit subjects in imperative, active voice. Keep the subject at 72 characters or fewer, with no trailing period. After a blank line, include a meaningful body wrapped at 72 characters that explains **why** the change was made, not merely what changed.
+
+Format: `<type>[optional scope]: <description>`, a blank line, a meaningful
+what/why body, and optional reference or breaking-change footers. Use neither
+en dashes nor em dashes anywhere in commit or PR messages.
 
 Every commit must have:
 
@@ -143,15 +182,29 @@ Before any push:
 - verify the intended commits belong to the current task;
 - push only that non-`main` branch.
 
-Staging, committing, pushing, and opening or updating a PR each require explicit human approval. Approval for one Git action does not authorize the next.
+Staging, committing, pushing, and creating or editing PR metadata each require
+explicit human approval. Approval for one action does not authorize the next;
+an explicit request naming multiple actions can authorize those named actions.
+Pushing an approved branch updates the existing PR's commits automatically.
+Replies, review requests, thread resolution, and merge require their own
+explicit authorization. Recognize a clear request such as "push these changes"
+as approval; do not require ritual wording or ask for the same permission again.
 
 Do not run `git push origin main`, `git push <remote> main`, or any equivalent command that updates the remote `main` branch.
 
-When a branch is complete and the user says "finish it," "merge it," "ship it," or similar, present exactly this choice:
+Before PR creation or a completion handoff, check whether the branch already
+has an open PR. Update an existing PR; never offer to create its duplicate.
+For a new PR, ask only for missing push/creation approvals. If "finish it" is
+ambiguous, state the next concrete action and ask once. The maintainer normally
+resolves threads and merges on GitHub; completion alone does not authorize either.
 
-> Ready to create a PR for this branch?
+After a confirmed merge, approved cleanup consists of fetching, fast-forwarding
+local `main`, checking that the work is integrated, and deleting only approved
+merged branches. For squash/rebase merges, verify the PR result and content;
+do not force-delete because `git branch -d` rejects ancestry. Never overwrite
+local work. Cleanup requires no tracked-doc edit or merge-record PR.
 
-- If YES → push the non-`main` branch, create the PR, then STOP. Do not merge.
-- If NO → ask what they'd like to change before PRing.
-
-Never run `git merge` into `main`, push `main`, or otherwise update remote `main` unless the user explicitly instructs you to bypass the PR workflow for that specific action.
+Never merge a working branch directly into local `main`, push `main`, or update
+remote `main` unless the user explicitly authorizes bypassing the PR workflow
+for that specific action. Fast-forwarding local `main` to the verified remote
+merge during approved cleanup is permitted.

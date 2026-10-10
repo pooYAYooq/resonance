@@ -21,12 +21,17 @@ the task, following the progressive documentation loading rule in `AGENTS.md`.
 
 Product planning is separate from the runtime architecture. Scope, remaining
 work, and delivery status live in [`ROADMAP.md`](../ROADMAP.md).
-[`FEATURES.md`](../FEATURES.md) is the shipped capability catalog, and
+[`FEATURES.md`](../FEATURES.md) is the capability catalog for this revision, and
 [`docs/status.md`](status.md) is the short resume note.
 
 Deferred and optional items, including Trending (1.9), User Activity (1.10),
 and the remaining Polish work (1.11), keep their original revisit conditions in
 `ROADMAP.md` and are not dependencies for the author phase.
+
+Repository tooling lives in `scripts/`. The dependency-free Git-index artifact
+check runs before committing and in CI; its real-Git tests run with
+`pnpm test:tooling`. Known local-only paths are ignored, while manual diff
+inspection covers other artifact names. See [the PR workflow](PR_CHECKLIST.md).
 
 ---
 

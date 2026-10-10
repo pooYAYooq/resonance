@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:artifacts": "node scripts/check-artifacts.mjs",
+    "test:tooling": "node --test scripts/*.test.mjs",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "generate:shiki": "shiki-codegen --langs typescript,javascript,tsx,jsx,json,html,css,bash,sql,python,markdown,cpp,rust --themes github-light,github-dark --engine javascript lib/shiki/code-highlighter.generated.ts",

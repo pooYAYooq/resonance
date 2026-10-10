@@ -376,15 +376,20 @@ membership unless the approved design session decides otherwise.
 
 ## Documentation and Handoff Model
 
-| Document                     | Responsibility                                                                                                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ROADMAP.md`                 | Scope, remaining work, delivery status, release boundary, and the single remaining-work list.                                                                                                                                  |
-| `docs/PHASE_3A.md`           | Target direction, scope areas, slices, dependencies, sequencing, deferrals, and current delivery boundary.                                                                                                                     |
-| `docs/PHASE_3A_DECISIONS.md` | Dated cross-cutting decisions and rationale.                                                                                                                                                                                   |
-| `FEATURES.md`                | Shipped capability catalog.                                                                                                                                                                                                    |
-| `docs/status.md`             | Short resume point, verified evidence, and links to the authoritative documents.                                                                                                                                               |
-| `docs/superpowers/plans/`    | Active local execution artifacts. Untracked and intentionally not gitignored; supplemental only, never the only source of target direction. Archived and removed once the task's completion is recorded in the permanent docs. |
-| `docs/superpowers/specs/`    | Local working-design artifacts for the active task. Untracked and intentionally not gitignored. Archived and removed once the task's completion is recorded in the permanent docs.                                             |
+Documents describe the checked-out revision, so code and documentation can be
+finalized in the same PR. GitHub owns PR lifecycle state. The authoritative
+maintenance and artifact rules are in [AGENTS.md](../AGENTS.md#documentation).
+
+| Document                     | Responsibility                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `ROADMAP.md`                 | Scope, remaining work, completion, estimates, dependencies, and release boundary.                              |
+| `docs/PHASE_3A.md`           | Target direction, scope areas, slices, sequencing, and deferrals.                                              |
+| `docs/PHASE_3A_DECISIONS.md` | Dated cross-cutting decisions and rationale.                                                                   |
+| `FEATURES.md`                | Capabilities of this revision.                                                                                 |
+| `docs/status.md`             | Short current focus, next action, blockers, and links.                                                         |
+| `docs/KNOWN_LIMITATIONS.md`  | Current constraints and verification gaps.                                                                     |
+| Evidence documents           | Actual tested revisions, outcomes, limitations, and retest triggers.                                           |
+| `docs/superpowers/`          | Ignored, local-only active specs/plans; archive and remove after durable completion is recorded. Never commit. |
 
 A new session follows the progressive loading rule in `AGENTS.md`. It must not
 reconstruct product direction from conversation history.

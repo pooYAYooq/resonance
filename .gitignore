@@ -50,6 +50,12 @@ TODO.local.md
 
 # OC planning docs
 /.superpowers/
+/docs/superpowers/
+
+# local browser evidence and reports
+/.playwright-cli/
+/playwright-report/
+/test-results/
 
 # local git worktrees
 .worktrees/
