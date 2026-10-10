@@ -52,7 +52,9 @@ async function deleteStorageIfUnclaimed(
     .query("pendingUploads")
     .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
     .take(1);
-  if (claims.length === 0) await ctx.storage.delete(storageId);
+  if (claims.length === 0 && (await ctx.db.system.get("_storage", storageId))) {
+    await ctx.storage.delete(storageId);
+  }
 }
 
 function getPostStorageIds(post: Doc<"posts"> | null): string[] {
