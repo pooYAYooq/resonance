@@ -732,7 +732,8 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   and the local verification checklist. Retest after changes to pending-state
   semantics, mutation guards, auth gating, card removal, or focus styling.
   Current-design acceptance does not finalize Feed or shared-action design.
-  The loading-announcement advisory remains the next separate item; real
+  The maintainer deferred the loading-announcement advisory; its current
+  disposition is in [known limitations](KNOWN_LIMITATIONS.md). Real
   screen-reader and touch acceptance remain limitations.
 
 ## Findings

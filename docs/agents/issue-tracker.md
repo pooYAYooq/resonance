@@ -1,26 +1,18 @@
-# Issue tracker: none (in-repo docs)
+# Work tracking
 
-This is a small personal project worked by a human and two agents, so there is
-no external issue tracker. Opening a GitHub issue would be overkill. Work is
-tracked in-repo instead:
-
-- `ROADMAP.md` — the single source of truth for scope, remaining work, and
-  delivery status.
-- `docs/status.md` — the short resume point: current focus, next action, and
-  blockers.
-- `FEATURES.md` — the shipped capability catalog.
-- `docs/PHASE_3A.md` — approved target direction, slices, and deferrals.
-- The PR description — scope, verification evidence, and known limitations for
-  a change.
+Resonance uses repository docs for scope and GitHub PRs for review and merge.
+No external project-management service is required. Document responsibilities
+are defined in [AGENTS.md](../../AGENTS.md#documentation).
 
 ## When a skill says "publish to the issue tracker"
 
-Do not open a GitHub issue. Record the item in `ROADMAP.md` for scope and
-remaining work, or in `docs/status.md` when the resume point changes.
+Record approved scope in `ROADMAP.md` and update `docs/status.md` only when the
+resume point changes. Do not create an issue automatically. GitHub Issues,
+labels, milestones, and Projects are optional if the maintainer chooses to
+use them; creating or changing remote tracking records requires approval.
+Link records rather than maintaining competing status lists.
 
-## Pull requests as a triage surface
-
-**PRs as a request surface: no.**
-
-PRs remain the review and merge surface; the local procedure is in
-`docs/PR_CHECKLIST.md`, and the mandatory human gates are in `docs/PHASE_3A.md`.
+PRs are the review and merge surface, not a place to open speculative work
+requests. Follow [the PR workflow](../PR_CHECKLIST.md) for submission, review
+updates, and final handoff. Human approval gates remain in
+[AGENTS.md](../../AGENTS.md#git-workflow).

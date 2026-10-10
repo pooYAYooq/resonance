@@ -30,6 +30,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check for local artifacts
+        run: pnpm check:artifacts
+
+      - name: Tooling tests
+        run: pnpm test:tooling
+
       - name: Lint
         run: pnpm lint
 
