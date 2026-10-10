@@ -388,6 +388,53 @@ describe("published post deletion", () => {
     ).resolves.toBeNull();
   });
 
+  it("reclaims a cover that is also a consumed upload claim", async () => {
+    const t = convexTest(schema, modules);
+    vi.useFakeTimers();
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "claimed-cover@example.com",
+    );
+    const ids = await t.run(async (ctx) => {
+      const cover = await ctx.storage.store(new Blob(["cover"]));
+      const postId = await ctx.db.insert("posts", {
+        title: "Claimed cover cleanup",
+        body: "Body",
+        tags: [],
+        authorId: identity.subject,
+        imageStorageId: cover,
+        status: "published",
+        publishedAt: 1,
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const coverClaim = await ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        postId,
+        storageId: cover,
+        consumedAt: Number.MAX_SAFE_INTEGER,
+        createdAt: 1,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+      return { postId, cover, coverClaim };
+    });
+
+    await t.withIdentity(identity).mutation(api.posts.deletePublishedPost, {
+      postId: ids.postId,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    await expect(
+      t.run(async (ctx) => ctx.db.get(ids.coverClaim)),
+    ).resolves.toBeNull();
+    await expect(
+      t.run(async (ctx) => ctx.storage.getUrl(ids.cover)),
+    ).resolves.toBeNull();
+  });
+
   it("decrements author analytics exactly once for deleted likes and views", async () => {
     const t = convexTest(schema, modules);
     vi.useFakeTimers();
