@@ -2502,6 +2502,91 @@ describe("CreateRoute", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
+  it("moves focus to Back to editing when entering Review and back to the Review control", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your post a title"),
+      "Focus transition article",
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Edit blog content" }),
+    );
+
+    await enterReview(user);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Back to editing" }),
+      ).toHaveFocus(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Back to editing" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Review for publication" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it.each(["new", "published-edit"] as const)(
+    "returns focus to the title when leaving %s Review while a requested target loads",
+    async (mode) => {
+      const user = userEvent.setup();
+      if (mode === "published-edit") {
+        editPostIdParam.value = "post-1";
+        getPublishedPostForEditingMock.mockReturnValue({
+          _id: "post-1",
+          title: "Original article",
+          body: JSON.stringify(validEnvelope),
+          tags: ["Technology"],
+          imageUrl: null,
+          inlineImages: [],
+          publishedAt: 100,
+          updatedAt: 101,
+        });
+      }
+      const view = render(<CreateRoute />);
+      const title = await screen.findByRole("textbox", { name: "Post title" });
+      await user.clear(title);
+      await user.type(title, "Preserved article");
+      if (mode === "new") {
+        await user.click(
+          await screen.findByRole("button", { name: "Edit blog content" }),
+        );
+      }
+      await enterReview(
+        user,
+        mode === "new" ? "Review for publication" : "Review Update",
+      );
+
+      draftIdParam.value = "draft-loading";
+      editPostIdParam.value = null;
+      getDraftByIdMock.mockReturnValue(undefined);
+      view.rerender(<CreateRoute />);
+      await user.click(
+        await screen.findByRole("button", { name: "Load requested document" }),
+      );
+      expect(screen.getByText("Loading the requested document…")).toBeVisible();
+      const back = screen.getByRole("button", { name: "Back to editing" });
+      expect(back).toBeEnabled();
+      back.focus();
+      await user.keyboard("{Enter}");
+
+      const review = screen.getByRole("button", {
+        name: mode === "new" ? "Review for publication" : "Review Update",
+      });
+      expect(review).toBeDisabled();
+      const editingTitle = screen.getByRole("textbox", { name: "Post title" });
+      expect(editingTitle).toHaveValue("Preserved article");
+      expect(editingTitle).toHaveFocus();
+
+      // A pending-query update must not steal focus after the return.
+      view.rerender(<CreateRoute />);
+      expect(screen.getByRole("textbox", { name: "Post title" })).toHaveFocus();
+      expect(reserveAttemptMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("shows validation error for empty title", async () => {
     const user = userEvent.setup();
     render(<CreateRoute />);
@@ -2518,9 +2603,7 @@ describe("CreateRoute", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText((t) => t.includes("Too small")),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Title is required.")).toBeInTheDocument();
     });
 
     expect(saveDraftMock).not.toHaveBeenCalled();

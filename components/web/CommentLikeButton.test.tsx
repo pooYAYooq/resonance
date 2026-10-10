@@ -5,7 +5,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { CommentLikeButton } from "./CommentLikeButton";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -53,7 +54,7 @@ describe("CommentLikeButton", () => {
       isAuthenticated: true,
       isLoading: false,
     });
-    useMutationMock.mockClear();
+    useMutationMock.mockReset();
     useMutationSpy.mockClear();
   });
 
@@ -102,5 +103,31 @@ describe("CommentLikeButton", () => {
         commentId: "comment-123",
       }),
     );
+  });
+
+  it("keeps comment-like focus and ignores repeat activation until the mutation settles", async () => {
+    let resolve!: (value: { liked: boolean; likeCount: number }) => void;
+    useMutationMock.mockImplementation(
+      () =>
+        new Promise((yes) => {
+          resolve = yes;
+        }),
+    );
+    const user = userEvent.setup();
+    render(<CommentLikeButton {...baseProps} />);
+    const button = screen.getByRole("button", { name: "Like this comment" });
+    button.focus();
+    await user.keyboard("{Enter}{Enter} ");
+    expect(button).toBeEnabled();
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).toHaveFocus();
+    expect(useMutationMock).toHaveBeenCalledExactlyOnceWith({
+      commentId: "comment-123",
+    });
+    await act(async () => resolve({ liked: true, likeCount: 1 }));
+    expect(button).toHaveFocus();
+    expect(button).toHaveAccessibleName("Unlike this comment");
+    expect(button).toHaveAttribute("aria-pressed", "true");
+    expect(button).toHaveAttribute("aria-disabled", "false");
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, usePaginatedQuery } from "convex/react";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/web/EmptyState";
 import { PostCard } from "@/components/web/PostCard";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+import { useListFocusRestore } from "@/lib/use-list-focus-restore";
 
 export function LikedSection() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -32,6 +33,9 @@ export function LikedSection() {
     { initialNumItems: 12 },
   );
 
+  const rootRef = useRef<HTMLDivElement>(null);
+  useListFocusRestore(rootRef, '[data-slot="card"]', listLoading);
+
   if (isLoading || !isAuthenticated || (listLoading && results.length === 0)) {
     return (
       <div className="flex justify-center py-12">
@@ -44,21 +48,23 @@ export function LikedSection() {
 
   if (results.length === 0 && status === "Exhausted") {
     return (
-      <EmptyState
-        icon={Heart}
-        title="No liked posts"
-        description="Like posts that resonate with you and they'll appear here."
-        action={
-          <Button asChild variant="outline">
-            <Link href="/blog">Browse the Blog</Link>
-          </Button>
-        }
-      />
+      <div ref={rootRef}>
+        <EmptyState
+          icon={Heart}
+          title="No liked posts"
+          description="Like posts that resonate with you and they'll appear here."
+          action={
+            <Button asChild variant="outline">
+              <Link href="/blog">Browse the Blog</Link>
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div ref={rootRef} className="space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {results.map((post) => (
           <PostCard

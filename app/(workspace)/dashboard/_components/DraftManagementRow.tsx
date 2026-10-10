@@ -45,7 +45,7 @@ export function DraftManagementRow({
     <article
       aria-label={title}
       aria-busy={deleting}
-      className="overflow-hidden rounded-xl border bg-card sm:grid sm:min-w-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-start sm:gap-x-4 sm:gap-y-1 sm:overflow-visible sm:rounded-none sm:border-x-0 sm:border-t-0 sm:bg-transparent sm:p-5 sm:transition-colors sm:last:border-b-0 sm:hover:bg-muted/50 sm:focus-within:bg-muted/50 md:grid-cols-[11rem_minmax(0,1fr)_12rem] md:items-center"
+      className="overflow-hidden rounded-xl border bg-card sm:grid sm:min-w-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-start sm:gap-x-4 sm:gap-y-1 sm:overflow-visible sm:rounded-none sm:border-x-0 sm:border-t-0 sm:bg-transparent sm:p-5 sm:transition-colors sm:last:border-b-0 sm:hover:bg-muted/50 sm:focus-within:bg-muted/50 lg:grid-cols-[11rem_minmax(0,1fr)_12rem] lg:items-center"
     >
       <h2 className="truncate px-4 pt-4 text-lg font-semibold leading-7 sm:col-start-2 sm:row-start-1 sm:px-0 sm:pt-0">
         <Link
@@ -86,7 +86,7 @@ export function DraftManagementRow({
           </div>
         </div>
       </div>
-      <div className="border-t sm:col-span-2 sm:row-start-3 sm:flex sm:justify-end sm:border-0 md:col-span-1 md:col-start-3 md:row-span-2 md:row-start-1 md:self-center">
+      <div className="border-t sm:col-span-2 sm:row-start-3 sm:flex sm:justify-end sm:border-0 lg:col-span-1 lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:self-center">
         <div
           role="group"
           aria-label={`Manage ${title}`}

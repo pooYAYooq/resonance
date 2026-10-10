@@ -109,9 +109,13 @@ function SignUpForm() {
                 name="name"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field className="gap-y-3">
-                    <FieldLabel>Full Name</FieldLabel>
+                  <Field
+                    data-invalid={fieldState.invalid ? "true" : undefined}
+                    className="gap-y-3"
+                  >
+                    <FieldLabel htmlFor="signup-name">Full Name</FieldLabel>
                     <Input
+                      id="signup-name"
                       aria-invalid={fieldState.invalid}
                       placeholder="John Doe"
                       {...field}
@@ -126,9 +130,13 @@ function SignUpForm() {
                 name="email"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field className="gap-y-3">
-                    <FieldLabel>Email</FieldLabel>
+                  <Field
+                    data-invalid={fieldState.invalid ? "true" : undefined}
+                    className="gap-y-3"
+                  >
+                    <FieldLabel htmlFor="signup-email">Email</FieldLabel>
                     <Input
+                      id="signup-email"
                       aria-invalid={fieldState.invalid}
                       placeholder="john@example.com"
                       {...field}
@@ -143,9 +151,13 @@ function SignUpForm() {
                 name="password"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field className="gap-y-3">
-                    <FieldLabel>Password</FieldLabel>
+                  <Field
+                    data-invalid={fieldState.invalid ? "true" : undefined}
+                    className="gap-y-3"
+                  >
+                    <FieldLabel htmlFor="signup-password">Password</FieldLabel>
                     <Input
+                      id="signup-password"
                       aria-invalid={fieldState.invalid}
                       type="password"
                       placeholder="••••••••"

@@ -52,19 +52,23 @@ describe("SignUpPage", () => {
     const user = userEvent.setup();
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "ab");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "password123");
+    const nameInput = screen.getByLabelText("Full Name");
+    await user.type(nameInput, "ab");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
       expect(
-        screen.getByText((t) => t.includes("Too small")),
+        screen.getByText("Name must be at least 3 characters."),
       ).toBeInTheDocument();
     });
+
+    expect(nameInput).toHaveAttribute("aria-invalid", "true");
+    expect(nameInput.closest("[data-slot=field]")).toHaveAttribute(
+      "data-invalid",
+      "true",
+    );
 
     expect(signUpMock).not.toHaveBeenCalled();
   });
@@ -73,17 +77,14 @@ describe("SignUpPage", () => {
     const user = userEvent.setup();
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "Jane Doe");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "short");
+    await user.type(screen.getByLabelText("Full Name"), "Jane Doe");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "short");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
       expect(
-        screen.getByText((t) => t.includes("Too small")),
+        screen.getByText("Password must be at least 8 characters."),
       ).toBeInTheDocument();
     });
 
@@ -99,12 +100,9 @@ describe("SignUpPage", () => {
 
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "Jane Doe");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "password123");
+    await user.type(screen.getByLabelText("Full Name"), "Jane Doe");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
@@ -137,12 +135,9 @@ describe("SignUpPage", () => {
 
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "Jane Doe");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "password123");
+    await user.type(screen.getByLabelText("Full Name"), "Jane Doe");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
@@ -210,12 +205,9 @@ describe("SignUpPage", () => {
 
     render(<SignUpPage />);
 
-    await user.type(screen.getByPlaceholderText("John Doe"), "Jane Doe");
-    await user.type(
-      screen.getByPlaceholderText("john@example.com"),
-      "jane@example.com",
-    );
-    await user.type(screen.getByPlaceholderText("••••••••"), "password123");
+    await user.type(screen.getByLabelText("Full Name"), "Jane Doe");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {

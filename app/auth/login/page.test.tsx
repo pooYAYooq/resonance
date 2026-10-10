@@ -51,19 +51,46 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
     render(<LoginPage />);
 
-    await user.type(
-      screen.getByPlaceholderText("Enter your email"),
-      "not-an-email",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Enter your password"),
-      "password123",
-    );
+    const emailInput = screen.getByLabelText("Email");
+    const passwordInput = screen.getByLabelText("Password");
+    await user.type(emailInput, "not-an-email");
+    await user.type(passwordInput, "password123");
     await user.click(screen.getByRole("button", { name: /login/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/invalid/i)).toBeInTheDocument();
     });
+
+    expect(emailInput).toHaveAttribute("aria-invalid", "true");
+    expect(passwordInput).toHaveAttribute("aria-invalid", "false");
+    expect(emailInput.closest("[data-slot=field]")).toHaveAttribute(
+      "data-invalid",
+      "true",
+    );
+
+    expect(signInMock).not.toHaveBeenCalled();
+  });
+
+  it("shows validation error for short password", async () => {
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    const passwordInput = screen.getByLabelText("Password");
+    await user.type(passwordInput, "short");
+    await user.click(screen.getByRole("button", { name: /login/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Password must be at least 8 characters."),
+      ).toBeInTheDocument();
+    });
+
+    expect(passwordInput).toHaveAttribute("aria-invalid", "true");
+    expect(passwordInput.closest("[data-slot=field]")).toHaveAttribute(
+      "data-invalid",
+      "true",
+    );
 
     expect(signInMock).not.toHaveBeenCalled();
   });
@@ -77,14 +104,8 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
 
-    await user.type(
-      screen.getByPlaceholderText("Enter your email"),
-      "jane@example.com",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Enter your password"),
-      "password123",
-    );
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /login/i }));
 
     await waitFor(() => {
@@ -114,14 +135,8 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
 
-    await user.type(
-      screen.getByPlaceholderText("Enter your email"),
-      "jane@example.com",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Enter your password"),
-      "password123",
-    );
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /login/i }));
 
     await waitFor(() => {
@@ -189,14 +204,8 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
 
-    await user.type(
-      screen.getByPlaceholderText("Enter your email"),
-      "jane@example.com",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Enter your password"),
-      "password123",
-    );
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: /login/i }));
 
     await waitFor(() => {

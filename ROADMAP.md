@@ -123,6 +123,36 @@ management-row requirement from the 3A.3 detailed requirements.
 | V1-15 | Unsaved-exit guards beyond target switches                        | Done      | M        |
 | V1-16 | Accessibility evidence pass                                       | In review | M        |
 
+V1-16 in review on `accessibility/behavioral-evidence` (2026-10-10): the
+evidence pass is under review, with the remaining focus fixes and
+browser-evidence items still being addressed. The agreed keyboard, focus,
+names, and mobile-navigation bar has been verified on the journeys exercised
+so far in both themes at the tiered widths, with results, fixes, and
+limitations recorded in [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md). The
+pass fixed raw validation messages, login invalid-state signaling,
+unassociated auth-form labels, focus restoration when Liked or Saved items
+are removed (reworked after PR review to track the focused card and toggle
+action across refilled, mixed-layout, and appended pages, including a
+transient loading render that removes the list and pagination pages that
+append no visible posts), the Saved list no longer showing its empty state
+while more pages remain, and the editor's Review and Back-to-editing focus
+handling. Verification on `a0015cf` passed lint, 624 edge-runtime tests, 682
+component tests, the production build, and changed-file formatting. Open
+review follow-up now concerns the separate loading-announcement advisory and
+reviewer/GitHub wrap-up. Shared Like/Save controls now preserve pending focus
+with guarded activation, with comment/reader/collection regressions and all
+16 Standard-width Feed activation/reversal checks passing. Feed pagination
+now retains cards and focused Load more while pending, then focuses appended
+content; final-page browser checks pass in all Standard combinations, with
+component coverage for nonfinal/empty pages and deliberate departures. The
+announcement advisory awaits its separate maintainer decision; V1-16 remains
+in review. Both unsaved-work
+sign-out choices now have executed Standard-width evidence with saved/discarded
+outcomes and fixture cleanup recorded in `docs/ACCESSIBILITY.md`. Touch
+operability and real screen-reader acceptance remain recorded limitations. Owner handoffs: V1-18
+(notifications empty-state recovery), V1-21/V1-23 (deferred visual and
+responsive polish), and V1-24 (release consolidation).
+
 V1-15 completion on `design/unsaved-exit-guards` (2026-10-09): new posts and
 drafts keep verified silent recovery before app-link departures, with light
 reminders for published edits, selected covers, and storage failures;
@@ -346,8 +376,8 @@ membership unless that session decides otherwise.
 
 ## Pending scope
 
-- V1-16 accessibility evidence: in v1.0, the exact evidence set is confirmed
-  when scoped.
+- None. The V1-16 accessibility evidence pass is in review as of 2026-10-10;
+  the durable record is `docs/ACCESSIBILITY.md`.
 
 ## How to update this file
 

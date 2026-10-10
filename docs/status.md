@@ -7,9 +7,10 @@ live in [`../ROADMAP.md`](../ROADMAP.md); shipped history lives in
 
 ## Current focus
 
-v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3 is the active slice:
-Track 4 management, navigation, and accessibility, followed by 3A.4, 3A.5, and
-release readiness. The single remaining-work list is
+v1.0 is Phase 3A complete (decision 3A-024). Phase 3A.3's Track 4 is awaiting
+the V1-16 accessibility evidence pass, currently under review; 3A.4, 3A.5, and
+release readiness continue as the remaining work. The single remaining-work
+list is
 in [`../ROADMAP.md`](../ROADMAP.md). The content width design session completed
 on 2026-09-30; its reader, published scale, and Review work shipped in PR #82
 (merged as `d64cab5`).
@@ -49,8 +50,14 @@ text is hidden, and a fixed 56px header strip keeps the close control 8px
 clear of the first row. Signed-in dark-theme browser verification at 375px and
 320px confirmed the hidden heading, the clearance, and the unchanged
 `dialog { name: "Navigation" }`; lint, 623 edge-runtime tests, 654 component
-tests, and the production build passed on 2026-10-09. Next: V1-16
-accessibility evidence; the V1-22 shared page-state work stays Todo.
+tests, and the production build passed on 2026-10-09. V1-16 accessibility
+evidence is in review on `accessibility/behavioral-evidence`: the agreed
+keyboard, focus, names, and mobile-navigation bar has been verified on the
+journeys exercised so far in both themes at the tiered widths, with results,
+fixes, and limitations in `docs/ACCESSIBILITY.md`; remaining review items are
+listed in `ROADMAP.md`; the pull request is under review. The
+V1-22 shared page-state work stays Todo, and the next v1.0 item is the
+maintainer's choice among V1-17 and V1-22.
 
 V1-08 shipped in [PR #85](https://github.com/pooYAYooq/resonance/pull/85), merged
 as `4c94efe`. Follow colors remain deferred to V1-21.
@@ -102,9 +109,9 @@ confirmations, stronger sign-out choices, the native warning only while work
 is unsaved, and one pending update for published edits. The history proof
 gate closed by agreeing evergreen browser coverage (the Navigation API is
 Baseline since January 2026) with a synchronous recovery flush on older
-browsers. Next: V1-16 accessibility evidence. Wide-screen reader rail contents
-remain queued, and Dashboard Overview purpose and composition remain deferred
-to a separate comprehensive design session.
+browsers. Wide-screen reader rail contents remain queued, and Dashboard
+Overview purpose and composition remain deferred to a separate comprehensive
+design session.
 
 PR #101 completed three review rounds on `design/unsaved-exit-guards`. Codex
 findings fixed the notification bell bypassing the authoring guard and made
@@ -129,6 +136,90 @@ longer wedges the deletion job: storage cleanup treats an already-removed object
 as reclaimed, the four stalled development jobs drained, and a regression test
 pins the case. The next task is addressing the remaining review items on the
 V1-16 accessibility evidence pull request.
+
+The stale-position finding in the Liked/Saved focus hook has a local fix and
+regression coverage for reactive insertion/removal ahead of a focused card
+or Load more control. This is scoped to the current collection design, which
+may change as those pages evolve; it is not a page-wide accessibility sign-off.
+The remaining findings await the maintainer's one-at-a-time scope decisions.
+
+The disabled-Review focus finding also has a local fix: Back to editing
+returns focus to Post title while a requested document is loading, otherwise
+to Review. Component regressions cover new-post and published-edit modes;
+no new browser evidence is claimed. Committed locally as `f56a8b9`, not pushed.
+
+Management browser checks exposed collapsed published/draft titles at 768px.
+Both rows now delay their third action column until 1024px. The full Deep
+matrix plus 900/1024 breakpoint checks passed for both lists in both themes;
+results, historical failures, cleanup, and future retest triggers are recorded
+in `docs/ACCESSIBILITY.md`. The two approved disposable drafts were deleted
+and the empty state restored. Remaining findings await the maintainer's next
+one-at-a-time decision; this does not finalize the ongoing management design.
+
+Settings Appearance was operated by keyboard at 375/1280 in Light, Dark,
+and System on `345a2f7`; theme changes, focus/traversal, and reload persistence
+were verified. No app-code change was needed. Current-design evidence and
+retest triggers are recorded in `docs/ACCESSIBILITY.md`, not a Settings
+completion claim. Remaining review items are populated notifications, both
+sign-out choices, and populated feed, each awaiting the maintainer's decision.
+
+Notifications now has executed empty and populated Standard-width evidence
+on `a970753`: empty state and row-link navigation passed, but Load more
+appending the final page left focus on document.body in both themes at both
+widths. No code fix was made; this is the next maintainer decision. All 13
+disposable author posts were deleted and the main account's empty state
+returned. Notifications remains subject to redesign, with fresh acceptance
+required after relevant changes; evidence is in `docs/ACCESSIBILITY.md`.
+
+The notification-pagination focus fix now reuses the shared list hook and
+accounts for Chromium's focusout-before-disconnection ordering. Standard
+browser checks restored visible focus to the first appended notification in
+both themes at both widths; component regressions cover filtered/empty pages
+and deliberate departures. Repeat publication fixtures were deleted, and the
+empty state was rechecked. Remaining review evidence is both sign-out choices
+and populated feed, awaiting the maintainer's next decision.
+
+Both unsaved-work sign-out choices now have executed new-post browser evidence
+on `44149c0` at 375/1280 in light/dark. Every run cleared recovery and refused
+the private Drafts route after logout; reauthentication confirmed Discard left
+no draft and Save persisted the exact title/body. All four saved fixtures were
+deleted, leaving Drafts empty. No app-code changes were needed. Evidence,
+current-design limits, and retest triggers are in `docs/ACCESSIBILITY.md`.
+The remaining finding is populated-feed browser evidence, awaiting the
+maintainer's separate scope decision. Nothing has been pushed or replied to.
+
+Populated-feed browser evidence on `c7d624c` now covers 20 cards plus a real
+final-page append at 375/1280 in both themes. Traversal, settled focus styling,
+post/author navigation, and reversible Like/Save data outcomes passed. Load more
+lost focus to body during loading and after append in every combination;
+pending Like/Save controls also lost focus on both activation and reversal.
+No app-code fix was made. All 21 disposable posts were removed; the author list
+and main Feed returned to empty. Evidence and interrupted-harness-log limits
+are in `docs/ACCESSIBILITY.md`. Next action is the maintainer's decision on
+these focus defects, one at a time; no push or reviewer reply is authorized.
+
+The approved Feed pagination-only fix retains loaded cards and the focused
+Load more control during requests, guards repeat activation, and moves focus
+to appended content or the settled fallback without stealing it after departure.
+Nine RED regressions turned GREEN; all 18 Feed tests pass. Chrome captured
+pending preservation and visible appended focus at 375/1280 in both themes.
+The 21 repeat publications were removed, and the author list/main Feed are
+empty again. Full gates passed lint, 624 edge tests, 712 component tests, and
+build. Current-design evidence, archive, and a minor unverified screen-reader
+announcement advisory are in `docs/ACCESSIBILITY.md`. Shared Like/Save code
+is untouched; its pending-focus defect awaits the next one-at-a-time decision.
+
+The approved shared Like/Save fix now preserves focusability while mutations
+are pending and guards repeat activation; auth loading stays natively disabled.
+Eight RED regressions turned GREEN, with reader/comment and real collection
+removal integration checks; the targeted run passed 123 tests. Chrome passed
+all 16 Feed activation/reversal checks across 375/1280 and light/dark, including
+observed pending focus and final persisted reversal. The one disposable post
+was deleted; the author list/main Feed returned to empty. Full gates passed
+lint, 624 edge tests, 731 component tests, and build. Current-design evidence
+and the local review's completion-warning limits are in `docs/ACCESSIBILITY.md`.
+Next is the separate loading-announcement advisory, under the maintainer's
+one-at-a-time workflow; no push or reviewer reply has been authorized.
 
 ## Blockers
 
@@ -192,7 +283,11 @@ V1-16 accessibility evidence pull request.
 
 ## Local design and plan artifacts
 
-None active. The V1-15 spec, plan, and execution ledger were archived to
+None active. The V1-16 accessibility evidence spec, implementation plan, and
+execution ledger were archived to
+`/home/studio/projects/resonance-docs-archive/superpowers-2026-10-10/` on the
+maintainer's workstation and removed from the worktree. The V1-15 spec, plan,
+and execution ledger were archived to
 `/home/studio/projects/resonance-docs-archive/superpowers-2026-10-09/` on the
 maintainer's workstation and removed from the worktree. The post-deletion
 storage cleanup plan was archived to
