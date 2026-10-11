@@ -127,6 +127,13 @@ Once durable docs record completion, archive local task artifacts under
 and remove them from the worktree. A clone must remain understandable without
 that local archive.
 
+## Collaboration expectations
+
+Read [`docs/agents/collaboration.md`](docs/agents/collaboration.md) at the start
+of every session. It defines the working style the maintainer expects: defended
+opinions, honest pushback on scope and complexity, explicit decisions before
+reopening deferrals, and small verifiable changes.
+
 ## Status and PR workflow
 
 - Update completed local plan steps and reconcile the affected permanent docs
