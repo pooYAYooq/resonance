@@ -1,6 +1,8 @@
 import { internal } from "./_generated/api";
 import {
+  action,
   internalMutation,
+  type ActionCtx,
   type MutationCtx,
   mutation,
 } from "./_generated/server";
@@ -8,8 +10,11 @@ import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import type { Id } from "./_generated/dataModel";
 import {
+  hasImageSignature,
   isAllowedBlockNoteFile,
+  isAllowedInlineImageType,
   MAX_BLOCKNOTE_FILE_SIZE_BYTES,
+  MEDIA_HEADER_BYTES,
 } from "../lib/inline-image";
 import {
   hasActiveSessionMediaClaim,
@@ -50,19 +55,24 @@ const requireAuthUser = async (ctx: MutationCtx) => {
 };
 
 /**
- * Validates that an uploaded BlockNote file is within the safe media policy.
+ * Validates an uploaded BlockNote file against the safe media policy: a known
+ * media type and a nonzero size within the limit, plus, for images, leading
+ * bytes that match the declared type. Declared metadata alone cannot prove the
+ * bytes render, so the stored image signature is checked as well.
  *
  * @param ctx - Mutation context
  * @param storageId - The storage ID to validate
  * @param createdAt - Expected minimum creation time
  * @param now - Current timestamp
- * @returns True if the file is a valid image upload
+ * @param header - Leading bytes of the stored object
+ * @returns True if the upload is acceptable
  */
-const isValidUploadedBlockNoteFile = async (
+const isAcceptedUpload = async (
   ctx: MutationCtx,
   storageId: Id<"_storage">,
   createdAt: number,
   now: number,
+  header: Uint8Array,
 ) => {
   const metadata = await getStorageObjectForSession(
     ctx,
@@ -70,11 +80,14 @@ const isValidUploadedBlockNoteFile = async (
     createdAt,
     now,
   );
-  return !!(
-    metadata &&
-    metadata.contentType &&
-    isAllowedBlockNoteFile(metadata.contentType) &&
-    metadata.size <= MAX_BLOCKNOTE_FILE_SIZE_BYTES
+  if (!metadata || !metadata.contentType) return false;
+  if (!isAllowedBlockNoteFile(metadata.contentType)) return false;
+  if (metadata.size <= 0 || metadata.size > MAX_BLOCKNOTE_FILE_SIZE_BYTES) {
+    return false;
+  }
+  return (
+    !isAllowedInlineImageType(metadata.contentType) ||
+    hasImageSignature(metadata.contentType, header)
   );
 };
 
@@ -114,10 +127,50 @@ export const createPendingUpload = mutation({
   },
 });
 
-export const finalizePendingUpload = mutation({
+/**
+ * Reads the leading bytes of a stored object. Actions are the only runtime that
+ * can read stored bytes, so finalization reads the header here and delegates
+ * the transactional checks and cleanup to a mutation.
+ */
+async function readStoredHeader(
+  ctx: ActionCtx,
+  storageId: Id<"_storage">,
+): Promise<ArrayBuffer> {
+  const blob = await ctx.storage.get(storageId);
+  if (!blob) return new ArrayBuffer(0);
+  return await blob.slice(0, MEDIA_HEADER_BYTES).arrayBuffer();
+}
+
+/**
+ * Verifies an uploaded object's bytes, then finalizes its session. The declared
+ * metadata cannot prove the bytes render, so the read happens before the
+ * transaction that accepts or reclaims the upload.
+ */
+export const finalizePendingUpload = action({
   args: {
     sessionId: v.id("pendingUploads"),
     storageId: v.id("_storage"),
+  },
+  returns: v.object({ accepted: v.boolean() }),
+  handler: async (ctx, args) => {
+    const header = await readStoredHeader(ctx, args.storageId);
+    const result: { accepted: boolean } = await ctx.runMutation(
+      internal.pendingUploads.finalizePendingUploadRecord,
+      {
+        sessionId: args.sessionId,
+        storageId: args.storageId,
+        header,
+      },
+    );
+    return result;
+  },
+});
+
+export const finalizePendingUploadRecord = internalMutation({
+  args: {
+    sessionId: v.id("pendingUploads"),
+    storageId: v.id("_storage"),
+    header: v.bytes(),
   },
   returns: v.object({ accepted: v.boolean() }),
   handler: async (ctx, args) => {
@@ -143,13 +196,15 @@ export const finalizePendingUpload = mutation({
       await ctx.db.patch(args.sessionId, { storageId: args.storageId });
     }
 
+    const now = Date.now();
     const valid =
-      session.expiresAt > Date.now() &&
-      (await isValidUploadedBlockNoteFile(
+      session.expiresAt > now &&
+      (await isAcceptedUpload(
         ctx,
         args.storageId,
         session.createdAt,
-        Date.now(),
+        now,
+        new Uint8Array(args.header),
       ));
     if (!valid) {
       await ctx.db.delete(args.sessionId);

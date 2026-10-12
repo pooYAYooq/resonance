@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getCoverRecoveryBlocker,
   getCoverPublicationBlocker,
+  getHydratedCoverRecovery,
   getReviewBlocker,
   getReviewSubmitBlock,
   REVIEW_BLOCKER_MESSAGES,
@@ -111,6 +112,19 @@ describe("getCoverPublicationBlocker", () => {
         selectedFile: new File(["cover"], "cover.png", { type: "image/png" }),
       }),
     ).toBeNull();
+  });
+});
+
+describe("getHydratedCoverRecovery", () => {
+  it("marks a stored cover with no resolved URL as failed", () => {
+    expect(getHydratedCoverRecovery("cover-1", null)).toBe("failed");
+    expect(getHydratedCoverRecovery("cover-1", undefined)).toBe("failed");
+  });
+
+  it("leaves a resolved or absent stored cover ready", () => {
+    expect(getHydratedCoverRecovery("cover-1", "https://cover")).toBeNull();
+    expect(getHydratedCoverRecovery(undefined, null)).toBeNull();
+    expect(getHydratedCoverRecovery(null, null)).toBeNull();
   });
 });
 

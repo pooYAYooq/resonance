@@ -41,6 +41,35 @@ describe("blog form schemas", () => {
     ).toBe(false);
   });
 
+  it("rejects an empty or oversized cover file", () => {
+    const draft = (image: File) =>
+      draftPostSchema.safeParse({
+        title: "Draft",
+        content: emptyDocument,
+        tags: [],
+        image,
+      });
+
+    expect(
+      draft(new File([new Uint8Array(0)], "empty.png", { type: "image/png" }))
+        .success,
+    ).toBe(false);
+    expect(
+      draft(
+        new File([new Uint8Array(5 * 1024 * 1024)], "limit.png", {
+          type: "image/png",
+        }),
+      ).success,
+    ).toBe(true);
+    expect(
+      draft(
+        new File([new Uint8Array(5 * 1024 * 1024 + 1)], "too-big.png", {
+          type: "image/png",
+        }),
+      ).success,
+    ).toBe(false);
+  });
+
   it("enforces publish title and readable-text boundaries", () => {
     expect(
       publishPostSchema.safeParse({

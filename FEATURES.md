@@ -129,10 +129,11 @@
   only final Publish/Update is blocked. A visible reminder and Add cover action
   return to editing and focus the picker without losing writing. A selected
   local cover uploads on submit; draft saving remains available without one.
-  Removing a focused cover action returns focus to Add cover.
-  Final readiness also checks selected local files against that MIME, size, and
-  nonempty policy before upload; invalid replacements cannot silently fall back
-  to a previously saved cover.
+  Removing a focused cover action returns focus to Add cover. Draft and publish
+  validation reject an empty or unsupported selected file before Review, and the
+  server re-verifies every upload at finalization: the object must be nonempty
+  and, for images, its stored bytes must match the declared JPEG, PNG, or WebP
+  signature. Invalid replacements cannot silently fall back to a saved cover.
 - Review renders a frozen snapshot of the reviewed title, body, tags,
   cover intent, cover preview, and resolved inline media at the published
   geometry (uncapped 16:9 cover, 700px measure, published title weight), using

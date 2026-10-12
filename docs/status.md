@@ -10,13 +10,14 @@ Public author identity is the approved product scope. The first delivery
 boundary adds required publication covers while preserving coverless draft
 saving. The corrected authoring model allows coverless preview; only final
 publication requires a cover. Cover-first and cover-last browser journeys
-passed, and review follow-ups added selected-file policy validation, rejected
-unresolvable saved covers before Review, and removed unsupported test-query
-options. Ordered lint, 649 unit/backend tests, 740 component tests, and build
-pass; three pre-existing direct-TypeScript test errors remain listed in
+passed. Review follow-ups validate selected files and uploads (nonempty, and
+stored image bytes matching the declared type), recover an unresolvable saved
+cover before Review, and removed unsupported test-query options. Ordered lint,
+659 unit/backend tests, 742 component tests, and build pass; three pre-existing
+direct-TypeScript test errors remain listed in
 [known limitations](KNOWN_LIMITATIONS.md).
 [Accessibility evidence](ACCESSIBILITY.md#required-publication-covers-2026-10-12)
-records the checks performed and the remaining gaps: invalid-file states have
+records the checks performed and the remaining gaps: the review-fix states have
 automated coverage but no browser retest.
 
 The PR/documentation workflow keeps implementation, evidence, and completion

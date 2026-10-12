@@ -23,9 +23,10 @@ vi.mock("next-themes", () => ({
 }));
 
 vi.mock("convex/react", () => ({
-  // Upload mutations stay pending so an inline upload never settles in tests
+  // Upload calls stay pending so an inline upload never settles in tests
   // that only observe the pending state.
   useMutation: () => vi.fn().mockReturnValue(new Promise(() => {})),
+  useAction: () => vi.fn().mockReturnValue(new Promise(() => {})),
 }));
 
 const browserRect = {

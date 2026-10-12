@@ -25,7 +25,13 @@ import {
 import type { ExitSaveResult } from "@/lib/authoring-exit-policy";
 import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
+import {
+  useAction,
+  useConvex,
+  useConvexAuth,
+  useMutation,
+  useQuery,
+} from "convex/react";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -54,6 +60,7 @@ import {
   getCoverRecoveryBlocker,
   getReviewBlocker,
   getCoverPublicationBlocker,
+  getHydratedCoverRecovery,
   getReviewSubmitBlock,
   REVIEW_BLOCKER_MESSAGES,
   type CoverRecoveryState,
@@ -362,7 +369,7 @@ function CreateEditor() {
   const createPendingUpload = useMutation(
     api.pendingUploads.createPendingUpload,
   );
-  const finalizePendingUpload = useMutation(
+  const finalizePendingUpload = useAction(
     api.pendingUploads.finalizePendingUpload,
   );
   const cleanupPendingUploads = useMutation(api.pendingUploads.cleanupPending);
@@ -822,6 +829,12 @@ function CreateEditor() {
       resetCoverSelectionRefs();
       setCoverStorageId(pendingData.imageStorageId ?? undefined);
       setCoverImageUrl(pendingData.imageUrl ?? undefined);
+      setCoverRecovery(
+        getHydratedCoverRecovery(
+          pendingData.imageStorageId,
+          pendingData.imageUrl,
+        ),
+      );
       setInitialContent(parsed.document);
       setResolvedImageUrls(
         Object.fromEntries(
@@ -1018,11 +1031,8 @@ function CreateEditor() {
       });
       setCoverStorageId(target.imageStorageId ?? undefined);
       setCoverImageUrl(target.imageUrl ?? undefined);
-      // A saved cover the server could not resolve is unavailable. Surface the
-      // same replace-or-remove recovery as a failed lookup so the author fixes
-      // it before submission instead of hitting a publication failure.
       setCoverRecovery(
-        target.imageStorageId && !target.imageUrl ? "failed" : null,
+        getHydratedCoverRecovery(target.imageStorageId, target.imageUrl),
       );
       setInitialContent(parsed.document);
       setResolvedImageUrls(serverImages);

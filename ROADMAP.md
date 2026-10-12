@@ -178,9 +178,6 @@ V1-16 and V1-23. Optional enhancements:
 - Server autosave, unpublish, revision history, and detailed Create/Edit composition.
   Silent local recovery is implemented instead.
 - Avatar upload, custom storage, and new public identity fields.
-- Server-side verification of upload bytes (image signature or decodability)
-  for covers and inline media; validation currently trusts the declared
-  content type, byte size, and storage availability.
 - Follower/following directories, activity feeds, recommendation infrastructure,
   semantic/AI search, and broader analytics or notification infrastructure.
 

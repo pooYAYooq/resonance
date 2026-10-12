@@ -122,19 +122,20 @@ evidence.
 
 **After this retest (review fix; automated coverage, no browser retest):**
 
-- Final readiness now checks a selected File for supported MIME (JPEG, PNG,
-  WebP), nonzero size, and the 5 MiB maximum instead of accepting any selected
-  File, so an invalid selection cannot fall back to a previously saved cover.
-  Unsupported or oversized files surface the form's cover-policy message when
-  entering Review; an empty file enters Review and blocks final publication
-  with the policy message and a Replace cover action that returns picker focus.
-  Automated tests cover unsupported formats, unknown MIME, empty and oversized
-  files, the exact valid size limit, replacement focus without losing writing,
-  and no reservation or upload on an invalid submit.
-- A saved cover the server cannot resolve now blocks Review with the existing
-  recovery message until the author replaces or removes it. Automated coverage
-  only; not browser-retested.
-- Refreshed ordered lint, 649 edge-runtime tests, 740 component tests, and
+- Final readiness checks a selected File for supported MIME (JPEG, PNG, WebP),
+  nonzero size, and the 5 MiB maximum, and draft and publish validation reject a
+  zero-byte file before it can be stored. An empty or unsupported selection
+  surfaces the form's cover-policy message before Review instead of being saved
+  and trusted later. Automated tests cover unsupported formats, unknown MIME,
+  empty and oversized files, the exact valid size limit, and no reservation or
+  upload on an invalid submit.
+- Uploads are verified server-side at finalization: a zero-byte object is
+  rejected, and an image must carry the stored signature for its declared JPEG,
+  PNG, or WebP type. Automated coverage only.
+- A saved cover the server cannot resolve blocks Review from both ordinary
+  hydration and pending-target adoption, with the existing recovery message
+  until the author replaces or removes it. Automated coverage only.
+- Refreshed ordered lint, 659 edge-runtime tests, 742 component tests, and
   build passed after this fix.
 - Minor review finding: Back to editing stays focusable and guarded while
   saving but does not visually dim like Review/Publish. This is recorded polish,

@@ -61,6 +61,9 @@ export const draftPostSchema = z.object({
   tags: postTagsSchema,
   image: z
     .instanceof(File, { message: "Please select an image file." })
+    .refine((file) => file.size > 0, {
+      message: "Image must not be empty.",
+    })
     .refine((file) => file.size <= MAX_IMAGE_SIZE_BYTES, {
       message: "Image must be 5MB or smaller.",
     })

@@ -5,6 +5,7 @@ import { register } from "@convex-dev/better-auth/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, components, internal } from "./_generated/api";
 import schema from "./schema";
+import { storeTestImage } from "./testUtils/storage";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -73,7 +74,7 @@ describe("pending upload functions", () => {
     );
 
     await expect(
-      t.mutation(api.pendingUploads.finalizePendingUpload, {
+      t.action(api.pendingUploads.finalizePendingUpload, {
         sessionId,
         storageId,
       }),
@@ -199,7 +200,7 @@ describe("pending upload functions", () => {
     await expect(
       t
         .withIdentity(identity)
-        .mutation(api.pendingUploads.finalizePendingUpload, {
+        .action(api.pendingUploads.finalizePendingUpload, {
           sessionId,
           storageId,
         }),
@@ -211,6 +212,81 @@ describe("pending upload functions", () => {
         hasFile: (await ctx.storage.get(storageId)) !== null,
       })),
     ).resolves.toEqual({ session: null, hasFile: false });
+  });
+
+  it("accepts a stored image whose bytes match its declared type", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "signature-ok@example.com",
+    );
+    const { sessionId } = await t
+      .withIdentity(identity)
+      .mutation(api.pendingUploads.createPendingUpload, {});
+    const storageId = await t.run((ctx) =>
+      storeTestImage(
+        ctx,
+        new Blob(
+          [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+          { type: "image/png" },
+        ),
+      ),
+    );
+
+    await expect(
+      t
+        .withIdentity(identity)
+        .action(api.pendingUploads.finalizePendingUpload, {
+          sessionId,
+          storageId,
+        }),
+    ).resolves.toEqual({ accepted: true });
+  });
+
+  it("reclaims bytes whose signature contradicts the declared image type", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "signature-bad@example.com",
+    );
+    const { sessionId } = await t
+      .withIdentity(identity)
+      .mutation(api.pendingUploads.createPendingUpload, {});
+    const storageId = await t.run((ctx) =>
+      storeTestImage(ctx, new Blob(["not a png"], { type: "image/png" })),
+    );
+
+    await expect(
+      t
+        .withIdentity(identity)
+        .action(api.pendingUploads.finalizePendingUpload, {
+          sessionId,
+          storageId,
+        }),
+    ).resolves.toEqual({ accepted: false });
+  });
+
+  it("reclaims an empty upload even when the declared type is allowed", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "empty-upload@example.com",
+    );
+    const { sessionId } = await t
+      .withIdentity(identity)
+      .mutation(api.pendingUploads.createPendingUpload, {});
+    const storageId = await t.run((ctx) =>
+      storeTestImage(ctx, new Blob([], { type: "image/png" })),
+    );
+
+    await expect(
+      t
+        .withIdentity(identity)
+        .action(api.pendingUploads.finalizePendingUpload, {
+          sessionId,
+          storageId,
+        }),
+    ).resolves.toEqual({ accepted: false });
   });
 
   it("reclaims an invalid uploaded object supplied through cleanup fallback", async () => {

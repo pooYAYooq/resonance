@@ -1,9 +1,10 @@
 import { renderHook } from "@testing-library/react";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useInlineImageUpload } from "./use-inline-image-upload";
 
 vi.mock("convex/react", () => ({
+  useAction: vi.fn(),
   useMutation: vi.fn(),
 }));
 
@@ -26,8 +27,8 @@ describe("useInlineImageUpload", () => {
     const createPendingUpload = vi.fn(() => reservation);
     vi.mocked(useMutation)
       .mockImplementationOnce(() => createPendingUpload as never)
-      .mockImplementationOnce(() => vi.fn() as never)
       .mockImplementationOnce(() => vi.fn() as never);
+    vi.mocked(useAction).mockImplementationOnce(() => vi.fn() as never);
     let active = 0;
     const { result } = renderHook(() =>
       useInlineImageUpload({
@@ -108,8 +109,10 @@ describe("useInlineImageUpload", () => {
     const finalizePendingUpload = vi.fn().mockResolvedValue({ accepted: true });
     vi.mocked(useMutation)
       .mockImplementationOnce(() => createPendingUpload as never)
-      .mockImplementationOnce(() => cleanupPending as never)
-      .mockImplementationOnce(() => finalizePendingUpload as never);
+      .mockImplementationOnce(() => cleanupPending as never);
+    vi.mocked(useAction).mockImplementationOnce(
+      () => finalizePendingUpload as never,
+    );
 
     const createObjectURL = vi.fn(() => "blob:inline-image");
     const revokeObjectURL = vi.fn();

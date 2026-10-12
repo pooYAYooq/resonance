@@ -71,6 +71,19 @@ export function getCoverRecoveryBlocker(
   return null;
 }
 
+/**
+ * A hydrated saved cover is usable only when storage resolved it to a URL. A
+ * stored ID with no URL means the object is gone, so the author gets the same
+ * replace-or-remove recovery as a failed lookup instead of a cover that fails
+ * only when the server rejects the write.
+ */
+export function getHydratedCoverRecovery(
+  storageId: string | null | undefined,
+  imageUrl: string | null | undefined,
+): CoverRecoveryState | null {
+  return storageId && !imageUrl ? "failed" : null;
+}
+
 export type ReviewSubmitBlock =
   | "operation-in-flight"
   | "target-switching"

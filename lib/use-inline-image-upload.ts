@@ -1,4 +1,4 @@
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -42,7 +42,7 @@ export function useBlockNoteFileUpload({
     api.pendingUploads.createPendingUpload,
   );
   const cleanupPending = useMutation(api.pendingUploads.cleanupPending);
-  const finalizePendingUpload = useMutation(
+  const finalizePendingUpload = useAction(
     api.pendingUploads.finalizePendingUpload,
   );
   const objectUrls = useRef(new Map<string, string>());
