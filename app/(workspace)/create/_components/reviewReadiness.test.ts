@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getCoverRecoveryBlocker,
+  getCoverPublicationBlocker,
   getReviewBlocker,
   getReviewSubmitBlock,
   REVIEW_BLOCKER_MESSAGES,
@@ -48,6 +49,68 @@ describe("getReviewBlocker", () => {
     const message = REVIEW_BLOCKER_MESSAGES["failed-media"];
     expect(message).toMatch(/replace/i);
     expect(message).not.toMatch(/retry/i);
+  });
+});
+
+describe("getCoverPublicationBlocker", () => {
+  it.each([
+    ["empty", "image/png", 0],
+    ["GIF", "image/gif", 1],
+    ["SVG", "image/svg+xml", 1],
+    ["AVIF", "image/avif", 1],
+    ["unknown MIME", "", 1],
+    ["oversized", "image/png", 5 * 1024 * 1024 + 1],
+  ])(
+    "blocks a selected %s cover instead of falling back to a saved cover",
+    (_, type, size) => {
+      const blocker = getCoverPublicationBlocker({
+        removed: false,
+        existingStorageId: "saved",
+        selectedFile: new File([new Uint8Array(size)], "cover", { type }),
+      });
+      expect(blocker).toBe("cover-invalid");
+      expect(
+        getReviewSubmitBlock({
+          isPending: false,
+          hasPendingTarget: false,
+          blocker,
+        }),
+      ).toBe("media-not-ready");
+    },
+  );
+
+  it.each(["image/jpeg", "image/png", "image/webp"])(
+    "allows a nonempty %s cover at the size limit",
+    (type) => {
+      expect(
+        getCoverPublicationBlocker({
+          removed: false,
+          selectedFile: new File([new Uint8Array(5 * 1024 * 1024)], "cover", {
+            type,
+          }),
+        }),
+      ).toBeNull();
+    },
+  );
+  it("requires a cover while allowing a selected local file before upload", () => {
+    expect(getCoverPublicationBlocker({ removed: false })).toBe(
+      "cover-required",
+    );
+    expect(
+      getCoverPublicationBlocker({ removed: true, existingStorageId: "saved" }),
+    ).toBe("cover-required");
+    expect(
+      getCoverPublicationBlocker({
+        removed: false,
+        existingStorageId: "saved",
+      }),
+    ).toBeNull();
+    expect(
+      getCoverPublicationBlocker({
+        removed: false,
+        selectedFile: new File(["cover"], "cover.png", { type: "image/png" }),
+      }),
+    ).toBeNull();
   });
 });
 
@@ -129,7 +192,7 @@ describe("getCoverRecoveryBlocker", () => {
       "Loading your saved cover. Review will be available when it finishes.",
     );
     expect(REVIEW_BLOCKER_MESSAGES["cover-load-failed"]).toBe(
-      "Your saved cover could not be loaded. Replace it or remove it to continue to Review.",
+      "Your saved cover could not be loaded. Replace it to continue to Review. You can remove it and save a draft instead.",
     );
   });
 });

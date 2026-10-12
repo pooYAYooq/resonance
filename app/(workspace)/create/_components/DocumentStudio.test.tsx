@@ -18,6 +18,32 @@ function renderStudio(
 }
 
 describe("DocumentStudio", () => {
+  it("keeps a preview publication reminder and recovery action in the sticky header", () => {
+    render(
+      <DocumentStudio
+        mode="new"
+        preview
+        body={<p>Reviewed writing</p>}
+        actions={<button>Publish</button>}
+        previewNotice={
+          <div>
+            <p>Add a cover before publishing.</p>
+            <button>Add cover</button>
+          </div>
+        }
+      />,
+    );
+    const header = screen
+      .getByRole("button", { name: "Publish" })
+      .closest("header");
+    expect(header).toContainElement(
+      screen.getByText("Add a cover before publishing."),
+    );
+    expect(header).toContainElement(
+      screen.getByRole("button", { name: "Add cover" }),
+    );
+    expect(header).toHaveClass("sticky");
+  });
   it("keeps target confirmation and transition errors actionable in Preview", () => {
     const confirm = vi.fn();
     const view = render(

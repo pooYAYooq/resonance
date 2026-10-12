@@ -55,6 +55,13 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Engineering and verification
 
+- Direct `pnpm exec tsc --noEmit` currently fails on three pre-existing test
+  typing errors: a null assignment in `app/(workspace)/create/page.test.tsx`
+  (present before the cover changes), an unsupported role-query option in
+  `components/web/AuthoringExitProvider.test.tsx`, and an `Element`/`HTMLElement`
+  mismatch in `components/web/FollowButton.test.tsx`. The cover changes removed
+  the unsupported role-query options they had added. A successful Next build
+  does not establish that these included test files typecheck.
 - No stored-data migration/backfill exists for this undeployed app. A large
   existing deployment would need a staged migration before new indexed callers.
 - Authenticated owner-scoped mutation tests are limited by the Better Auth

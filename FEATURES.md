@@ -122,8 +122,17 @@
   video glyphs, use plain lifecycle wording, and offer Replace and Remove for
   failed media while resolved inline editing stays in BlockNote
 - Cover controls are styled Add, Replace, and Remove buttons with same-file
-  reselection and a published-ratio 16:9 preview; a missing cover renders the
-  shared blank fallback on cards, Discover, and the reader
+  reselection and a published-ratio 16:9 preview. Publishing and published
+  updates require an owned, available JPEG, PNG, or WebP image of nonzero size,
+  at most 5 MiB. Covers can be added before writing or after reviewing.
+  Review remains available without a cover, showing a neutral 16:9 placeholder;
+  only final Publish/Update is blocked. A visible reminder and Add cover action
+  return to editing and focus the picker without losing writing. A selected
+  local cover uploads on submit; draft saving remains available without one.
+  Removing a focused cover action returns focus to Add cover.
+  Final readiness also checks selected local files against that MIME, size, and
+  nonempty policy before upload; invalid replacements cannot silently fall back
+  to a previously saved cover.
 - Review renders a frozen snapshot of the reviewed title, body, tags,
   cover intent, cover preview, and resolved inline media at the published
   geometry (uncapped 16:9 cover, 700px measure, published title weight), using

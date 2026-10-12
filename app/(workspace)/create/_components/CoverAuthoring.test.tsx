@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import CoverAuthoring from "./CoverAuthoring";
 import type { MediaAsset } from "./MediaAuthoring";
 import type { CoverRecoveryState } from "./reviewReadiness";
+import { useState } from "react";
 
 function renderCover(
   overrides: {
@@ -28,7 +29,9 @@ describe("CoverAuthoring", () => {
 
     expect(screen.getByText("No cover selected")).toBeVisible();
     expect(
-      screen.getByText("Your post will show without a cover image."),
+      screen.getByText(
+        "A cover is required to publish. You can save a draft without one.",
+      ),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "Add cover" })).toBeVisible();
   });
@@ -152,7 +155,7 @@ describe("CoverAuthoring", () => {
     });
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Your saved cover could not be loaded. Replace it or remove it to continue to Review.",
+      "Your saved cover could not be loaded. Replace it to continue to Review. You can remove it and save a draft instead.",
     );
 
     await user.upload(screen.getByLabelText("Replace cover image"), file);
@@ -177,5 +180,53 @@ describe("CoverAuthoring", () => {
     expect(screen.getByTestId("media-preview").parentElement).toHaveClass(
       "aspect-[16/9]",
     );
+  });
+
+  it("associates cover guidance with the picker and keeps a persistent status", () => {
+    const view = renderCover();
+    const status = screen.getByRole("status");
+    expect(
+      screen.getByLabelText("Add cover image"),
+    ).toHaveAccessibleDescription(/required to publish/i);
+    view.rerender(
+      <CoverAuthoring
+        cover={{
+          id: "cover",
+          kind: "cover",
+          mediaType: "image",
+          status: "choosing",
+          fileName: "cover.png",
+        }}
+        onChooseCover={() => {}}
+        onRemoveCover={() => {}}
+        coverNote="Uploads when you save or publish"
+      />,
+    );
+    expect(screen.getByRole("status")).toBe(status);
+    expect(status).toHaveTextContent(/uploads when you save or publish/i);
+  });
+
+  it("moves focus from a removed cover action to Add cover", async () => {
+    const user = userEvent.setup();
+    function Harness() {
+      const [cover, setCover] = useState<MediaAsset | null>({
+        id: "cover",
+        kind: "cover",
+        mediaType: "image",
+        status: "resolved",
+      });
+      return (
+        <CoverAuthoring
+          cover={cover}
+          onChooseCover={() => {}}
+          onRemoveCover={() => setCover(null)}
+        />
+      );
+    }
+    render(<Harness />);
+    const remove = screen.getByRole("button", { name: "Remove cover" });
+    remove.focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Add cover" })).toHaveFocus();
   });
 });

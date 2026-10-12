@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { POST_COVER_ASPECT } from "@/components/web/PostCover";
 import { Button } from "@/components/ui/button";
@@ -18,6 +24,8 @@ type CoverAuthoringProps = {
   coverInputAriaLabel?: string;
   coverNote?: string;
   coverRecovery?: CoverRecoveryState | null;
+  guidanceId?: string;
+  actionRef?: React.RefObject<HTMLButtonElement | null>;
 };
 
 const ACTION_BUTTON_CLASS =
@@ -35,11 +43,33 @@ export default function CoverAuthoring({
   coverInputAriaLabel,
   coverNote,
   coverRecovery,
+  guidanceId,
+  actionRef,
 }: CoverAuthoringProps) {
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const localActionRef = useRef<HTMLButtonElement>(null);
+  const primaryActionRef = actionRef ?? localActionRef;
+  const removedActionRef = useRef<HTMLButtonElement | null>(null);
+  const generatedHelpId = useId();
+  const helpId = guidanceId ?? generatedHelpId;
   const [dragging, setDragging] = useState(false);
   const openCoverPicker = () => coverInputRef.current?.click();
   const failed = coverRecovery === "failed";
+  const describedBy = failed ? `${helpId} ${helpId}-error` : helpId;
+  useLayoutEffect(() => {
+    const removed = removedActionRef.current;
+    if (!removed) return;
+    removedActionRef.current = null;
+    if (!removed.isConnected && document.activeElement === document.body) {
+      primaryActionRef.current?.focus();
+    }
+  });
+  const removeCover = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (document.activeElement === event.currentTarget) {
+      removedActionRef.current = event.currentTarget;
+    }
+    onRemoveCover();
+  };
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
@@ -55,9 +85,20 @@ export default function CoverAuthoring({
 
   return (
     <section aria-label="Cover" className="flex flex-col gap-3">
+      <p
+        id={helpId}
+        role="status"
+        aria-atomic="true"
+        className="text-sm text-muted-foreground"
+      >
+        {!cover && !failed
+          ? "A cover is required to publish. You can save a draft without one."
+          : (statusLine ?? "A cover is required to publish.")}
+      </p>
       {failed ? (
         <>
           <p
+            id={`${helpId}-error`}
             role="alert"
             className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm"
           >
@@ -65,6 +106,8 @@ export default function CoverAuthoring({
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button
+              ref={primaryActionRef}
+              aria-describedby={describedBy}
               type="button"
               variant="outline"
               size="sm"
@@ -78,7 +121,7 @@ export default function CoverAuthoring({
               variant="outline"
               size="sm"
               className={ACTION_BUTTON_CLASS}
-              onClick={onRemoveCover}
+              onClick={removeCover}
             >
               Remove cover
             </Button>
@@ -106,16 +149,10 @@ export default function CoverAuthoring({
             {cover.fileName ? (
               <p className="truncate text-base">{cover.fileName}</p>
             ) : null}
-            {statusLine ? (
-              <p
-                role={coverRecovery === "resolving" ? "status" : undefined}
-                className="text-sm text-muted-foreground"
-              >
-                {statusLine}
-              </p>
-            ) : null}
             <div className="flex flex-wrap items-center gap-2">
               <Button
+                ref={primaryActionRef}
+                aria-describedby={describedBy}
                 type="button"
                 variant="outline"
                 size="sm"
@@ -129,7 +166,7 @@ export default function CoverAuthoring({
                 variant="outline"
                 size="sm"
                 className={ACTION_BUTTON_CLASS}
-                onClick={onRemoveCover}
+                onClick={removeCover}
               >
                 Remove cover
               </Button>
@@ -161,11 +198,10 @@ export default function CoverAuthoring({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-base">No cover selected</p>
-            <p className="text-sm text-muted-foreground">
-              Your post will show without a cover image.
-            </p>
           </div>
           <Button
+            ref={primaryActionRef}
+            aria-describedby={describedBy}
             type="button"
             variant="outline"
             size="sm"
@@ -182,6 +218,7 @@ export default function CoverAuthoring({
         type="file"
         accept="image/*"
         tabIndex={-1}
+        aria-describedby={describedBy}
         className="sr-only"
         aria-label={
           coverInputAriaLabel ??
