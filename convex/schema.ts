@@ -251,7 +251,8 @@ export default defineSchema({
   })
     .index("by_postId", ["postId"])
     .index("by_authorId", ["authorId"])
-    .index("by_publishedAt", ["publishedAt"]),
+    .index("by_publishedAt", ["publishedAt"])
+    .index("by_authorId_and_publishedAt", ["authorId", "publishedAt"]),
 
   /** One complete searchable corpus row per published source post. */
   discoverPostSearch: defineTable({
@@ -265,6 +266,10 @@ export default defineSchema({
     .index("by_authorId", ["authorId"])
     .searchIndex("search_searchableText", {
       searchField: "searchableText",
+    })
+    .searchIndex("search_title_and_authorId", {
+      searchField: "title",
+      filterFields: ["authorId"],
     }),
 
   /** One topic row per unique `(postId, tag)` pair for bounded Topic listings. */
@@ -299,6 +304,34 @@ export default defineSchema({
     email: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     bio: v.optional(v.string()),
+    /** Approved two-letter country code from the local profile country list. */
+    countryCode: v.optional(v.string()),
+    /**
+     * Canonical social profile URLs keyed by platform. Only platforms the
+     * author provided are stored; unknown platforms never reach storage.
+     */
+    socialProfiles: v.optional(
+      v.object({
+        instagram: v.optional(v.string()),
+        linkedin: v.optional(v.string()),
+        behance: v.optional(v.string()),
+        youtube: v.optional(v.string()),
+        x: v.optional(v.string()),
+      }),
+    ),
+    /**
+     * Immutable join date sourced from the Better Auth account creation time.
+     * Initialized once and never mutated afterward.
+     */
+    joinedAt: v.optional(v.number()),
+    joinDateDisplay: v.optional(
+      v.union(v.literal("calendar"), v.literal("relative")),
+    ),
+    /** At most nine ordered published post IDs shown on the author page. */
+    selectedPostIds: v.optional(v.array(v.id("posts"))),
+    /** Revisions for conflict-checked identity and selection edits. */
+    identityRevision: v.optional(v.number()),
+    selectionRevision: v.optional(v.number()),
     /**
      * Denormalized follow counts maintained by `toggleFollow`.
      * Optional for backward compatibility with users created before follow feature was added.

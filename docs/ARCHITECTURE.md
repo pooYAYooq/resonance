@@ -194,6 +194,11 @@ resonance/
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserProfile,
 │   │                           # updateProfile mutations/queries and Discover rename repair
+│   ├── profileModel.ts         # Shared profile validators, stored-identity mapping,
+│   │                           # revision-checked identity/selection helpers, bounded
+│   │                           # card hydration, and deleted-selection cleanup. Not registered.
+│   ├── profiles.ts             # Public identity/showcase/catalogue reads and
+│   │                           # authenticated identity and selected-work edits
 │
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (Button, Card, Input, etc.)
@@ -294,6 +299,9 @@ resonance/
     ├── code-languages.ts       # Canonical code-block IDs, labels, aliases, and Shiki grammars.
     ├── safe-link.ts            # Shared http/https/mailto author-link validator.
     ├── cover.ts                # Shared cover URL resolver; null renders the blank fallback.
+    ├── profile-identity.ts     # Profile identity types, code-point limits, and normalizer.
+    ├── profile-socials.ts      # Social platform allowlists and URL validation/canonicalization.
+    ├── profile-joined-date.ts  # UTC calendar and relative join-date formatting.
     ├── use-inline-image-upload.ts # Owner-bound BlockNote file upload and preview lifecycle hook.
     ├── shiki/
     │   ├── code-highlighter.generated.ts # Generated editor grammars and themes.
@@ -301,7 +309,8 @@ resonance/
     └── constants/
         ├── seo.ts              # SITE_NAME, getSiteUrl(), truncateForDescription()
         ├── footer.ts            # Footer site name, nav links, social links
-        └── post-tags.ts         # Fifteen canonical values, max count, pure validators
+        ├── post-tags.ts         # Fifteen canonical values, max count, pure validators
+        └── profile-countries.ts # Approved selectable country snapshot with source/license note
 ```
 
 ---
@@ -334,9 +343,9 @@ components/
     │
     ├── AuthSync.tsx
     │     Client component mounted inside ConvexClientProvider. Fires
-    │     the users.syncUser mutation whenever auth state changes, so
-    │     the app-level users table mirrors the Better Auth identity
-    │     (display name, email, OAuth avatar). Known issue: sync is
+    │     the users.syncUser mutation whenever auth state changes. Provider
+    │     display name seeds new user records; existing names remain
+    │     author-owned while email and OAuth avatar stay synced. Known issue: sync is
     │     fire-and-forget, so on first OAuth sign-up the Navbar can
     │     briefly render initials instead of the provider avatar.
     │
@@ -479,8 +488,10 @@ models: compact `discoverPosts` summaries for Latest and result rendering,
 body field),
 `discoverPostTopics` for Topic listings, and `topicStats` for active
 canonical-topic counts. `discoverPosts` has `by_postId`, `by_authorId`, and
-`by_publishedAt`; `discoverPostSearch` has `by_postId`, `by_authorId`, and the
-full-text `search_searchableText` index. Topic rows use
+`by_publishedAt`, plus `by_authorId_and_publishedAt` for author catalogues;
+`discoverPostSearch` has `by_postId`, `by_authorId`, the full-text
+`search_searchableText` index, and `search_title_and_authorId` for author-scoped
+title search. Topic rows use
 `by_tag_and_publishedAt`, `by_postId_and_tag`, and `by_postId`; counters use
 `topicStats.by_tag`. Indexed lookups enforce one post projection per source
 post, one Topic row per `(postId, tag)`, and one counter per canonical tag.
@@ -867,8 +878,10 @@ Browser                 Next.js              Convex HTTP
 Auth supports email + password and OAuth (Google and GitHub). Email
 verification is disabled. For OAuth sign-ins, `convex/auth.ts` maps provider
 profile fields (Google `picture`, GitHub `avatar_url`) onto the Better Auth
-user so avatars display immediately; `AuthSync` then copies identity fields
-into the app-level `users` table.
+user so avatars display immediately; `AuthSync` then seeds the app-level
+display name for new user records and keeps email/avatar fields synchronized.
+Subsequent display-name changes remain author-owned and are not overwritten by
+provider sync.
 
 ---
 

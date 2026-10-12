@@ -32,6 +32,7 @@ import {
 } from "./writeAttempts";
 import { decrementPostCountInTransaction } from "./stats";
 import { deletePublishedPostProjection } from "./discoverProjection";
+import { removeDeletedSelection } from "./profileModel";
 import { adjustPublishedPostCount } from "./profilePostCount";
 const MAX_PUBLIC_PAGE_SIZE = 20;
 const postFieldsValidator = {
@@ -515,6 +516,7 @@ export const deletePublishedPost = mutation({
     await ctx.db.delete(post._id);
     await decrementPostCountInTransaction(ctx);
     await adjustPublishedPostCount(ctx, post.authorId, -1);
+    await removeDeletedSelection(ctx, post.authorId, post._id);
     await ctx.scheduler.runAfter(
       0,
       internal.postDeletion.continuePublishedPostDeletion,

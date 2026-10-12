@@ -12,6 +12,12 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Public author identity foundation: an optional country from a reviewed local
+  list, five validated social profile links, and a calendar or relative join
+  date sourced from the immutable account creation time. Identity and
+  selected-work edits are revision-checked, and selected work is bounded to nine
+  ordered published posts. The editing and public presentation surfaces follow
+  in later changes.
 - Responsive draft management rows matching My Posts: linked titles, 16:9
   covers with the blank fallback, tags, Last saved dates, and grouped Resume
   and Delete actions. Draft deletion has named-draft confirmation, pending
@@ -68,6 +74,8 @@ work is tracked in `ROADMAP.md`.
 
 ### Changed
 
+- Auth sync no longer overwrites an author-owned display name, and it
+  initializes the immutable `joinedAt` from the Better Auth creation time once.
 - Publishing and published updates now require a usable cover: a JPEG, PNG,
   or WebP image, nonempty and at most 5 MiB, whose stored bytes match the
   declared image signature and are still available. Uploads are verified
