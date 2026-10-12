@@ -21,6 +21,7 @@ import {
   MAX_POST_AUTHOR_NAME_CODE_POINTS,
   truncatePostAuthorName,
 } from "../lib/post-capacity";
+import { getOwnProfile, saveIdentity, storedIdentity } from "./profileModel";
 
 function validateDisplayName(displayName: string): void {
   if (getCodePointCount(displayName) > MAX_POST_AUTHOR_NAME_CODE_POINTS) {
@@ -45,6 +46,23 @@ const userValidator = v.object({
   email: v.optional(v.string()),
   avatarUrl: v.optional(v.string()),
   bio: v.optional(v.string()),
+  countryCode: v.optional(v.string()),
+  socialProfiles: v.optional(
+    v.object({
+      instagram: v.optional(v.string()),
+      linkedin: v.optional(v.string()),
+      behance: v.optional(v.string()),
+      youtube: v.optional(v.string()),
+      x: v.optional(v.string()),
+    }),
+  ),
+  joinedAt: v.optional(v.number()),
+  joinDateDisplay: v.optional(
+    v.union(v.literal("calendar"), v.literal("relative")),
+  ),
+  selectedPostIds: v.optional(v.array(v.id("posts"))),
+  identityRevision: v.optional(v.number()),
+  selectionRevision: v.optional(v.number()),
   followerCount: v.optional(v.number()),
   followingCount: v.optional(v.number()),
   publishedPostCount: v.number(),
@@ -96,36 +114,22 @@ export const syncUser = mutation({
       .unique();
 
     if (existing) {
-      // Update fields that might have changed (name, avatar from OAuth).
-      // Better Auth returns `string | null | undefined` for optional fields;
-      // we only overwrite when a new non-null value is present, otherwise
-      // we preserve the existing record to avoid accidentally clearing data.
-      const displayName =
-        normalizeProviderDisplayName(authUser.name) ?? existing.displayName;
-      validateDisplayName(displayName);
+      // The author owns their display name, so auth sync never overwrites it.
+      // Email and provider avatar stay synced; a provider avatar change
+      // advances identityRevision so an open editor detects the new record.
+      const avatarChanged =
+        authUser.image != null && authUser.image !== existing.avatarUrl;
       await ctx.db.patch(existing._id, {
-        displayName,
         email: authUser.email != null ? authUser.email : existing.email,
         avatarUrl: authUser.image != null ? authUser.image : existing.avatarUrl,
+        ...(existing.joinedAt === undefined &&
+          typeof authUser.createdAt === "number" && {
+            joinedAt: authUser.createdAt,
+          }),
+        ...(avatarChanged && {
+          identityRevision: (existing.identityRevision ?? 0) + 1,
+        }),
       });
-      if (displayName !== existing.displayName) {
-        const projectedPosts = await ctx.db
-          .query("discoverPosts")
-          .withIndex("by_authorId", (q) => q.eq("authorId", authUser._id))
-          .take(1);
-        if (projectedPosts.length > 0) {
-          // Keep Discover's denormalized author fields aligned without blocking auth sync.
-          await ctx.scheduler.runAfter(
-            0,
-            internal.discoverProjection.repairAuthorName,
-            {
-              authorId: authUser._id,
-              newAuthorName: displayName,
-              paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
-            },
-          );
-        }
-      }
       return existing._id;
     }
 
@@ -141,6 +145,8 @@ export const syncUser = mutation({
       email: authUser.email ?? undefined,
       avatarUrl: authUser.image ?? undefined,
       bio: "",
+      joinedAt:
+        typeof authUser.createdAt === "number" ? authUser.createdAt : undefined,
       followerCount: 0,
       followingCount: 0,
       unreadNotificationCount: 0,
@@ -240,17 +246,17 @@ export const getUserProfile = query({
 /**
  * Updates the current user's display name and bio.
  *
- * Requires an authenticated session. Validates that `displayName` is
- * non-empty after trimming and that `bio` does not exceed 160 characters.
- * Patches the existing user record rather than replacing it, so fields
- * like `email` and `avatarUrl` are preserved.
+ * A temporary adapter for the still-reachable legacy editor: it writes through
+ * the shared revision-checked identity helper at the record's current
+ * revision, so the new identity fields are preserved and `identityRevision`
+ * advances. Requires an authenticated session; the display name is validated
+ * by the shared normalizer and the bio uses the shared 1,000-code-point limit.
  *
  * @param args.displayName - `string`: New display name (trimmed, must be non-empty).
- * @param args.bio - `string`: New bio (max 160 characters).
+ * @param args.bio - `string`: New bio (shared code-point limit).
  * @returns `Id<"users">`, the document ID of the updated user record.
  * @throws `ConvexError("Unauthorized")` if no valid session exists.
- * @throws `ConvexError("Display name cannot be empty.")` if trimmed name is blank.
- * @throws `ConvexError("Bio must be 160 characters or fewer.")` if bio exceeds limit.
+ * @throws `ConvexError` with the shared normalizer message for an invalid field.
  * @throws `ConvexError("User not found")` if the authenticated user has no record.
  */
 export const updateProfile = mutation({
@@ -265,40 +271,26 @@ export const updateProfile = mutation({
       throw new ConvexError("Unauthorized");
     }
 
-    const displayName = args.displayName.trim();
-    if (!displayName) {
-      throw new ConvexError("Display name cannot be empty.");
-    }
-
-    if (args.bio.length > 160) {
-      throw new ConvexError("Bio must be 160 characters or fewer.");
-    }
-
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_userId", (q) => q.eq("userId", authUser._id))
-      .unique();
-
+    const existing = await getOwnProfile(ctx, authUser._id);
     if (!existing) {
       throw new ConvexError("User not found");
     }
 
-    validateDisplayName(displayName);
-    await ctx.db.patch(existing._id, {
-      displayName,
-      bio: args.bio,
-    });
-    if (displayName !== existing.displayName) {
-      // The profile is the source event; repair denormalized Discover authors asynchronously.
-      await ctx.scheduler.runAfter(
-        0,
-        internal.discoverProjection.repairAuthorName,
-        {
-          authorId: authUser._id,
-          newAuthorName: displayName,
-          paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
-        },
-      );
+    // Temporary adapter for the still-reachable old editor: it writes through
+    // the shared revision-checked helper at the current revision, preserving
+    // the new identity fields. The follow-up boundary retires this entry point.
+    const result = await saveIdentity(
+      ctx,
+      existing,
+      existing.identityRevision ?? 0,
+      {
+        ...storedIdentity(existing),
+        displayName: args.displayName,
+        bio: args.bio,
+      },
+    );
+    if (result.kind !== "saved") {
+      throw new ConvexError("Profile changed. Reload and try again.");
     }
 
     return existing._id;
