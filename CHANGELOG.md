@@ -68,6 +68,13 @@ work is tracked in `ROADMAP.md`.
 
 ### Changed
 
+- Publishing and published updates now require a usable cover: a JPEG, PNG,
+  or WebP image, nonempty and at most 5 MiB, that is still available in
+  storage. Covers can be added before writing or after reviewing; preview
+  remains available without one, showing a neutral placeholder and a reminder
+  with Add cover at the publication action. A selected replacement is checked
+  against the same policy before it can satisfy the requirement. Drafts and
+  pending edits remain saveable without a cover.
 - Adopted the installed standard BlockNote editor; the curated interaction
   contract was retired in favour of the full default authoring experience.
 - The authoring studio header condenses the mode, a short intent line, and the

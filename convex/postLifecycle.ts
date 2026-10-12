@@ -26,6 +26,10 @@ import { FEED_BATCH_SIZE } from "./feed";
 import { consumeSessionMediaClaims } from "./sessionMediaClaims";
 import type { WriteErrorCategory } from "../lib/write-contract";
 import { getPendingPostEdit, getPostMediaStorageIds } from "./pendingPostEdits";
+import {
+  isAllowedInlineImageType,
+  MAX_INLINE_IMAGE_SIZE_BYTES,
+} from "../lib/inline-image";
 
 type WriteProposal = {
   title: string;
@@ -326,7 +330,9 @@ function validateDraftProposal(proposal: WriteProposal) {
   }
 }
 
-function validatePublicationProposal(proposal: WriteProposal) {
+function validatePublicationProposal(
+  proposal: WriteProposal,
+): asserts proposal is WriteProposal & { imageStorageId: Id<"_storage"> } {
   validateDraftProposal(proposal);
   const document = getStructuredBody(proposal.body);
   if (
@@ -336,6 +342,33 @@ function validatePublicationProposal(proposal: WriteProposal) {
       MIN_POST_TEXT_LENGTH
   ) {
     deterministicFailure("invalid-proposal", "Invalid content");
+  }
+  if (!proposal.imageStorageId) {
+    deterministicFailure("invalid-proposal", "Add a cover before publishing.");
+  }
+}
+
+async function validatePublicationCover(
+  ctx: MutationCtx,
+  storageId: Id<"_storage">,
+): Promise<void> {
+  const metadata = await ctx.db.system.get(storageId);
+  if (
+    !metadata ||
+    !isAllowedInlineImageType(metadata.contentType) ||
+    metadata.size <= 0 ||
+    metadata.size > MAX_INLINE_IMAGE_SIZE_BYTES
+  ) {
+    deterministicFailure(
+      "invalid-media",
+      "Choose a usable image cover before publishing.",
+    );
+  }
+  if (!(await ctx.storage.getUrl(storageId))) {
+    deterministicFailure(
+      "invalid-media",
+      "Your cover could not be loaded. Replace it and retry.",
+    );
   }
 }
 
@@ -549,6 +582,7 @@ export async function executePublish(
         .withIndex("by_postId", (q) => q.eq("postId", draft._id))
         .take(100)
     : [];
+  await validatePublicationCover(ctx, args.proposal.imageStorageId);
   const attachedStorageIds = attachedClaims.flatMap((claim) =>
     claim.storageId === undefined ? [] : [claim.storageId],
   );
@@ -697,6 +731,7 @@ export async function executePublishedUpdate(
     now,
     post._id,
   );
+  await validatePublicationCover(ctx, args.proposal.imageStorageId);
   const updatedAt =
     Math.max(now, post.updatedAt, pending?.updatedAt ?? 0, post.publishedAt) +
     1;

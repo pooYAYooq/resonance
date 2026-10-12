@@ -33,7 +33,8 @@
 
 ### Blog Posts
 
-- Create posts with title, body, and optional cover image (Convex storage)
+- Create posts with title, body, and a required publication cover (Convex storage);
+  drafts and pending edits can be saved without a cover
 - Create posts with block-level images, audio, and video through the standard
   BlockNote editor; local uploads store canonical Convex Storage IDs through
   the owner-bound claim lifecycle, and remote media must use safe HTTP(S) URLs
