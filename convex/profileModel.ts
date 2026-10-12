@@ -6,14 +6,27 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { DISCOVER_BATCH_SIZE } from "./discoverProjection";
 import {
+  MAX_SELECTED_POSTS,
   normalizeProfileIdentity,
   type IdentityInput,
   type JoinDateDisplay,
   type SocialProfiles,
 } from "../lib/profile-identity";
+
+export const MAX_PROFILE_PAGE_SIZE = 20;
+const SHOWCASE_LATEST_COUNT = 3;
+
+export type AuthorCard = {
+  postId: Id<"posts">;
+  title: string;
+  imageUrl: string | null;
+  likeCount: number;
+};
+
+export type Showcase = { mode: "selected" | "latest"; posts: AuthorCard[] };
 
 export type RevisionSave =
   | { kind: "saved"; revision: number }
@@ -128,4 +141,164 @@ export async function saveIdentity(
   }
 
   return { kind: "saved", revision: revision + 1 };
+}
+
+/** Rejects a page size outside the bounded native pagination range. */
+export function assertPageSize(paginationOpts: { numItems: number }): void {
+  const { numItems } = paginationOpts;
+  if (
+    !Number.isInteger(numItems) ||
+    numItems < 1 ||
+    numItems > MAX_PROFILE_PAGE_SIZE
+  ) {
+    throw new ConvexError(
+      `Page size must be between 1 and ${MAX_PROFILE_PAGE_SIZE}.`,
+    );
+  }
+}
+
+async function toAuthorCard(
+  ctx: QueryCtx,
+  summary: Doc<"discoverPosts">,
+): Promise<AuthorCard> {
+  return {
+    postId: summary.postId,
+    title: summary.title,
+    imageUrl: summary.imageStorageId
+      ? await ctx.storage.getUrl(summary.imageStorageId)
+      : null,
+    likeCount: summary.likeCount,
+  };
+}
+
+export async function summariesToCards(
+  ctx: QueryCtx,
+  summaries: readonly Doc<"discoverPosts">[],
+): Promise<AuthorCard[]> {
+  return await Promise.all(
+    summaries.map((summary) => toAuthorCard(ctx, summary)),
+  );
+}
+
+/**
+ * Resolves the given post IDs to compact cards in argument order, dropping any
+ * entry that is not a currently published projection of this author. Reads stay
+ * bounded to the nine-post selection maximum.
+ */
+export async function hydrateAuthorCards(
+  ctx: QueryCtx,
+  authorId: string,
+  postIds: readonly Id<"posts">[],
+): Promise<AuthorCard[]> {
+  const cards: AuthorCard[] = [];
+  for (const postId of postIds.slice(0, MAX_SELECTED_POSTS)) {
+    const summary = await ctx.db
+      .query("discoverPosts")
+      .withIndex("by_postId", (q) => q.eq("postId", postId))
+      .unique();
+    if (!summary || summary.authorId !== authorId) continue;
+    cards.push(await toAuthorCard(ctx, summary));
+  }
+  return cards;
+}
+
+async function latestAuthorCards(
+  ctx: QueryCtx,
+  authorId: string,
+): Promise<AuthorCard[]> {
+  const summaries = await ctx.db
+    .query("discoverPosts")
+    .withIndex("by_authorId_and_publishedAt", (q) => q.eq("authorId", authorId))
+    .order("desc")
+    .take(SHOWCASE_LATEST_COUNT);
+  return await summariesToCards(ctx, summaries);
+}
+
+/**
+ * The author showcase: surviving ordered selections when any remain, otherwise
+ * the latest three published posts.
+ */
+export async function readShowcase(
+  ctx: QueryCtx,
+  authorId: string,
+): Promise<Showcase> {
+  const author = await ctx.db
+    .query("users")
+    .withIndex("by_userId", (q) => q.eq("userId", authorId))
+    .unique();
+  const selected = await hydrateAuthorCards(
+    ctx,
+    authorId,
+    author?.selectedPostIds ?? [],
+  );
+  if (selected.length > 0) return { mode: "selected", posts: selected };
+  return { mode: "latest", posts: await latestAuthorCards(ctx, authorId) };
+}
+
+async function assertSelectablePosts(
+  ctx: MutationCtx,
+  user: Doc<"users">,
+  postIds: readonly Id<"posts">[],
+): Promise<void> {
+  if (postIds.length > MAX_SELECTED_POSTS) {
+    throw new ConvexError(`Select at most ${MAX_SELECTED_POSTS} posts.`);
+  }
+  if (new Set(postIds).size !== postIds.length) {
+    throw new ConvexError("Selection contains duplicates.");
+  }
+  for (const postId of postIds) {
+    const post = await ctx.db.get(postId);
+    if (!post || post.authorId !== user.userId || post.status !== "published") {
+      throw new ConvexError("Choose only your own published posts.");
+    }
+    if (!post.imageStorageId) {
+      throw new ConvexError("Only posts with a cover can be selected.");
+    }
+  }
+}
+
+/** Revision-checked, ordered selection write over the author's own posts. */
+export async function saveSelection(
+  ctx: MutationCtx,
+  user: Doc<"users">,
+  expectedRevision: number,
+  postIds: readonly Id<"posts">[],
+): Promise<RevisionSave> {
+  assertExpectedRevision(expectedRevision);
+  if (postIds.length > MAX_SELECTED_POSTS) {
+    throw new ConvexError(`Select at most ${MAX_SELECTED_POSTS} posts.`);
+  }
+  if (new Set(postIds).size !== postIds.length) {
+    throw new ConvexError("Selection contains duplicates.");
+  }
+  const revision = user.selectionRevision ?? 0;
+  if (expectedRevision !== revision) return { kind: "conflict" };
+  await assertSelectablePosts(ctx, user, postIds);
+  await ctx.db.patch(user._id, {
+    selectedPostIds: [...postIds],
+    selectionRevision: revision + 1,
+  });
+  return { kind: "saved", revision: revision + 1 };
+}
+
+/**
+ * Removes a deleted post from the author's selection, preserving the surviving
+ * order and advancing the selection revision only when the ID was selected.
+ */
+export async function removeDeletedSelection(
+  ctx: MutationCtx,
+  authorId: string,
+  postId: Id<"posts">,
+): Promise<void> {
+  const author = await ctx.db
+    .query("users")
+    .withIndex("by_userId", (q) => q.eq("userId", authorId))
+    .unique();
+  if (!author) return;
+  const selected = author.selectedPostIds ?? [];
+  if (!selected.includes(postId)) return;
+  await ctx.db.patch(author._id, {
+    selectedPostIds: selected.filter((id) => id !== postId),
+    selectionRevision: (author.selectionRevision ?? 0) + 1,
+  });
 }

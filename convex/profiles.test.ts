@@ -4,7 +4,9 @@ import { register } from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
 import { api, components } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
+import { storeTestImage } from "./testUtils/storage";
 
 const modules = import.meta.glob("./**/*.ts");
 const AUTH_CREATED_AT = 1_700_000_000_000;
@@ -294,5 +296,393 @@ describe("profiles identity API", () => {
     expect(
       await t.query(api.profiles.getPublicIdentity, { userId: "missing" }),
     ).toBeNull();
+  });
+});
+
+const PNG_HEADER = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
+
+async function seedPost(
+  t: ReturnType<typeof convexTest>,
+  authorId: string,
+  options: {
+    title: string;
+    body?: string;
+    publishedAt?: number;
+    status?: "published" | "draft";
+    cover?: boolean;
+  },
+): Promise<Id<"posts">> {
+  return await t.run(async (ctx) => {
+    const status = options.status ?? "published";
+    const publishedAt = options.publishedAt ?? 1000;
+    const body = options.body ?? "Body text.";
+    const imageStorageId =
+      options.cover === false
+        ? undefined
+        : await storeTestImage(
+            ctx,
+            new Blob([PNG_HEADER], { type: "image/png" }),
+          );
+    const postId = await ctx.db.insert("posts", {
+      title: options.title,
+      body,
+      tags: [],
+      authorId,
+      status,
+      ...(imageStorageId ? { imageStorageId } : {}),
+      ...(status === "published" ? { publishedAt } : {}),
+      commentCount: 0,
+      likeCount: 3,
+      uniqueViewCount: 0,
+      createdAt: publishedAt,
+      updatedAt: publishedAt,
+    });
+    if (status === "published") {
+      await ctx.db.insert("discoverPosts", {
+        postId,
+        title: options.title,
+        bodyText: body,
+        authorId,
+        authorName: "Author",
+        tags: [],
+        ...(imageStorageId ? { imageStorageId } : {}),
+        publishedAt,
+        commentCount: 0,
+        likeCount: 3,
+      });
+      await ctx.db.insert("discoverPostSearch", {
+        postId,
+        title: options.title,
+        authorId,
+        authorName: "Author",
+        searchableText: `${options.title}\n${body}\nAuthor`,
+      });
+    }
+    return postId;
+  });
+}
+
+async function seedPosts(
+  t: ReturnType<typeof convexTest>,
+  authorId: string,
+  count: number,
+): Promise<Id<"posts">[]> {
+  const ids: Id<"posts">[] = [];
+  for (let i = 0; i < count; i++) {
+    ids.push(
+      await seedPost(t, authorId, {
+        title: `Post ${i}`,
+        publishedAt: 1000 + i,
+      }),
+    );
+  }
+  return ids;
+}
+
+async function seedAuthor(
+  t: ReturnType<typeof convexTest>,
+  email: string,
+  postCount: number,
+) {
+  const identity = await createAuthIdentity(t, { name: "Author", email });
+  const userId = await t
+    .withIdentity(identity)
+    .mutation(api.users.syncUser, {});
+  const posts = await seedPosts(t, identity.subject, postCount);
+  // Seeded posts bypass the publish lifecycle, so align the maintained counter
+  // that deletion decrements.
+  await t.run(async (ctx) => {
+    await ctx.db.patch(userId, { publishedPostCount: postCount });
+  });
+  return { identity, posts, own: t.withIdentity(identity) };
+}
+
+describe("profiles selection API", () => {
+  it("saves ordered selections, rejects invalid entries atomically, and reconciles deletion", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, posts, own } = await seedAuthor(
+      t,
+      "selection@example.com",
+      10,
+    );
+
+    const saved = await own.mutation(api.profiles.updateSelection, {
+      expectedRevision: 0,
+      postIds: [posts[2], posts[0], posts[1]],
+    });
+    expect(saved).toEqual({ kind: "saved", revision: 1 });
+
+    const showcase = await t.query(api.profiles.getShowcase, {
+      userId: identity.subject,
+    });
+    expect(showcase.mode).toBe("selected");
+    expect(showcase.posts.map((post) => post.postId)).toEqual([
+      posts[2],
+      posts[0],
+      posts[1],
+    ]);
+
+    const draft = await seedPost(t, identity.subject, {
+      title: "Draft post",
+      status: "draft",
+    });
+    const foreign = await seedPost(t, "another-author", {
+      title: "Foreign post",
+    });
+
+    await expect(
+      own.mutation(api.profiles.updateSelection, {
+        expectedRevision: 1,
+        postIds: posts,
+      }),
+    ).rejects.toThrow(/at most/i);
+    await expect(
+      own.mutation(api.profiles.updateSelection, {
+        expectedRevision: 1,
+        postIds: [posts[0], posts[0]],
+      }),
+    ).rejects.toThrow(/duplicate/i);
+    await expect(
+      own.mutation(api.profiles.updateSelection, {
+        expectedRevision: 1,
+        postIds: [foreign, posts[0]],
+      }),
+    ).rejects.toThrow(/published/i);
+    await expect(
+      own.mutation(api.profiles.updateSelection, {
+        expectedRevision: 1,
+        postIds: [draft, posts[0]],
+      }),
+    ).rejects.toThrow(/published/i);
+
+    const goneId = await seedPost(t, identity.subject, {
+      title: "Gone post",
+      status: "draft",
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.delete(goneId);
+    });
+    await expect(
+      own.mutation(api.profiles.updateSelection, {
+        expectedRevision: 1,
+        postIds: [goneId],
+      }),
+    ).rejects.toThrow(/published/i);
+
+    const beforeDelete = await own.query(api.profiles.getEditorProfile, {});
+    expect(beforeDelete?.selectionRevision).toBe(1);
+
+    await own.mutation(api.posts.deletePublishedPost, { postId: posts[0] });
+
+    const afterDelete = await t.query(api.profiles.getShowcase, {
+      userId: identity.subject,
+    });
+    expect(afterDelete.posts.map((post) => post.postId)).toEqual([
+      posts[2],
+      posts[1],
+    ]);
+    const editor = await own.query(api.profiles.getEditorProfile, {});
+    expect(editor?.selectionRevision).toBe(2);
+
+    await expect(
+      own.mutation(api.profiles.updateSelection, {
+        expectedRevision: 1,
+        postIds: [posts[1]],
+      }),
+    ).resolves.toEqual({ kind: "conflict" });
+  });
+
+  it("restores the latest-three fallback when the last selection is deleted", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, posts, own } = await seedAuthor(
+      t,
+      "fallback@example.com",
+      4,
+    );
+
+    await own.mutation(api.profiles.updateSelection, {
+      expectedRevision: 0,
+      postIds: [posts[3]],
+    });
+    await own.mutation(api.posts.deletePublishedPost, { postId: posts[3] });
+
+    const showcase = await t.query(api.profiles.getShowcase, {
+      userId: identity.subject,
+    });
+    expect(showcase.mode).toBe("latest");
+    expect(showcase.posts.map((post) => post.postId)).toEqual([
+      posts[2],
+      posts[1],
+      posts[0],
+    ]);
+  });
+
+  it("leaves the selection revision unchanged when an unselected post is deleted", async () => {
+    const t = convexTest(schema, modules);
+    const { posts, own } = await seedAuthor(t, "unselected@example.com", 3);
+
+    await own.mutation(api.profiles.updateSelection, {
+      expectedRevision: 0,
+      postIds: [posts[1]],
+    });
+    await own.mutation(api.posts.deletePublishedPost, { postId: posts[0] });
+
+    const editor = await own.query(api.profiles.getEditorProfile, {});
+    expect(editor?.selectionRevision).toBe(1);
+    expect(editor?.selectedPostIds).toEqual([posts[1]]);
+  });
+
+  it("keeps a concurrent selection and deletion consistent", async () => {
+    const t = convexTest(schema, modules);
+    const { posts, own } = await seedAuthor(t, "concurrent@example.com", 4);
+
+    await own.mutation(api.profiles.updateSelection, {
+      expectedRevision: 0,
+      postIds: [posts[0], posts[1], posts[2]],
+    });
+
+    await Promise.allSettled([
+      own.mutation(api.profiles.updateSelection, {
+        expectedRevision: 1,
+        postIds: [posts[1], posts[2]],
+      }),
+      own.mutation(api.posts.deletePublishedPost, { postId: posts[2] }),
+    ]);
+
+    const editor = await own.query(api.profiles.getEditorProfile, {});
+    const selection = editor?.selectedPostIds ?? [];
+    expect(selection).not.toContain(posts[2]);
+    expect(new Set(selection).size).toBe(selection.length);
+    expect(selection).toEqual(
+      selection.filter((id) => [posts[0], posts[1]].includes(id)),
+    );
+  });
+
+  it("resolves live selection availability for the caller's own published posts", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, posts, own } = await seedAuthor(
+      t,
+      "availability@example.com",
+      10,
+    );
+    const draft = await seedPost(t, identity.subject, {
+      title: "Availability draft",
+      status: "draft",
+    });
+    const foreign = await seedPost(t, "other-author", {
+      title: "Availability foreign",
+    });
+
+    const available = await own.query(
+      api.profiles.getOwnSelectionAvailability,
+      { postIds: [posts[3], foreign, draft, posts[1]] },
+    );
+    expect(available.map((card) => card.postId)).toEqual([posts[3], posts[1]]);
+
+    await expect(
+      t.query(api.profiles.getOwnSelectionAvailability, { postIds: [] }),
+    ).rejects.toThrow("Unauthorized");
+    await expect(
+      own.query(api.profiles.getOwnSelectionAvailability, {
+        postIds: posts,
+      }),
+    ).rejects.toThrow(/at most/i);
+    await expect(
+      own.query(api.profiles.getOwnSelectionAvailability, {
+        postIds: [posts[0], posts[0]],
+      }),
+    ).rejects.toThrow(/duplicate/i);
+  });
+
+  it("paginates author posts without leaking private fields", async () => {
+    const t = convexTest(schema, modules);
+    const { identity } = await seedAuthor(t, "catalogue@example.com", 5);
+
+    const first = await t.query(api.profiles.listAuthorPosts, {
+      userId: identity.subject,
+      paginationOpts: { numItems: 2, cursor: null },
+    });
+    expect(first.page).toHaveLength(2);
+    expect(first.isDone).toBe(false);
+
+    const next = await t.query(api.profiles.listAuthorPosts, {
+      userId: identity.subject,
+      paginationOpts: { numItems: 2, cursor: first.continueCursor },
+    });
+    const firstIds = first.page.map((card) => card.postId);
+    expect(next.page.map((card) => card.postId)).not.toEqual(
+      expect.arrayContaining(firstIds),
+    );
+
+    for (const card of first.page) {
+      expect(Object.hasOwn(card, "body")).toBe(false);
+      expect(Object.hasOwn(card, "bodyText")).toBe(false);
+      expect(Object.hasOwn(card, "tags")).toBe(false);
+      expect(Object.hasOwn(card, "commentCount")).toBe(false);
+      expect(Object.hasOwn(card, "email")).toBe(false);
+    }
+
+    await expect(
+      t.query(api.profiles.listAuthorPosts, {
+        userId: identity.subject,
+        paginationOpts: { numItems: 21, cursor: null },
+      }),
+    ).rejects.toThrow(/page size/i);
+
+    const empty = await t.query(api.profiles.listAuthorPosts, {
+      userId: "no-such-author",
+      paginationOpts: { numItems: 5, cursor: null },
+    });
+    expect(empty.page).toEqual([]);
+  });
+
+  it("searches only the author's own titles and refuses anonymous pickers", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Picker Owner",
+      email: "picker-owner@example.com",
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    const own = t.withIdentity(identity);
+    const matchId = await seedPost(t, identity.subject, {
+      title: "Quokka sightings",
+      body: "No keyword here.",
+      publishedAt: 10,
+    });
+    const bodyOnlyId = await seedPost(t, identity.subject, {
+      title: "Plain heading",
+      body: "This body mentions Quokka but the title does not.",
+      publishedAt: 11,
+    });
+
+    await expect(
+      t.query(api.profiles.listOwnPublishedPosts, {
+        search: "",
+        paginationOpts: { numItems: 5, cursor: null },
+      }),
+    ).rejects.toThrow("Unauthorized");
+
+    const browsed = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "   ",
+      paginationOpts: { numItems: 5, cursor: null },
+    });
+    expect(browsed.page.map((card) => card.postId)).toContain(matchId);
+
+    const searched = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "Quokka",
+      paginationOpts: { numItems: 5, cursor: null },
+    });
+    const searchedIds = searched.page.map((card) => card.postId);
+    expect(searchedIds).toContain(matchId);
+    expect(searchedIds).not.toContain(bodyOnlyId);
+
+    await expect(
+      own.query(api.profiles.listOwnPublishedPosts, {
+        search: "x".repeat(101),
+        paginationOpts: { numItems: 5, cursor: null },
+      }),
+    ).rejects.toThrow(/too long/i);
   });
 });

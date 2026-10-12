@@ -7,17 +7,27 @@
  * Selection reads and writes arrive in the follow-up boundary.
  */
 import { ConvexError, v } from "convex/values";
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import { MAX_SELECTED_POSTS, countCodePoints } from "../lib/profile-identity";
 import {
+  assertPageSize,
   authorCardValidator,
   getOwnProfile,
+  hydrateAuthorCards,
   identityInputValidator,
   joinDateDisplayValidator,
+  readShowcase,
   revisionSaveValidator,
   saveIdentity,
+  saveSelection,
   socialProfilesValidator,
   storedIdentity,
+  summariesToCards,
 } from "./profileModel";
 
 const publicIdentityValidator = v.object({
@@ -85,8 +95,11 @@ export const getEditorProfile = query({
       identityRevision: user.identityRevision ?? 0,
       selectionRevision: user.selectionRevision ?? 0,
       selectedPostIds: user.selectedPostIds ?? [],
-      // Selection cards are hydrated in the selected-work boundary.
-      selectedPosts: [],
+      selectedPosts: await hydrateAuthorCards(
+        ctx,
+        user.userId,
+        user.selectedPostIds ?? [],
+      ),
     };
   },
 });
@@ -103,5 +116,125 @@ export const updateIdentity = mutation({
     const user = await getOwnProfile(ctx, authUser._id);
     if (!user) throw new ConvexError("Unauthorized");
     return await saveIdentity(ctx, user, args.expectedRevision, args.identity);
+  },
+});
+
+const showcaseValidator = v.object({
+  mode: v.union(v.literal("selected"), v.literal("latest")),
+  posts: v.array(authorCardValidator),
+});
+
+const MAX_OWN_TITLE_SEARCH_CODE_POINTS = 100;
+
+/** Surviving ordered selections, or the latest three published posts. */
+export const getShowcase = query({
+  args: { userId: v.string() },
+  returns: showcaseValidator,
+  handler: async (ctx, args) => await readShowcase(ctx, args.userId),
+});
+
+/** Newest-first published posts for one author, bounded by the native page size. */
+export const listAuthorPosts = query({
+  args: {
+    userId: v.string(),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: paginationResultValidator(authorCardValidator),
+  handler: async (ctx, args) => {
+    assertPageSize(args.paginationOpts);
+    const result = await ctx.db
+      .query("discoverPosts")
+      .withIndex("by_authorId_and_publishedAt", (q) =>
+        q.eq("authorId", args.userId),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+    return { ...result, page: await summariesToCards(ctx, result.page) };
+  },
+});
+
+/**
+ * The authenticated author's own published posts for the selection picker.
+ * An empty search browses newest first; a title search is bounded and filtered
+ * to the caller's own rows, then hydrated from compact summaries.
+ */
+export const listOwnPublishedPosts = query({
+  args: {
+    search: v.string(),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: paginationResultValidator(authorCardValidator),
+  handler: async (ctx, args) => {
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    if (!authUser) throw new ConvexError("Unauthorized");
+    assertPageSize(args.paginationOpts);
+    const search = args.search.trim();
+    if (countCodePoints(search) > MAX_OWN_TITLE_SEARCH_CODE_POINTS) {
+      throw new ConvexError("Search is too long.");
+    }
+    if (search.length === 0) {
+      const result = await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_authorId_and_publishedAt", (q) =>
+          q.eq("authorId", authUser._id),
+        )
+        .order("desc")
+        .paginate(args.paginationOpts);
+      return { ...result, page: await summariesToCards(ctx, result.page) };
+    }
+    const result = await ctx.db
+      .query("discoverPostSearch")
+      .withSearchIndex("search_title", (q) =>
+        q.search("title", search).eq("authorId", authUser._id),
+      )
+      .paginate(args.paginationOpts);
+    const cards = [];
+    for (const hit of result.page) {
+      const summary = await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_postId", (q) => q.eq("postId", hit.postId))
+        .unique();
+      if (summary && summary.authorId === authUser._id) {
+        cards.push(...(await summariesToCards(ctx, [summary])));
+      }
+    }
+    return { ...result, page: cards };
+  },
+});
+
+/**
+ * Live availability for the current selection arguments: only the caller's own
+ * currently published posts, in argument order. Foreign, draft, and missing
+ * entries are omitted without exposing their details.
+ */
+export const getOwnSelectionAvailability = query({
+  args: { postIds: v.array(v.id("posts")) },
+  returns: v.array(authorCardValidator),
+  handler: async (ctx, args) => {
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    if (!authUser) throw new ConvexError("Unauthorized");
+    if (args.postIds.length > MAX_SELECTED_POSTS) {
+      throw new ConvexError(`Select at most ${MAX_SELECTED_POSTS} posts.`);
+    }
+    if (new Set(args.postIds).size !== args.postIds.length) {
+      throw new ConvexError("Selection contains duplicates.");
+    }
+    return await hydrateAuthorCards(ctx, authUser._id, args.postIds);
+  },
+});
+
+/** Revision-checked, ordered selection write for the caller's own posts. */
+export const updateSelection = mutation({
+  args: {
+    expectedRevision: v.number(),
+    postIds: v.array(v.id("posts")),
+  },
+  returns: revisionSaveValidator,
+  handler: async (ctx, args) => {
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    if (!authUser) throw new ConvexError("Unauthorized");
+    const user = await getOwnProfile(ctx, authUser._id);
+    if (!user) throw new ConvexError("Unauthorized");
+    return await saveSelection(ctx, user, args.expectedRevision, args.postIds);
   },
 });

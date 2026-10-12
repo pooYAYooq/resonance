@@ -251,7 +251,8 @@ export default defineSchema({
   })
     .index("by_postId", ["postId"])
     .index("by_authorId", ["authorId"])
-    .index("by_publishedAt", ["publishedAt"]),
+    .index("by_publishedAt", ["publishedAt"])
+    .index("by_authorId_and_publishedAt", ["authorId", "publishedAt"]),
 
   /** One complete searchable corpus row per published source post. */
   discoverPostSearch: defineTable({
@@ -265,6 +266,10 @@ export default defineSchema({
     .index("by_authorId", ["authorId"])
     .searchIndex("search_searchableText", {
       searchField: "searchableText",
+    })
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["authorId"],
     }),
 
   /** One topic row per unique `(postId, tag)` pair for bounded Topic listings. */
