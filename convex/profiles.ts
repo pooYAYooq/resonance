@@ -16,6 +16,7 @@ import { authComponent } from "./auth";
 import { MAX_SELECTED_POSTS, countCodePoints } from "../lib/profile-identity";
 import {
   assertPageSize,
+  boundExplicitCursorRange,
   MAX_PROFILE_PAGE_SIZE,
   authorCardValidator,
   getOwnProfile,
@@ -143,13 +144,14 @@ export const listAuthorPosts = query({
   returns: paginationResultValidator(authorCardValidator),
   handler: async (ctx, args) => {
     assertPageSize(args.paginationOpts);
+    const paginationOpts = boundExplicitCursorRange(args.paginationOpts);
     const result = await ctx.db
       .query("discoverPosts")
       .withIndex("by_authorId_and_publishedAt", (q) =>
         q.eq("authorId", args.userId),
       )
       .order("desc")
-      .paginate(args.paginationOpts);
+      .paginate(paginationOpts);
     return { ...result, page: await summariesToCards(ctx, result.page) };
   },
 });
@@ -174,18 +176,19 @@ export const listOwnPublishedPosts = query({
       throw new ConvexError("Search is too long.");
     }
     if (search.length === 0) {
+      const paginationOpts = boundExplicitCursorRange(args.paginationOpts);
       const result = await ctx.db
         .query("discoverPosts")
         .withIndex("by_authorId_and_publishedAt", (q) =>
           q.eq("authorId", authUser._id),
         )
         .order("desc")
-        .paginate(args.paginationOpts);
+        .paginate(paginationOpts);
       return { ...result, page: await summariesToCards(ctx, result.page) };
     }
     const result = await ctx.db
       .query("discoverPostSearch")
-      .withSearchIndex("search_title", (q) =>
+      .withSearchIndex("search_title_and_authorId", (q) =>
         q.search("title", search).eq("authorId", authUser._id),
       )
       .paginate(args.paginationOpts);

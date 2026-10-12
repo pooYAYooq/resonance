@@ -343,9 +343,9 @@ components/
     │
     ├── AuthSync.tsx
     │     Client component mounted inside ConvexClientProvider. Fires
-    │     the users.syncUser mutation whenever auth state changes, so
-    │     the app-level users table mirrors the Better Auth identity
-    │     (display name, email, OAuth avatar). Known issue: sync is
+    │     the users.syncUser mutation whenever auth state changes. Provider
+    │     display name seeds new user records; existing names remain
+    │     author-owned while email and OAuth avatar stay synced. Known issue: sync is
     │     fire-and-forget, so on first OAuth sign-up the Navbar can
     │     briefly render initials instead of the provider avatar.
     │
@@ -488,8 +488,10 @@ models: compact `discoverPosts` summaries for Latest and result rendering,
 body field),
 `discoverPostTopics` for Topic listings, and `topicStats` for active
 canonical-topic counts. `discoverPosts` has `by_postId`, `by_authorId`, and
-`by_publishedAt`; `discoverPostSearch` has `by_postId`, `by_authorId`, and the
-full-text `search_searchableText` index. Topic rows use
+`by_publishedAt`, plus `by_authorId_and_publishedAt` for author catalogues;
+`discoverPostSearch` has `by_postId`, `by_authorId`, the full-text
+`search_searchableText` index, and `search_title_and_authorId` for author-scoped
+title search. Topic rows use
 `by_tag_and_publishedAt`, `by_postId_and_tag`, and `by_postId`; counters use
 `topicStats.by_tag`. Indexed lookups enforce one post projection per source
 post, one Topic row per `(postId, tag)`, and one counter per canonical tag.
@@ -876,8 +878,10 @@ Browser                 Next.js              Convex HTTP
 Auth supports email + password and OAuth (Google and GitHub). Email
 verification is disabled. For OAuth sign-ins, `convex/auth.ts` maps provider
 profile fields (Google `picture`, GitHub `avatar_url`) onto the Better Auth
-user so avatars display immediately; `AuthSync` then copies identity fields
-into the app-level `users` table.
+user so avatars display immediately; `AuthSync` then seeds the app-level
+display name for new user records and keeps email/avatar fields synchronized.
+Subsequent display-name changes remain author-owned and are not overwritten by
+provider sync.
 
 ---
 

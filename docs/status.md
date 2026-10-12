@@ -12,7 +12,7 @@ country list, five validated social platforms, and join-date formatting),
 optional `users` identity fields with an authoritative immutable `joinedAt`,
 and revision-checked identity and selected-work APIs with bounded reads. The
 identity editor, public author page, catalogue, and selected-work presentation
-remain. Ordered lint, 717 unit/backend tests, 742 component tests, and build
+remain. Ordered lint, 718 unit/backend tests, 742 component tests, and build
 pass; three pre-existing direct-TypeScript test errors remain listed in
 [known limitations](KNOWN_LIMITATIONS.md). This foundation adds no browser-facing
 surface, so it carries no new accessibility evidence.

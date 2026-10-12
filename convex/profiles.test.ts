@@ -656,6 +656,57 @@ describe("profiles selection API", () => {
     expect(empty.page).toEqual([]);
   });
 
+  it("bounds explicit cursor ranges in catalogue and empty-search pages", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, own } = await seedAuthor(
+      t,
+      "wide-index-range@example.com",
+      21,
+    );
+
+    const catalogueFirst = await t.query(api.profiles.listAuthorPosts, {
+      userId: identity.subject,
+      paginationOpts: { numItems: 20, cursor: null },
+    });
+    const catalogueLast = await t.query(api.profiles.listAuthorPosts, {
+      userId: identity.subject,
+      paginationOpts: { numItems: 20, cursor: catalogueFirst.continueCursor },
+    });
+    const catalogueRange = await t.query(api.profiles.listAuthorPosts, {
+      userId: identity.subject,
+      paginationOpts: {
+        numItems: 1,
+        cursor: null,
+        endCursor: catalogueLast.continueCursor,
+      },
+    });
+
+    expect(catalogueRange.page).toHaveLength(20);
+    expect(catalogueRange.pageStatus).toBe("SplitRequired");
+    expect(catalogueRange.splitCursor).toEqual(expect.any(String));
+
+    const browseFirst = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "",
+      paginationOpts: { numItems: 20, cursor: null },
+    });
+    const browseLast = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "",
+      paginationOpts: { numItems: 20, cursor: browseFirst.continueCursor },
+    });
+    const browseRange = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "",
+      paginationOpts: {
+        numItems: 1,
+        cursor: null,
+        endCursor: browseLast.continueCursor,
+      },
+    });
+
+    expect(browseRange.page).toHaveLength(20);
+    expect(browseRange.pageStatus).toBe("SplitRequired");
+    expect(browseRange.splitCursor).toEqual(expect.any(String));
+  });
+
   it("searches only the author's own titles and refuses anonymous pickers", async () => {
     const t = convexTest(schema, modules);
     const identity = await createAuthIdentity(t, {

@@ -267,7 +267,7 @@ export default defineSchema({
     .searchIndex("search_searchableText", {
       searchField: "searchableText",
     })
-    .searchIndex("search_title", {
+    .searchIndex("search_title_and_authorId", {
       searchField: "title",
       filterFields: ["authorId"],
     }),

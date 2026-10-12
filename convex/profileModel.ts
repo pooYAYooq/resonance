@@ -4,6 +4,7 @@
  * functions; `convex/profiles.ts` exposes the API.
  */
 import { ConvexError, v } from "convex/values";
+import type { PaginationOptions } from "convex/server";
 import { internal } from "./_generated/api";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -174,6 +175,22 @@ export function assertPageSize(paginationOpts: {
       `Page size must be a safe integer between 1 and ${MAX_PROFILE_PAGE_SIZE}.`,
     );
   }
+}
+
+/** Adds a safe read budget when an explicit cursor range can bypass numItems. */
+export function boundExplicitCursorRange(
+  paginationOpts: PaginationOptions,
+): PaginationOptions {
+  if (
+    paginationOpts.endCursor == null ||
+    paginationOpts.maximumRowsRead !== undefined
+  ) {
+    return paginationOpts;
+  }
+  return {
+    ...paginationOpts,
+    maximumRowsRead: MAX_PROFILE_PAGE_SIZE,
+  };
 }
 
 async function toAuthorCard(
