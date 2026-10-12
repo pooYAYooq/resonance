@@ -194,6 +194,11 @@ resonance/
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser, getCurrentUser, getUserProfile,
 │   │                           # updateProfile mutations/queries and Discover rename repair
+│   ├── profileModel.ts         # Shared profile validators, stored-identity mapping,
+│   │                           # revision-checked identity/selection helpers, bounded
+│   │                           # card hydration, and deleted-selection cleanup. Not registered.
+│   ├── profiles.ts             # Public identity/showcase/catalogue reads and
+│   │                           # authenticated identity and selected-work edits
 │
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (Button, Card, Input, etc.)
@@ -294,6 +299,9 @@ resonance/
     ├── code-languages.ts       # Canonical code-block IDs, labels, aliases, and Shiki grammars.
     ├── safe-link.ts            # Shared http/https/mailto author-link validator.
     ├── cover.ts                # Shared cover URL resolver; null renders the blank fallback.
+    ├── profile-identity.ts     # Profile identity types, code-point limits, and normalizer.
+    ├── profile-socials.ts      # Social platform allowlists and URL validation/canonicalization.
+    ├── profile-joined-date.ts  # UTC calendar and relative join-date formatting.
     ├── use-inline-image-upload.ts # Owner-bound BlockNote file upload and preview lifecycle hook.
     ├── shiki/
     │   ├── code-highlighter.generated.ts # Generated editor grammars and themes.
@@ -301,7 +309,8 @@ resonance/
     └── constants/
         ├── seo.ts              # SITE_NAME, getSiteUrl(), truncateForDescription()
         ├── footer.ts            # Footer site name, nav links, social links
-        └── post-tags.ts         # Fifteen canonical values, max count, pure validators
+        ├── post-tags.ts         # Fifteen canonical values, max count, pure validators
+        └── profile-countries.ts # Approved selectable country snapshot with source/license note
 ```
 
 ---

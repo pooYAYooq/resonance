@@ -111,8 +111,10 @@ Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 | V1-19 | Saved and Liked collection presentation          | Todo        | S        |
 | V1-20 | Context-specific post-card variants              | Todo        | M        |
 
-Required publication covers are implemented. The profile foundation, identity
-editor, public author page, and catalogue remain.
+Required publication covers are implemented. The profile foundation (identity
+constraints, authoritative join date, and bounded identity and selected-work
+APIs) is implemented. The identity editor, public author page, and catalogue
+remain.
 
 ### Visual system and responsive polish
 

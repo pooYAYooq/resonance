@@ -212,6 +212,8 @@ convex/
   postDeletion.ts             # Internal bounded deletion continuations, draft upload cleanup, and stale-job recovery
   profilePostCount.ts         # Transactional profile count adjustment helper
   users.ts                    # User sync, profile queries, updateProfile, Discover rename repair
+  profileModel.ts             # Shared profile validators, revision-checked identity/selection helpers
+  profiles.ts                 # Public identity/showcase/catalogue reads; authenticated identity and selection edits
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth)
   http.ts                     # Convex HTTP actions
@@ -269,6 +271,10 @@ lib/
   code-languages.ts           # Canonical code-block IDs, labels, aliases, and Shiki grammars
   safe-link.ts                # Shared http/https/mailto author-link validator
   cover.ts                    # Shared cover URL resolver; null renders the blank fallback
+  profile-identity.ts         # Profile identity types, code-point limits, and normalizer
+  profile-socials.ts          # Social platform allowlists and URL validation/canonicalization
+  profile-joined-date.ts      # UTC calendar and relative join-date formatting
+  constants/profile-countries.ts # Approved selectable country snapshot with source/license note
   draft-recovery.ts           # Versioned localStorage snapshot for unsaved new posts and drafts
   authoring-exit-policy.ts    # Pure exit decisions: recover, confirm, or block per intent
   authoring-history.ts        # Navigation API traversal adapter with one-shot replay
