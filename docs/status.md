@@ -6,16 +6,14 @@ a session history.
 
 ## Current focus
 
-Public author identity is the approved product scope. Required publication
-covers are merged. The profile foundation is implemented on
-`feat/author-profile-foundation`: identity constraints (name and introduction
-code-point limits, a reviewed country list, five validated social platforms,
-and join-date formatting), optional `users` identity fields with an
-authoritative immutable `joinedAt`, and revision-checked identity and
-selected-work APIs with bounded reads. The identity editor, public author page,
-catalogue, and selected-work presentation remain. Ordered lint, 703
-unit/backend tests, 742 component tests, and build pass; three pre-existing
-direct-TypeScript test errors remain listed in
+Public author identity is the approved product scope. The profile foundation
+adds identity constraints (name and introduction code-point limits, a reviewed
+country list, five validated social platforms, and join-date formatting),
+optional `users` identity fields with an authoritative immutable `joinedAt`,
+and revision-checked identity and selected-work APIs with bounded reads. The
+identity editor, public author page, catalogue, and selected-work presentation
+remain. Ordered lint, 711 unit/backend tests, 742 component tests, and build
+pass; three pre-existing direct-TypeScript test errors remain listed in
 [known limitations](KNOWN_LIMITATIONS.md). This foundation adds no browser-facing
 surface, so it carries no new accessibility evidence.
 
@@ -25,9 +23,8 @@ submission, after review changes, and before merge handoff.
 
 ## Next action
 
-Land the profile foundation, then implement the identity editor, the public
-author page and catalogue, and the selected-work presentation in their approved
-boundaries.
+Implement the identity editor, the public author page and catalogue, and the
+selected-work presentation in their approved boundaries.
 
 ## Blockers and constraints
 

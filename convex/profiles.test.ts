@@ -871,6 +871,28 @@ describe("profiles API edge coverage", () => {
     expect(new Set(seen)).toEqual(new Set([first, second]));
   });
 
+  it("rejects oversized auxiliary pagination read budgets", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, own } = await seedAuthor(
+      t,
+      "pagination-limit@example.com",
+      1,
+    );
+
+    await expect(
+      t.query(api.profiles.listAuthorPosts, {
+        userId: identity.subject,
+        paginationOpts: { numItems: 5, cursor: null, maximumRowsRead: 21 },
+      }),
+    ).rejects.toThrow(/page size/i);
+    await expect(
+      own.query(api.profiles.listOwnPublishedPosts, {
+        search: "",
+        paginationOpts: { numItems: 5, cursor: null, maximumRowsRead: 21 },
+      }),
+    ).rejects.toThrow(/page size/i);
+  });
+
   it("keeps the legacy updateProfile adapter consistent with the shared model", async () => {
     const t = convexTest(schema, modules);
     const identity = await createAuthIdentity(t, {

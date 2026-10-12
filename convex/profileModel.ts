@@ -150,16 +150,28 @@ export async function saveIdentity(
   return { kind: "saved", revision: revision + 1 };
 }
 
-/** Rejects a page size outside the bounded native pagination range. */
-export function assertPageSize(paginationOpts: { numItems: number }): void {
-  const { numItems } = paginationOpts;
+/**
+ * Rejects a page size or auxiliary read budget outside the bounded native
+ * pagination range, matching the other public list APIs. Without this a caller
+ * could pair a far `endCursor` with a large `maximumRowsRead` and turn a bounded
+ * read into an expensive range read.
+ */
+export function assertPageSize(paginationOpts: {
+  numItems: number;
+  maximumRowsRead?: number;
+}): void {
+  const { numItems, maximumRowsRead } = paginationOpts;
   if (
-    !Number.isInteger(numItems) ||
+    !Number.isSafeInteger(numItems) ||
     numItems < 1 ||
-    numItems > MAX_PROFILE_PAGE_SIZE
+    numItems > MAX_PROFILE_PAGE_SIZE ||
+    (maximumRowsRead !== undefined &&
+      (!Number.isSafeInteger(maximumRowsRead) ||
+        maximumRowsRead < 1 ||
+        maximumRowsRead > MAX_PROFILE_PAGE_SIZE))
   ) {
     throw new ConvexError(
-      `Page size must be between 1 and ${MAX_PROFILE_PAGE_SIZE}.`,
+      `Page size must be a safe integer between 1 and ${MAX_PROFILE_PAGE_SIZE}.`,
     );
   }
 }
