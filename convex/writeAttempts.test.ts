@@ -5,6 +5,7 @@ import { convexTest } from "convex-test";
 import { afterEach, expect, it, vi } from "vitest";
 import { api, components, internal } from "./_generated/api";
 import schema from "./schema";
+import { storeTestImage } from "./testUtils/storage";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -530,8 +531,10 @@ it("rolls back unexpected projection failures without recording a failure", asyn
   });
   await t.withIdentity(identity).mutation(api.users.syncUser, {});
   const postId = await t.run(async (ctx) => {
+    const imageStorageId = await storeTestImage(ctx);
     const postId = await ctx.db.insert("posts", {
       title: "Original title",
+      imageStorageId,
       body: proposal.body,
       tags: ["Technology"],
       authorId: identity.subject,
@@ -555,7 +558,13 @@ it("rolls back unexpected projection failures without recording a failure", asyn
     });
     return postId;
   });
-  const updateProposal = { ...proposal, title: "Updated title" };
+  const imageStorageId = (await t.run((ctx) => ctx.db.get(postId)))!
+    .imageStorageId;
+  const updateProposal = {
+    ...proposal,
+    title: "Updated title",
+    imageStorageId,
+  };
   const reservation = await t
     .withIdentity(identity)
     .mutation(api.writeAttempts.reserveAttempt, {
@@ -621,6 +630,16 @@ it("publishes a reserved proposal and applies a versioned published update", asy
   const publishedProposal = {
     ...proposal,
     title: "Published title",
+    imageStorageId: await t.run(async (ctx) => {
+      const storageId = await storeTestImage(ctx);
+      await ctx.db.insert("pendingUploads", {
+        userId: identity.subject,
+        storageId,
+        createdAt: now,
+        expiresAt: now + 60_000,
+      });
+      return storageId;
+    }),
     body: JSON.stringify({
       format: "blocknote@1",
       blocks: [
@@ -800,7 +819,7 @@ it("publishes 100 inline images and a cover through the write lifecycle", async 
   const storageIds = await t.run(async (ctx) => {
     const ids = await Promise.all(
       Array.from({ length: 101 }, () =>
-        ctx.storage.store(new Blob(["image"], { type: "image/png" })),
+        storeTestImage(ctx, new Blob(["image"], { type: "image/png" })),
       ),
     );
     for (const storageId of ids) {

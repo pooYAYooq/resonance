@@ -53,6 +53,99 @@ behavioral failure.
 
 ## Results
 
+### Required publication covers (2026-10-12)
+
+Incremental evidence on `feat/required-publication-covers`, based on `7decfa9`
+with uncommitted cover validation, readiness, focus, visual-state, and
+selected-file policy changes. The first implementation gated entry to Review on
+a cover; the maintainer rejected that model, so checks of it are marked
+historical and superseded below. This does not replace the earlier full-surface
+evidence.
+
+- Windows Chrome, attached extension session, dev `woozy-spaniel-283`. The
+  attached browser denied native file-chooser assignment; a generated PNG was
+  assigned to the actual file input with a File/DataTransfer change event, and
+  the application performed the real upload and publication. Native chooser
+  operation is not established by these checks.
+- Historical, superseded model: missing covers then blocked entry to Review.
+  At 375/1280 light/dark the dimmed Review Update control stayed
+  keyboard-reachable with a visible focus ring
+  (`cover-update-focus-{375,1280}-{light,dark}.png`, local artifacts). Those
+  captures are not acceptance evidence for the current flow.
+- Enter on Remove cover returned focus to Add cover, both for a new post and a
+  published-edit fixture. This behavior carried into the corrected model.
+- A held upload kept Publish focusable (`disabled=false`, `aria-disabled=true`)
+  while displaying Publishing. Repeated Enter/Space produced exactly one upload
+  request. Shift+Tab moved to Back to editing; releasing the held request as a
+  network failure did not steal focus back. Returning to editing retained the
+  title, body, and selected cover; Start fresh then cleared only that unsaved
+  fixture. The interception was removed afterward.
+- Publication-after-upload recovery used two editing tabs on a disposable
+  post: one saved a concurrent update, then the stale tab uploaded its
+  replacement cover and received `Document changed elsewhere.` Review remained
+  available, and returning to editing retained its unsaved title, body, and
+  replacement File. Discarding those unsaved changes left the concurrent saved
+  title intact. The fixture was then deleted; its absence and the demo's
+  engagement counts were verified. A beforeunload prompt appeared during
+  cleanup navigation; it was accepted only after fixture deletion. This check
+  does not establish why that prompt occurred or change navigation policy.
+- Functional checks saved a coverless draft, published after adding an image,
+  and saved a coverless pending update without changing the published source.
+  Those disposable fixtures were deleted through the app; the existing demo
+  post retained its one like and one comment.
+
+**Corrected model, retested 2026-10-12:**
+
+- Coverless Review opened by keyboard with a neutral 16:9 placeholder and
+  “No cover yet. Add one before publishing.” Final Publish stayed focusable
+  with `aria-disabled=true`, described by the visible sticky-header reminder.
+  Enter/Space could not submit without a cover and produced no repeated error
+  toasts. The normal writing and review journey was not blocked.
+- Add cover in Preview returned to editing and focused Add cover without
+  opening the native dialog. Title and body remained intact. A cover added as
+  the last editing step previewed and published successfully.
+- A separate cover-first fixture selected a PNG while title and body were
+  empty, then wrote, previewed, and published successfully. Removing its cover
+  during published editing still allowed preview, while final Update remained
+  blocked. Add cover again returned logical focus to the picker.
+- At 375/1280 in light/dark the reminder and Add cover action remained visible
+  beneath the sticky toolbar and the placeholder kept its ratio. Tab/Shift+Tab
+  established visible focus on Add cover. Inspected screenshots
+  `coverless-preview-final-{375,1280}-{light,dark}.png` (local artifacts) show
+  no toast overlays or horizontal overflow; scroll width equalled client width.
+- Both named published fixtures were deleted and their absence verified in
+  My Posts. The demo still showed one like and one comment. The unsaved visual
+  fixture was cleared via Start fresh, restoring the original blank `/create`,
+  dark theme, and 2554x1188 viewport. File selection used the same real-input
+  method described above; native chooser acceptance remains outside the
+  evidence.
+
+**After this retest (review fix; automated coverage, no browser retest):**
+
+- Final readiness checks a selected File for supported MIME (JPEG, PNG, WebP),
+  nonzero size, and the 5 MiB maximum, and draft and publish validation reject a
+  zero-byte file before it can be stored. An empty or unsupported selection
+  surfaces the form's cover-policy message before Review instead of being saved
+  and trusted later. Automated tests cover unsupported formats, unknown MIME,
+  empty and oversized files, the exact valid size limit, and no reservation or
+  upload on an invalid submit.
+- Uploads are verified server-side at finalization: a zero-byte object is
+  rejected, and an image must carry the stored signature for its declared JPEG,
+  PNG, or WebP type. Automated coverage only.
+- A saved cover the server cannot resolve blocks Review from both ordinary
+  hydration and pending-target adoption, with the existing recovery message
+  until the author replaces or removes it. Automated coverage only.
+- Refreshed ordered lint, 659 edge-runtime tests, 742 component tests, and
+  build passed after this fix.
+- Minor review finding: Back to editing stays focusable and guarded while
+  saving but does not visually dim like Review/Publish. This is recorded polish,
+  not a reproduced focus-loss or duplicate-write defect.
+- Screen-reader, touch, and non-Chromium limitations remain unchanged. Direct
+  TypeScript verification retains the separate baseline test-file gaps in
+  [known limitations](KNOWN_LIMITATIONS.md).
+- Retest after cover controls, readiness guards, submission state, or focus
+  handling change.
+
 Result values: Pass, Fail, Blocked, Not applicable. Blocked rows name the
 reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 

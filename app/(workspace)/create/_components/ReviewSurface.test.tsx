@@ -80,12 +80,18 @@ describe("ReviewSurface", () => {
     renderSurface();
 
     expect(screen.getByTestId("default-cover")).toBeVisible();
+    expect(
+      screen.getByText("No cover yet. Add one before publishing."),
+    ).toBeVisible();
   });
 
   it("renders a custom cover when a cover url is given", () => {
     renderSurface({ coverUrl: "https://cdn.example/cover.png" });
 
     expect(screen.queryByTestId("default-cover")).toBeNull();
+    expect(
+      screen.queryByText("No cover yet. Add one before publishing."),
+    ).toBeNull();
     const img = screen.getByAltText("Review title");
     expect(img.getAttribute("src") ?? "").toContain("cdn.example%2Fcover.png");
   });

@@ -44,22 +44,33 @@ export default function ReviewSurface({
   return (
     <section className="w-full" data-review-page="true">
       <article
-      data-testid="review-surface"
-      data-review-mode={mode}
-      className="relative mx-auto w-full max-w-7xl px-4 pt-6 pb-8 md:px-6 lg:px-8"
+        data-testid="review-surface"
+        data-review-mode={mode}
+        className="relative mx-auto w-full max-w-7xl px-4 pt-6 pb-8 md:px-6 lg:px-8"
       >
-        <PostCover
-          src={coverUrl}
-          alt={proposal.title}
-          className="rounded-xl shadow-sm"
-        />
+        <div className="relative">
+          <PostCover
+            src={coverUrl}
+            alt={proposal.title}
+            className="rounded-xl bg-muted shadow-sm"
+          />
+          {!coverUrl && (
+            <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
+              No cover yet. Add one before publishing.
+            </p>
+          )}
+        </div>
         <PostArticleHeader
           title={proposal.title}
           author={author}
           tags={proposal.tags}
           published={published}
         />
-        <Separator className="my-8" orientation="horizontal" decorative={true} />
+        <Separator
+          className="my-8"
+          orientation="horizontal"
+          decorative={true}
+        />
         <div
           data-testid="review-prose"
           className="mx-auto w-full max-w-175 xl:mx-0"

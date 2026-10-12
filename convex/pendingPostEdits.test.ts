@@ -7,6 +7,7 @@ import { api, components } from "./_generated/api";
 import schema from "./schema";
 import type { Id } from "./_generated/dataModel";
 import { syncPublishedPostProjection } from "./discoverProjection";
+import { storeTestImage } from "./testUtils/storage";
 
 const modules = import.meta.glob("./**/*.ts");
 const body = JSON.stringify({
@@ -59,11 +60,14 @@ async function setup() {
   });
   const owner = t.withIdentity(identity);
   const appUserId = await owner.mutation(api.users.syncUser, {});
+  const imageStorageId = await t.run((ctx) => storeTestImage(ctx));
+  const coveredProposal = { ...proposal, imageStorageId };
   const postId = await t.run(async (ctx) => {
     await ctx.db.patch(appUserId, { publishedPostCount: 1 });
     await ctx.db.insert("stats", { totalPosts: 1 });
     const id = await ctx.db.insert("posts", {
       title: "Live title",
+      imageStorageId,
       body,
       tags: ["Technology"],
       authorId: identity.subject,
@@ -86,7 +90,7 @@ async function setup() {
       body: string;
       tags: string[];
       imageStorageId?: Id<"_storage">;
-    } = proposal,
+    } = coveredProposal,
     target = postId,
   ) {
     const reservation = await owner.mutation(api.writeAttempts.reserveAttempt, {
@@ -101,7 +105,7 @@ async function setup() {
       proposal: nextProposal,
     });
   }
-  return { t, owner, postId, identity, write };
+  return { t, owner, postId, identity, write, coveredProposal };
 }
 
 it("saves one private pending draft while the live post and discovery stay unchanged", async () => {
@@ -244,14 +248,19 @@ it("deleting the pending draft never deletes or unpublishes its source", async (
 });
 
 it("cannot turn a linked pending draft into a second published post through publishPost", async () => {
-  const { t, owner, postId, write } = await setup();
+  const { t, owner, postId, write, coveredProposal } = await setup();
   const saved = await write("save-draft", 10);
   if (saved.kind !== "succeeded") throw new Error(saved.message);
   const drafts = await owner.query(api.posts.getDrafts, {
     paginationOpts: { cursor: null, numItems: 12 },
   });
   expect(
-    await write("publish", saved.updatedAt, proposal, drafts.page[0]._id),
+    await write(
+      "publish",
+      saved.updatedAt,
+      coveredProposal,
+      drafts.page[0]._id,
+    ),
   ).toMatchObject({ kind: "succeeded", postId, status: "published" });
   expect(await t.run((ctx) => ctx.db.query("posts").take(10))).toHaveLength(1);
 });
@@ -314,10 +323,12 @@ it("protects live cover bytes while replacing, resaving, and deleting pending me
   vi.useFakeTimers();
   const { t, owner, postId, identity, write } = await setup();
   const { liveCover, pendingCover } = await t.run(async (ctx) => {
-    const liveCover = await ctx.storage.store(
+    const liveCover = await storeTestImage(
+      ctx,
       new Blob(["live"], { type: "image/png" }),
     );
-    const pendingCover = await ctx.storage.store(
+    const pendingCover = await storeTestImage(
+      ctx,
       new Blob(["pending"], { type: "image/png" }),
     );
     await ctx.db.patch(postId, { imageStorageId: liveCover });
@@ -366,10 +377,12 @@ it("publishes saved pending media and cleans only files no longer referenced", a
   vi.useFakeTimers();
   const { t, postId, identity, write } = await setup();
   const { liveCover, pendingCover } = await t.run(async (ctx) => {
-    const liveCover = await ctx.storage.store(
+    const liveCover = await storeTestImage(
+      ctx,
       new Blob(["live"], { type: "image/png" }),
     );
-    const pendingCover = await ctx.storage.store(
+    const pendingCover = await storeTestImage(
+      ctx,
       new Blob(["pending"], { type: "image/png" }),
     );
     await ctx.db.patch(postId, { imageStorageId: liveCover });

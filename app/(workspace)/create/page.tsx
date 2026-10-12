@@ -25,7 +25,13 @@ import {
 import type { ExitSaveResult } from "@/lib/authoring-exit-policy";
 import { useBlockNoteFileUpload } from "@/lib/use-inline-image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
+import {
+  useAction,
+  useConvex,
+  useConvexAuth,
+  useMutation,
+  useQuery,
+} from "convex/react";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -53,6 +59,8 @@ import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
 import {
   getCoverRecoveryBlocker,
   getReviewBlocker,
+  getCoverPublicationBlocker,
+  getHydratedCoverRecovery,
   getReviewSubmitBlock,
   REVIEW_BLOCKER_MESSAGES,
   type CoverRecoveryState,
@@ -361,7 +369,7 @@ function CreateEditor() {
   const createPendingUpload = useMutation(
     api.pendingUploads.createPendingUpload,
   );
-  const finalizePendingUpload = useMutation(
+  const finalizePendingUpload = useAction(
     api.pendingUploads.finalizePendingUpload,
   );
   const cleanupPendingUploads = useMutation(api.pendingUploads.cleanupPending);
@@ -532,6 +540,8 @@ function CreateEditor() {
   const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const hasFocusedTitleRef = useRef(false);
   const reviewEntryRef = useRef<HTMLButtonElement>(null);
+  const coverActionRef = useRef<HTMLButtonElement>(null);
+  const focusCoverOnEditRef = useRef(false);
   const reviewBackRef = useRef<HTMLButtonElement>(null);
   const wasReviewingRef = useRef(reviewing);
   // The title wraps instead of scrolling: keep the textarea height in sync
@@ -564,8 +574,16 @@ function CreateEditor() {
     if (reviewing) {
       reviewBackRef.current?.focus();
     } else {
+      if (focusCoverOnEditRef.current) {
+        focusCoverOnEditRef.current = false;
+        coverActionRef.current?.focus();
+        return;
+      }
       const reviewControl = reviewEntryRef.current;
-      if (reviewControl && !reviewControl.disabled) {
+      if (
+        reviewControl &&
+        !reviewControl.matches(":disabled, [aria-disabled='true']")
+      ) {
         reviewControl.focus();
       } else {
         // A confirmed target switch can leave Review disabled while Back is
@@ -811,6 +829,12 @@ function CreateEditor() {
       resetCoverSelectionRefs();
       setCoverStorageId(pendingData.imageStorageId ?? undefined);
       setCoverImageUrl(pendingData.imageUrl ?? undefined);
+      setCoverRecovery(
+        getHydratedCoverRecovery(
+          pendingData.imageStorageId,
+          pendingData.imageUrl,
+        ),
+      );
       setInitialContent(parsed.document);
       setResolvedImageUrls(
         Object.fromEntries(
@@ -1007,6 +1031,9 @@ function CreateEditor() {
       });
       setCoverStorageId(target.imageStorageId ?? undefined);
       setCoverImageUrl(target.imageUrl ?? undefined);
+      setCoverRecovery(
+        getHydratedCoverRecovery(target.imageStorageId, target.imageUrl),
+      );
       setInitialContent(parsed.document);
       setResolvedImageUrls(serverImages);
     }
@@ -1901,6 +1928,19 @@ function CreateEditor() {
   const reviewBlocker =
     getReviewBlocker(sessionState.media) ??
     getCoverRecoveryBlocker(coverRecovery);
+  const publicationBlocker =
+    reviewBlocker ??
+    getCoverPublicationBlocker({
+      selectedFile: selectedCoverRef.current,
+      existingStorageId: coverStorageId,
+      removed: coverRemoved,
+    });
+  const coverBlocksReview = reviewBlocker?.startsWith("cover-") ?? false;
+  const reviewDescriptionId = coverBlocksReview
+    ? reviewBlocker === "cover-load-failed"
+      ? "cover-readiness cover-readiness-error"
+      : "cover-readiness"
+    : "publication-readiness";
   const reviewInlineImages = Object.entries(resolvedImageUrls)
     .filter((entry): entry is [string, string] => typeof entry[1] === "string")
     .map(([storageId, url]) => ({ storageId, url }));
@@ -1975,6 +2015,7 @@ function CreateEditor() {
   }
 
   function enterReview() {
+    if (isPending || sessionState.pendingTarget) return;
     if (reviewBlocker) {
       toast.error(REVIEW_BLOCKER_MESSAGES[reviewBlocker]);
       return;
@@ -2032,6 +2073,7 @@ function CreateEditor() {
   }
 
   function backToEditing() {
+    if (isPending) return;
     setReviewSnapshot(null);
     dispatchSession({ type: "returnToEdit" });
   }
@@ -2039,14 +2081,16 @@ function CreateEditor() {
   function submitFromReview() {
     const snapshot = reviewSnapshot;
     if (!snapshot) return;
-    const blocker = reviewBlocker;
+    const blocker = publicationBlocker;
     const block = getReviewSubmitBlock({
       isPending,
       hasPendingTarget: Boolean(sessionState.pendingTarget),
       blocker,
     });
     if (block) {
-      if (blocker) toast.error(REVIEW_BLOCKER_MESSAGES[blocker]);
+      if (blocker && blocker !== "cover-required") {
+        toast.error(REVIEW_BLOCKER_MESSAGES[blocker]);
+      }
       return;
     }
     onSubmit(buildSnapshotSubmission(snapshot), "publish");
@@ -2070,7 +2114,7 @@ function CreateEditor() {
               variant="outline"
               aria-label="Back to editing"
               className="min-h-11 w-22 gap-2 px-3 sm:w-auto sm:px-5"
-              disabled={isPending}
+              aria-disabled={isPending}
               onClick={backToEditing}
             >
               <ArrowLeft className="size-4" aria-hidden="true" />
@@ -2080,6 +2124,35 @@ function CreateEditor() {
           ) : undefined
         }
         detailsHidden={reviewing}
+        previewNotice={
+          reviewing &&
+          (publicationBlocker === "cover-required" ||
+            publicationBlocker === "cover-invalid") ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p
+                id="publication-cover-required"
+                className="min-w-0 flex-1 text-sm text-muted-foreground"
+              >
+                {publicationBlocker === "cover-invalid"
+                  ? REVIEW_BLOCKER_MESSAGES[publicationBlocker]
+                  : "Add a cover before publishing. You can keep reviewing without one."}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (isPending) return;
+                  focusCoverOnEditRef.current = true;
+                  backToEditing();
+                }}
+              >
+                {publicationBlocker === "cover-invalid"
+                  ? "Replace cover"
+                  : "Add cover"}
+              </Button>
+            </div>
+          ) : undefined
+        }
         modeLabel={reviewing ? reviewModeLabel : undefined}
         notice={transitionNotice}
         heading={
@@ -2104,7 +2177,9 @@ function CreateEditor() {
           >
             <CoverAuthoring
               cover={coverMedia}
-              coverInputAriaLabel="Image (optional)"
+              coverInputAriaLabel="Cover image"
+              actionRef={coverActionRef}
+              guidanceId="cover-readiness"
               coverRecovery={coverRecovery}
               coverNote={
                 editorMode.mode === "published-edit"
@@ -2356,34 +2431,42 @@ function CreateEditor() {
         }
         actions={
           reviewing ? (
-            <Button
-              type="button"
-              className="min-h-11 w-22 px-3 sm:w-auto sm:px-5"
-              aria-label={
-                editorMode.mode === "published-edit"
-                  ? isPending
-                    ? "Updating post"
-                    : "Update post"
-                  : undefined
-              }
-              disabled={isPending || Boolean(reviewBlocker)}
-              onClick={submitFromReview}
-            >
-              {isPending ? (
-                editorMode.mode === "published-edit" ? (
-                  "Updating..."
+            <>
+              <Button
+                type="button"
+                className="min-h-11 w-22 px-3 aria-disabled:pointer-events-none aria-disabled:opacity-50 sm:w-auto sm:px-5"
+                aria-label={
+                  editorMode.mode === "published-edit"
+                    ? isPending
+                      ? "Updating post"
+                      : "Update post"
+                    : undefined
+                }
+                aria-disabled={isPending || Boolean(publicationBlocker)}
+                aria-describedby={
+                  publicationBlocker === "cover-required" ||
+                  publicationBlocker === "cover-invalid"
+                    ? "publication-cover-required"
+                    : reviewDescriptionId
+                }
+                onClick={submitFromReview}
+              >
+                {isPending ? (
+                  editorMode.mode === "published-edit" ? (
+                    "Updating..."
+                  ) : (
+                    "Publishing..."
+                  )
+                ) : editorMode.mode === "published-edit" ? (
+                  <>
+                    <span className="hidden sm:inline">Update post</span>
+                    <span className="sm:hidden">Update</span>
+                  </>
                 ) : (
-                  "Publishing..."
-                )
-              ) : editorMode.mode === "published-edit" ? (
-                <>
-                  <span className="hidden sm:inline">Update post</span>
-                  <span className="sm:hidden">Update</span>
-                </>
-              ) : (
-                "Publish"
-              )}
-            </Button>
+                  "Publish"
+                )}
+              </Button>
+            </>
           ) : (
             <>
               <Button
@@ -2427,8 +2510,13 @@ function CreateEditor() {
                 <Button
                   ref={reviewEntryRef}
                   type="button"
-                  className="bg-foreground text-background hover:bg-foreground/80"
-                  disabled={isPending || Boolean(sessionState.pendingTarget)}
+                  className="bg-foreground text-background hover:bg-foreground/80 aria-disabled:pointer-events-none aria-disabled:opacity-50"
+                  aria-disabled={
+                    isPending ||
+                    Boolean(sessionState.pendingTarget) ||
+                    Boolean(reviewBlocker)
+                  }
+                  aria-describedby={reviewDescriptionId}
                   onClick={enterReview}
                 >
                   Review for publication
@@ -2439,8 +2527,13 @@ function CreateEditor() {
                 <Button
                   ref={reviewEntryRef}
                   type="button"
-                  className="bg-foreground text-background hover:bg-foreground/80"
-                  disabled={isPending || Boolean(sessionState.pendingTarget)}
+                  className="bg-foreground text-background hover:bg-foreground/80 aria-disabled:pointer-events-none aria-disabled:opacity-50"
+                  aria-disabled={
+                    isPending ||
+                    Boolean(sessionState.pendingTarget) ||
+                    Boolean(reviewBlocker)
+                  }
+                  aria-describedby={reviewDescriptionId}
                   onClick={enterReview}
                 >
                   Review Update
@@ -2451,6 +2544,18 @@ function CreateEditor() {
           )
         }
       />
+      <p
+        id="publication-readiness"
+        role="status"
+        aria-atomic="true"
+        className="px-4 pb-4 text-sm text-muted-foreground"
+      >
+        {isPending
+          ? "Saving your changes…"
+          : reviewBlocker && !coverBlocksReview
+            ? REVIEW_BLOCKER_MESSAGES[reviewBlocker]
+            : ""}
+      </p>
       <EditorAbandonDialog
         mode={
           editorMode.mode === "published-edit" ? "cancel-update" : "start-fresh"

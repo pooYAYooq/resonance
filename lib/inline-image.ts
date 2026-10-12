@@ -22,6 +22,48 @@ export function isAllowedInlineImageType(
   );
 }
 
+/** Leading bytes read for signature checks; WebP needs the first twelve. */
+export const MEDIA_HEADER_BYTES = 16;
+
+const matchesAscii = (bytes: Uint8Array, offset: number, text: string) =>
+  [...text].every(
+    (character, index) => bytes[offset + index] === character.charCodeAt(0),
+  );
+
+const IMAGE_SIGNATURES: Record<
+  (typeof ALLOWED_INLINE_IMAGE_TYPES)[number],
+  (bytes: Uint8Array) => boolean
+> = {
+  "image/jpeg": (bytes) =>
+    bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff,
+  "image/png": (bytes) =>
+    bytes[0] === 0x89 &&
+    matchesAscii(bytes, 1, "PNG") &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a,
+  "image/webp": (bytes) =>
+    matchesAscii(bytes, 0, "RIFF") && matchesAscii(bytes, 8, "WEBP"),
+};
+
+/**
+ * Checks the leading bytes of an upload against the signature for its declared
+ * content type. Metadata alone cannot prove that bytes labelled as an image
+ * render, so the declared type must match the stored bytes.
+ *
+ * @param contentType - The declared upload content type
+ * @param bytes - The leading bytes of the stored object
+ * @returns True when the bytes match a signature for the declared image type
+ */
+export function hasImageSignature(
+  contentType: string | undefined,
+  bytes: Uint8Array,
+): boolean {
+  if (!isAllowedInlineImageType(contentType)) return false;
+  return IMAGE_SIGNATURES[contentType](bytes);
+}
+
 export const ALLOWED_BLOCKNOTE_AUDIO_TYPES = [
   "audio/aac",
   "audio/flac",

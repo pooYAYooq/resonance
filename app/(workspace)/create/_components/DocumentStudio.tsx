@@ -27,6 +27,7 @@ type DocumentStudioProps = {
   actions?: ReactNode;
   preview?: boolean;
   previewBackAction?: ReactNode;
+  previewNotice?: ReactNode;
 };
 
 const modeLabels: Record<EditorMode, string> = {
@@ -62,6 +63,7 @@ export default function DocumentStudio({
   actions,
   preview = false,
   previewBackAction,
+  previewNotice,
 }: DocumentStudioProps) {
   const isReady = state === "ready";
 
@@ -86,6 +88,11 @@ export default function DocumentStudio({
                 </p>
                 <div className="flex justify-self-end">{actions}</div>
               </div>
+              {previewNotice && (
+                <div className="mx-auto w-full max-w-7xl border-t border-border px-4 py-3 md:px-6 lg:px-8">
+                  {previewNotice}
+                </div>
+              )}
             </header>
           ) : (
             <header className="sticky top-[var(--workspace-navbar-height,0px)] z-10 flex flex-col gap-3 border-b border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 md:top-0 lg:px-8">

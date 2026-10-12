@@ -6,11 +6,19 @@ a session history.
 
 ## Current focus
 
-The agreed accessibility evidence scope is complete in
-[PR #103](https://github.com/pooYAYooq/resonance/pull/103). The
-[evidence record](ACCESSIBILITY.md) contains the executed checks, focus fixes,
-accepted limitations, and retest triggers. It does not finalize unfinished
-page designs or claim WCAG conformance.
+Public author identity is the approved product scope. The first delivery
+boundary adds required publication covers while preserving coverless draft
+saving. The corrected authoring model allows coverless preview; only final
+publication requires a cover. Cover-first and cover-last browser journeys
+passed. Review follow-ups validate selected files and uploads (nonempty, and
+stored image bytes matching the declared type), recover an unresolvable saved
+cover before Review, and removed unsupported test-query options. Ordered lint,
+659 unit/backend tests, 742 component tests, and build pass; three pre-existing
+direct-TypeScript test errors remain listed in
+[known limitations](KNOWN_LIMITATIONS.md).
+[Accessibility evidence](ACCESSIBILITY.md#required-publication-covers-2026-10-12)
+records the checks performed and the remaining gaps: the review-fix states have
+automated coverage but no browser retest.
 
 The PR/documentation workflow keeps implementation, evidence, and completion
 docs in the same change. Use [PR_CHECKLIST.md](PR_CHECKLIST.md) at initial
@@ -18,15 +26,15 @@ submission, after review changes, and before merge handoff.
 
 ## Next action
 
-The maintainer will lead the next responsive-layout scope. Do not start a
-broader redesign or choose roadmap work from phase numbering alone. The
-postponed Playwright connection guide remains in the
-[engineering follow-ups](../ROADMAP.md#engineering-follow-ups).
+Prepare the required-publication-cover change for merge. Then implement the
+profile foundation, editor, author page, and catalogue in their approved
+boundaries. Country-dependent work requires approval of the concrete
+selectable list.
 
 ## Blockers and constraints
 
-- No active implementation blocker is recorded. The next product scope needs
-  the maintainer's decision.
+- The concrete country dataset/subset remains unapproved; it does not block
+  finishing required covers.
 - The feed loading-announcement advisory is explicitly deferred. It is not a
   reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
 - Preserve the demo post, follow relationship, like, and comment. Browser

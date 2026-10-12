@@ -133,7 +133,7 @@ app/
         CoverAuthoring.tsx    # Cover dropzone and published-ratio 16:9 preview above the title, with replace/remove recovery
         MediaAuthoring.tsx    # Details-level inline media status, thumbnails or glyphs, and replace/remove recovery
         ReviewSurface.tsx     # Frozen read-only review preview; the studio header owns Back and Publish/Update
-        reviewReadiness.ts    # Media gate: blocks Review while inline media or a recovered cover is unresolved
+        reviewReadiness.ts    # Review-entry media gate; blocks final publish/update on a missing or invalid cover
         reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders for frozen Review
         useDraftRecovery.ts   # New/draft local recovery; published edits stay page-local
         EditorAbandonDialog.tsx # Start fresh / Cancel update confirmation with blocked state

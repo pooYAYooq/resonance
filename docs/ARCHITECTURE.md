@@ -62,7 +62,7 @@ resonance/
 │   │   │       ├── MediaAuthoring.tsx    # Details-level inline media status, thumbnails
 │   │   │       │                         # or glyphs, and replace/remove recovery
 │   │   │       ├── ReviewSurface.tsx     # Frozen read-only preview; header owns Back and Publish/Update
-│   │   │       ├── reviewReadiness.ts    # Blocks Review while inline media or a recovered cover is unresolved
+│   │   │       ├── reviewReadiness.ts    # Review-entry media gates; final publish/update cover readiness
 │   │   │       ├── reviewSnapshot.ts     # Reviewed content, cover intent, and submission builders
 │   │   │       ├── useDraftRecovery.ts   # New/draft local recovery; published edits stay page-local
 │   │   │       └── EditorAbandonDialog.tsx # Start fresh / Cancel update confirmation with blocked state
@@ -486,7 +486,8 @@ full-text `search_searchableText` index. Topic rows use
 post, one Topic row per `(postId, tag)`, and one counter per canonical tag.
 
 Draft writes remain private and do not create Discover or Search rows. Publish
-and published-edit mutations preflight final-document and complete-corpus
+and published-edit mutations preflight the required, usable cover along with
+final-document and complete-corpus
 capacity before changing the source, then synchronize affected projection rows
 and counters transactionally. A bounded author rename continuation verifies
 and replaces only the known author suffix in `searchableText`. Published

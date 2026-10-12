@@ -33,6 +33,7 @@ import {
 
 afterEach(() => vi.useRealTimers());
 import type { Id } from "./_generated/dataModel";
+import { storeTestImage } from "./testUtils/storage";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -87,6 +88,501 @@ function lifecycleBody(text = "A publishable lifecycle body.") {
     ],
   });
 }
+
+async function createClaimedCover(
+  t: ReturnType<typeof convexTest>,
+  userId: string,
+  options: { blob?: Blob; postId?: Id<"posts">; expiresAt?: number } = {},
+) {
+  return await t.run(async (ctx) => {
+    const storageId = await storeTestImage(ctx, options.blob);
+    await ctx.db.insert("pendingUploads", {
+      userId,
+      storageId,
+      postId: options.postId,
+      createdAt: Date.now(),
+      expiresAt: options.expiresAt ?? Date.now() + 60_000,
+    });
+    return storageId;
+  });
+}
+
+describe("publication cover integrity", () => {
+  it.each(["foreign", "expired", "unclaimed"] as const)(
+    "rejects a usable but %s cover claim",
+    async (kind) => {
+      vi.useFakeTimers();
+      const t = convexTest(schema, modules);
+      const identity = await createPostTestUser(
+        t,
+        `cover-claim-${kind}@example.com`,
+      );
+      const imageStorageId =
+        kind === "unclaimed"
+          ? await t.run((ctx) => storeTestImage(ctx))
+          : await createClaimedCover(
+              t,
+              kind === "foreign" ? "another-author" : identity.subject,
+              { expiresAt: kind === "expired" ? Date.now() - 1 : undefined },
+            );
+      const proposal = {
+        title: "Unauthorized cover",
+        body: lifecycleBody(),
+        tags: [],
+        imageStorageId,
+      };
+      const owner = t.withIdentity(identity);
+      const attempt = await owner.mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "claim-cover",
+        operationKind: "publish",
+        proposal,
+      });
+      expect(
+        await owner.mutation(api.posts.publishPost, {
+          attemptId: attempt.attemptId,
+          proposal,
+        }),
+      ).toMatchObject({ kind: "failed", category: "invalid-media" });
+      expect(await t.run((ctx) => ctx.db.query("posts").take(1))).toEqual([]);
+      const claim = await t.run((ctx) =>
+        ctx.db
+          .query("pendingUploads")
+          .withIndex("by_storageId", (q) => q.eq("storageId", imageStorageId))
+          .unique(),
+      );
+      expect(claim?.consumedAt).toBeUndefined();
+    },
+  );
+
+  it.each([
+    ["empty", () => new Blob([], { type: "image/png" })],
+    ["non-image", () => new Blob(["audio"], { type: "audio/mpeg" })],
+    [
+      "oversize",
+      () =>
+        new Blob([new Uint8Array(5 * 1024 * 1024 + 1)], { type: "image/png" }),
+    ],
+    ["deleted", () => new Blob(["gone"], { type: "image/png" })],
+  ] as const)(
+    "rejects a %s replacement cover without changing the published source",
+    async (kind, blob) => {
+      vi.useFakeTimers();
+      const t = convexTest(schema, modules);
+      const identity = await createPostTestUser(
+        t,
+        `replacement-cover-${kind}@example.com`,
+      );
+      const owner = t.withIdentity(identity);
+      const initialProposal = {
+        title: "Retained source",
+        body: lifecycleBody(),
+        tags: ["Technology"],
+        imageStorageId: await createClaimedCover(t, identity.subject),
+      };
+      const initialAttempt = await owner.mutation(
+        api.writeAttempts.reserveAttempt,
+        {
+          clientRequestId: "initial",
+          operationKind: "publish",
+          proposal: initialProposal,
+        },
+      );
+      const published = await owner.mutation(api.posts.publishPost, {
+        attemptId: initialAttempt.attemptId,
+        proposal: initialProposal,
+      });
+      if (published.kind !== "succeeded")
+        throw new Error("Source fixture did not publish");
+      const imageStorageId = await createClaimedCover(t, identity.subject, {
+        blob: blob(),
+        postId: published.postId,
+      });
+      if (kind === "deleted")
+        await t.run((ctx) => ctx.storage.delete(imageStorageId));
+      const readState = () =>
+        t.run(async (ctx) => ({
+          post: await ctx.db.get(published.postId),
+          summary: await ctx.db
+            .query("discoverPosts")
+            .withIndex("by_postId", (q) => q.eq("postId", published.postId))
+            .unique(),
+          search: await ctx.db
+            .query("discoverPostSearch")
+            .withIndex("by_postId", (q) => q.eq("postId", published.postId))
+            .unique(),
+          topics: await ctx.db.query("discoverPostTopics").take(10),
+          topicStats: await ctx.db.query("topicStats").take(10),
+          claims: await ctx.db.query("pendingUploads").take(10),
+          stats: await ctx.db.query("stats").take(1),
+          user: await ctx.db.query("users").take(1),
+        }));
+      const before = await readState();
+      const proposal = {
+        ...initialProposal,
+        title: "Invalid replacement",
+        tags: ["Design"],
+        imageStorageId,
+      };
+      const attempt = await owner.mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "replace",
+        operationKind: "update-post",
+        postId: published.postId,
+        expectedUpdatedAt: published.updatedAt,
+        proposal,
+      });
+      expect(
+        await owner.mutation(api.posts.updatePublishedPost, {
+          attemptId: attempt.attemptId,
+          proposal,
+        }),
+      ).toMatchObject({ kind: "failed", category: "invalid-media" });
+      expect(await readState()).toEqual(before);
+    },
+  );
+
+  it("keeps coverless drafts and pending edits saveable but refuses their publication", async () => {
+    vi.useFakeTimers();
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(
+      t,
+      "coverless-drafts@example.com",
+    );
+    const owner = t.withIdentity(identity);
+    const proposal = {
+      title: "Coverless draft",
+      body: lifecycleBody(),
+      tags: [],
+    };
+    const draftAttempt = await owner.mutation(
+      api.writeAttempts.reserveAttempt,
+      {
+        clientRequestId: "draft",
+        operationKind: "save-draft",
+        proposal,
+      },
+    );
+    const draft = await owner.mutation(api.posts.saveDraft, {
+      attemptId: draftAttempt.attemptId,
+      proposal,
+    });
+    expect(draft.kind).toBe("succeeded");
+    if (draft.kind !== "succeeded") throw new Error("Draft did not save");
+    const publishAttempt = await owner.mutation(
+      api.writeAttempts.reserveAttempt,
+      {
+        clientRequestId: "draft-publish",
+        operationKind: "publish",
+        postId: draft.postId,
+        expectedUpdatedAt: draft.updatedAt,
+        proposal,
+      },
+    );
+    expect(
+      await owner.mutation(api.posts.publishPost, {
+        attemptId: publishAttempt.attemptId,
+        proposal,
+      }),
+    ).toMatchObject({ kind: "failed", category: "invalid-proposal" });
+    expect(await t.run((ctx) => ctx.db.get(draft.postId))).toMatchObject({
+      status: "draft",
+    });
+
+    const coveredProposal = {
+      ...proposal,
+      imageStorageId: await createClaimedCover(t, identity.subject, {
+        postId: draft.postId,
+      }),
+    };
+    const coveredAttempt = await owner.mutation(
+      api.writeAttempts.reserveAttempt,
+      {
+        clientRequestId: "covered-publish",
+        operationKind: "publish",
+        postId: draft.postId,
+        expectedUpdatedAt: draft.updatedAt,
+        proposal: coveredProposal,
+      },
+    );
+    const published = await owner.mutation(api.posts.publishPost, {
+      attemptId: coveredAttempt.attemptId,
+      proposal: coveredProposal,
+    });
+    if (published.kind !== "succeeded")
+      throw new Error("Covered draft did not publish");
+    const before = await t.run((ctx) => ctx.db.get(published.postId));
+    const pendingAttempt = await owner.mutation(
+      api.writeAttempts.reserveAttempt,
+      {
+        clientRequestId: "pending",
+        operationKind: "save-draft",
+        postId: published.postId,
+        expectedUpdatedAt: published.updatedAt,
+        proposal,
+      },
+    );
+    const pending = await owner.mutation(api.posts.saveDraft, {
+      attemptId: pendingAttempt.attemptId,
+      proposal,
+    });
+    expect(pending.kind).toBe("succeeded");
+    if (pending.kind !== "succeeded")
+      throw new Error("Pending edit did not save");
+    const updateAttempt = await owner.mutation(
+      api.writeAttempts.reserveAttempt,
+      {
+        clientRequestId: "pending-publish",
+        operationKind: "update-post",
+        postId: published.postId,
+        expectedUpdatedAt: pending.updatedAt,
+        proposal,
+      },
+    );
+    expect(
+      await owner.mutation(api.posts.updatePublishedPost, {
+        attemptId: updateAttempt.attemptId,
+        proposal,
+      }),
+    ).toMatchObject({ kind: "failed", category: "invalid-proposal" });
+    expect(await t.run((ctx) => ctx.db.get(published.postId))).toEqual(before);
+    expect(
+      (
+        await owner.query(api.posts.getDrafts, {
+          paginationOpts: { cursor: null, numItems: 12 },
+        })
+      ).page,
+    ).toHaveLength(1);
+  });
+
+  it("publishes a draft's retained cover then replaces it once with an owned image", async () => {
+    vi.useFakeTimers();
+    const t = convexTest(schema, modules);
+    const identity = await createPostTestUser(t, "retained-cover@example.com");
+    const owner = t.withIdentity(identity);
+    const imageStorageId = await createClaimedCover(t, identity.subject);
+    const proposal = {
+      title: "Covered draft",
+      body: lifecycleBody(),
+      tags: [],
+      imageStorageId,
+    };
+    const saveAttempt = await owner.mutation(api.writeAttempts.reserveAttempt, {
+      clientRequestId: "save",
+      operationKind: "save-draft",
+      proposal,
+    });
+    const draft = await owner.mutation(api.posts.saveDraft, {
+      attemptId: saveAttempt.attemptId,
+      proposal,
+    });
+    if (draft.kind !== "succeeded") throw new Error("Draft did not save");
+    const publishAttempt = await owner.mutation(
+      api.writeAttempts.reserveAttempt,
+      {
+        clientRequestId: "publish",
+        operationKind: "publish",
+        postId: draft.postId,
+        expectedUpdatedAt: draft.updatedAt,
+        proposal,
+      },
+    );
+    const published = await owner.mutation(api.posts.publishPost, {
+      attemptId: publishAttempt.attemptId,
+      proposal,
+    });
+    expect(published).toMatchObject({
+      kind: "succeeded",
+      postId: draft.postId,
+    });
+    if (published.kind !== "succeeded")
+      throw new Error("Draft did not publish");
+    const replacement = await createClaimedCover(t, identity.subject, {
+      postId: published.postId,
+    });
+    const replacementProposal = { ...proposal, imageStorageId: replacement };
+    const updateAttempt = await owner.mutation(
+      api.writeAttempts.reserveAttempt,
+      {
+        clientRequestId: "update",
+        operationKind: "update-post",
+        postId: published.postId,
+        expectedUpdatedAt: published.updatedAt,
+        proposal: replacementProposal,
+      },
+    );
+    const updated = await owner.mutation(api.posts.updatePublishedPost, {
+      attemptId: updateAttempt.attemptId,
+      proposal: replacementProposal,
+    });
+    expect(updated.kind).toBe("succeeded");
+    expect(
+      await owner.mutation(api.posts.updatePublishedPost, {
+        attemptId: updateAttempt.attemptId,
+        proposal: replacementProposal,
+      }),
+    ).toEqual(updated);
+    expect(await t.run((ctx) => ctx.db.get(published.postId))).toMatchObject({
+      imageStorageId: replacement,
+    });
+    expect(
+      (await owner.query(api.users.getCurrentUser, {}))?.publishedPostCount,
+    ).toBe(1);
+    const staleAttempt = await owner.mutation(
+      api.writeAttempts.reserveAttempt,
+      {
+        clientRequestId: "stale",
+        operationKind: "update-post",
+        postId: published.postId,
+        expectedUpdatedAt: published.updatedAt,
+        proposal: replacementProposal,
+      },
+    );
+    expect(
+      await owner.mutation(api.posts.updatePublishedPost, {
+        attemptId: staleAttempt.attemptId,
+        proposal: replacementProposal,
+      }),
+    ).toMatchObject({ kind: "failed", category: "conflict" });
+  });
+
+  it.each(["publish", "update-post"] as const)(
+    "rejects a missing cover on %s without changing source, projections or counts",
+    async (operationKind) => {
+      vi.useFakeTimers();
+      const t = convexTest(schema, modules);
+      const identity = await createPostTestUser(
+        t,
+        `no-cover-${operationKind}@example.com`,
+      );
+      const owner = t.withIdentity(identity);
+      const imageStorageId = await createClaimedCover(t, identity.subject);
+      const initialProposal = {
+        title: "Covered source",
+        body: lifecycleBody(),
+        tags: ["Technology"],
+        imageStorageId,
+      };
+      const initialAttempt = await owner.mutation(
+        api.writeAttempts.reserveAttempt,
+        {
+          clientRequestId: "covered-source",
+          operationKind: "publish",
+          proposal: initialProposal,
+        },
+      );
+      const published = await owner.mutation(api.posts.publishPost, {
+        attemptId: initialAttempt.attemptId,
+        proposal: initialProposal,
+      });
+      expect(published.kind).toBe("succeeded");
+      if (published.kind !== "succeeded")
+        throw new Error("Source fixture did not publish");
+      const readState = () =>
+        t.run(async (ctx) => ({
+          posts: await ctx.db.query("posts").take(10),
+          summaries: await ctx.db.query("discoverPosts").take(10),
+          search: await ctx.db.query("discoverPostSearch").take(10),
+          topics: await ctx.db.query("discoverPostTopics").take(10),
+          topicStats: await ctx.db.query("topicStats").take(10),
+          stats: await ctx.db.query("stats").take(1),
+          users: await ctx.db.query("users").take(1),
+          claims: await ctx.db.query("pendingUploads").take(10),
+        }));
+      const before = await readState();
+      const proposal = {
+        title: "Coverless change",
+        body: lifecycleBody(),
+        tags: ["Design"],
+      };
+      const attempt = await owner.mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "missing-cover",
+        operationKind,
+        proposal,
+        ...(operationKind === "update-post" && {
+          postId: published.postId,
+          expectedUpdatedAt: published.updatedAt,
+        }),
+      });
+      const endpoint =
+        operationKind === "publish"
+          ? api.posts.publishPost
+          : api.posts.updatePublishedPost;
+      const result = await owner.mutation(endpoint, {
+        attemptId: attempt.attemptId,
+        proposal,
+      });
+      expect(result).toMatchObject({
+        kind: "failed",
+        category: "invalid-proposal",
+      });
+      expect(await readState()).toEqual(before);
+      expect(
+        await owner.mutation(endpoint, {
+          attemptId: attempt.attemptId,
+          proposal,
+        }),
+      ).toEqual(result);
+    },
+  );
+
+  it.each([
+    ["empty", () => new Blob([], { type: "image/png" })],
+    ["non-image", () => new Blob(["not an image"], { type: "audio/mpeg" })],
+    [
+      "oversize",
+      () =>
+        new Blob([new Uint8Array(5 * 1024 * 1024 + 1)], { type: "image/png" }),
+    ],
+    ["deleted", () => new Blob(["deleted"], { type: "image/png" })],
+  ] as const)(
+    "rejects a %s cover before consuming claims or publishing",
+    async (kind, blob) => {
+      vi.useFakeTimers();
+      const t = convexTest(schema, modules);
+      const identity = await createPostTestUser(
+        t,
+        `invalid-cover-${kind}@example.com`,
+      );
+      const owner = t.withIdentity(identity);
+      const imageStorageId = await createClaimedCover(t, identity.subject, {
+        blob: blob(),
+      });
+      if (kind === "deleted")
+        await t.run((ctx) => ctx.storage.delete(imageStorageId));
+      const proposal = {
+        title: "Invalid cover",
+        body: lifecycleBody(),
+        tags: ["Technology"],
+        imageStorageId,
+      };
+      const attempt = await owner.mutation(api.writeAttempts.reserveAttempt, {
+        clientRequestId: "invalid-cover",
+        operationKind: "publish",
+        proposal,
+      });
+      const result = await owner.mutation(api.posts.publishPost, {
+        attemptId: attempt.attemptId,
+        proposal,
+      });
+      expect(result).toMatchObject({
+        kind: "failed",
+        category: "invalid-media",
+      });
+      const state = await t.run(async (ctx) => ({
+        posts: await ctx.db.query("posts").take(1),
+        projections: await ctx.db.query("discoverPosts").take(1),
+        stats: await ctx.db.query("stats").take(1),
+        claim: await ctx.db
+          .query("pendingUploads")
+          .withIndex("by_storageId", (q) => q.eq("storageId", imageStorageId))
+          .unique(),
+      }));
+      expect(state.posts).toEqual([]);
+      expect(state.projections).toEqual([]);
+      expect(state.stats).toEqual([]);
+      expect(state.claim?.consumedAt).toBeUndefined();
+    },
+  );
+});
 
 describe("posts functions", () => {
   it("uses one generic published-post contract for published and draft rows", async () => {
@@ -708,6 +1204,9 @@ describe("posts functions", () => {
     });
     const proposal = {
       title: "Published draft",
+      imageStorageId: await createClaimedCover(t, identity.subject, {
+        postId: ids.postId,
+      }),
       body: JSON.stringify({
         format: BLOCKNOTE_FORMAT,
         blocks: [
@@ -934,6 +1433,7 @@ describe("posts functions", () => {
     );
     const proposal = {
       title: "Publish me",
+      imageStorageId: await createClaimedCover(t, identity.subject, { postId }),
       body: JSON.stringify({
         format: BLOCKNOTE_FORMAT,
         blocks: [
@@ -2264,6 +2764,7 @@ describe("atomic discovery lifecycle", () => {
     );
     const proposal = {
       title: "Published lifecycle",
+      imageStorageId: await createClaimedCover(t, identity.subject),
       body: lifecycleBody(
         "This publication has enough content to pass validation.",
       ),
@@ -2322,6 +2823,7 @@ describe("atomic discovery lifecycle", () => {
     );
     const initialProposal = {
       title: "Initial lifecycle",
+      imageStorageId: await createClaimedCover(t, identity.subject),
       body: lifecycleBody("The initial published body is long enough."),
       tags: ["Technology"],
     };
@@ -2343,6 +2845,7 @@ describe("atomic discovery lifecycle", () => {
 
     const updatedProposal = {
       title: "Updated lifecycle",
+      imageStorageId: initialProposal.imageStorageId,
       body: lifecycleBody("The replacement body contains the updated marker."),
       tags: ["Design"],
     };
@@ -2481,6 +2984,7 @@ describe("atomic discovery lifecycle", () => {
     );
     const initialProposal = {
       title: "Stable lifecycle",
+      imageStorageId: await createClaimedCover(t, identity.subject),
       body: lifecycleBody(
         "The old body remains public after a rejected update.",
       ),
@@ -2505,6 +3009,7 @@ describe("atomic discovery lifecycle", () => {
     const boundaryBody = "界".repeat(150_000);
     const boundaryProposal = {
       title: "Japanese lifecycle boundary",
+      imageStorageId: initialProposal.imageStorageId,
       body: lifecycleBody(boundaryBody),
       tags: ["Design"],
     };

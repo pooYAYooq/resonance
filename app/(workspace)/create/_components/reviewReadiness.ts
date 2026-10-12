@@ -1,4 +1,9 @@
 import type { WritingSessionMedia } from "./useWritingSession";
+import type { CoverState } from "./reviewSnapshot";
+import {
+  isAllowedInlineImageType,
+  MAX_INLINE_IMAGE_SIZE_BYTES,
+} from "@/lib/inline-image";
 
 export type CoverRecoveryState = "resolving" | "failed";
 
@@ -6,7 +11,9 @@ export type ReviewBlocker =
   | "failed-media"
   | "pending-media"
   | "cover-resolving"
-  | "cover-load-failed";
+  | "cover-load-failed"
+  | "cover-required"
+  | "cover-invalid";
 
 export const REVIEW_BLOCKER_MESSAGES: Record<ReviewBlocker, string> = {
   "failed-media":
@@ -16,8 +23,26 @@ export const REVIEW_BLOCKER_MESSAGES: Record<ReviewBlocker, string> = {
   "cover-resolving":
     "Loading your saved cover. Review will be available when it finishes.",
   "cover-load-failed":
-    "Your saved cover could not be loaded. Replace it or remove it to continue to Review.",
+    "Your saved cover could not be loaded. Replace it to continue to Review. You can remove it and save a draft instead.",
+  "cover-required":
+    "Add a cover before publishing. You can save a draft without one.",
+  "cover-invalid":
+    "Choose a nonempty JPEG, PNG, or WebP cover of 5 MiB or less before publishing.",
 };
+
+export function getCoverPublicationBlocker(
+  state: CoverState,
+): "cover-required" | "cover-invalid" | null {
+  if (state.selectedFile) {
+    const { type, size } = state.selectedFile;
+    return isAllowedInlineImageType(type) &&
+      size > 0 &&
+      size <= MAX_INLINE_IMAGE_SIZE_BYTES
+      ? null
+      : "cover-invalid";
+  }
+  return !state.removed && state.existingStorageId ? null : "cover-required";
+}
 
 /**
  * The inline media reason that blocks entering Review. Failed media takes
@@ -44,6 +69,19 @@ export function getCoverRecoveryBlocker(
   if (state === "resolving") return "cover-resolving";
   if (state === "failed") return "cover-load-failed";
   return null;
+}
+
+/**
+ * A hydrated saved cover is usable only when storage resolved it to a URL. A
+ * stored ID with no URL means the object is gone, so the author gets the same
+ * replace-or-remove recovery as a failed lookup instead of a cover that fails
+ * only when the server rejects the write.
+ */
+export function getHydratedCoverRecovery(
+  storageId: string | null | undefined,
+  imageUrl: string | null | undefined,
+): CoverRecoveryState | null {
+  return storageId && !imageUrl ? "failed" : null;
 }
 
 export type ReviewSubmitBlock =

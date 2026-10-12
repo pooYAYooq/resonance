@@ -279,6 +279,10 @@ vi.mock("convex/react", () => ({
     if (apiRef === "reconcileAttempt") return reconcileAttemptMock;
     return vi.fn();
   },
+  useAction: (apiRef: unknown) => {
+    if (apiRef === "finalizePendingUpload") return finalizePendingUploadMock;
+    return vi.fn();
+  },
   useQuery: (apiRef: unknown, args: unknown) => {
     if (apiRef === "getCurrentUser") return viewerQueryMock(args);
     if (args === "skip") return undefined;
@@ -578,7 +582,10 @@ describe("CreateRoute", () => {
     });
     getDraftByIdMock.mockReturnValue(undefined);
     getPublishedPostForEditingMock.mockReturnValue(undefined);
-    fetchMock = vi.fn();
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ storageId: "storage-cover-fixture" }),
+    });
     vi.stubGlobal("fetch", fetchMock);
   });
 
@@ -588,6 +595,14 @@ describe("CreateRoute", () => {
       | "Review for publication"
       | "Review Update" = "Review for publication",
   ) {
+    // Review-focused tests need a valid cover precondition. Coverless behavior
+    // is tested by activating Review directly, without this fixture helper.
+    if (screen.queryByRole("button", { name: "Add cover" })) {
+      await user.upload(
+        screen.getByLabelText("Cover image"),
+        new File(["cover"], "review-fixture.png", { type: "image/png" }),
+      );
+    }
     await user.click(screen.getByRole("button", { name: label }));
   }
 
@@ -619,6 +634,139 @@ describe("CreateRoute", () => {
     );
     expect(screen.getAllByText("Post details")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Save draft" })).toBeVisible();
+  });
+
+  it("previews without a cover, blocks publication, then lets the author add it last", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Coverless writing",
+    );
+    await user.click(screen.getByRole("button", { name: "Edit blog content" }));
+    const review = screen.getByRole("button", {
+      name: "Review for publication",
+    });
+    expect(review).toHaveAttribute("aria-disabled", "false");
+    review.focus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+    const publish = screen.getByRole("button", {
+      name: "Publish",
+    });
+    expect(publish).toHaveAttribute("aria-disabled", "true");
+    expect(publish).toHaveAccessibleDescription(/cover.*publish/i);
+    publish.focus();
+    await user.keyboard("{Enter}");
+    expect(publish).toHaveFocus();
+    expect(reserveAttemptMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Add cover" }));
+    expect(screen.queryByTestId("review-surface")).toBeNull();
+    expect(screen.getByRole("button", { name: "Add cover" })).toHaveFocus();
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+      "Coverless writing",
+    );
+    await user.upload(
+      screen.getByLabelText("Cover image"),
+      new File(["cover"], "last-cover.png", { type: "image/png" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(screen.getByRole("button", { name: "Publish" })).toHaveAttribute(
+      "aria-disabled",
+      "false",
+    );
+    await submitFromReview(user);
+    await waitFor(() => expect(publishPostMock).toHaveBeenCalledTimes(1));
+    expect(reserveAttemptMock.mock.calls[0][0].proposal).toMatchObject({
+      title: "Coverless writing",
+      imageStorageId: "storage-cover-fixture",
+    });
+  });
+
+  it("accepts a local cover for Review before uploading it", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Local cover writing",
+    );
+    await user.click(screen.getByRole("button", { name: "Edit blog content" }));
+    await user.upload(
+      screen.getByLabelText("Cover image"),
+      new File(["cover"], "cover.png", { type: "image/png" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+    expect(createPendingUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty cover file before Review and keeps the writing", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Empty cover recovery",
+    );
+    await user.click(screen.getByRole("button", { name: "Edit blog content" }));
+    await user.upload(
+      screen.getByLabelText("Cover image"),
+      new File([], "empty.png", { type: "image/png" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+
+    // A zero-byte file never satisfies the cover requirement, so it is caught
+    // before Review instead of being stored and trusted later.
+    expect(screen.queryByTestId("review-surface")).toBeNull();
+    expect(await screen.findByText("Image must not be empty.")).toBeVisible();
+    expect(reserveAttemptMock).not.toHaveBeenCalled();
+    expect(createPendingUploadMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(
+      "Empty cover recovery",
+    );
+
+    await user.upload(
+      screen.getByLabelText("Cover image"),
+      new File(["cover"], "valid.png", { type: "image/png" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Publish" })).toHaveAttribute(
+      "aria-disabled",
+      "false",
+    );
+  });
+
+  it("supports choosing the cover before entering the title or body", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.upload(
+      screen.getByLabelText("Cover image"),
+      new File(["cover"], "first-cover.png", { type: "image/png" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Post title" }),
+      "Cover first writing",
+    );
+    await user.click(screen.getByRole("button", { name: "Edit blog content" }));
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+    await submitFromReview(user);
+    await waitFor(() => expect(publishPostMock).toHaveBeenCalledTimes(1));
+    expect(reserveAttemptMock.mock.calls[0][0].proposal).toMatchObject({
+      title: "Cover first writing",
+      imageStorageId: "storage-cover-fixture",
+    });
   });
 
   it("skips the preview identity subscription during auth refresh and sign-out", () => {
@@ -1445,6 +1593,100 @@ describe("CreateRoute", () => {
     );
   });
 
+  it("blocks Review and offers recovery when a saved cover cannot be loaded", async () => {
+    const user = userEvent.setup();
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Missing cover draft",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: "cover-missing",
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 123,
+    });
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Missing cover draft");
+
+    // The editor already offers replacement before submission.
+    expect(screen.getByRole("button", { name: "Replace cover" })).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(screen.queryByTestId("review-surface")).toBeNull();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Your saved cover could not be loaded. Replace it to continue to Review. You can remove it and save a draft instead.",
+    );
+
+    // Removing the unavailable cover restores Review.
+    await user.click(screen.getByRole("button", { name: "Remove cover" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove cover" })).toBeNull(),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+  });
+
+  it("blocks saving a draft with an empty cover file", async () => {
+    const user = userEvent.setup();
+    render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your post a title"),
+      "Draft with empty cover",
+    );
+    await user.upload(
+      screen.getByLabelText("Cover image"),
+      new File([new Uint8Array(0)], "empty.png", { type: "image/png" }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+
+    expect(saveDraftMock).not.toHaveBeenCalled();
+    expect(await screen.findByText("Image must not be empty.")).toBeVisible();
+  });
+
+  it("blocks Review when an adopted target's saved cover is missing", async () => {
+    const user = userEvent.setup();
+    const view = render(<CreateRoute />);
+    await user.type(
+      screen.getByPlaceholderText("Give your post a title"),
+      "Unsaved article",
+    );
+
+    editPostIdParam.value = "post-missing-cover";
+    getPublishedPostForEditingMock.mockReturnValue({
+      _id: "post-missing-cover",
+      title: "Requested article",
+      body: JSON.stringify(validEnvelope),
+      tags: [],
+      imageStorageId: "cover-missing",
+      imageUrl: null,
+      inlineImages: [],
+      publishedAt: 100,
+      updatedAt: 100,
+    });
+    view.rerender(<CreateRoute />);
+    await user.click(
+      await screen.findByRole("button", { name: "Load requested document" }),
+    );
+
+    expect(
+      await screen.findByDisplayValue("Requested article"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Replace cover" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Review Update" }));
+    expect(screen.queryByTestId("review-surface")).toBeNull();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Your saved cover could not be loaded. Replace it to continue to Review. You can remove it and save a draft instead.",
+    );
+  });
+
   it("keeps a cover removal made while a draft save is running", async () => {
     const user = userEvent.setup();
     draftIdParam.value = "draft-1";
@@ -2045,7 +2287,7 @@ describe("CreateRoute", () => {
     const submitButton = screen.getByRole("button", {
       name: "Review Update",
     });
-    expect(submitButton).toBeDisabled();
+    expect(submitButton).toHaveAttribute("aria-disabled", "true");
     expect(reserveAttemptMock).not.toHaveBeenCalled();
     view.unmount();
   });
@@ -2160,7 +2402,7 @@ describe("CreateRoute", () => {
     const user = userEvent.setup();
     const view = render(<CreateRoute />);
     await user.upload(
-      screen.getByLabelText("Image (optional)"),
+      screen.getByLabelText("Cover image"),
       new File(["cover"], "cover.png", { type: "image/png" }),
     );
 
@@ -2199,7 +2441,7 @@ describe("CreateRoute", () => {
 
     const view = render(<CreateRoute />);
     await user.upload(
-      screen.getByLabelText("Image (optional)"),
+      screen.getByLabelText("Cover image"),
       new File(["cover"], "cover.png", { type: "image/png" }),
     );
 
@@ -2237,7 +2479,7 @@ describe("CreateRoute", () => {
       "Covered draft",
     );
     await user.upload(
-      screen.getByLabelText("Image (optional)"),
+      screen.getByLabelText("Cover image"),
       new File(["cover"], "cover.png", { type: "image/png" }),
     );
     await user.click(screen.getByRole("button", { name: "Save draft" }));
@@ -2295,8 +2537,7 @@ describe("CreateRoute", () => {
       json: async () => ({ storageId: "storage-cover" }),
     });
     const view = render(<CreateRoute />);
-    const imageInput =
-      screen.getByLabelText<HTMLInputElement>("Image (optional)");
+    const imageInput = screen.getByLabelText<HTMLInputElement>("Cover image");
     const firstCover = new File(["first"], "first.png", {
       type: "image/png",
     });
@@ -2575,7 +2816,7 @@ describe("CreateRoute", () => {
       const review = screen.getByRole("button", {
         name: mode === "new" ? "Review for publication" : "Review Update",
       });
-      expect(review).toBeDisabled();
+      expect(review).toHaveAttribute("aria-disabled", "true");
       const editingTitle = screen.getByRole("textbox", { name: "Post title" });
       expect(editingTitle).toHaveValue("Preserved article");
       expect(editingTitle).toHaveFocus();
@@ -2595,7 +2836,7 @@ describe("CreateRoute", () => {
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
     await user.upload(
-      screen.getByLabelText("Image (optional)"),
+      screen.getByLabelText("Cover image"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
     await user.click(
@@ -2730,9 +2971,7 @@ describe("CreateRoute", () => {
       screen.getByPlaceholderText("Give your post a title"),
       "A titled post",
     );
-    await user.click(
-      screen.getByRole("button", { name: "Review for publication" }),
-    );
+    await enterReview(user);
 
     await waitFor(() => {
       expect(screen.getByText(/Content must contain/)).toBeInTheDocument();
@@ -2744,7 +2983,7 @@ describe("CreateRoute", () => {
     expect(publishPostMock).not.toHaveBeenCalled();
   });
 
-  it("disables submit button while pending", async () => {
+  it("keeps the pending publish control focusable and guards repeated activation", async () => {
     const user = userEvent.setup();
 
     // Hang the mutation so the pending state stays visible
@@ -2762,7 +3001,7 @@ describe("CreateRoute", () => {
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
     await user.upload(
-      screen.getByLabelText("Image (optional)"),
+      screen.getByLabelText("Cover image"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
@@ -2771,8 +3010,13 @@ describe("CreateRoute", () => {
     await user.click(button);
 
     await waitFor(() => {
-      expect(button).toBeDisabled();
+      expect(button).not.toBeDisabled();
+      expect(button).toHaveAttribute("aria-disabled", "true");
+      expect(button).toHaveFocus();
     });
+
+    await user.keyboard("{Enter} ");
+    expect(createPendingUploadMock).toHaveBeenCalledTimes(1);
 
     expect(screen.getByText(/publishing/i)).toBeInTheDocument();
   });
@@ -2795,7 +3039,7 @@ describe("CreateRoute", () => {
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
     await user.upload(
-      screen.getByLabelText("Image (optional)"),
+      screen.getByLabelText("Cover image"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
@@ -2843,7 +3087,7 @@ describe("CreateRoute", () => {
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
     await user.upload(
-      screen.getByLabelText("Image (optional)"),
+      screen.getByLabelText("Cover image"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
 
@@ -2858,7 +3102,7 @@ describe("CreateRoute", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it("creates a text-only post successfully without imageStorageId", async () => {
+  it("keeps a text-only post as a draft until the author adds a cover", async () => {
     const user = userEvent.setup();
 
     render(<CreateRoute />);
@@ -2871,21 +3115,21 @@ describe("CreateRoute", () => {
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
 
-    await enterReview(user);
-    await submitFromReview(user);
-
-    await waitFor(() => {
-      expect(publishPostMock).toHaveBeenCalledWith(
-        expect.objectContaining({ attemptId: "attempt-1" }),
-      );
-    });
-
-    await waitFor(() => {
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        "Post published successfully!",
-      );
-      expect(pushMock).toHaveBeenCalledWith("/blog");
-    });
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Publish" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(publishPostMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Back to editing" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalledTimes(1));
+    expect(reserveAttemptMock.mock.calls[0][0].proposal).not.toHaveProperty(
+      "imageStorageId",
+    );
 
     expect(createPendingUploadMock).not.toHaveBeenCalled();
     expect(cleanupPendingUploadsMock).not.toHaveBeenCalled();
@@ -3068,6 +3312,7 @@ describe("CreateRoute", () => {
     expect(cleanupPendingUploadsMock).toHaveBeenCalledWith({
       uploads: [
         { sessionId: "session-inline-1", storageId: "storage-inline-1" },
+        { sessionId: "session-cover", storageId: "storage-cover-fixture" },
       ],
     });
   });
@@ -3082,7 +3327,7 @@ describe("CreateRoute", () => {
       "My Post",
     );
     await user.upload(
-      screen.getByLabelText("Image (optional)"),
+      screen.getByLabelText("Cover image"),
       new File(["img"], "photo.png", { type: "image/png" }),
     );
     await user.click(
@@ -3222,7 +3467,7 @@ describe("CreateRoute", () => {
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
-    await user.upload(screen.getByLabelText("Image (optional)"), cover);
+    await user.upload(screen.getByLabelText("Cover image"), cover);
     await enterReview(user);
     await submitFromReview(user);
 
@@ -3258,7 +3503,7 @@ describe("CreateRoute", () => {
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
-    await user.upload(screen.getByLabelText("Image (optional)"), cover);
+    await user.upload(screen.getByLabelText("Cover image"), cover);
     expect(screen.getByText("cover.png")).toBeVisible();
     expect(screen.getByText("Uploads when you save or publish")).toBeVisible();
 
@@ -3268,15 +3513,25 @@ describe("CreateRoute", () => {
       expect(screen.getByText("No cover selected")).toBeVisible(),
     );
     expect(
-      screen.getByText("Your post will show without a cover image."),
+      screen.getByText(
+        "A cover is required to publish. You can save a draft without one.",
+      ),
     ).toBeVisible();
     expect(screen.queryByText("cover.png")).toBeNull();
     expect(screen.queryByRole("button", { name: "Replace cover" })).toBeNull();
 
-    await enterReview(user);
-    await submitFromReview(user);
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Publish" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Back to editing" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
 
-    await waitFor(() => expect(reserveAttemptMock).toHaveBeenCalled());
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalled());
     const call = reserveAttemptMock.mock.calls.at(-1)?.[0] as {
       proposal: { imageStorageId?: string };
     };
@@ -3298,7 +3553,7 @@ describe("CreateRoute", () => {
     await user.click(
       await screen.findByRole("button", { name: "Edit blog content" }),
     );
-    await user.upload(screen.getByLabelText("Image (optional)"), oversized);
+    await user.upload(screen.getByLabelText("Cover image"), oversized);
     await enterReview(user);
 
     expect(
@@ -3335,32 +3590,54 @@ describe("CreateRoute", () => {
     );
   });
 
-  it("publishes without a cover after removing an existing cover", async () => {
-    const user = userEvent.setup();
-    draftIdParam.value = "draft-1";
-    getDraftByIdMock.mockReturnValue({
-      _id: "draft-1",
-      title: "Resumed title",
-      body: JSON.stringify(validEnvelope),
-      tags: ["Technology"],
-      imageStorageId: "cover-1",
-      imageUrl: "https://cover.example/image.png",
-      inlineImages: [],
-      updatedAt: 123,
-    });
+  it.each(["draft", "published-edit"] as const)(
+    "blocks %s publication after cover removal while allowing draft save",
+    async (mode) => {
+      const user = userEvent.setup();
+      if (mode === "draft") draftIdParam.value = "draft-1";
+      else editPostIdParam.value = "draft-1";
+      const post = {
+        _id: "draft-1",
+        title: "Resumed title",
+        body: JSON.stringify(validEnvelope),
+        tags: ["Technology"],
+        imageStorageId: "cover-1",
+        imageUrl: "https://cover.example/image.png",
+        inlineImages: [],
+        updatedAt: 123,
+        publishedAt: 123,
+      };
+      if (mode === "draft") getDraftByIdMock.mockReturnValue(post);
+      else getPublishedPostForEditingMock.mockReturnValue(post);
 
-    render(<CreateRoute />);
-    await screen.findByDisplayValue("Resumed title");
-    await user.click(screen.getByRole("button", { name: "Remove cover" }));
-    await enterReview(user);
-    await submitFromReview(user);
+      render(<CreateRoute />);
+      await screen.findByDisplayValue("Resumed title");
+      await user.click(screen.getByRole("button", { name: "Remove cover" }));
+      expect(screen.getByRole("button", { name: "Add cover" })).toHaveFocus();
+      await user.click(
+        screen.getByRole("button", {
+          name: mode === "draft" ? "Review for publication" : "Review Update",
+        }),
+      );
+      expect(await screen.findByTestId("review-surface")).toBeVisible();
+      const submit = screen.getByRole("button", {
+        name: mode === "draft" ? "Publish" : "Update post",
+      });
+      expect(submit).toHaveAttribute("aria-disabled", "true");
+      submit.focus();
+      await user.keyboard("{Enter}");
+      expect(publishPostMock).not.toHaveBeenCalled();
+      expect(updatePublishedPostMock).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: "Back to editing" }));
+      await user.click(screen.getByRole("button", { name: "Save draft" }));
 
-    await waitFor(() => expect(reserveAttemptMock).toHaveBeenCalled());
-    const call = reserveAttemptMock.mock.calls.at(-1)?.[0] as {
-      proposal: { imageStorageId?: string };
-    };
-    expect(call.proposal.imageStorageId).toBeUndefined();
-  });
+      await waitFor(() => expect(saveDraftMock).toHaveBeenCalled());
+      const call = reserveAttemptMock.mock.calls.at(-1)?.[0] as {
+        proposal: { imageStorageId?: string };
+      };
+      expect(call.proposal.imageStorageId).toBeUndefined();
+    },
+  );
 
   it("keeps uploaded media reviewable when its background protection request fails", async () => {
     const user = userEvent.setup();
@@ -3567,7 +3844,7 @@ describe("CreateRoute", () => {
 
     const cover = screen.getByRole("region", { name: "Cover" });
     const failure =
-      "Your saved cover could not be loaded. Replace it or remove it to continue to Review.";
+      "Your saved cover could not be loaded. Replace it to continue to Review. You can remove it and save a draft instead.";
     expect(await within(cover).findByRole("alert")).toHaveTextContent(failure);
 
     await enterReview(user);
@@ -3578,13 +3855,22 @@ describe("CreateRoute", () => {
     await waitFor(() => expect(within(cover).queryByRole("alert")).toBeNull());
     expect(screen.getByText("No cover selected")).toBeVisible();
     expect(
-      screen.getByText("Your post will show without a cover image."),
+      screen.getByText(
+        "A cover is required to publish. You can save a draft without one.",
+      ),
     ).toBeVisible();
 
-    await enterReview(user);
-    await submitFromReview(user);
-
-    await waitFor(() => expect(reserveAttemptMock).toHaveBeenCalled());
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Publish" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Back to editing" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalled());
     const call = reserveAttemptMock.mock.calls.at(-1)?.[0] as {
       proposal: { imageStorageId?: string };
     };
@@ -3678,7 +3964,7 @@ describe("CreateRoute", () => {
 
     const cover = screen.getByRole("region", { name: "Cover" });
     expect(await within(cover).findByRole("alert")).toHaveTextContent(
-      "Your saved cover could not be loaded. Replace it or remove it to continue to Review.",
+      "Your saved cover could not be loaded. Replace it to continue to Review. You can remove it and save a draft instead.",
     );
     expect(convexQueryMock).toHaveBeenCalledTimes(1);
   });
@@ -3720,7 +4006,7 @@ describe("CreateRoute", () => {
 
     render(<CreateRoute />);
     await screen.findByDisplayValue("Recovered title");
-    await user.upload(screen.getByLabelText("Image (optional)"), replacement);
+    await user.upload(screen.getByLabelText("Cover image"), replacement);
     expect(
       screen.queryByText(
         "Loading your saved cover. Review will be available when it finishes.",
@@ -3790,7 +4076,9 @@ describe("CreateRoute", () => {
     await user.click(screen.getByRole("button", { name: "Remove cover" }));
     expect(await screen.findByText("No cover selected")).toBeVisible();
     expect(
-      screen.getByText("Your post will show without a cover image."),
+      screen.getByText(
+        "A cover is required to publish. You can save a draft without one.",
+      ),
     ).toBeVisible();
 
     resolveCover([
@@ -3800,14 +4088,23 @@ describe("CreateRoute", () => {
 
     expect(screen.getByText("No cover selected")).toBeVisible();
     expect(
-      screen.getByText("Your post will show without a cover image."),
+      screen.getByText(
+        "A cover is required to publish. You can save a draft without one.",
+      ),
     ).toBeVisible();
     expect(screen.queryByTestId("default-cover")).toBeNull();
 
-    await enterReview(user);
-    await submitFromReview(user);
-
-    await waitFor(() => expect(reserveAttemptMock).toHaveBeenCalled());
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Publish" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Back to editing" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(saveDraftMock).toHaveBeenCalled());
     const call = reserveAttemptMock.mock.calls.at(-1)?.[0] as {
       proposal: { imageStorageId?: string };
     };
