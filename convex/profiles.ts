@@ -16,6 +16,7 @@ import { authComponent } from "./auth";
 import { MAX_SELECTED_POSTS, countCodePoints } from "../lib/profile-identity";
 import {
   assertPageSize,
+  MAX_PROFILE_PAGE_SIZE,
   authorCardValidator,
   getOwnProfile,
   hydrateAuthorCards,
@@ -188,6 +189,9 @@ export const listOwnPublishedPosts = query({
         q.search("title", search).eq("authorId", authUser._id),
       )
       .paginate(args.paginationOpts);
+    if (result.page.length > MAX_PROFILE_PAGE_SIZE) {
+      throw new ConvexError("Search range exceeds the maximum page size.");
+    }
     const cards = [];
     for (const hit of result.page) {
       const summary = await ctx.db

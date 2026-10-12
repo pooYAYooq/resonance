@@ -100,6 +100,27 @@ describe("normalizeSocialProfiles", () => {
     ).toBe(false);
   });
 
+  it.each([
+    ["https://youtube.com/@日本語", "https://youtube.com/@日本語"],
+    [
+      "https://youtube.com/@%E6%97%A5%E6%9C%AC%E8%AA%9E",
+      "https://youtube.com/@日本語",
+    ],
+  ])("accepts Unicode YouTube handles in %s", (input, canonical) => {
+    expect(normalizeSocialProfiles({ youtube: input })).toEqual({
+      ok: true,
+      value: { youtube: canonical },
+    });
+  });
+
+  it.each([
+    "https://youtube.com/@%E0%A4%A",
+    "https://youtube.com/@a%2Fb",
+    "https://youtube.com/@a%5Cb",
+  ])("rejects malformed or separator-encoded YouTube handle %s", (input) => {
+    expect(normalizeSocialProfiles({ youtube: input }).ok).toBe(false);
+  });
+
   it("rejects unknown platforms and overlong values", () => {
     expect(
       normalizeSocialProfiles({ twitter: "https://x.com/ada" } as never).ok,

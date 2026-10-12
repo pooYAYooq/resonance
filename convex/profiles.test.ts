@@ -703,6 +703,31 @@ describe("profiles selection API", () => {
       }),
     ).rejects.toThrow(/too long/i);
   });
+
+  it("rejects oversized title-search ranges before hydrating hits", async () => {
+    const t = convexTest(schema, modules);
+    const { own } = await seedAuthor(t, "wide-title-range@example.com", 21);
+
+    const firstPage = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "Post",
+      paginationOpts: { numItems: 20, cursor: null },
+    });
+    const secondPage = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "Post",
+      paginationOpts: { numItems: 20, cursor: firstPage.continueCursor },
+    });
+
+    await expect(
+      own.query(api.profiles.listOwnPublishedPosts, {
+        search: "Post",
+        paginationOpts: {
+          numItems: 1,
+          cursor: null,
+          endCursor: secondPage.continueCursor,
+        },
+      }),
+    ).rejects.toThrow(/range|page size/i);
+  });
 });
 
 describe("profiles API edge coverage", () => {

@@ -167,8 +167,15 @@ function normalizeOne(platform: SocialPlatform, raw: string): string | null {
       return `${base}/in/${slug}`;
     }
     case "youtube": {
-      if (parts.length === 1 && parts[0].startsWith("@")) {
-        const handle = parts[0].slice(1);
+      if (parts.length === 1) {
+        let path: string;
+        try {
+          path = decodeURIComponent(parts[0]);
+        } catch {
+          return null;
+        }
+        if (!path.startsWith("@")) return null;
+        const handle = path.slice(1);
         return isYoutubeHandle(handle) ? `${base}/@${handle}` : null;
       }
       if (parts.length === 2 && parts[0] === "channel") {

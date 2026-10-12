@@ -242,7 +242,9 @@
   social profile links, and a calendar or relative join date derived from the
   immutable account creation time. Name and introduction use code-point limits,
   and identity and selected-work writes are revision-checked in
-  `convex/profiles.ts`.
+  `convex/profiles.ts`. Own-post title search rejects oversized cursor ranges
+  before per-result hydration, and YouTube profile URLs safely normalize
+  Unicode handles.
 - The identity editor, public author page, catalogue, and selected-work
   presentation land in the following boundaries; this revision ships the
   validated identity model, bounded reads, and ordered selection APIs.
