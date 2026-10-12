@@ -1018,6 +1018,12 @@ function CreateEditor() {
       });
       setCoverStorageId(target.imageStorageId ?? undefined);
       setCoverImageUrl(target.imageUrl ?? undefined);
+      // A saved cover the server could not resolve is unavailable. Surface the
+      // same replace-or-remove recovery as a failed lookup so the author fixes
+      // it before submission instead of hitting a publication failure.
+      setCoverRecovery(
+        target.imageStorageId && !target.imageUrl ? "failed" : null,
+      );
       setInitialContent(parsed.document);
       setResolvedImageUrls(serverImages);
     }

@@ -62,6 +62,11 @@ evidence resolves them. The previous detailed delivery history remains in
   mismatch in `components/web/FollowButton.test.tsx`. The cover changes removed
   the unsupported role-query options they had added. A successful Next build
   does not establish that these included test files typecheck.
+- Cover and inline uploads are validated from stored metadata (declared content
+  type and byte size) plus storage availability; the stored bytes are never
+  decoded or signature checked. An authenticated caller that labels non-image
+  bytes as an allowed image type can publish a cover browsers cannot render.
+  Server-side byte verification is a tracked roadmap deferral.
 - No stored-data migration/backfill exists for this undeployed app. A large
   existing deployment would need a staged migration before new indexed callers.
 - Authenticated owner-scoped mutation tests are limited by the Better Auth

@@ -352,7 +352,7 @@ async function validatePublicationCover(
   ctx: MutationCtx,
   storageId: Id<"_storage">,
 ): Promise<void> {
-  const metadata = await ctx.db.system.get(storageId);
+  const metadata = await ctx.db.system.get("_storage", storageId);
   if (
     !metadata ||
     !isAllowedInlineImageType(metadata.contentType) ||

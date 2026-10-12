@@ -1592,6 +1592,45 @@ describe("CreateRoute", () => {
     );
   });
 
+  it("blocks Review and offers recovery when a saved cover cannot be loaded", async () => {
+    const user = userEvent.setup();
+    draftIdParam.value = "draft-1";
+    getDraftByIdMock.mockReturnValue({
+      _id: "draft-1",
+      title: "Missing cover draft",
+      body: JSON.stringify(validEnvelope),
+      tags: ["Technology"],
+      imageStorageId: "cover-missing",
+      imageUrl: null,
+      inlineImages: [],
+      updatedAt: 123,
+    });
+
+    render(<CreateRoute />);
+    await screen.findByDisplayValue("Missing cover draft");
+
+    // The editor already offers replacement before submission.
+    expect(screen.getByRole("button", { name: "Replace cover" })).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(screen.queryByTestId("review-surface")).toBeNull();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Your saved cover could not be loaded. Replace it to continue to Review. You can remove it and save a draft instead.",
+    );
+
+    // Removing the unavailable cover restores Review.
+    await user.click(screen.getByRole("button", { name: "Remove cover" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove cover" })).toBeNull(),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Review for publication" }),
+    );
+    expect(await screen.findByTestId("review-surface")).toBeVisible();
+  });
+
   it("keeps a cover removal made while a draft save is running", async () => {
     const user = userEvent.setup();
     draftIdParam.value = "draft-1";

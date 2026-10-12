@@ -104,12 +104,15 @@ Source: Track 4 in `FEATURES.md` at `46d26a3`, 3A.3 requirements, and decision
 
 Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 
-| ID    | Item                                             | Status | Estimate |
-| ----- | ------------------------------------------------ | ------ | -------- |
-| V1-17 | Stronger public profile identity and author work | Todo   | M        |
-| V1-18 | Compact, actionable Notifications                | Todo   | M        |
-| V1-19 | Saved and Liked collection presentation          | Todo   | S        |
-| V1-20 | Context-specific post-card variants              | Todo   | M        |
+| ID    | Item                                             | Status      | Estimate |
+| ----- | ------------------------------------------------ | ----------- | -------- |
+| V1-17 | Stronger public profile identity and author work | In progress | M        |
+| V1-18 | Compact, actionable Notifications                | Todo        | M        |
+| V1-19 | Saved and Liked collection presentation          | Todo        | S        |
+| V1-20 | Context-specific post-card variants              | Todo        | M        |
+
+Required publication covers are implemented. The profile foundation, identity
+editor, public author page, and catalogue remain.
 
 ### Visual system and responsive polish
 
@@ -175,6 +178,9 @@ V1-16 and V1-23. Optional enhancements:
 - Server autosave, unpublish, revision history, and detailed Create/Edit composition.
   Silent local recovery is implemented instead.
 - Avatar upload, custom storage, and new public identity fields.
+- Server-side verification of upload bytes (image signature or decodability)
+  for covers and inline media; validation currently trusts the declared
+  content type, byte size, and storage availability.
 - Follower/following directories, activity feeds, recommendation infrastructure,
   semantic/AI search, and broader analytics or notification infrastructure.
 

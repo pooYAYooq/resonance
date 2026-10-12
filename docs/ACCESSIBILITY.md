@@ -131,7 +131,10 @@ evidence.
   Automated tests cover unsupported formats, unknown MIME, empty and oversized
   files, the exact valid size limit, replacement focus without losing writing,
   and no reservation or upload on an invalid submit.
-- Refreshed ordered lint, 649 edge-runtime tests, 739 component tests, and
+- A saved cover the server cannot resolve now blocks Review with the existing
+  recovery message until the author replaces or removes it. Automated coverage
+  only; not browser-retested.
+- Refreshed ordered lint, 649 edge-runtime tests, 740 component tests, and
   build passed after this fix.
 - Minor review finding: Back to editing stays focusable and guarded while
   saving but does not visually dim like Review/Publish. This is recorded polish,
