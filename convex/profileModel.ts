@@ -109,7 +109,14 @@ export async function saveIdentity(
   if (expectedRevision !== revision) return { kind: "conflict" };
 
   const normalized = normalizeProfileIdentity(identity);
-  if (!normalized.ok) throw new ConvexError(normalized.message);
+  if (!normalized.ok) {
+    // Carry the field so the editor can attach the message to the right
+    // control without matching message text.
+    throw new ConvexError({
+      field: normalized.field,
+      message: normalized.message,
+    });
+  }
   const value = normalized.value;
   const hasSocials = Object.keys(value.socialProfiles).length > 0;
 

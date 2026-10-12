@@ -2,7 +2,7 @@
 
 import { register } from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { api, components } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
@@ -13,7 +13,7 @@ const AUTH_CREATED_AT = 1_700_000_000_000;
 
 async function createAuthIdentity(
   t: ReturnType<typeof convexTest>,
-  options: { name: string; email: string; createdAt?: number },
+  options: { name: string; email: string; createdAt?: number; image?: string },
 ) {
   register(t);
   const now = Date.now();
@@ -27,6 +27,7 @@ async function createAuthIdentity(
           emailVerified: true,
           createdAt: options.createdAt ?? now,
           updatedAt: now,
+          ...(options.image ? { image: options.image } : {}),
         },
       },
     });
@@ -163,7 +164,7 @@ describe("profiles identity API", () => {
         expectedRevision: revision,
         identity: identityInput({ displayName: "   " }),
       }),
-    ).rejects.toThrow(/display name/i);
+    ).rejects.toMatchObject({ data: { field: "displayName" } });
 
     await expect(
       t.withIdentity(identity).mutation(api.profiles.updateIdentity, {
@@ -381,6 +382,16 @@ async function seedPosts(
   return ids;
 }
 
+/** Drains scheduled work with scoped fake timers so teardown has no pending job. */
+async function drainScheduled(t: ReturnType<typeof convexTest>) {
+  vi.useFakeTimers();
+  try {
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 async function seedAuthor(
   t: ReturnType<typeof convexTest>,
   email: string,
@@ -475,6 +486,7 @@ describe("profiles selection API", () => {
     expect(beforeDelete?.selectionRevision).toBe(1);
 
     await own.mutation(api.posts.deletePublishedPost, { postId: posts[0] });
+    await drainScheduled(t);
 
     const afterDelete = await t.query(api.profiles.getShowcase, {
       userId: identity.subject,
@@ -507,6 +519,7 @@ describe("profiles selection API", () => {
       postIds: [posts[3]],
     });
     await own.mutation(api.posts.deletePublishedPost, { postId: posts[3] });
+    await drainScheduled(t);
 
     const showcase = await t.query(api.profiles.getShowcase, {
       userId: identity.subject,
@@ -528,6 +541,7 @@ describe("profiles selection API", () => {
       postIds: [posts[1]],
     });
     await own.mutation(api.posts.deletePublishedPost, { postId: posts[0] });
+    await drainScheduled(t);
 
     const editor = await own.query(api.profiles.getEditorProfile, {});
     expect(editor?.selectionRevision).toBe(1);
@@ -550,6 +564,7 @@ describe("profiles selection API", () => {
       }),
       own.mutation(api.posts.deletePublishedPost, { postId: posts[2] }),
     ]);
+    await drainScheduled(t);
 
     const editor = await own.query(api.profiles.getEditorProfile, {});
     const selection = editor?.selectedPostIds ?? [];
@@ -622,6 +637,9 @@ describe("profiles selection API", () => {
       expect(Object.hasOwn(card, "tags")).toBe(false);
       expect(Object.hasOwn(card, "commentCount")).toBe(false);
       expect(Object.hasOwn(card, "email")).toBe(false);
+      expect(Object.hasOwn(card, "isLiked")).toBe(false);
+      expect(Object.hasOwn(card, "isBookmarked")).toBe(false);
+      expect(Object.hasOwn(card, "identityRevision")).toBe(false);
     }
 
     await expect(
@@ -684,5 +702,210 @@ describe("profiles selection API", () => {
         paginationOpts: { numItems: 5, cursor: null },
       }),
     ).rejects.toThrow(/too long/i);
+  });
+});
+
+describe("profiles API edge coverage", () => {
+  it("rejects selecting a published post without a stored cover", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, own } = await seedAuthor(t, "no-cover@example.com", 1);
+    const noCover = await seedPost(t, identity.subject, {
+      title: "No cover",
+      publishedAt: 50,
+      cover: false,
+    });
+
+    await expect(
+      own.mutation(api.profiles.updateSelection, {
+        expectedRevision: 0,
+        postIds: [noCover],
+      }),
+    ).rejects.toThrow(/cover/i);
+
+    const editor = await own.query(api.profiles.getEditorProfile, {});
+    expect(editor?.selectionRevision).toBe(0);
+    expect(editor?.selectedPostIds).toEqual([]);
+  });
+
+  it("advances identityRevision when the provider avatar changes", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Ada",
+      email: "avatar@example.com",
+      image: "https://provider.example/current.png",
+    });
+    const userId = await t
+      .withIdentity(identity)
+      .mutation(api.users.syncUser, {});
+    expect(
+      (await t.withIdentity(identity).query(api.profiles.getEditorProfile, {}))
+        ?.identityRevision,
+    ).toBe(0);
+
+    // Simulate a previously stored avatar that differs from the provider one.
+    await t.run(async (ctx) => {
+      await ctx.db.patch(userId, {
+        avatarUrl: "https://provider.example/stale.png",
+      });
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+
+    const after = await t
+      .withIdentity(identity)
+      .query(api.profiles.getEditorProfile, {});
+    expect(after?.identityRevision).toBe(1);
+  });
+
+  it("drops a deleted post from live selection availability", async () => {
+    const t = convexTest(schema, modules);
+    const { posts, own } = await seedAuthor(
+      t,
+      "availability-delete@example.com",
+      3,
+    );
+
+    const before = await own.query(api.profiles.getOwnSelectionAvailability, {
+      postIds: [posts[0], posts[1]],
+    });
+    expect(before.map((card) => card.postId)).toEqual([posts[0], posts[1]]);
+
+    await own.mutation(api.posts.deletePublishedPost, { postId: posts[0] });
+    await drainScheduled(t);
+
+    const after = await own.query(api.profiles.getOwnSelectionAvailability, {
+      postIds: [posts[0], posts[1]],
+    });
+    expect(after.map((card) => card.postId)).toEqual([posts[1]]);
+  });
+
+  it("drops a search hit whose compact summary is gone", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Ada",
+      email: "stale-hit@example.com",
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    const own = t.withIdentity(identity);
+    const postId = await seedPost(t, identity.subject, {
+      title: "Stale Zebra",
+      publishedAt: 5,
+    });
+
+    await t.run(async (ctx) => {
+      const summary = await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique();
+      if (summary) await ctx.db.delete(summary._id);
+    });
+
+    const result = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "Zebra",
+      paginationOpts: { numItems: 5, cursor: null },
+    });
+    expect(result.page).toEqual([]);
+  });
+
+  it("reflects a changed title in the picker search", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Ada",
+      email: "renamed-title@example.com",
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    const own = t.withIdentity(identity);
+    const postId = await seedPost(t, identity.subject, {
+      title: "Alpha Gorilla",
+      publishedAt: 6,
+    });
+
+    await t.run(async (ctx) => {
+      const summary = await ctx.db
+        .query("discoverPosts")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique();
+      if (summary) await ctx.db.patch(summary._id, { title: "Beta Gorilla" });
+      const searchRow = await ctx.db
+        .query("discoverPostSearch")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique();
+      if (searchRow)
+        await ctx.db.patch(searchRow._id, { title: "Beta Gorilla" });
+    });
+
+    const renamed = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "Beta",
+      paginationOpts: { numItems: 5, cursor: null },
+    });
+    expect(renamed.page.map((card) => card.postId)).toContain(postId);
+  });
+
+  it("keeps native order for tied publication times without overlapping pages", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Ada",
+      email: "tied@example.com",
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    const first = await seedPost(t, identity.subject, {
+      title: "Tied A",
+      publishedAt: 7,
+    });
+    const second = await seedPost(t, identity.subject, {
+      title: "Tied B",
+      publishedAt: 7,
+    });
+
+    const page1 = await t.query(api.profiles.listAuthorPosts, {
+      userId: identity.subject,
+      paginationOpts: { numItems: 1, cursor: null },
+    });
+    expect(page1.isDone).toBe(false);
+    expect(typeof page1.continueCursor).toBe("string");
+    const page2 = await t.query(api.profiles.listAuthorPosts, {
+      userId: identity.subject,
+      paginationOpts: { numItems: 1, cursor: page1.continueCursor },
+    });
+
+    const seen = [page1.page[0]?.postId, page2.page[0]?.postId];
+    expect(new Set(seen)).toEqual(new Set([first, second]));
+  });
+
+  it("keeps the legacy updateProfile adapter consistent with the shared model", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Provider",
+      email: "legacy-adapter@example.com",
+    });
+    await t.withIdentity(identity).mutation(api.users.syncUser, {});
+    const own = t.withIdentity(identity);
+
+    const before = await own.query(api.profiles.getEditorProfile, {});
+    await own.mutation(api.profiles.updateIdentity, {
+      expectedRevision: before!.identityRevision,
+      identity: identityInput({
+        countryCode: "IR",
+        joinDateDisplay: "relative",
+        bio: "Original introduction",
+      }),
+    });
+
+    await own.mutation(api.users.updateProfile, {
+      displayName: "Adapter name",
+      bio: "Adapter introduction",
+    });
+
+    const after = await own.query(api.profiles.getEditorProfile, {});
+    expect(after?.identity).toMatchObject({
+      displayName: "Adapter name",
+      bio: "Adapter introduction",
+      countryCode: "IR",
+      joinDateDisplay: "relative",
+    });
+    expect(after?.identityRevision).toBe(before!.identityRevision + 2);
+
+    await expect(
+      own.mutation(api.users.updateProfile, { displayName: "   ", bio: "" }),
+    ).rejects.toMatchObject({ data: { field: "displayName" } });
   });
 });
