@@ -821,6 +821,108 @@ describe("profiles selection API", () => {
 });
 
 describe("profiles API edge coverage", () => {
+  it.each(["", "Quokka"])(
+    "omits coverless picker results for search %j",
+    async (search) => {
+      const t = convexTest(schema, modules);
+      const { identity, own } = await seedAuthor(t, "eligible@example.com", 0);
+      const covered = await seedPost(t, identity.subject, {
+        title: "Quokka with cover",
+        publishedAt: 10,
+      });
+      await seedPost(t, identity.subject, {
+        title: "Quokka without cover",
+        publishedAt: 20,
+        cover: false,
+      });
+
+      const result = await own.query(api.profiles.listOwnPublishedPosts, {
+        search,
+        paginationOpts: { numItems: 5, cursor: null },
+      });
+      expect(result.page.map((card) => card.postId)).toEqual([covered]);
+      await expect(
+        own.mutation(api.profiles.updateSelection, {
+          expectedRevision: 0,
+          postIds: result.page.map((card) => card.postId),
+        }),
+      ).resolves.toEqual({ kind: "saved", revision: 1 });
+    },
+  );
+
+  it.each(["", "Post"])(
+    "preserves cursor progress through an empty eligible page for search %j",
+    async (search) => {
+      const t = convexTest(schema, modules);
+      const { own, posts } = await seedAuthor(t, "short-page@example.com", 3);
+      const firstBefore = await own.query(api.profiles.listOwnPublishedPosts, {
+        search,
+        paginationOpts: { numItems: 1, cursor: null },
+      });
+      const coverless = firstBefore.page[0].postId;
+      await t.run(async (ctx) => {
+        await ctx.db.patch(coverless, { imageStorageId: undefined });
+        const summary = await ctx.db
+          .query("discoverPosts")
+          .withIndex("by_postId", (q) => q.eq("postId", coverless))
+          .unique();
+        await ctx.db.patch(summary!._id, { imageStorageId: undefined });
+      });
+
+      const first = await own.query(api.profiles.listOwnPublishedPosts, {
+        search,
+        paginationOpts: { numItems: 1, cursor: null },
+      });
+      expect(first.page).toEqual([]);
+      expect(first.isDone).toBe(false);
+      expect(first.continueCursor).toBe(firstBefore.continueCursor);
+
+      const found: Id<"posts">[] = [];
+      let page = first;
+      for (let i = 0; i < 4 && !page.isDone; i++) {
+        page = await own.query(api.profiles.listOwnPublishedPosts, {
+          search,
+          paginationOpts: { numItems: 1, cursor: page.continueCursor },
+        });
+        found.push(...page.page.map((card) => card.postId));
+      }
+      expect(page.isDone).toBe(true);
+      expect(found.sort()).toEqual(
+        posts.filter((id) => id !== coverless).sort(),
+      );
+    },
+  );
+
+  it.each(["", "Post"])(
+    "keeps a stored-cover picker result with an unavailable image URL for search %j",
+    async (search) => {
+      const t = convexTest(schema, modules);
+      const { own, posts } = await seedAuthor(
+        t,
+        "missing-image@example.com",
+        1,
+      );
+      await t.run(async (ctx) => {
+        const post = await ctx.db.get(posts[0]);
+        await ctx.storage.delete(post!.imageStorageId!);
+      });
+
+      const result = await own.query(api.profiles.listOwnPublishedPosts, {
+        search,
+        paginationOpts: { numItems: 5, cursor: null },
+      });
+      expect(result.page).toEqual([
+        { postId: posts[0], title: "Post 0", imageUrl: null, likeCount: 3 },
+      ]);
+      await expect(
+        own.mutation(api.profiles.updateSelection, {
+          expectedRevision: 0,
+          postIds: [posts[0]],
+        }),
+      ).resolves.toEqual({ kind: "saved", revision: 1 });
+    },
+  );
+
   it("rejects selecting a published post without a stored cover", async () => {
     const t = convexTest(schema, modules);
     const { identity, own } = await seedAuthor(t, "no-cover@example.com", 1);

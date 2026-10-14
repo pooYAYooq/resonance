@@ -268,7 +268,10 @@
   container. Up/Down navigate available posts without wrapping; Up from the
   first post returns to search, and Enter/Space toggle selection. Post titles
   wrap and have no tooltips. Browsing
-  loads 12 posts at a time with title search and Load more. The section uses a
+  requests 12 rows at a time with title search and Load more. Only published
+  posts with stored covers are offered; filtering can yield fewer options or
+  an empty page while Load more remains available. A stored cover whose URL is
+  unavailable still uses the image fallback and remains selectable. The section uses a
   selection count and an ordered list with reorder/removal controls. Unused
   social platforms open through Add social link. Username remains a local layout
   field and does not save yet. There is no separate Location field. One header Save button

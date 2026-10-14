@@ -159,7 +159,9 @@ export const listAuthorPosts = query({
 /**
  * The authenticated author's own published posts for the selection picker.
  * An empty search browses newest first; a title search is bounded and filtered
- * to the caller's own rows, then hydrated from compact summaries.
+ * to the caller's own rows, then hydrated from compact summaries. Only posts
+ * with stored covers are eligible. Filtering a native page can leave it empty;
+ * its pagination metadata still advances to the next page.
  */
 export const listOwnPublishedPosts = query({
   args: {
@@ -184,7 +186,13 @@ export const listOwnPublishedPosts = query({
         )
         .order("desc")
         .paginate(paginationOpts);
-      return { ...result, page: await summariesToCards(ctx, result.page) };
+      return {
+        ...result,
+        page: await summariesToCards(
+          ctx,
+          result.page.filter((summary) => Boolean(summary.imageStorageId)),
+        ),
+      };
     }
     const result = await ctx.db
       .query("discoverPostSearch")
@@ -201,7 +209,11 @@ export const listOwnPublishedPosts = query({
         .query("discoverPosts")
         .withIndex("by_postId", (q) => q.eq("postId", hit.postId))
         .unique();
-      if (summary && summary.authorId === authUser._id) {
+      if (
+        summary &&
+        summary.authorId === authUser._id &&
+        summary.imageStorageId
+      ) {
         cards.push(...(await summariesToCards(ctx, [summary])));
       }
     }

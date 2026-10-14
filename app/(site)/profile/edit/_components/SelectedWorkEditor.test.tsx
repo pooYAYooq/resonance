@@ -553,6 +553,28 @@ describe("SelectedWorkEditor", () => {
     expect(loadMoreMock).toHaveBeenCalledWith(12);
   });
 
+  it("can load and select a later post after an empty eligible page", async () => {
+    const user = userEvent.setup();
+    pickerResults = [];
+    pickerStatus = "CanLoadMore";
+    const { rerender } = renderEditor();
+    await user.click(screen.getByRole("button", { name: "Choose posts" }));
+    expect(screen.queryByText("You have no published posts yet.")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+
+    pickerStatus = "LoadingMore";
+    rerender(<SelectedWorkHarness />);
+    pickerResults = [alpha];
+    pickerStatus = "Exhausted";
+    rerender(<SelectedWorkHarness />);
+    const post = screen.getByRole("button", { name: "Alpha" });
+    expect(post).toHaveFocus();
+    await user.click(post);
+    expect(post).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.getByRole("button", { name: "Remove Alpha" })).toBeVisible();
+  });
+
   it("retains pagination focus while loading then focuses the appended post", async () => {
     const user = userEvent.setup();
     pickerResults = [alpha];

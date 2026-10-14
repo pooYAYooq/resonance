@@ -660,6 +660,31 @@ not a new complete editor pass.
   formatting or join-date semantics change. The other three PR findings still
   require their planned repairs; this result is not acceptance of those fixes.
 
+**Profile picker eligibility follow-up (2026-10-14, `5d95f21` plus picker fix)**
+
+- [The picker eligibility finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4268817512)
+  reproduced in browse and title search: coverless published posts were offered
+  even though the selection mutation rejected them. Both query paths now omit
+  coverless entries from each bounded page before hydration, without changing
+  native pagination metadata or weakening mutation validation. This does not
+  filter other public post lists or repair development records.
+- Four backend regressions failed before the change and passed afterward:
+  browse/search eligibility and continuation through a filtered-empty first
+  page. Two further regressions confirm that a stored cover with an unavailable
+  URL is still returned and accepted by the selection mutation. All **32**
+  profile backend tests passed. The focused run emitted a Node
+  `TimeoutNegativeWarning` from the test runtime but had no test failures.
+- A new component regression passed against the existing picker: an empty page
+  with CanLoadMore does not announce an exhausted list, and the next loaded post
+  receives focus and can be selected. All **26** selected-work component tests
+  passed; no component implementation change was required.
+- Fresh ordered lint, **751** edge/backend tests, **832** component tests
+  (one worker), and the production build passed. This is automated query and
+  keyboard-component evidence, not a fresh live-browser/deployment check.
+  Recheck eligibility, continuation, and pagination focus when the picker query
+  or published projections change. The country composition/casing repairs remain
+  outstanding at this checkpoint.
+
 **Settings Appearance follow-up (2026-10-10, `345a2f7`)**
 
 - Executed on the current `/settings` design at 375×900 and 1280×900 in
