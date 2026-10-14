@@ -177,7 +177,12 @@ export function assertPageSize(paginationOpts: {
   }
 }
 
-/** Adds a safe read budget when an explicit cursor range can bypass numItems. */
+/**
+ * Adds a safe read budget when an explicit cursor range can bypass numItems.
+ *
+ * Only index pagination enforces read budgets. Search pagination ignores them,
+ * so callers of a search index must refuse an explicit end cursor instead.
+ */
 export function boundExplicitCursorRange(
   paginationOpts: PaginationOptions,
 ): PaginationOptions {
@@ -217,6 +222,41 @@ export async function summariesToCards(
 }
 
 /**
+ * The given post IDs that are currently published projections of this author, in
+ * argument order. Reads stay bounded to the nine-post selection maximum and
+ * resolve no storage URLs, so callers that only need identity stay cheap.
+ */
+async function survivingAuthorSummaries(
+  ctx: QueryCtx,
+  authorId: string,
+  postIds: readonly Id<"posts">[],
+): Promise<Doc<"discoverPosts">[]> {
+  const summaries: Doc<"discoverPosts">[] = [];
+  for (const postId of postIds.slice(0, MAX_SELECTED_POSTS)) {
+    const summary = await ctx.db
+      .query("discoverPosts")
+      .withIndex("by_postId", (q) => q.eq("postId", postId))
+      .unique();
+    if (!summary || summary.authorId !== authorId) continue;
+    summaries.push(summary);
+  }
+  return summaries;
+}
+
+/**
+ * The surviving post IDs only. Live deletion detection needs identity, not the
+ * card fields or a resolved cover URL.
+ */
+export async function survivingAuthorPostIds(
+  ctx: QueryCtx,
+  authorId: string,
+  postIds: readonly Id<"posts">[],
+): Promise<Id<"posts">[]> {
+  const summaries = await survivingAuthorSummaries(ctx, authorId, postIds);
+  return summaries.map((summary) => summary.postId);
+}
+
+/**
  * Resolves the given post IDs to compact cards in argument order, dropping any
  * entry that is not a currently published projection of this author. Reads stay
  * bounded to the nine-post selection maximum.
@@ -226,16 +266,10 @@ export async function hydrateAuthorCards(
   authorId: string,
   postIds: readonly Id<"posts">[],
 ): Promise<AuthorCard[]> {
-  const cards: AuthorCard[] = [];
-  for (const postId of postIds.slice(0, MAX_SELECTED_POSTS)) {
-    const summary = await ctx.db
-      .query("discoverPosts")
-      .withIndex("by_postId", (q) => q.eq("postId", postId))
-      .unique();
-    if (!summary || summary.authorId !== authorId) continue;
-    cards.push(await toAuthorCard(ctx, summary));
-  }
-  return cards;
+  return await summariesToCards(
+    ctx,
+    await survivingAuthorSummaries(ctx, authorId, postIds),
+  );
 }
 
 async function latestAuthorCards(
@@ -251,6 +285,21 @@ async function latestAuthorCards(
 }
 
 /**
+ * The author's surviving ordered featured selection alone. Callers that render
+ * nothing without a selection avoid the latest-post fallback reads.
+ */
+export async function readSelectedShowcase(
+  ctx: QueryCtx,
+  authorId: string,
+): Promise<AuthorCard[]> {
+  const author = await ctx.db
+    .query("users")
+    .withIndex("by_userId", (q) => q.eq("userId", authorId))
+    .unique();
+  return await hydrateAuthorCards(ctx, authorId, author?.selectedPostIds ?? []);
+}
+
+/**
  * The author showcase: surviving ordered selections when any remain, otherwise
  * the latest three published posts.
  */
@@ -258,15 +307,7 @@ export async function readShowcase(
   ctx: QueryCtx,
   authorId: string,
 ): Promise<Showcase> {
-  const author = await ctx.db
-    .query("users")
-    .withIndex("by_userId", (q) => q.eq("userId", authorId))
-    .unique();
-  const selected = await hydrateAuthorCards(
-    ctx,
-    authorId,
-    author?.selectedPostIds ?? [],
-  );
+  const selected = await readSelectedShowcase(ctx, authorId);
   if (selected.length > 0) return { mode: "selected", posts: selected };
   return { mode: "latest", posts: await latestAuthorCards(ctx, authorId) };
 }

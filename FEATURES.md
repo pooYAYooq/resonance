@@ -233,21 +233,69 @@
 
 ### Profiles & Settings
 
-- Public profiles at `/u/[userId]`: avatar, display name, bio, paginated post list
-- `/profile/edit` owns display name and bio for the public identity; `/settings`
-  owns Appearance and Account configuration. Provider avatar and email remain
-  contextual/read-only where shown.
+- Public profiles at `/u/[userId]`: avatar, display name, bio, up to nine featured
+  posts in the author's saved order, and the full paginated post list. The
+  featured area is omitted when no posts are selected; featured posts also remain
+  available in the full post list.
+- `/profile/edit` owns the public identity (display name, bio, optional
+  country, and five social links) plus up to nine ordered featured posts;
+  `/settings` owns Appearance and Account configuration.
+  Provider avatar and email remain contextual/read-only where shown.
+- Country choices use common English names; search also recognizes familiar
+  alternatives and abbreviations such as UK, USA, and Czech Republic. Only the
+  existing two-letter country code is saved. The field spans its row, long
+  selected names wrap, and the dropdown is capped at 400px. No country is the
+  first browsing option for clearing the selection; it is hidden during search.
+  The closed control's accessible name includes the current country or the
+  empty-selection state. Composing IME keystrokes do not trigger country
+  selection. Search queries, English names/aliases, and flag identifiers use
+  locale-independent casing.
 - OAuth avatars mapped from provider profiles (Google `picture` / GitHub `avatar_url`), DiceBear fallback
 - Public identity model carries optional country (approved list), five optional
   social profile links, and a calendar or relative join date derived from the
-  immutable account creation time. Name and introduction use code-point limits,
+  immutable account creation time. Author-edited names allow up to 30 Unicode
+  code points; existing longer names remain unchanged until the author edits
+  them, and identity saving requires a name within the new limit. Introduction
+  validation also uses code points,
   and identity and selected-work writes are revision-checked in
-  `convex/profiles.ts`. Own-post title search rejects oversized cursor ranges
-  before per-result hydration, and YouTube profile URLs safely normalize
-  Unicode handles.
-- The identity editor, public author page, catalogue, and selected-work
-  presentation land in the following boundaries; this revision ships the
-  validated identity model, bounded reads, and ordered selection APIs.
+  `convex/profiles.ts`. Own-post title search refuses an explicit end cursor
+  range before reading the search index, because the index ignores read budgets
+  and cannot split, and still rejects an oversized result page before
+  per-result hydration. YouTube profile URLs safely normalize Unicode handles.
+- Profile details span the editor's centered 760px container, with Featured posts
+  below. The post picker opens through Choose posts, Add posts, or Manage posts
+  depending on the selection. A fixed modal keeps search, the selection count,
+  and a full-width Done button visible while only the results scroll. Outside
+  clicks leave it open; Done or Escape dismiss it without scrolling focus.
+  Tab or Down moves from search to the first available post, skipping the results
+  container. Up/Down navigate available posts without wrapping; Up from the
+  first post returns to search, and Enter/Space toggle selection. Post titles
+  wrap and have no tooltips. Browsing
+  requests 12 rows at a time with title search and Load more. Only published
+  posts with stored covers are offered; filtering can yield fewer options or
+  an empty page while Load more remains available. A stored cover whose URL is
+  unavailable still uses the image fallback and remains selectable. Exhausted
+  browse/search messages name cover eligibility rather than implying that no
+  published posts exist. The section uses a
+  selection count and an ordered list with reorder/removal controls. Unused
+  social platforms open through Add social link. Username remains a local layout
+  field and does not save yet. There is no separate Location field. One header Save button
+  becomes actionable when persisted profile details or selected work change and saves each
+  changed section independently; loading a saved version explains the loss of
+  local edits.
+- The picker caches only the at-most-nine selected card summaries across
+  searches, evicting removed cards rather than retaining browsing history. It
+  subscribes only while its dialog is open, so a closed picker performs no
+  browse reads; reopening starts from the first page of the retained search
+  term. Chosen posts are checked for existence only, so a published post without
+  a stored cover is never treated as deleted.
+- The editor keeps identity and selected-work saves independent, preserves
+  unsaved input across live updates, and requires an explicit reload on a
+  revision conflict. Save and pending pagination remain keyboard-focusable with
+  guarded activation; exhausted pagination focuses an available appended post.
+  Query echoes cannot roll back newer saved revisions or overwrite a newer
+  revert during an in-flight save. The broader public author-page presentation and catalogue
+  remain.
 
 ### Analytics
 

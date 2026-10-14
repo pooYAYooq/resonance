@@ -23,6 +23,8 @@ interface ProfileHeaderProps {
   avatarUrl?: string | null;
   /** Better Auth user ID of the profile owner. */
   userId: string;
+  /** Optional pre-formatted join date. Hidden when null or undefined. */
+  joinedDate?: string | null;
   /**
    * Optional right-side action (e.g. the Edit Profile / Follow button).
    * Anchored top-right on `md:` and stacked below the content on
@@ -42,6 +44,7 @@ export function ProfileHeader({
   bio,
   avatarUrl,
   userId,
+  joinedDate,
   rightAction,
   stats,
 }: ProfileHeaderProps) {
@@ -64,6 +67,9 @@ export function ProfileHeader({
         ) : null}
         {stats ? (
           <div className="text-sm text-muted-foreground">{stats}</div>
+        ) : null}
+        {joinedDate ? (
+          <p className="text-sm text-muted-foreground">Joined {joinedDate}</p>
         ) : null}
       </div>
       {rightAction ? (

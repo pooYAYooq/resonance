@@ -6,16 +6,17 @@ a session history.
 
 ## Current focus
 
-Public author identity is the approved product scope. The profile foundation
-adds identity constraints (name and introduction code-point limits, a reviewed
-country list, five validated social platforms, and join-date formatting),
-optional `users` identity fields with an authoritative immutable `joinedAt`,
-and revision-checked identity and selected-work APIs with bounded reads. The
-identity editor, public author page, catalogue, and selected-work presentation
-remain. Ordered lint, 718 unit/backend tests, 742 component tests, and build
-pass; three pre-existing direct-TypeScript test errors remain listed in
-[known limitations](KNOWN_LIMITATIONS.md). This foundation adds no browser-facing
-surface, so it carries no new accessibility evidence.
+The `/profile/edit` identity and Featured posts editor is implemented and
+verified on this branch: one header Save applies changed sections independently,
+unsaved input survives live updates, and a conflict requires an explicit reload.
+Country uses common English names with familiar search aliases, spans its row,
+and clears through No country inside the picker; the separate Location field is
+gone. Username remains local-only. Saved Featured posts appear above the existing
+public profile's full post list. Verification results, browser evidence, and
+scope limits are in [accessibility evidence](ACCESSIBILITY.md). This delivery is
+covered by backend and component regressions for join dates, cover eligibility,
+country composition, and flag casing. Native IME behavior and the latest
+live-browser refresh remain unverified.
 
 The PR/documentation workflow keeps implementation, evidence, and completion
 docs in the same change. Use [PR_CHECKLIST.md](PR_CHECKLIST.md) at initial
@@ -23,14 +24,13 @@ submission, after review changes, and before merge handoff.
 
 ## Next action
 
-Implement the identity editor, the public author page and catalogue, and the
-selected-work presentation in their approved boundaries.
+Plan username persistence and human-readable profile URLs as the next delivery.
+The broader public author page and `/u/[userId]/posts` catalogue follow it. Do
+not reopen the verified editor design.
 
 ## Blockers and constraints
 
-- The identity editor, public author page, catalogue, and selected-work
-  presentation are not built; country and social fields exist only in the
-  validated API layer.
+- The broader public author-page presentation and catalogue are not built.
 - The feed loading-announcement advisory is explicitly deferred. It is not a
   reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
 - Preserve the demo post, follow relationship, like, and comment. Browser

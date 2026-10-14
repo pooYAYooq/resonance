@@ -16,6 +16,23 @@ const base: IdentityInput = {
 };
 
 describe("normalizeProfileIdentity", () => {
+  it("accepts 30 Unicode code points and rejects 31 without truncating", () => {
+    const accepted = normalizeProfileIdentity({
+      ...base,
+      displayName: "😀".repeat(30),
+    });
+    expect(accepted).toEqual({
+      ok: true,
+      value: { ...base, displayName: "😀".repeat(30) },
+    });
+    expect(
+      normalizeProfileIdentity({ ...base, displayName: "😀".repeat(31) }),
+    ).toEqual({
+      ok: false,
+      field: "displayName",
+      message: "Use at most 30 characters.",
+    });
+  });
   it("trims optional text and preserves paragraph breaks", () => {
     expect(
       normalizeProfileIdentity({
@@ -75,6 +92,79 @@ describe("normalizeProfileIdentity", () => {
       false,
     );
   });
+
+  it("does not offer or accept territory and non-country codes", () => {
+    const removedCodes = [
+      "AS",
+      "AI",
+      "AQ",
+      "AW",
+      "BM",
+      "BQ",
+      "BV",
+      "IO",
+      "KY",
+      "CX",
+      "CC",
+      "CW",
+      "FK",
+      "FO",
+      "GF",
+      "PF",
+      "TF",
+      "GI",
+      "GL",
+      "GP",
+      "GU",
+      "GG",
+      "HM",
+      "HK",
+      "IM",
+      "JE",
+      "MO",
+      "MQ",
+      "YT",
+      "MS",
+      "NC",
+      "NF",
+      "MP",
+      "PN",
+      "PR",
+      "RE",
+      "BL",
+      "SH",
+      "MF",
+      "PM",
+      "SX",
+      "GS",
+      "SJ",
+      "TK",
+      "TC",
+      "UM",
+      "VG",
+      "VI",
+      "WF",
+      "AX",
+      "EH",
+    ];
+    for (const code of removedCodes) {
+      expect(PROFILE_COUNTRIES.some((entry) => entry.code === code)).toBe(
+        false,
+      );
+      expect(normalizeProfileIdentity({ ...base, countryCode: code })).toEqual({
+        ok: false,
+        field: "countryCode",
+        message: "Choose a country from the list.",
+      });
+    }
+  });
+
+  it.each(["CK", "NU", "VA", "TW", "IR", "TR"])(
+    "continues to accept retained country code %s",
+    (countryCode) => {
+      expect(normalizeProfileIdentity({ ...base, countryCode }).ok).toBe(true);
+    },
+  );
 
   it("validates social profiles through the platform rules", () => {
     expect(

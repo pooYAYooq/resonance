@@ -475,6 +475,16 @@
  * controls reuse their rounded edge; other targets use an offset outline.
  * Keep these overrides in the utilities layer alongside Tailwind focus styles. */
 @layer utilities {
+  a[href],
+  button:not(:disabled):not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  button[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
   :is(
     a,
     button,

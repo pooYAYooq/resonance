@@ -67,9 +67,7 @@ describe("ProfileHeader", () => {
         bio="Mathematician and writer."
       />,
     );
-    expect(
-      screen.getByText(/mathematician and writer/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/mathematician and writer/i)).toBeInTheDocument();
   });
 
   it("hides the bio when bio is null", () => {
@@ -86,9 +84,7 @@ describe("ProfileHeader", () => {
   });
 
   it("hides the bio when bio is an empty string", () => {
-    render(
-      <ProfileHeader displayName="Ada Lovelace" userId="user-1" bio="" />,
-    );
+    render(<ProfileHeader displayName="Ada Lovelace" userId="user-1" bio="" />);
     expect(screen.queryByText(/mathematician/i)).not.toBeInTheDocument();
   });
 
@@ -133,15 +129,11 @@ describe("ProfileHeader", () => {
       <ProfileHeader
         displayName="Ada Lovelace"
         userId="user-1"
-        stats={
-          <span data-testid="stats">{`7 Followers · 3 Following`}</span>
-        }
+        stats={<span data-testid="stats">{`7 Followers · 3 Following`}</span>}
       />,
     );
     expect(screen.getByTestId("stats")).toBeInTheDocument();
-    expect(
-      screen.getByText(/7 Followers · 3 Following/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/7 Followers · 3 Following/i)).toBeInTheDocument();
   });
 
   it("does not render the stats slot when omitted", () => {
@@ -149,5 +141,23 @@ describe("ProfileHeader", () => {
       <ProfileHeader displayName="Ada Lovelace" userId="user-1" />,
     );
     expect(container.textContent).not.toMatch(/followers/i);
+  });
+
+  it("renders the join date when provided", () => {
+    render(
+      <ProfileHeader
+        displayName="Ada Lovelace"
+        userId="user-1"
+        joinedDate="January 2020"
+      />,
+    );
+    expect(screen.getByText("Joined January 2020")).toBeInTheDocument();
+  });
+
+  it("hides the join date when omitted or null", () => {
+    const { container } = render(
+      <ProfileHeader displayName="Ada Lovelace" userId="user-1" />,
+    );
+    expect(container.textContent).not.toMatch(/Joined/i);
   });
 });

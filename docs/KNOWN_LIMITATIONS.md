@@ -11,6 +11,14 @@ evidence resolves them. The previous detailed delivery history remains in
   in Chrome. It is not WCAG conformance, real screen-reader acceptance, touch
   acceptance, or a final design sign-off. Firefox and Safari were not manually
   exercised. Retest after relevant behavior/layout changes.
+- The current `/profile/edit` passed the both-theme Deep browser matrix in
+  managed Windows Chrome. Query-echo timing and late account-switch errors have
+  automated rather than browser fault-injection coverage; see `J6-ProfileEditor`
+  in [Accessibility evidence](ACCESSIBILITY.md). Retest after relevant changes.
+- Country-picker IME composition and Turkish-locale search/flag casing repairs have
+  synthetic-event/component regressions, not fresh live-browser acceptance.
+  Native IME behavior remains unverified; see the country review follow-up in
+  [Accessibility evidence](ACCESSIBILITY.md).
 - The maintainer deferred the feed loading-announcement advisory to avoid
   expanding PR #103. A status region created with its initial text may not
   announce reliably in some screen readers; this has not been reproduced with
@@ -64,6 +72,20 @@ evidence resolves them. The previous detailed delivery history remains in
   does not establish that these included test files typecheck.
 - No stored-data migration/backfill exists for this undeployed app. A large
   existing deployment would need a staged migration before new indexed callers.
+- The installed `convex@1.34.0` trails the generated AI guidance, which targets
+  Convex `^1.44.0`. The `convex-env` skill's confirmation step is corrected
+  locally to what the pinned CLI supports; a later `npx convex ai-files install`
+  or CLI upgrade will replace that text. Until the upgrade lands, treat those
+  managed skill files as locally corrected rather than upstream-consistent. The
+  follow-up is tracked in [ROADMAP.md](../ROADMAP.md) engineering follow-ups.
+- Search-index pagination cannot be bounded by read budgets: the installed
+  Convex 1.34 API documents that `maximumRowsRead` and `maximumBytesRead` are
+  not enforced for search queries, and the upstream backend reports no split
+  cursor for a search query. Own-post title search therefore refuses an explicit
+  end cursor instead of scanning the range. The `convex-test` emulator diverges
+  (it enforces read budgets on search and can report a split cursor), so an
+  emulator pass does not establish deployed behavior. Recheck against a
+  deployed backend, and after the planned Convex upgrade.
 - Authenticated owner-scoped mutation tests are limited by the Better Auth
   fixture in `convex-test`; a passing test emits a known scheduled-cleanup
   warning. Preserve negative authorization coverage when changing these paths.

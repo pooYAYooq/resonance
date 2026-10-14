@@ -12,12 +12,23 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Profile editor at `/profile/edit`: edit display name, bio, optional
+  country and five social links, and choose up to nine
+  ordered published posts. One header Save button applies changed sections
+  independently. The forms preserve unsaved input across live updates and
+  require an explicit reload on a revision conflict. A centered 760px layout and
+  concise Featured posts section keep editing focused; optional social links
+  are added from one menu.
+- Public profiles display the author's featured posts in their saved order
+  above the full post list.
+- Limit author-edited display names to 30 Unicode code points with inline
+  validation; preserve existing longer names without automatic truncation.
 - Public author identity foundation: an optional country from a reviewed local
   list, five validated social profile links, and a calendar or relative join
   date sourced from the immutable account creation time. Identity and
   selected-work edits are revision-checked, and selected work is bounded to nine
-  ordered published posts. The editing and public presentation surfaces follow
-  in later changes.
+  ordered published posts. The broader public author-page presentation and
+  catalogue follow separately.
 - Responsive draft management rows matching My Posts: linked titles, 16:9
   covers with the blank fallback, tags, Last saved dates, and grouped Resume
   and Delete actions. Draft deletion has named-draft confirmation, pending
@@ -117,6 +128,10 @@ work is tracked in `ROADMAP.md`.
 
 ### Fixed
 
+- Preserve keyboard focus through profile saves, picker pagination, and country
+  clearing; keep the keyboard-active country visible in its scrolling list.
+- Preserve newer profile edits when save responses and live query updates arrive
+  in different orders, and ignore late save callbacks after switching accounts.
 - Deleting a published post whose cover was also a consumed upload claim could
   wedge the deletion job and leave its dependent rows behind; cleanup now treats
   an already-removed storage object as reclaimed, so the job completes.

@@ -198,6 +198,32 @@ describe("users functions", () => {
     expect(result?.postCount).toBe(7);
   });
 
+  it.each([
+    [Date.UTC(2025, 11, 31, 23), "December 2025"],
+    [0, "January 1970"],
+    [undefined, null],
+  ])(
+    "returns the calendar join date for joinedAt %s",
+    async (joinedAt, expected) => {
+      const t = convexTest(schema, modules);
+      await t.run(async (ctx) => {
+        await ctx.db.insert("users", {
+          userId: "joined-author",
+          displayName: "Joined Author",
+          joinedAt,
+          publishedPostCount: 0,
+          unreadNotificationCount: 0,
+          createdAt: Date.UTC(2026, 5, 15),
+        });
+      });
+
+      const result = await t.query(api.users.getUserProfile, {
+        userId: "joined-author",
+      });
+      expect(result?.joinedDate).toBe(expected);
+    },
+  );
+
   it("getUserProfile returns null for missing user", async () => {
     const t = convexTest(schema, modules);
     const result = await t.query(api.users.getUserProfile, {

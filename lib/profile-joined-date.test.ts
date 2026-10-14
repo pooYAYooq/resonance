@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { formatJoinedDate } from "./profile-joined-date";
+import {
+  formatCalendarJoinedDate,
+  formatJoinedDate,
+} from "./profile-joined-date";
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.UTC(2026, 5, 15, 12);
 
 describe("formatJoinedDate", () => {
+  it("formats a UTC calendar date without a current-time argument", () => {
+    expect(formatCalendarJoinedDate(Date.UTC(2025, 11, 31, 23))).toBe(
+      "December 2025",
+    );
+    expect(formatCalendarJoinedDate(Date.UTC(2026, 0, 1))).toBe("January 2026");
+  });
   it("formats the calendar month and year in UTC", () => {
     expect(formatJoinedDate(Date.UTC(2026, 0, 1, 23), "calendar", now)).toBe(
       "January 2026",

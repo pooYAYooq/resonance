@@ -23,6 +23,7 @@ import {
   hydrateAuthorCards,
   identityInputValidator,
   joinDateDisplayValidator,
+  readSelectedShowcase,
   readShowcase,
   revisionSaveValidator,
   saveIdentity,
@@ -30,6 +31,7 @@ import {
   socialProfilesValidator,
   storedIdentity,
   summariesToCards,
+  survivingAuthorPostIds,
 } from "./profileModel";
 
 const publicIdentityValidator = v.object({
@@ -135,6 +137,17 @@ export const getShowcase = query({
   handler: async (ctx, args) => await readShowcase(ctx, args.userId),
 });
 
+/**
+ * The author's surviving featured selection alone, in saved order, with no
+ * latest-post fallback. The public profile renders only a saved selection, so
+ * it uses this read instead of hydrating a fallback it discards.
+ */
+export const getSelectedShowcase = query({
+  args: { userId: v.string() },
+  returns: v.array(authorCardValidator),
+  handler: async (ctx, args) => await readSelectedShowcase(ctx, args.userId),
+});
+
 /** Newest-first published posts for one author, bounded by the native page size. */
 export const listAuthorPosts = query({
   args: {
@@ -159,7 +172,11 @@ export const listAuthorPosts = query({
 /**
  * The authenticated author's own published posts for the selection picker.
  * An empty search browses newest first; a title search is bounded and filtered
- * to the caller's own rows, then hydrated from compact summaries.
+ * to the caller's own rows, then hydrated from compact summaries. Only posts
+ * with stored covers are eligible. Filtering a native page can leave it empty;
+ * its pagination metadata still advances to the next page. An explicit end
+ * cursor range is refused: the search index ignores read budgets and cannot
+ * split, so such a range would scan before it could be rejected.
  */
 export const listOwnPublishedPosts = query({
   args: {
@@ -184,7 +201,21 @@ export const listOwnPublishedPosts = query({
         )
         .order("desc")
         .paginate(paginationOpts);
-      return { ...result, page: await summariesToCards(ctx, result.page) };
+      return {
+        ...result,
+        page: await summariesToCards(
+          ctx,
+          result.page.filter((summary) => Boolean(summary.imageStorageId)),
+        ),
+      };
+    }
+    // The search index ignores read budgets and cannot split, so accepting an
+    // explicit end cursor would scan the whole requested range before the size
+    // check below could reject it. Refuse the unsupported range up front.
+    if (args.paginationOpts.endCursor != null) {
+      throw new ConvexError(
+        "Title search does not support an explicit end cursor range.",
+      );
     }
     const result = await ctx.db
       .query("discoverPostSearch")
@@ -201,7 +232,11 @@ export const listOwnPublishedPosts = query({
         .query("discoverPosts")
         .withIndex("by_postId", (q) => q.eq("postId", hit.postId))
         .unique();
-      if (summary && summary.authorId === authUser._id) {
+      if (
+        summary &&
+        summary.authorId === authUser._id &&
+        summary.imageStorageId
+      ) {
         cards.push(...(await summariesToCards(ctx, [summary])));
       }
     }
@@ -211,12 +246,13 @@ export const listOwnPublishedPosts = query({
 
 /**
  * Live availability for the current selection arguments: only the caller's own
- * currently published posts, in argument order. Foreign, draft, and missing
- * entries are omitted without exposing their details.
+ * currently published posts, in argument order, as IDs. Foreign, draft, and
+ * missing entries are omitted without exposing their details or hydrating
+ * cards and cover URLs the caller does not read.
  */
 export const getOwnSelectionAvailability = query({
   args: { postIds: v.array(v.id("posts")) },
-  returns: v.array(authorCardValidator),
+  returns: v.array(v.id("posts")),
   handler: async (ctx, args) => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) throw new ConvexError("Unauthorized");
@@ -226,7 +262,7 @@ export const getOwnSelectionAvailability = query({
     if (new Set(args.postIds).size !== args.postIds.length) {
       throw new ConvexError("Selection contains duplicates.");
     }
-    return await hydrateAuthorCards(ctx, authUser._id, args.postIds);
+    return await survivingAuthorPostIds(ctx, authUser._id, args.postIds);
   },
 });
 

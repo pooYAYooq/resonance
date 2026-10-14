@@ -1,12 +1,13 @@
 /**
- * Component tests for the Edit Profile page.
+ * Route tests for the Edit Profile page.
  *
- * Verifies auth-gated redirect, form pre-fill from current user data,
- * and submission of the `updateProfile` mutation.
+ * Verifies auth gating, private-query skipping, resolved-null recovery, and
+ * that the page wires `getEditorProfile` into the conflict-aware identity form
+ * without navigating away on save.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import SettingsRoute from "./page";
 
@@ -14,19 +15,24 @@ const {
   pushMock,
   toastSuccessMock,
   toastErrorMock,
-  updateProfileMock,
+  updateIdentityMock,
+  updateSelectionMock,
+  loadMoreMock,
   useConvexAuthState,
-  useQueryState,
+  queryArgsMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   toastErrorMock: vi.fn(),
-  updateProfileMock: vi.fn(),
+  updateIdentityMock: vi.fn(),
+  updateSelectionMock: vi.fn(),
+  loadMoreMock: vi.fn(),
   useConvexAuthState: vi.fn(),
-  useQueryState: vi.fn(),
+  queryArgsMock: vi.fn(),
 }));
 
 let currentQueryValue: unknown = undefined;
+let unavailablePostIds = new Set<string>();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
@@ -41,49 +47,78 @@ vi.mock("sonner", () => ({
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => useConvexAuthState(),
-  useQuery: (_query: unknown, args: unknown) => useQueryState(args),
-  useMutation: () => updateProfileMock,
+  useQuery: (query: unknown, args: unknown) => {
+    if (query === "getOwnSelectionAvailability") {
+      if (args === "skip") return undefined;
+      const ids = (args as { postIds: string[] }).postIds;
+      // Existence is independent of the saved selection: a post the author is
+      // adding right now is published even though it is not saved yet.
+      return ids.filter((id) => !unavailablePostIds.has(id));
+    }
+    return queryArgsMock(args);
+  },
+  useMutation: (mutation: unknown) =>
+    mutation === "updateSelection" ? updateSelectionMock : updateIdentityMock,
+  usePaginatedQuery: () => ({
+    results: [],
+    status: "Exhausted",
+    loadMore: loadMoreMock,
+    isLoading: false,
+  }),
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
   api: {
-    users: {
-      getCurrentUser: "getCurrentUser",
-      updateProfile: "updateProfile",
+    profiles: {
+      getEditorProfile: "getEditorProfile",
+      updateIdentity: "updateIdentity",
+      updateSelection: "updateSelection",
+      getOwnSelectionAvailability: "getOwnSelectionAvailability",
+      listOwnPublishedPosts: "listOwnPublishedPosts",
     },
   },
 }));
 
-const currentUser = {
-  _id: "users-1",
-  _creationTime: 0,
+const editorProfile = {
   userId: "auth-user-1",
-  displayName: "Ada Lovelace",
   email: "ada@example.com",
   avatarUrl: "https://example.com/ada.png",
-  bio: "Initial bio.",
-  createdAt: 0,
+  identity: {
+    displayName: "Ada Lovelace",
+    bio: "Initial bio.",
+    countryCode: "GB",
+    socialProfiles: { instagram: "https://instagram.com/ada" },
+    joinDateDisplay: "calendar",
+  },
+  joinedAt: Date.UTC(2020, 0, 15),
+  identityRevision: 0,
+  selectionRevision: 0,
+  selectedPostIds: [],
+  selectedPosts: [],
 };
 
-describe("SettingsRoute", () => {
+describe("EditProfileRoute", () => {
   beforeEach(() => {
     pushMock.mockClear();
     toastSuccessMock.mockClear();
     toastErrorMock.mockClear();
-    updateProfileMock.mockClear();
-    currentQueryValue = currentUser;
+    updateIdentityMock.mockClear();
+    updateSelectionMock.mockClear();
+    loadMoreMock.mockClear();
+    currentQueryValue = editorProfile;
+    unavailablePostIds = new Set();
     useConvexAuthState.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
     });
-    useQueryState.mockImplementation(() => currentQueryValue);
+    queryArgsMock.mockImplementation(() => currentQueryValue);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it("redirects to /auth/login when not authenticated", async () => {
+  it("redirects to /auth/login with returnTo when not authenticated", async () => {
     useConvexAuthState.mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
@@ -98,7 +133,7 @@ describe("SettingsRoute", () => {
     });
   });
 
-  it("does not redirect while auth is loading", () => {
+  it("does not redirect while auth is loading and skips the private query", () => {
     useConvexAuthState.mockReturnValue({
       isAuthenticated: false,
       isLoading: true,
@@ -106,103 +141,237 @@ describe("SettingsRoute", () => {
     render(<SettingsRoute />);
 
     expect(pushMock).not.toHaveBeenCalled();
-    expect(useQueryState).toHaveBeenLastCalledWith("skip");
+    expect(queryArgsMock).toHaveBeenLastCalledWith("skip");
   });
 
-  it("skips the private current-user query when authentication is anonymous", () => {
+  it("skips the private editor query when anonymous", () => {
     useConvexAuthState.mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
     });
     render(<SettingsRoute />);
 
-    expect(useQueryState).toHaveBeenLastCalledWith("skip");
+    expect(queryArgsMock).toHaveBeenLastCalledWith("skip");
   });
 
-  it("pre-fills the form with the current user's display name and bio", () => {
+  it("renders the identity form from the editor profile", () => {
     render(<SettingsRoute />);
 
-    expect(useQueryState).toHaveBeenLastCalledWith({});
-
-    const displayNameInput = screen.getByLabelText(
-      /display name/i,
-    ) as HTMLInputElement;
-    const bioTextarea = screen.getByLabelText(/bio/i) as HTMLTextAreaElement;
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-
-    expect(displayNameInput.value).toBe("Ada Lovelace");
-    expect(bioTextarea.value).toBe("Initial bio.");
-    expect(emailInput.value).toBe("ada@example.com");
+    expect(queryArgsMock).toHaveBeenLastCalledWith({});
+    expect(screen.getByLabelText(/display name/i)).toHaveValue("Ada Lovelace");
+    expect(screen.getByLabelText(/bio/i)).toHaveValue("Initial bio.");
+    expect(screen.getByLabelText("Country")).toHaveTextContent(
+      "United Kingdom",
+    );
+    expect(screen.getByRole("textbox", { name: "Instagram" })).toBeVisible();
   });
 
-  it("shows a live character counter for the bio (max 160)", async () => {
-    const user = userEvent.setup();
+  it("offers a link to the author's public page", () => {
     render(<SettingsRoute />);
-
-    const bioTextarea = screen.getByLabelText(/bio/i) as HTMLTextAreaElement;
-    await user.clear(bioTextarea);
-    await user.type(bioTextarea, "short");
 
     expect(
-      screen.getByText(
-        (text) => text.replace(/\s+/g, " ") === "5 / 160 characters",
-      ),
+      screen.getByRole("link", { name: /back to profile/i }),
+    ).toHaveAttribute("href", "/u/auth-user-1");
+  });
+
+  it("shows recovery when the authenticated user has no profile record", () => {
+    currentQueryValue = null;
+    render(<SettingsRoute />);
+
+    expect(
+      screen.getByText(/could not find your profile/i),
     ).toBeInTheDocument();
   });
 
-  it("submits the form and calls updateProfile with the trimmed values", async () => {
+  it("resets the form when the authenticated account changes", async () => {
     const user = userEvent.setup();
-    updateProfileMock.mockResolvedValue("users-1");
+    const { rerender } = render(<SettingsRoute />);
 
+    await user.type(screen.getByLabelText(/display name/i), " dirty");
+    expect(screen.getByLabelText(/display name/i)).toHaveValue(
+      "Ada Lovelace dirty",
+    );
+
+    currentQueryValue = {
+      ...editorProfile,
+      userId: "auth-user-2",
+      identity: { ...editorProfile.identity, displayName: "Grace Hopper" },
+    };
+    rerender(<SettingsRoute />);
+
+    expect(screen.getByLabelText(/display name/i)).toHaveValue("Grace Hopper");
+  });
+
+  it("mounts the selected-work editor from the editor profile", () => {
     render(<SettingsRoute />);
 
-    const displayNameInput = screen.getByLabelText(
-      /display name/i,
-    ) as HTMLInputElement;
-    const bioTextarea = screen.getByLabelText(/bio/i) as HTMLTextAreaElement;
+    expect(screen.getByText(/0 of 9 selected/i)).toBeInTheDocument();
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.queryByRole("button", { name: /save profile details/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /save selected work/i }),
+    ).not.toBeInTheDocument();
+  });
 
-    await user.clear(displayNameInput);
-    await user.type(displayNameInput, "  Ada L.  ");
-    await user.clear(bioTextarea);
-    await user.type(bioTextarea, "New bio text.");
+  it("saves changed profile details and selected work from the header button", async () => {
+    const user = userEvent.setup();
+    updateIdentityMock.mockResolvedValue({ kind: "saved", revision: 1 });
+    updateSelectionMock.mockResolvedValue({ kind: "saved", revision: 1 });
+    currentQueryValue = {
+      ...editorProfile,
+      selectedPostIds: ["posts_alpha"],
+      selectedPosts: [
+        { postId: "posts_alpha", title: "Alpha", imageUrl: null, likeCount: 0 },
+      ],
+    };
+    render(<SettingsRoute />);
 
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toHaveAttribute("aria-disabled", "true");
+
+    await user.type(screen.getByLabelText(/display name/i), "!");
+    await user.click(screen.getByRole("button", { name: /remove alpha/i }));
+    expect(saveButton).toBeEnabled();
+    expect(saveButton.closest("header")).not.toBeNull();
+
+    await user.click(saveButton);
 
     await waitFor(() => {
-      expect(updateProfileMock).toHaveBeenCalledWith({
-        displayName: "Ada L.",
-        bio: "New bio text.",
+      expect(updateIdentityMock).toHaveBeenCalledWith({
+        expectedRevision: 0,
+        identity: {
+          displayName: "Ada Lovelace!",
+          bio: "Initial bio.",
+          countryCode: "GB",
+          socialProfiles: { instagram: "https://instagram.com/ada" },
+          joinDateDisplay: "calendar",
+        },
+      });
+      expect(updateSelectionMock).toHaveBeenCalledWith({
+        expectedRevision: 0,
+        postIds: [],
       });
     });
+
+    await waitFor(() =>
+      expect(saveButton).toHaveAttribute("aria-disabled", "true"),
+    );
+  });
+
+  it("keeps selected work intact when an identity save fails", async () => {
+    const user = userEvent.setup();
+    currentQueryValue = {
+      ...editorProfile,
+      selectedPostIds: ["posts_alpha"],
+      selectedPosts: [
+        { postId: "posts_alpha", title: "Alpha", imageUrl: null, likeCount: 0 },
+      ],
+    };
+    updateIdentityMock.mockRejectedValue(new Error("Boom"));
+    render(<SettingsRoute />);
+
+    await user.type(screen.getByLabelText(/display name/i), "!");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/failed to save your profile/i),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: /remove alpha/i }),
+    ).toBeInTheDocument();
+    expect(updateSelectionMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores a late identity save response after the account switches", async () => {
+    const user = userEvent.setup();
+    let resolveSave: (value: {
+      kind: "saved";
+      revision: number;
+    }) => void = () => {};
+    updateIdentityMock.mockImplementation(
+      () => new Promise((resolve) => (resolveSave = resolve)),
+    );
+    const { rerender } = render(<SettingsRoute />);
+
+    await user.type(screen.getByLabelText(/bio/i), " dirty");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateIdentityMock).toHaveBeenCalledTimes(1);
+
+    currentQueryValue = {
+      ...editorProfile,
+      userId: "auth-user-2",
+      identity: { ...editorProfile.identity, displayName: "Grace Hopper" },
+    };
+    rerender(<SettingsRoute />);
+
+    await act(async () => {
+      resolveSave({ kind: "saved", revision: 1 });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/display name/i)).toHaveValue(
+        "Grace Hopper",
+      );
+    });
+  });
+
+  it("does not focus the new account's field after a previous account's save rejects", async () => {
+    const user = userEvent.setup();
+    let rejectSave!: (error: unknown) => void;
+    updateIdentityMock.mockImplementation(
+      () => new Promise((_, reject) => (rejectSave = reject)),
+    );
+    const { rerender } = render(<SettingsRoute />);
+    await user.type(screen.getByLabelText("Bio"), " dirty");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    currentQueryValue = { ...editorProfile, userId: "auth-user-2" };
+    rerender(<SettingsRoute />);
+    screen.getByLabelText("Username").focus();
+    await act(async () =>
+      rejectSave({ data: { field: "bio", message: "Rejected old save" } }),
+    );
+    expect(screen.getByLabelText("Username")).toHaveFocus();
+  });
+
+  it("does not navigate away after a successful identity save", async () => {
+    const user = userEvent.setup();
+    updateIdentityMock.mockResolvedValue({ kind: "saved", revision: 1 });
+    render(<SettingsRoute />);
+
+    await user.type(screen.getByLabelText(/bio/i), " dirty");
+    await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
       expect(toastSuccessMock).toHaveBeenCalledWith("Profile updated");
     });
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it("shows an error toast when the mutation throws", async () => {
+  it("keeps keyboard Save focus through pending and successful submission", async () => {
     const user = userEvent.setup();
-    updateProfileMock.mockRejectedValue(new Error("Boom"));
-
+    let resolveSave!: (value: { kind: "saved"; revision: number }) => void;
+    updateIdentityMock.mockImplementation(
+      () => new Promise((resolve) => (resolveSave = resolve)),
+    );
     render(<SettingsRoute />);
-
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-    await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith("Failed to update profile");
-    });
-  });
-
-  it("redirects to the user's profile after a successful save", async () => {
-    const user = userEvent.setup();
-    updateProfileMock.mockResolvedValue("users-1");
-
-    render(<SettingsRoute />);
-
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-    await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/u/auth-user-1");
-    });
+    await user.type(screen.getByLabelText(/bio/i), " changed");
+    const save = screen.getByRole("button", { name: "Save" });
+    save.focus();
+    await user.keyboard("{Enter}");
+    expect(save).toHaveFocus();
+    expect(save).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Enter} ");
+    expect(updateIdentityMock).toHaveBeenCalledTimes(1);
+    await act(async () => resolveSave({ kind: "saved", revision: 1 }));
+    expect(save).toHaveFocus();
+    expect(save).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Enter}");
+    expect(updateIdentityMock).toHaveBeenCalledTimes(1);
   });
 });

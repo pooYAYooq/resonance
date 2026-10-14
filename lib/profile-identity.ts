@@ -13,7 +13,7 @@ export {
   type SocialProfilesResult,
 } from "./profile-socials";
 
-export const MAX_PROFILE_NAME_CODE_POINTS = 100;
+export const MAX_PROFILE_NAME_CODE_POINTS = 30;
 export const MAX_PROFILE_BIO_CODE_POINTS = 1000;
 export const MAX_SELECTED_POSTS = 9;
 

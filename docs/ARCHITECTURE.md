@@ -91,7 +91,7 @@ resonance/
 │   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
 │   │   ├── u/[userId]/
 │   │   │   ├── page.tsx        # Public profile. Server Component. Uses fetchQuery for
-│   │   │   │                   # metadata and fetchAuthQuery for viewer-aware rendering.
+│   │   │   │                   # metadata and featured posts; fetchAuthQuery for viewer-aware rendering.
 │   │   │   └── _components/
 │   │   │       └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
 │   │   │                              # (Edit Profile + Follow live in components/web/
@@ -122,7 +122,10 @@ resonance/
 │   │   │   ├── page.tsx        # Private reader collection of liked posts.
 │   │   │   └── _components/
 │   │   │       └── LikedSection.tsx      # Client auth gate + pagination.
-│   │   ├── profile/edit/page.tsx # Authenticated display-name and bio editor.
+│   │   ├── profile/edit/
+│   │   │   ├── page.tsx          # Authenticated identity + selected-work editor.
+│   │   │   └── _components/      # Identity, country, and selected-work forms plus
+│   │   │                         # pure edit-state helpers.
 │   │   └── settings/page.tsx    # Appearance and Account configuration only.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
@@ -192,13 +195,15 @@ resonance/
 │   ├── crons.ts                # Daily feed expiration, upload cleanup, and deletion recovery.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
-│   ├── users.ts                # syncUser, getCurrentUser, getUserProfile,
-│   │                           # updateProfile mutations/queries and Discover rename repair
+│   ├── users.ts                # syncUser, getCurrentUser, and getUserProfile plus
+│   │                           # Discover rename repair; identity edits live in profiles.ts
 │   ├── profileModel.ts         # Shared profile validators, stored-identity mapping,
 │   │                           # revision-checked identity/selection helpers, bounded
-│   │                           # card hydration, and deleted-selection cleanup. Not registered.
-│   ├── profiles.ts             # Public identity/showcase/catalogue reads and
-│   │                           # authenticated identity and selected-work edits
+│   │                           # card hydration, ID-only existence checks, and
+│   │                           # deleted-selection cleanup. Not registered.
+│   ├── profiles.ts             # Public identity, featured-selection, showcase,
+│   │                           # and catalogue reads plus authenticated identity
+│   │                           # and selected-work edits
 │
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (Button, Card, Input, etc.)

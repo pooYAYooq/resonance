@@ -147,6 +147,45 @@ describe("profiles identity API", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
+  it("enforces the 30-code-point name limit without overwriting a longer stored name", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Ada",
+      email: "name-limit@example.com",
+    });
+    const own = t.withIdentity(identity);
+    await own.mutation(api.users.syncUser, {});
+    const longName = "L".repeat(40);
+    await t.run(async (ctx) => {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique();
+      await ctx.db.patch(user!._id, { displayName: longName });
+    });
+    const before = await own.query(api.profiles.getEditorProfile, {});
+    expect(before?.identity.displayName).toBe(longName);
+    await expect(
+      own.mutation(api.profiles.updateIdentity, {
+        expectedRevision: before!.identityRevision,
+        identity: { ...before!.identity, displayName: "😀".repeat(31) },
+      }),
+    ).rejects.toMatchObject({
+      data: { field: "displayName", message: "Use at most 30 characters." },
+    });
+    const unchanged = await own.query(api.profiles.getEditorProfile, {});
+    expect(unchanged?.identity.displayName).toBe(longName);
+    expect(unchanged?.identityRevision).toBe(before!.identityRevision);
+    await own.mutation(api.profiles.updateIdentity, {
+      expectedRevision: before!.identityRevision,
+      identity: { ...before!.identity, displayName: "😀".repeat(30) },
+    });
+    expect(
+      (await own.query(api.profiles.getEditorProfile, {}))?.identity
+        .displayName,
+    ).toBe("😀".repeat(30));
+  });
+
   it("validates fields and clears optional values", async () => {
     const t = convexTest(schema, modules);
     const identity = await createAuthIdentity(t, {
@@ -532,6 +571,37 @@ describe("profiles selection API", () => {
     ]);
   });
 
+  it("returns only the featured selection without reading a latest fallback", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, posts, own } = await seedAuthor(
+      t,
+      "selected-only@example.com",
+      4,
+    );
+
+    await expect(
+      t.query(api.profiles.getSelectedShowcase, { userId: identity.subject }),
+    ).resolves.toEqual([]);
+
+    await own.mutation(api.profiles.updateSelection, {
+      expectedRevision: 0,
+      postIds: [posts[2], posts[0]],
+    });
+    await expect(
+      t.query(api.profiles.getSelectedShowcase, { userId: identity.subject }),
+    ).resolves.toMatchObject([
+      { postId: posts[2], title: "Post 2" },
+      { postId: posts[0], title: "Post 0" },
+    ]);
+
+    await own.mutation(api.posts.deletePublishedPost, { postId: posts[2] });
+    await drainScheduled(t);
+    const remaining = await t.query(api.profiles.getSelectedShowcase, {
+      userId: identity.subject,
+    });
+    expect(remaining.map((post) => post.postId)).toEqual([posts[0]]);
+  });
+
   it("leaves the selection revision unchanged when an unselected post is deleted", async () => {
     const t = convexTest(schema, modules);
     const { posts, own } = await seedAuthor(t, "unselected@example.com", 3);
@@ -594,7 +664,7 @@ describe("profiles selection API", () => {
       api.profiles.getOwnSelectionAvailability,
       { postIds: [posts[3], foreign, draft, posts[1]] },
     );
-    expect(available.map((card) => card.postId)).toEqual([posts[3], posts[1]]);
+    expect(available).toEqual([posts[3], posts[1]]);
 
     await expect(
       t.query(api.profiles.getOwnSelectionAvailability, { postIds: [] }),
@@ -755,7 +825,7 @@ describe("profiles selection API", () => {
     ).rejects.toThrow(/too long/i);
   });
 
-  it("rejects oversized title-search ranges before hydrating hits", async () => {
+  it("refuses explicit end cursor ranges on title search before reading the index", async () => {
     const t = convexTest(schema, modules);
     const { own } = await seedAuthor(t, "wide-title-range@example.com", 21);
 
@@ -768,6 +838,20 @@ describe("profiles selection API", () => {
       paginationOpts: { numItems: 20, cursor: firstPage.continueCursor },
     });
 
+    // Refused even for a range a size check would accept, so the guard cannot
+    // be satisfied by reading the range first.
+    await expect(
+      own.query(api.profiles.listOwnPublishedPosts, {
+        search: "Post",
+        paginationOpts: {
+          numItems: 1,
+          cursor: null,
+          endCursor: firstPage.continueCursor,
+        },
+      }),
+    ).rejects.toThrow(/end cursor/i);
+
+    // A caller-supplied read budget cannot make the range acceptable either.
     await expect(
       own.query(api.profiles.listOwnPublishedPosts, {
         search: "Post",
@@ -775,13 +859,127 @@ describe("profiles selection API", () => {
           numItems: 1,
           cursor: null,
           endCursor: secondPage.continueCursor,
+          maximumRowsRead: 20,
         },
       }),
-    ).rejects.toThrow(/range|page size/i);
+    ).rejects.toThrow(/end cursor/i);
+
+    // Plain cursor pagination and an explicit null end cursor still work.
+    const nextPage = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "Post",
+      paginationOpts: {
+        numItems: 20,
+        cursor: firstPage.continueCursor,
+        endCursor: null,
+      },
+    });
+    expect(nextPage.page.length).toBeGreaterThan(0);
   });
 });
 
 describe("profiles API edge coverage", () => {
+  it.each(["", "Quokka"])(
+    "omits coverless picker results for search %j",
+    async (search) => {
+      const t = convexTest(schema, modules);
+      const { identity, own } = await seedAuthor(t, "eligible@example.com", 0);
+      const covered = await seedPost(t, identity.subject, {
+        title: "Quokka with cover",
+        publishedAt: 10,
+      });
+      await seedPost(t, identity.subject, {
+        title: "Quokka without cover",
+        publishedAt: 20,
+        cover: false,
+      });
+
+      const result = await own.query(api.profiles.listOwnPublishedPosts, {
+        search,
+        paginationOpts: { numItems: 5, cursor: null },
+      });
+      expect(result.page.map((card) => card.postId)).toEqual([covered]);
+      await expect(
+        own.mutation(api.profiles.updateSelection, {
+          expectedRevision: 0,
+          postIds: result.page.map((card) => card.postId),
+        }),
+      ).resolves.toEqual({ kind: "saved", revision: 1 });
+    },
+  );
+
+  it.each(["", "Post"])(
+    "preserves cursor progress through an empty eligible page for search %j",
+    async (search) => {
+      const t = convexTest(schema, modules);
+      const { own, posts } = await seedAuthor(t, "short-page@example.com", 3);
+      const firstBefore = await own.query(api.profiles.listOwnPublishedPosts, {
+        search,
+        paginationOpts: { numItems: 1, cursor: null },
+      });
+      const coverless = firstBefore.page[0].postId;
+      await t.run(async (ctx) => {
+        await ctx.db.patch(coverless, { imageStorageId: undefined });
+        const summary = await ctx.db
+          .query("discoverPosts")
+          .withIndex("by_postId", (q) => q.eq("postId", coverless))
+          .unique();
+        await ctx.db.patch(summary!._id, { imageStorageId: undefined });
+      });
+
+      const first = await own.query(api.profiles.listOwnPublishedPosts, {
+        search,
+        paginationOpts: { numItems: 1, cursor: null },
+      });
+      expect(first.page).toEqual([]);
+      expect(first.isDone).toBe(false);
+      expect(first.continueCursor).toBe(firstBefore.continueCursor);
+
+      const found: Id<"posts">[] = [];
+      let page = first;
+      for (let i = 0; i < 4 && !page.isDone; i++) {
+        page = await own.query(api.profiles.listOwnPublishedPosts, {
+          search,
+          paginationOpts: { numItems: 1, cursor: page.continueCursor },
+        });
+        found.push(...page.page.map((card) => card.postId));
+      }
+      expect(page.isDone).toBe(true);
+      expect(found.sort()).toEqual(
+        posts.filter((id) => id !== coverless).sort(),
+      );
+    },
+  );
+
+  it.each(["", "Post"])(
+    "keeps a stored-cover picker result with an unavailable image URL for search %j",
+    async (search) => {
+      const t = convexTest(schema, modules);
+      const { own, posts } = await seedAuthor(
+        t,
+        "missing-image@example.com",
+        1,
+      );
+      await t.run(async (ctx) => {
+        const post = await ctx.db.get(posts[0]);
+        await ctx.storage.delete(post!.imageStorageId!);
+      });
+
+      const result = await own.query(api.profiles.listOwnPublishedPosts, {
+        search,
+        paginationOpts: { numItems: 5, cursor: null },
+      });
+      expect(result.page).toEqual([
+        { postId: posts[0], title: "Post 0", imageUrl: null, likeCount: 3 },
+      ]);
+      await expect(
+        own.mutation(api.profiles.updateSelection, {
+          expectedRevision: 0,
+          postIds: [posts[0]],
+        }),
+      ).resolves.toEqual({ kind: "saved", revision: 1 });
+    },
+  );
+
   it("rejects selecting a published post without a stored cover", async () => {
     const t = convexTest(schema, modules);
     const { identity, own } = await seedAuthor(t, "no-cover@example.com", 1);
@@ -843,7 +1041,7 @@ describe("profiles API edge coverage", () => {
     const before = await own.query(api.profiles.getOwnSelectionAvailability, {
       postIds: [posts[0], posts[1]],
     });
-    expect(before.map((card) => card.postId)).toEqual([posts[0], posts[1]]);
+    expect(before).toEqual([posts[0], posts[1]]);
 
     await own.mutation(api.posts.deletePublishedPost, { postId: posts[0] });
     await drainScheduled(t);
@@ -851,7 +1049,27 @@ describe("profiles API edge coverage", () => {
     const after = await own.query(api.profiles.getOwnSelectionAvailability, {
       postIds: [posts[0], posts[1]],
     });
-    expect(after.map((card) => card.postId)).toEqual([posts[1]]);
+    expect(after).toEqual([posts[1]]);
+  });
+
+  it("keeps a coverless published post available instead of treating it as gone", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, own } = await seedAuthor(
+      t,
+      "availability-coverless@example.com",
+      0,
+    );
+    const coverless = await seedPost(t, identity.subject, {
+      title: "Legacy coverless",
+      publishedAt: 12,
+      cover: false,
+    });
+
+    await expect(
+      own.query(api.profiles.getOwnSelectionAvailability, {
+        postIds: [coverless],
+      }),
+    ).resolves.toEqual([coverless]);
   });
 
   it("drops a search hit whose compact summary is gone", async () => {
@@ -969,11 +1187,11 @@ describe("profiles API edge coverage", () => {
     ).rejects.toThrow(/page size/i);
   });
 
-  it("keeps the legacy updateProfile adapter consistent with the shared model", async () => {
+  it("preserves saved identity fields across successive revision-checked saves", async () => {
     const t = convexTest(schema, modules);
     const identity = await createAuthIdentity(t, {
       name: "Provider",
-      email: "legacy-adapter@example.com",
+      email: "successive-saves@example.com",
     });
     await t.withIdentity(identity).mutation(api.users.syncUser, {});
     const own = t.withIdentity(identity);
@@ -988,22 +1206,30 @@ describe("profiles API edge coverage", () => {
       }),
     });
 
-    await own.mutation(api.users.updateProfile, {
-      displayName: "Adapter name",
-      bio: "Adapter introduction",
+    const mid = await own.query(api.profiles.getEditorProfile, {});
+    await own.mutation(api.profiles.updateIdentity, {
+      expectedRevision: mid!.identityRevision,
+      identity: {
+        ...mid!.identity,
+        displayName: "Second save name",
+        bio: "Second save introduction",
+      },
     });
 
     const after = await own.query(api.profiles.getEditorProfile, {});
     expect(after?.identity).toMatchObject({
-      displayName: "Adapter name",
-      bio: "Adapter introduction",
+      displayName: "Second save name",
+      bio: "Second save introduction",
       countryCode: "IR",
       joinDateDisplay: "relative",
     });
-    expect(after?.identityRevision).toBe(before!.identityRevision + 2);
+    expect(after?.identityRevision).toBe(mid!.identityRevision + 1);
 
     await expect(
-      own.mutation(api.users.updateProfile, { displayName: "   ", bio: "" }),
+      own.mutation(api.profiles.updateIdentity, {
+        expectedRevision: after!.identityRevision,
+        identity: identityInput({ displayName: "   " }),
+      }),
     ).rejects.toMatchObject({ data: { field: "displayName" } });
   });
 });

@@ -437,14 +437,15 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
 
 ### Journey 5: Navigate and account
 
-| Check ID         | Journey / surface / state                                | Check                                   | Width / theme | Result | Evidence / revision | Finding                                                      |
-| ---------------- | -------------------------------------------------------- | --------------------------------------- | ------------- | ------ | ------------------- | ------------------------------------------------------------ |
-| J5-Nav           | navbar, sidebar, mobile drawer; signed-in and signed-out | keyboard, names, focus, dialog behavior | Deep          | Pass   | See notes           | None                                                         |
-| J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Pass   | See notes           | None                                                         |
-| J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Pass   | See notes           | Fixed pagination focus; no empty-state recovery link (V1-18) |
-| J5-Settings      | `/settings` appearance and account                       | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                                         |
-| J5-ProfileEdit   | `/profile/edit` validation and save                      | keyboard, names, focus                  | Standard      | Pass   | See notes           | None                                                         |
-| J5-SignOut       | sign-out confirmation choices                            | keyboard, names, focus, dialog behavior | Standard      | Pass   | See notes           | None                                                         |
+| Check ID         | Journey / surface / state                                | Check                                   | Width / theme | Result     | Evidence / revision | Finding                                                       |
+| ---------------- | -------------------------------------------------------- | --------------------------------------- | ------------- | ---------- | ------------------- | ------------------------------------------------------------- |
+| J5-Nav           | navbar, sidebar, mobile drawer; signed-in and signed-out | keyboard, names, focus, dialog behavior | Deep          | Pass       | See notes           | None                                                          |
+| J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Pass       | See notes           | None                                                          |
+| J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Pass       | See notes           | Fixed pagination focus; no empty-state recovery link (V1-18)  |
+| J5-Settings      | `/settings` appearance and account                       | keyboard, names, focus                  | Standard      | Pass       | See notes           | None                                                          |
+| J5-ProfileEdit   | Previous `/profile/edit` validation and save             | keyboard, names, focus                  | Standard      | Superseded | See notes           | Replaced by J6-ProfileEditor; not evidence for the new editor |
+| J5-SignOut       | sign-out confirmation choices                            | keyboard, names, focus, dialog behavior | Standard      | Pass       | See notes           | None                                                          |
+| J6-ProfileEditor | `/profile/edit` identity and selected-work editor        | keyboard, names, focus, reorder, status | Deep          | Pass       | See J6 follow-up    | Save/pagination focus and country keyboard recovery fixed     |
 
 **Journey 5 notes (managed Chrome, dark and light; extension attach for the bell check)**
 
@@ -470,11 +471,17 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   initial pass identified the control without selecting options; the PR
   follow-up below exercises its keyboard behavior. Account shows the signed-in
   email with a named Sign Out button; sign-out was not activated in this check.
-- J5-ProfileEdit: groups and fields are named (disabled Email with
+- J5-ProfileEdit (historical, superseded by J6): groups and fields were named (disabled Email with
   explanation, Display Name, Bio with a live character counter). Save Changes
   was activated from the keyboard with the values unchanged (nothing was
   modified) during PR review; the form announced "Profile updated" and
   redirected to the profile.
+- J6-ProfileEditor: the approved `/profile/edit` editor has display name, Bio,
+  country, social links, a local-only Username field, and up to nine
+  ordered Featured posts. The maintainer approved its layout and copy before
+  the browser acceptance below; that design was not reopened. The earlier
+  October 13 lint/728 edge/793 component/build results predate the acceptance
+  fixes and are not the final verification for this editor.
 - J5-SignOut: with unsaved authoring content, the sidebar Sign Out opens a
   named alertdialog ("Sign out?") with Cancel, Discard & sign out, and Save &
   sign out choices and focus inside. Escape closes it, keeps the session, and
@@ -482,6 +489,319 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
   sign-out choice; the follow-up below records both actual outcomes.
   Touch acceptance for the drawer remains an
   accepted limitation (no touch device available).
+
+**J6-ProfileEditor follow-up (2026-10-14, `7d424d2` plus uncommitted editor fixes)**
+
+- Windows Chrome 154, driven by the Windows-side Playwright CLI from WSL,
+  against `http://localhost:3000` and dev `woozy-spaniel-283`. The completed
+  pass used visible managed windows: `profileacceptance` for read-only demo
+  checks/local unsaved edits and `profilefixtures` for disposable writes.
+  The browser clock reported October 13. Light/Dark were selected through the
+  actual theme menu; viewport sizes were 320×900, 375×900, 768×900, and
+  1280×900 in each theme.
+- **Historical blocked attempts, superseded:** extension attachment reached
+  the signed-in editor and basic selection/Done/Escape worked, but field
+  traversal repeatedly lost the connection with `Input.dispatchKeyEvent:
+Detached while handling command` or a closed-page error. Disabling 1Password
+  did not resolve it. Its cause was not established; these interrupted runs
+  are not matrix evidence or a reproduced application defect. Managed Chrome
+  passed the same five-Tab diagnostic and the complete matrix.
+- All editor controls were keyboard-reachable with names and visible focus;
+  inspected settled screenshots show field borders, picker focus, and moved-row
+  focus rather than relying only on DOM state. The development-tool portal and
+  browser-chrome traversal are not application controls. At every width/theme,
+  document scroll width equalled client width. Long titles wrapped in both the
+  picker and selected list without clipping their actions.
+- Blank display-name and 1,001-code-point emoji Bio submissions focused the
+  invalid field, retained input, and exposed associated descriptions/errors,
+  `aria-invalid` on the control and `data-invalid` on its Field. The Bio counter
+  read 1001 / 1000. Country search, ArrowDown/Enter selection, and Escape return
+  worked. After the country fix, 31 Down presses scrolled the active option
+  into view while search kept focus; keyboard Clear country returned focus to
+  Country. An invalid Instagram URL exposed its named inline error, and keyboard
+  removal returned focus to Add social link. Local-only Username/Location edits
+  did not enable a persisted save.
+- Picker opening focused Search posts. Tab/Down reached a result; Up/Down moved
+  between available results and Up from the first returned to search.
+  Enter/Space toggled selection; title search found the demo, no-match search
+  exposed recovery, and clearing reset browsing. Shift+Tab from search reached
+  Done and Tab wrapped back inside. Done and Escape returned focus to the
+  surviving Choose/Add/Manage posts trigger without jumping the page.
+- A disposable author supplied **14 distinct published posts**, named
+  `Profile acceptance fixture 01` through `13`, with two distinct `02` posts
+  because an interrupted publication batch had already created that title.
+  Each used a generated PNG assigned to the real file input and the app's real
+  Review/Publish flow. Native file-chooser operation is not claimed. All eight
+  final pagination/limit/save runs loaded 12→14 posts, enforced nine selections
+  and disabled the five remaining choices. Wheel input over the backdrop left
+  background scroll unchanged; wheel input in the results scrolled that region
+  while Search/Done kept their positions. Outside clicks kept the dialog open.
+- **Fixed browser failures:** native disabling of Save dropped keyboard focus
+  to body, and exhausted pagination dropped it to the dialog container. Save
+  and pending Load more now remain focusable with `aria-disabled` and guarded
+  activation. All eight final runs focused the first available appended post
+  after pagination and retained visible Save focus after success. Component
+  regressions verify pending duplicate guards and respect deliberate focus
+  departure; the exhausted-at-cap fallback was also browser-checked.
+- Keyboard Up retained the moved control at the first-position boundary and
+  announced its new position. Removal focused the surviving row's Remove, or
+  Choose posts when the final row was removed. Both-theme Deep runs exercised
+  these transitions. Saved reorder persisted in the disposable account.
+- One save independently accepted selected-work changes while rejecting a
+  blank display name. Two authenticated tabs then saved concurrent identity and
+  selection changes: the dirty tab retained its introduction and chosen order,
+  showed both conflicts, and each explicit Load saved version replaced only its
+  own section. Query-echo-before-response, reverting during pending saves,
+  older query echoes, and late errors after account switch have automated
+  regression coverage; those timing cases were not browser fault-injected.
+- **Cleanup verified:** all 14 fixture posts were deleted through their own
+  management confirmations. My Posts returned to No published posts yet and
+  the editor reconciled to zero selections. The empty disposable author account
+  `k1770qhj3g8xytq755n9rch4x98g61qf` remains; no delete-account UI exists.
+  The protected demo `j97ewf0y3ckz82j9q5225yaqj18fzzrp` still showed one like
+  and one comment, and the existing follow action remained pressed/Following.
+  No protected content or engagement was modified. The original attached tab's
+  unsaved edits were left alone; the managed demo window returned to its
+  2554×1278 viewport and System theme.
+- Raw scripts/results and screenshots remain outside Git. Retest this Deep
+  matrix after changes to modal geometry, field validation, country navigation,
+  pending-action guards, pagination/removal focus, or revision reconciliation.
+  Screen-reader, touch, non-Chromium, target-size, and zoom limitations remain;
+  this does not certify the unfinished public author canvas/catalogue.
+- Final ordered verification after the fixes: `pnpm lint` passed, all **729**
+  edge/backend tests passed, all **800** component tests passed with one worker,
+  and `pnpm build` passed. Changed editor/document formatting and
+  `pnpm check:artifacts` also passed. The latter checks the Git index, not all
+  possible untracked filenames. The fixture browser was closed and its temporary
+  authentication-state file removed at the maintainer's requested stopping point.
+
+**J6 Country-row refresh (2026-10-14, approved layout adjustment)**
+
+This refresh supersedes the earlier J6 Location-field, long official-name, and
+trailing Clear country observations. The other editor journeys above retain
+their tested scope; this was a focused retest of the changed country controls,
+not a new complete editor pass.
+
+- The maintainer approved removal of Location and the full-row Country control,
+  with a compact dropdown and No country as the first browsing option. Username
+  remains local-only. The existing country codes use common English labels and
+  familiar search aliases; only a code or null is emitted by the picker.
+- Managed Windows Chrome (`profileacceptance`) on the signed-in development
+  editor, based on `7d424d2` plus the current uncommitted changes. All eight
+  320/375/768/1280 × light/dark runs verified that Location was absent and the
+  Country trigger had the same width as Bio. Its widths were 273, 328, 705,
+  and 760px respectively; popup widths were 273, 328, 400, and 400px.
+- Search for Saint Vincent and the Grenadines exposed its named option, with
+  no No country option during search. ArrowDown/Enter selected it. The full
+  selected name wrapped to two lines at 320px and remained one line at the
+  other widths, without text clipping or horizontal document overflow. Popup
+  right edges stayed inside the viewport. Inspected themed screenshots show
+  selected-control focus, complete names, and the compact browsing panel.
+- Reopening with empty search put No country first. ArrowDown/Enter cleared
+  the selection, closed the popup, and returned visible focus to Country with
+  Choose a country shown, at every width/theme. Component coverage also checks
+  mouse clearing, null callbacks, selected state when reopening, query clearing,
+  no form submission from Enter, and persistence only after explicit Save.
+- No save was performed during this browser refresh. The starting country,
+  theme, and viewport were restored, and the page returned to the top; protected demo content
+  and engagement were not changed. Raw results and screenshots remain outside
+  Git under `/tmp/opencode/country-row-approved-browser.*` and the Windows-side
+  browser tools directory (`country-row-approved-*`).
+- Fresh lint, all **736** edge/backend tests, and all **828** component tests
+  (one worker), followed by the production build, passed after updating the
+  approved UI's regressions. Retest this
+  focused Deep matrix after changes to country layout, popup sizing, labels,
+  search, clearing, or keyboard behavior. Existing screen-reader, touch,
+  non-Chromium, and broader author-page limitations remain unchanged.
+
+**J6 Codex review fixes (2026-10-14)**
+
+- The read-only Codex review identified a growing cross-search card cache and a
+  Country trigger whose fixed accessible name hid the selected value. Both
+  findings were validated against the source and repaired without changing the
+  approved visible layout.
+- The cache now retains only selected card summaries (at most nine), evicts
+  removed selections, and refreshes details when a post is selected again.
+  Pure regression coverage cycles through 100 unrelated searches without
+  growing a nine-card cache; component coverage verifies fresh title/cover
+  details after deselection and reselection. A browser check retained an unsaved
+  chosen title after a no-match search, then removed it and returned the editor
+  to zero selections and a guarded Save. No save or protected-data mutation was
+  performed.
+- The Country trigger's accessible name now combines its label and current
+  value, including No country selected for an empty value. Component regressions
+  failed on the previous fixed name and passed after the change. The focused
+  320/375/768/1280 × light/dark browser refresh confirmed the full selected name,
+  unchanged geometry, no horizontal overflow, and visible focus return with
+  Country: No country selected after keyboard clearing. This inspects accessible
+  naming; it is not a real screen-reader acceptance claim.
+- Final ordered lint, **741** edge/backend tests, **831** component tests
+  (one worker), and the production build passed after these fixes. These results
+  supersede the earlier verification counts for this editor revision. Raw
+  review output, RED/GREEN logs, and browser results remain outside Git under
+  `/tmp/opencode/`. The original review was not rerun after repair; the fixes
+  were verified by regression tests and the affected browser checks.
+
+**Profile PR review follow-up (2026-10-14, `6e8b322` plus calendar fix)**
+
+- [The calendar-query finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4268817499)
+  was validated as a query-guideline violation. The existing calendar branch
+  ignored the clock argument, so the finding did not demonstrate an incorrect
+  date. The query now uses a pure UTC calendar formatter without a current-time
+  argument; relative formatting retains its explicit clock.
+- The new formatter regression failed before implementation and passed after
+  extraction. Public-query coverage verifies a UTC year boundary, a zero epoch,
+  and a missing join timestamp without falling back to profile insertion time.
+  All **16** focused date/user tests passed.
+- Fresh ordered lint, **745** edge/backend tests, **831** component tests
+  (one worker), and the production build passed for this repair. No visible
+  layout or date semantics changed; no browser or deployment verification was
+  performed for this backend-only extraction. Recheck the date evidence when
+  formatting or join-date semantics change. The other three PR findings still
+  require their planned repairs; this result is not acceptance of those fixes.
+
+**Profile picker eligibility follow-up (2026-10-14, `5d95f21` plus picker fix)**
+
+- [The picker eligibility finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4268817512)
+  reproduced in browse and title search: coverless published posts were offered
+  even though the selection mutation rejected them. Both query paths now omit
+  coverless entries from each bounded page before hydration, without changing
+  native pagination metadata or weakening mutation validation. This does not
+  filter other public post lists or repair development records.
+- Four backend regressions failed before the change and passed afterward:
+  browse/search eligibility and continuation through a filtered-empty first
+  page. Two further regressions confirm that a stored cover with an unavailable
+  URL is still returned and accepted by the selection mutation. All **32**
+  profile backend tests passed. The focused run emitted a Node
+  `TimeoutNegativeWarning` from the test runtime but had no test failures.
+- A new component regression passed against the existing picker: an empty page
+  with CanLoadMore does not announce an exhausted list, and the next loaded post
+  receives focus and can be selected. All **26** selected-work component tests
+  passed; no component implementation change was required.
+- Fresh ordered lint, **751** edge/backend tests, **832** component tests
+  (one worker), and the production build passed. This is automated query and
+  keyboard-component evidence, not a fresh live-browser/deployment check.
+  Recheck eligibility, continuation, and pagination focus when the picker query
+  or published projections change. The country composition/casing repairs remain
+  outstanding at this checkpoint.
+
+**Country review follow-up (2026-10-14, `e48dabc` plus country fix)**
+
+- [The composition finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4268817522)
+  reproduced with composing Enter both before arrowing to a match and with an
+  active option. Both regressions failed because the event was prevented.
+  The country search now ignores custom keyboard handling during composition;
+  both tests verify no selection, retained list/search focus, and normal Enter
+  selection with trigger focus return afterward.
+- [The flag-casing finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4268817531)
+  reproduced for FI and IN with Turkish default casing. Their trigger flags
+  had non-ASCII selectors. Country-code class generation now uses toLowerCase;
+  regressions verify ASCII classes in both triggers and options. The custom
+  Iran image and country membership are unchanged.
+- All four new regressions failed before implementation and passed afterward;
+  all **42** country-picker tests passed. Fresh ordered lint, **751**
+  edge/backend tests, **836** component tests (one worker), and the production
+  build passed for this revision.
+- These are synthetic-event and component checks, not native IME acceptance.
+  The earlier Windows browser harness was unavailable and no browser session
+  was active, so no fresh live-browser run is claimed. Recheck with a real IME
+  and Turkish browser locale when that harness is available; the prior browser
+  matrix remains evidence for its tested revision only.
+- A read-only Codex review of all three repair groups identified one remaining
+  issue: picker empty-state wording did not distinguish cover eligibility from
+  the existence of published posts. At this checkpoint it remained open for a
+  separate copy/regression fix, recorded below. The review found no other
+  actionable issues and did not
+  run tests or perform browser verification.
+
+**Picker empty-state review repair (2026-10-14, `e48dabc` plus country/copy fixes)**
+
+- The final Codex review finding was validated: a fully exhausted eligible
+  result list could still coexist with coverless published posts. Browse and
+  title-search empty messages now explicitly name published posts with covers,
+  without claiming no published posts exist or adding a false repair action.
+- Both browse/search regressions failed with the old messages and passed with
+  the correction. All **28** selected-work component tests passed; the
+  filtered-empty continuation regression also confirms that no exhausted-state
+  message appears while Load more remains available.
+- Final ordered lint, **751** edge/backend tests, **838** component tests
+  (one worker), and the production build passed with all four original findings
+  repaired and the review follow-up corrected. This supersedes the earlier
+  automated counts for the repaired revision, not its browser verification
+  gaps. The copy fix was verified with regressions; Codex was not rerun after
+  this final correction. Retest empty-state wording when picker eligibility or
+  exhaustion semantics change. No new browser/deployment run is claimed.
+
+**Editor query-work review follow-up (2026-10-14, `33b10d7` plus picker/availability fixes)**
+
+- [The closed-picker finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4270539405)
+  was validated: the picker's paginated query ran on mount, so every editor
+  visit hydrated a page of cards and resolved their storage URLs even when the
+  dialog was never opened. The query is now skipped while the dialog is closed;
+  chosen cards stay in the existing selection cache, so the closed list keeps
+  its titles and covers. A component regression asserts the skip, resume, and
+  skip-again argument sequence, and a second regression proves a chosen card
+  still renders while the picker is closed.
+- [The availability-payload finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4270539410)
+  was validated: the subscription returned hydrated cards plus storage URLs and
+  the component read only `postId`. It now returns surviving IDs from a new
+  ID-only reader that shares the existing bounded lookup with card hydration, so
+  filtering and ordering behavior is unchanged. A regression also pins that a
+  coverless published post is still available, since treating it as gone would
+  silently drop an existing selection.
+- RED/GREEN: three backend assertions plus the affected component and page tests
+  failed before the change and passed after it. All **34** profile backend tests
+  and **44** focused component/page tests passed.
+- Fresh ordered lint, **753** edge/backend tests, **844** component tests (one
+  worker), and the production build passed after both fixes.
+- Reviewed locally with the CodeRabbit CLI (0.9.0) against `33b10d7` instead of
+  spending the remaining Codex review budget. The first pass reported one minor
+  finding about the page test double deriving availability from the saved
+  selection; the double now answers existence independently, and a second pass
+  reported **0** findings. No production-code finding was raised in either pass.
+  Local review output is untrusted input and was verified against the code.
+- This is automated query, component, and local-review evidence. Reopening the
+  picker now returns to the first page of the retained search term, which is a
+  deliberate consequence of releasing the query; no browser re-acceptance or
+  deployment check was performed.
+
+**Public profile featured-read follow-up (2026-10-14, `d6f6cc6` plus selected-only read)**
+
+- [This finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4270165773)
+  was validated: the page fetched `getShowcase`, whose no-selection branch reads
+  and hydrates the latest three published posts plus their storage URLs, while
+  the page rendered only `mode === "selected"` and discarded that result.
+- The page now reads a selected-only query, `getSelectedShowcase`, bounded to the
+  nine-post maximum through the existing hydration helper. `getShowcase` and its
+  latest-three fallback remain for the planned author canvas, so the rendered
+  profile, the approved design, and existing showcase coverage are unchanged.
+- Three regressions failed before the change and passed after it: the page no
+  longer requests the fallback query, saved featured order still renders, and the
+  selected-only read returns an empty list without a selection, preserves saved
+  order, and drops a deleted selection. All **33** profile backend tests and
+  **4** page tests passed.
+- Fresh ordered lint, **752** edge/backend tests, **842** component tests
+  (one worker), and the production build passed. This is a read-path change with
+  no visible behavior, so the result is automated query/page evidence rather
+  than a browser observation. Retest when the public profile's featured rendering
+  or the author-canvas fallback changes.
+
+**Country search review repair (2026-10-14, `caf74a0` plus search fix)**
+
+- [The follow-up country-search finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4269787738)
+  reproduced under Turkish default casing: lowercase india, iran, and italy did
+  not match the English names, and uppercase BRITAIN did not match the alias.
+  All four component regressions failed before the change and passed afterward.
+- Search queries, names, and aliases now use the same locale-independent casing.
+  The search control's English accessible label uses it as well. Regressions
+  verify matching, keyboard selection, focus return, and the selected option
+  after reopening. Country membership and accent-matching behavior are unchanged.
+- All **46** country-picker tests passed. Fresh ordered lint, **751**
+  edge/backend tests, **842** component tests (one worker), and the production
+  build passed. These are the latest automated results for the repair, not a
+  fresh Turkish-browser or native IME acceptance run. Existing browser evidence
+  gaps remain. Retest when country search normalization, aliases, or keyboard
+  behavior changes.
 
 **Settings Appearance follow-up (2026-10-10, `345a2f7`)**
 
