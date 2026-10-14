@@ -200,8 +200,9 @@ resonance/
 │   ├── profileModel.ts         # Shared profile validators, stored-identity mapping,
 │   │                           # revision-checked identity/selection helpers, bounded
 │   │                           # card hydration, and deleted-selection cleanup. Not registered.
-│   ├── profiles.ts             # Public identity/showcase/catalogue reads and
-│   │                           # authenticated identity and selected-work edits
+│   ├── profiles.ts             # Public identity, featured-selection, showcase,
+│   │                           # and catalogue reads plus authenticated identity
+│   │                           # and selected-work edits
 │
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (Button, Card, Input, etc.)

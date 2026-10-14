@@ -251,6 +251,21 @@ async function latestAuthorCards(
 }
 
 /**
+ * The author's surviving ordered featured selection alone. Callers that render
+ * nothing without a selection avoid the latest-post fallback reads.
+ */
+export async function readSelectedShowcase(
+  ctx: QueryCtx,
+  authorId: string,
+): Promise<AuthorCard[]> {
+  const author = await ctx.db
+    .query("users")
+    .withIndex("by_userId", (q) => q.eq("userId", authorId))
+    .unique();
+  return await hydrateAuthorCards(ctx, authorId, author?.selectedPostIds ?? []);
+}
+
+/**
  * The author showcase: surviving ordered selections when any remain, otherwise
  * the latest three published posts.
  */
@@ -258,15 +273,7 @@ export async function readShowcase(
   ctx: QueryCtx,
   authorId: string,
 ): Promise<Showcase> {
-  const author = await ctx.db
-    .query("users")
-    .withIndex("by_userId", (q) => q.eq("userId", authorId))
-    .unique();
-  const selected = await hydrateAuthorCards(
-    ctx,
-    authorId,
-    author?.selectedPostIds ?? [],
-  );
+  const selected = await readSelectedShowcase(ctx, authorId);
   if (selected.length > 0) return { mode: "selected", posts: selected };
   return { mode: "latest", posts: await latestAuthorCards(ctx, authorId) };
 }

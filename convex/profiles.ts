@@ -23,6 +23,7 @@ import {
   hydrateAuthorCards,
   identityInputValidator,
   joinDateDisplayValidator,
+  readSelectedShowcase,
   readShowcase,
   revisionSaveValidator,
   saveIdentity,
@@ -133,6 +134,17 @@ export const getShowcase = query({
   args: { userId: v.string() },
   returns: showcaseValidator,
   handler: async (ctx, args) => await readShowcase(ctx, args.userId),
+});
+
+/**
+ * The author's surviving featured selection alone, in saved order, with no
+ * latest-post fallback. The public profile renders only a saved selection, so
+ * it uses this read instead of hydrating a fallback it discards.
+ */
+export const getSelectedShowcase = query({
+  args: { userId: v.string() },
+  returns: v.array(authorCardValidator),
+  handler: async (ctx, args) => await readSelectedShowcase(ctx, args.userId),
 });
 
 /** Newest-first published posts for one author, bounded by the native page size. */

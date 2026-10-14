@@ -571,6 +571,37 @@ describe("profiles selection API", () => {
     ]);
   });
 
+  it("returns only the featured selection without reading a latest fallback", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, posts, own } = await seedAuthor(
+      t,
+      "selected-only@example.com",
+      4,
+    );
+
+    await expect(
+      t.query(api.profiles.getSelectedShowcase, { userId: identity.subject }),
+    ).resolves.toEqual([]);
+
+    await own.mutation(api.profiles.updateSelection, {
+      expectedRevision: 0,
+      postIds: [posts[2], posts[0]],
+    });
+    await expect(
+      t.query(api.profiles.getSelectedShowcase, { userId: identity.subject }),
+    ).resolves.toMatchObject([
+      { postId: posts[2], title: "Post 2" },
+      { postId: posts[0], title: "Post 0" },
+    ]);
+
+    await own.mutation(api.posts.deletePublishedPost, { postId: posts[2] });
+    await drainScheduled(t);
+    const remaining = await t.query(api.profiles.getSelectedShowcase, {
+      userId: identity.subject,
+    });
+    expect(remaining.map((post) => post.postId)).toEqual([posts[0]]);
+  });
+
   it("leaves the selection revision unchanged when an unselected post is deleted", async () => {
     const t = convexTest(schema, modules);
     const { posts, own } = await seedAuthor(t, "unselected@example.com", 3);

@@ -75,7 +75,7 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
 
   const displayName = profile.displayName?.trim() || "Anonymous";
   const postCountLabel = profile.postCount === 1 ? "post" : "posts";
-  const showcase = await fetchQuery(api.profiles.getShowcase, {
+  const featured = await fetchQuery(api.profiles.getSelectedShowcase, {
     userId: profile.userId,
   });
 
@@ -104,14 +104,14 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
         }
       />
 
-      {showcase.mode === "selected" && showcase.posts.length > 0 && (
+      {featured.length > 0 && (
         <section
           aria-label="Featured posts"
           className="flex flex-col gap-6 pt-10"
         >
           <SectionHeading title="Featured posts" />
           <ol className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {showcase.posts.map((post) => (
+            {featured.map((post) => (
               <li key={post.postId} className="min-w-0">
                 <Link
                   href={`/blog/${post.postId}`}

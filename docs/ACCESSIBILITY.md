@@ -732,6 +732,27 @@ not a new complete editor pass.
   this final correction. Retest empty-state wording when picker eligibility or
   exhaustion semantics change. No new browser/deployment run is claimed.
 
+**Public profile featured-read follow-up (2026-10-14, `d6f6cc6` plus selected-only read)**
+
+- [This finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4270165773)
+  was validated: the page fetched `getShowcase`, whose no-selection branch reads
+  and hydrates the latest three published posts plus their storage URLs, while
+  the page rendered only `mode === "selected"` and discarded that result.
+- The page now reads a selected-only query, `getSelectedShowcase`, bounded to the
+  nine-post maximum through the existing hydration helper. `getShowcase` and its
+  latest-three fallback remain for the planned author canvas, so the rendered
+  profile, the approved design, and existing showcase coverage are unchanged.
+- Three regressions failed before the change and passed after it: the page no
+  longer requests the fallback query, saved featured order still renders, and the
+  selected-only read returns an empty list without a selection, preserves saved
+  order, and drops a deleted selection. All **33** profile backend tests and
+  **4** page tests passed.
+- Fresh ordered lint, **752** edge/backend tests, **842** component tests
+  (one worker), and the production build passed. This is a read-path change with
+  no visible behavior, so the result is automated query/page evidence rather
+  than a browser observation. Retest when the public profile's featured rendering
+  or the author-canvas fallback changes.
+
 **Country search review repair (2026-10-14, `caf74a0` plus search fix)**
 
 - [The follow-up country-search finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4269787738)
