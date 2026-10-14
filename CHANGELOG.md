@@ -85,6 +85,13 @@ work is tracked in `ROADMAP.md`.
 
 ### Changed
 
+- Upgraded the pinned Convex dependency from 1.34.0 to 1.46.0 so the installed
+  CLI and runtime match the generated AI guidance, which targets 1.44.0 or
+  newer. Refreshing the managed AI files restores the upstream
+  `convex env list --names-only` confirmation step and retires the local
+  correction the older CLI required. Generated types are unchanged, and the
+  title-search end-cursor guard stays because read budgets still do not apply to
+  search queries.
 - Auth sync no longer overwrites an author-owned display name, and it
   initializes the immutable `joinedAt` from the Better Auth creation time once.
 - Publishing and published updates now require a usable cover: a JPEG, PNG,

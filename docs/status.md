@@ -18,6 +18,9 @@ covered by backend and component regressions for join dates, cover eligibility,
 country composition, and flag casing. Native IME behavior and the latest
 live-browser refresh remain unverified.
 
+The Convex dependency is pinned to `1.46.0` and the managed AI files are
+refreshed, so the earlier CLI and guidance mismatch no longer applies.
+
 The PR/documentation workflow keeps implementation, evidence, and completion
 docs in the same change. Use [PR_CHECKLIST.md](PR_CHECKLIST.md) at initial
 submission, after review changes, and before merge handoff.
