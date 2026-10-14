@@ -258,9 +258,10 @@
   them, and identity saving requires a name within the new limit. Introduction
   validation also uses code points,
   and identity and selected-work writes are revision-checked in
-  `convex/profiles.ts`. Own-post title search rejects oversized cursor ranges
-  before per-result hydration, and YouTube profile URLs safely normalize
-  Unicode handles.
+  `convex/profiles.ts`. Own-post title search refuses an explicit end cursor
+  range before reading the search index, because the index ignores read budgets
+  and cannot split, and still rejects an oversized result page before
+  per-result hydration. YouTube profile URLs safely normalize Unicode handles.
 - Profile details span the editor's centered 760px container, with Featured posts
   below. The post picker opens through Choose posts, Add posts, or Manage posts
   depending on the selection. A fixed modal keeps search, the selection count,

@@ -177,7 +177,12 @@ export function assertPageSize(paginationOpts: {
   }
 }
 
-/** Adds a safe read budget when an explicit cursor range can bypass numItems. */
+/**
+ * Adds a safe read budget when an explicit cursor range can bypass numItems.
+ *
+ * Only index pagination enforces read budgets. Search pagination ignores them,
+ * so callers of a search index must refuse an explicit end cursor instead.
+ */
 export function boundExplicitCursorRange(
   paginationOpts: PaginationOptions,
 ): PaginationOptions {

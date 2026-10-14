@@ -78,6 +78,14 @@ evidence resolves them. The previous detailed delivery history remains in
   or CLI upgrade will replace that text. Until the upgrade lands, treat those
   managed skill files as locally corrected rather than upstream-consistent. The
   follow-up is tracked in [ROADMAP.md](../ROADMAP.md) engineering follow-ups.
+- Search-index pagination cannot be bounded by read budgets: the installed
+  Convex 1.34 API documents that `maximumRowsRead` and `maximumBytesRead` are
+  not enforced for search queries, and the upstream backend reports no split
+  cursor for a search query. Own-post title search therefore refuses an explicit
+  end cursor instead of scanning the range. The `convex-test` emulator diverges
+  (it enforces read budgets on search and can report a split cursor), so an
+  emulator pass does not establish deployed behavior. Recheck against a
+  deployed backend, and after the planned Convex upgrade.
 - Authenticated owner-scoped mutation tests are limited by the Better Auth
   fixture in `convex-test`; a passing test emits a known scheduled-cleanup
   warning. Preserve negative authorization coverage when changing these paths.

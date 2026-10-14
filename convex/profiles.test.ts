@@ -825,7 +825,7 @@ describe("profiles selection API", () => {
     ).rejects.toThrow(/too long/i);
   });
 
-  it("rejects oversized title-search ranges before hydrating hits", async () => {
+  it("refuses explicit end cursor ranges on title search before reading the index", async () => {
     const t = convexTest(schema, modules);
     const { own } = await seedAuthor(t, "wide-title-range@example.com", 21);
 
@@ -838,6 +838,20 @@ describe("profiles selection API", () => {
       paginationOpts: { numItems: 20, cursor: firstPage.continueCursor },
     });
 
+    // Refused even for a range a size check would accept, so the guard cannot
+    // be satisfied by reading the range first.
+    await expect(
+      own.query(api.profiles.listOwnPublishedPosts, {
+        search: "Post",
+        paginationOpts: {
+          numItems: 1,
+          cursor: null,
+          endCursor: firstPage.continueCursor,
+        },
+      }),
+    ).rejects.toThrow(/end cursor/i);
+
+    // A caller-supplied read budget cannot make the range acceptable either.
     await expect(
       own.query(api.profiles.listOwnPublishedPosts, {
         search: "Post",
@@ -845,9 +859,21 @@ describe("profiles selection API", () => {
           numItems: 1,
           cursor: null,
           endCursor: secondPage.continueCursor,
+          maximumRowsRead: 20,
         },
       }),
-    ).rejects.toThrow(/range|page size/i);
+    ).rejects.toThrow(/end cursor/i);
+
+    // Plain cursor pagination and an explicit null end cursor still work.
+    const nextPage = await own.query(api.profiles.listOwnPublishedPosts, {
+      search: "Post",
+      paginationOpts: {
+        numItems: 20,
+        cursor: firstPage.continueCursor,
+        endCursor: null,
+      },
+    });
+    expect(nextPage.page.length).toBeGreaterThan(0);
   });
 });
 

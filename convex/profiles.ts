@@ -174,7 +174,9 @@ export const listAuthorPosts = query({
  * An empty search browses newest first; a title search is bounded and filtered
  * to the caller's own rows, then hydrated from compact summaries. Only posts
  * with stored covers are eligible. Filtering a native page can leave it empty;
- * its pagination metadata still advances to the next page.
+ * its pagination metadata still advances to the next page. An explicit end
+ * cursor range is refused: the search index ignores read budgets and cannot
+ * split, so such a range would scan before it could be rejected.
  */
 export const listOwnPublishedPosts = query({
   args: {
@@ -206,6 +208,14 @@ export const listOwnPublishedPosts = query({
           result.page.filter((summary) => Boolean(summary.imageStorageId)),
         ),
       };
+    }
+    // The search index ignores read budgets and cannot split, so accepting an
+    // explicit end cursor would scan the whole requested range before the size
+    // check below could reject it. Refuse the unsupported range up front.
+    if (args.paginationOpts.endCursor != null) {
+      throw new ConvexError(
+        "Title search does not support an explicit end cursor range.",
+      );
     }
     const result = await ctx.db
       .query("discoverPostSearch")
