@@ -685,6 +685,34 @@ not a new complete editor pass.
   or published projections change. The country composition/casing repairs remain
   outstanding at this checkpoint.
 
+**Country review follow-up (2026-10-14, `e48dabc` plus country fix)**
+
+- [The composition finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4268817522)
+  reproduced with composing Enter both before arrowing to a match and with an
+  active option. Both regressions failed because the event was prevented.
+  The country search now ignores custom keyboard handling during composition;
+  both tests verify no selection, retained list/search focus, and normal Enter
+  selection with trigger focus return afterward.
+- [The flag-casing finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4268817531)
+  reproduced for FI and IN with Turkish default casing. Their trigger flags
+  had non-ASCII selectors. Country-code class generation now uses toLowerCase;
+  regressions verify ASCII classes in both triggers and options. The custom
+  Iran image and country membership are unchanged.
+- All four new regressions failed before implementation and passed afterward;
+  all **42** country-picker tests passed. Fresh ordered lint, **751**
+  edge/backend tests, **836** component tests (one worker), and the production
+  build passed for this revision.
+- These are synthetic-event and component checks, not native IME acceptance.
+  The earlier Windows browser harness was unavailable and no browser session
+  was active, so no fresh live-browser run is claimed. Recheck with a real IME
+  and Turkish browser locale when that harness is available; the prior browser
+  matrix remains evidence for its tested revision only.
+- A read-only Codex review of all three repair groups identified one remaining
+  issue: picker empty-state wording does not distinguish cover eligibility from
+  the existence of published posts. That finding remains open for a separate
+  copy/regression fix. The review found no other actionable issues and did not
+  run tests or perform browser verification.
+
 **Settings Appearance follow-up (2026-10-10, `345a2f7`)**
 
 - Executed on the current `/settings` design at 375×900 and 1280×900 in

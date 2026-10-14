@@ -48,7 +48,7 @@ function CountryFlag({ code }: { code: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`fi fi-${code.toLocaleLowerCase()} h-4 w-7 shrink-0`}
+      className={`fi fi-${code.toLowerCase()} h-4 w-7 shrink-0`}
       style={{ height: 16, width: 28 }}
     />
   );
@@ -132,6 +132,8 @@ export function CountryPicker({
   }
 
   function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.nativeEvent.isComposing) return;
+
     if (event.key === "ArrowDown") {
       event.preventDefault();
       if (!open) setOpen(true);

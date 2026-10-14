@@ -15,6 +15,10 @@ evidence resolves them. The previous detailed delivery history remains in
   managed Windows Chrome. Query-echo timing and late account-switch errors have
   automated rather than browser fault-injection coverage; see `J6-ProfileEditor`
   in [Accessibility evidence](ACCESSIBILITY.md). Retest after relevant changes.
+- Country-picker IME composition and Turkish-locale flag casing repairs have
+  synthetic-event/component regressions, not fresh live-browser acceptance.
+  Native IME behavior remains unverified; see the country review follow-up in
+  [Accessibility evidence](ACCESSIBILITY.md).
 - The maintainer deferred the feed loading-announcement advisory to avoid
   expanding PR #103. A status region created with its initial text may not
   announce reliably in some screen readers; this has not been reproduced with

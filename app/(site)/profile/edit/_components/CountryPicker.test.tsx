@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CountryPicker } from "./CountryPicker";
 
@@ -26,6 +26,67 @@ function Harness({
 }
 
 describe("CountryPicker", () => {
+  it.each([false, true])(
+    "ignores composing Enter with an active option: %s",
+    async (activeOption) => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(<Harness onChange={onChange} />);
+      const trigger = screen.getByLabelText("Location");
+      await user.click(trigger);
+      const search = screen.getByRole("combobox", { name: "Search location" });
+      await user.type(search, "Japan");
+      if (activeOption) await user.keyboard("{ArrowDown}");
+
+      const composingEnter = createEvent.keyDown(search, {
+        key: "Enter",
+        isComposing: true,
+        cancelable: true,
+      });
+      fireEvent(search, composingEnter);
+      expect(composingEnter.defaultPrevented).toBe(false);
+      expect(onChange).not.toHaveBeenCalled();
+      expect(screen.getByRole("listbox")).toBeVisible();
+      expect(search).toHaveFocus();
+
+      await user.keyboard("{Enter}");
+      expect(onChange).toHaveBeenCalledExactlyOnceWith("JP");
+      expect(trigger).toHaveAccessibleName("Location: Japan");
+      expect(trigger).toHaveFocus();
+      expect(screen.queryByRole("listbox")).toBeNull();
+    },
+  );
+
+  it.each([
+    ["FI", "Finland", "fi-fi"],
+    ["IN", "India", "fi-in"],
+  ])(
+    "uses ASCII flag classes for %s in a Turkish locale",
+    async (code, name, flagClass) => {
+      const user = userEvent.setup();
+      const original = String.prototype.toLocaleLowerCase;
+      const casing = vi
+        .spyOn(String.prototype, "toLocaleLowerCase")
+        .mockImplementation(function (
+          this: string,
+          locales?: string | string[],
+        ) {
+          return original.call(this, locales ?? "tr");
+        });
+      try {
+        render(<Harness initial={code} />);
+        const trigger = screen.getByLabelText("Location");
+        expect(trigger.querySelector(".fi")).toHaveClass(flagClass);
+        await user.click(trigger);
+        const option = screen.getByRole("option", { name, exact: true });
+        expect(option.querySelector(".fi")).toHaveClass(flagClass);
+        expect(option).toHaveAttribute("aria-selected", "true");
+      } finally {
+        casing.mockRestore();
+      }
+    },
+  );
+
   it("exposes the selected country in the closed trigger's accessible name", () => {
     render(
       <CountryPicker
