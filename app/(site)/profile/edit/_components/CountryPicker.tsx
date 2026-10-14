@@ -81,14 +81,12 @@ export function CountryPicker({
   const searchRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
-    const term = query.trim().toLocaleLowerCase();
+    const term = query.trim().toLowerCase();
     if (term === "") return PROFILE_COUNTRIES;
     return PROFILE_COUNTRIES.filter(
       (country) =>
-        country.name.toLocaleLowerCase().includes(term) ||
-        country.aliases?.some((alias) =>
-          alias.toLocaleLowerCase().includes(term),
-        ),
+        country.name.toLowerCase().includes(term) ||
+        country.aliases?.some((alias) => alias.toLowerCase().includes(term)),
     );
   }, [query]);
 
@@ -235,7 +233,7 @@ export function CountryPicker({
                 <Input
                   ref={searchRef}
                   role="combobox"
-                  aria-label={`Search ${label.toLocaleLowerCase()}`}
+                  aria-label={`Search ${label.toLowerCase()}`}
                   aria-expanded="true"
                   aria-controls={listboxId}
                   aria-activedescendant={activeDescendant}

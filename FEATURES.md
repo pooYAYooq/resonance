@@ -248,7 +248,8 @@
   first browsing option for clearing the selection; it is hidden during search.
   The closed control's accessible name includes the current country or the
   empty-selection state. Composing IME keystrokes do not trigger country
-  selection, and flag identifiers use locale-independent ASCII casing.
+  selection. Search queries, English names/aliases, and flag identifiers use
+  locale-independent casing.
 - OAuth avatars mapped from provider profiles (Google `picture` / GitHub `avatar_url`), DiceBear fallback
 - Public identity model carries optional country (approved list), five optional
   social profile links, and a calendar or relative join date derived from the

@@ -87,6 +87,41 @@ describe("CountryPicker", () => {
     },
   );
 
+  it.each([
+    ["india", "India"],
+    ["iran", "Iran"],
+    ["italy", "Italy"],
+    ["BRITAIN", "United Kingdom"],
+  ])("finds and selects %s in a Turkish locale", async (query, name) => {
+    const user = userEvent.setup();
+    const original = String.prototype.toLocaleLowerCase;
+    const casing = vi
+      .spyOn(String.prototype, "toLocaleLowerCase")
+      .mockImplementation(function (this: string, locales?: string | string[]) {
+        return original.call(this, locales ?? "tr");
+      });
+    try {
+      render(<Harness />);
+      const trigger = screen.getByLabelText("Location");
+      await user.click(trigger);
+      await user.type(
+        screen.getByRole("combobox", { name: "Search location" }),
+        query,
+      );
+      expect(screen.getByRole("option", { name, exact: true })).toBeVisible();
+      await user.keyboard("{ArrowDown}{Enter}");
+      expect(trigger).toHaveTextContent(name);
+      expect(trigger).toHaveFocus();
+      await user.click(trigger);
+      expect(screen.getByRole("option", { name, exact: true })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    } finally {
+      casing.mockRestore();
+    }
+  });
+
   it("exposes the selected country in the closed trigger's accessible name", () => {
     render(
       <CountryPicker

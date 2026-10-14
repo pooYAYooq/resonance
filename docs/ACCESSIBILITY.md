@@ -732,6 +732,23 @@ not a new complete editor pass.
   this final correction. Retest empty-state wording when picker eligibility or
   exhaustion semantics change. No new browser/deployment run is claimed.
 
+**Country search review repair (2026-10-14, `caf74a0` plus search fix)**
+
+- [The follow-up country-search finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4269787738)
+  reproduced under Turkish default casing: lowercase india, iran, and italy did
+  not match the English names, and uppercase BRITAIN did not match the alias.
+  All four component regressions failed before the change and passed afterward.
+- Search queries, names, and aliases now use the same locale-independent casing.
+  The search control's English accessible label uses it as well. Regressions
+  verify matching, keyboard selection, focus return, and the selected option
+  after reopening. Country membership and accent-matching behavior are unchanged.
+- All **46** country-picker tests passed. Fresh ordered lint, **751**
+  edge/backend tests, **842** component tests (one worker), and the production
+  build passed. These are the latest automated results for the repair, not a
+  fresh Turkish-browser or native IME acceptance run. Existing browser evidence
+  gaps remain. Retest when country search normalization, aliases, or keyboard
+  behavior changes.
+
 **Settings Appearance follow-up (2026-10-10, `345a2f7`)**
 
 - Executed on the current `/settings` design at 375×900 and 1280×900 in
