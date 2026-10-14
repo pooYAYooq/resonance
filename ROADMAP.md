@@ -235,6 +235,13 @@ These retain v1.0 membership until an approved design decision changes it:
   after reproducing a trigger and a failing test. The post-deletion cleanup
   correction is in [PR #104](https://github.com/pooYAYooq/resonance/pull/104);
   it does not establish that this sibling path needs the same fix.
+- Convex runtime and CLI upgrade: the installed `convex@1.34.0` trails the
+  generated AI guidance, which targets `^1.44.0`, so refreshed skill steps can
+  name CLI flags the pinned version rejects. Move to a release whose CLI matches
+  that guidance, then reinstall the managed AI files so the local correction is
+  unnecessary. Scheduled after the profile delivery; the exact target version
+  stays open pending install and compatibility checks. Estimate M when codegen
+  or the Better Auth component needs changes, otherwise S.
 
 ## How to update this file
 

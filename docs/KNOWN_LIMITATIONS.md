@@ -72,6 +72,12 @@ evidence resolves them. The previous detailed delivery history remains in
   does not establish that these included test files typecheck.
 - No stored-data migration/backfill exists for this undeployed app. A large
   existing deployment would need a staged migration before new indexed callers.
+- The installed `convex@1.34.0` trails the generated AI guidance, which targets
+  Convex `^1.44.0`. The `convex-env` skill's confirmation step is corrected
+  locally to what the pinned CLI supports; a later `npx convex ai-files install`
+  or CLI upgrade will replace that text. Until the upgrade lands, treat those
+  managed skill files as locally corrected rather than upstream-consistent. The
+  follow-up is tracked in [ROADMAP.md](../ROADMAP.md) engineering follow-ups.
 - Authenticated owner-scoped mutation tests are limited by the Better Auth
   fixture in `convex-test`; a passing test emits a known scheduled-cleanup
   warning. Preserve negative authorization coverage when changing these paths.
