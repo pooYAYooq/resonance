@@ -272,7 +272,9 @@
   requests 12 rows at a time with title search and Load more. Only published
   posts with stored covers are offered; filtering can yield fewer options or
   an empty page while Load more remains available. A stored cover whose URL is
-  unavailable still uses the image fallback and remains selectable. The section uses a
+  unavailable still uses the image fallback and remains selectable. Exhausted
+  browse/search messages name cover eligibility rather than implying that no
+  published posts exist. The section uses a
   selection count and an ordered list with reorder/removal controls. Unused
   social platforms open through Add social link. Username remains a local layout
   field and does not save yet. There is no separate Location field. One header Save button

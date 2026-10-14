@@ -443,8 +443,8 @@ export function SelectedWorkEditor({
             {results.length === 0 && status === "Exhausted" && (
               <p className="text-sm text-muted-foreground">
                 {committedSearch.length > 0
-                  ? "No published posts match that title."
-                  : "You have no published posts yet."}
+                  ? "No published posts with covers match that title."
+                  : "No published posts with covers are available to feature."}
               </p>
             )}
             <ul className="flex flex-col gap-2">

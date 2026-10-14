@@ -559,7 +559,7 @@ describe("SelectedWorkEditor", () => {
     pickerStatus = "CanLoadMore";
     const { rerender } = renderEditor();
     await user.click(screen.getByRole("button", { name: "Choose posts" }));
-    expect(screen.queryByText("You have no published posts yet.")).toBeNull();
+    expect(screen.queryByText(/no published posts with covers/i)).toBeNull();
     await user.click(screen.getByRole("button", { name: "Load more" }));
 
     pickerStatus = "LoadingMore";
@@ -573,6 +573,44 @@ describe("SelectedWorkEditor", () => {
     expect(post).toHaveAttribute("aria-pressed", "true");
     await user.click(screen.getByRole("button", { name: "Done" }));
     expect(screen.getByRole("button", { name: "Remove Alpha" })).toBeVisible();
+  });
+
+  it("explains cover eligibility when the exhausted browse has no results", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(screen.getByRole("button", { name: "Choose posts" }));
+
+    expect(
+      screen.getByText(
+        "No published posts with covers are available to feature.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText("You have no published posts yet.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+
+  it("explains cover eligibility when an exhausted title search has no results", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(screen.getByRole("button", { name: "Choose posts" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Search posts" }),
+      "Alpha",
+    );
+
+    expect(
+      await screen.findByText(
+        "No published posts with covers match that title.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("No published posts match that title."),
+    ).toBeNull();
+    expect(
+      screen.queryByText(
+        "No published posts with covers are available to feature.",
+      ),
+    ).toBeNull();
   });
 
   it("retains pagination focus while loading then focuses the appended post", async () => {

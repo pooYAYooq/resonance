@@ -708,10 +708,29 @@ not a new complete editor pass.
   and Turkish browser locale when that harness is available; the prior browser
   matrix remains evidence for its tested revision only.
 - A read-only Codex review of all three repair groups identified one remaining
-  issue: picker empty-state wording does not distinguish cover eligibility from
-  the existence of published posts. That finding remains open for a separate
-  copy/regression fix. The review found no other actionable issues and did not
+  issue: picker empty-state wording did not distinguish cover eligibility from
+  the existence of published posts. At this checkpoint it remained open for a
+  separate copy/regression fix, recorded below. The review found no other
+  actionable issues and did not
   run tests or perform browser verification.
+
+**Picker empty-state review repair (2026-10-14, `e48dabc` plus country/copy fixes)**
+
+- The final Codex review finding was validated: a fully exhausted eligible
+  result list could still coexist with coverless published posts. Browse and
+  title-search empty messages now explicitly name published posts with covers,
+  without claiming no published posts exist or adding a false repair action.
+- Both browse/search regressions failed with the old messages and passed with
+  the correction. All **28** selected-work component tests passed; the
+  filtered-empty continuation regression also confirms that no exhausted-state
+  message appears while Load more remains available.
+- Final ordered lint, **751** edge/backend tests, **838** component tests
+  (one worker), and the production build passed with all four original findings
+  repaired and the review follow-up corrected. This supersedes the earlier
+  automated counts for the repaired revision, not its browser verification
+  gaps. The copy fix was verified with regressions; Codex was not rerun after
+  this final correction. Retest empty-state wording when picker eligibility or
+  exhaustion semantics change. No new browser/deployment run is claimed.
 
 **Settings Appearance follow-up (2026-10-10, `345a2f7`)**
 

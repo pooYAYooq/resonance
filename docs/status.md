@@ -14,7 +14,9 @@ and clears through No country inside the picker; the separate Location field is
 gone. Username remains local-only. Saved Featured posts appear above the existing
 public profile's full post list. Verification results, browser evidence, and
 scope limits are in [accessibility evidence](ACCESSIBILITY.md). This delivery is
-complete on the branch and awaits review; it is not merged.
+covered by backend and component regressions for join dates, cover eligibility,
+country composition, and flag casing. Native IME behavior and the latest
+live-browser refresh remain unverified.
 
 The PR/documentation workflow keeps implementation, evidence, and completion
 docs in the same change. Use [PR_CHECKLIST.md](PR_CHECKLIST.md) at initial
