@@ -111,10 +111,15 @@ Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 | V1-19 | Saved and Liked collection presentation          | Todo        | S        |
 | V1-20 | Context-specific post-card variants              | Todo        | M        |
 
-Required publication covers are implemented. The profile foundation (identity
-constraints, authoritative join date, and bounded identity and selected-work
-APIs) is implemented. The identity editor, public author page, and catalogue
-remain.
+Required publication covers and the profile foundation (identity constraints,
+authoritative join date, and bounded identity and selected-work APIs) are
+implemented, along with the profile editor and ordered selected-work editing.
+The editor's both-theme Deep browser acceptance is recorded under
+J6-ProfileEditor in [accessibility evidence](docs/ACCESSIBILITY.md).
+The saved featured-post selection now appears above the public profile's full
+post list. Persisting the local-only username field and rendering human-readable
+profile URLs are the agreed next delivery, ahead of the author page and
+catalogue.
 
 ### Visual system and responsive polish
 

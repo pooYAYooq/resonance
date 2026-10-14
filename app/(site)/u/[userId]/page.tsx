@@ -20,6 +20,7 @@ import { SectionHeading } from "@/components/web/SectionHeading";
 import { ProfilePostList } from "./_components/ProfilePostList";
 import { ProfileActionButton } from "@/components/web/ProfileActionButton";
 import { ProfileStats } from "@/components/web/ProfileStats";
+import { CoverImage } from "@/components/web/CoverImage";
 import { buttonVariants } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
 import Link from "next/link";
@@ -74,6 +75,9 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
 
   const displayName = profile.displayName?.trim() || "Anonymous";
   const postCountLabel = profile.postCount === 1 ? "post" : "posts";
+  const showcase = await fetchQuery(api.profiles.getShowcase, {
+    userId: profile.userId,
+  });
 
   return (
     <div className="py-12">
@@ -82,6 +86,7 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
         bio={profile.bio}
         avatarUrl={profile.avatarUrl}
         userId={profile.userId}
+        joinedDate={profile.joinedDate}
         rightAction={
           <ProfileActionButton
             profileUserId={profile.userId}
@@ -98,6 +103,35 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
           />
         }
       />
+
+      {showcase.mode === "selected" && showcase.posts.length > 0 && (
+        <section
+          aria-label="Featured posts"
+          className="flex flex-col gap-6 pt-10"
+        >
+          <SectionHeading title="Featured posts" />
+          <ol className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {showcase.posts.map((post) => (
+              <li key={post.postId} className="min-w-0">
+                <Link
+                  href={`/blog/${post.postId}`}
+                  className="flex cursor-pointer flex-col gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <span className="relative aspect-[3/2] overflow-hidden rounded-md bg-muted">
+                    <CoverImage
+                      src={post.imageUrl}
+                      alt=""
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover"
+                    />
+                  </span>
+                  <span className="line-clamp-2 font-medium">{post.title}</span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <section className="py-10">
         <SectionHeading

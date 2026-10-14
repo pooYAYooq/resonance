@@ -21,7 +21,7 @@ import {
   MAX_POST_AUTHOR_NAME_CODE_POINTS,
   truncatePostAuthorName,
 } from "../lib/post-capacity";
-import { getOwnProfile, saveIdentity, storedIdentity } from "./profileModel";
+import { formatJoinedDate } from "../lib/profile-joined-date";
 
 function validateDisplayName(displayName: string): void {
   if (getCodePointCount(displayName) > MAX_POST_AUTHOR_NAME_CODE_POINTS) {
@@ -75,6 +75,7 @@ const publicProfileValidator = v.object({
   displayName: v.string(),
   bio: v.optional(v.string()),
   avatarUrl: v.optional(v.string()),
+  joinedDate: v.union(v.string(), v.null()),
   followerCount: v.optional(v.number()),
   followingCount: v.optional(v.number()),
   postCount: v.number(),
@@ -234,65 +235,15 @@ export const getUserProfile = query({
       displayName: user.displayName,
       bio: user.bio,
       avatarUrl: user.avatarUrl,
+      joinedDate:
+        user.joinedAt != null
+          ? formatJoinedDate(user.joinedAt, "calendar", Date.now())
+          : null,
       followerCount: user.followerCount,
       followingCount: user.followingCount,
       postCount: user.publishedPostCount,
       viewerId: authUser?._id ?? null,
       isFollowing,
     };
-  },
-});
-
-/**
- * Updates the current user's display name and bio.
- *
- * A temporary adapter for the still-reachable legacy editor: it writes through
- * the shared revision-checked identity helper at the record's current
- * revision, so the new identity fields are preserved and `identityRevision`
- * advances. Requires an authenticated session; the display name is validated
- * by the shared normalizer and the bio uses the shared 1,000-code-point limit.
- *
- * @param args.displayName - `string`: New display name (trimmed, must be non-empty).
- * @param args.bio - `string`: New bio (shared code-point limit).
- * @returns `Id<"users">`, the document ID of the updated user record.
- * @throws `ConvexError("Unauthorized")` if no valid session exists.
- * @throws `ConvexError` with the shared normalizer message for an invalid field.
- * @throws `ConvexError("User not found")` if the authenticated user has no record.
- */
-export const updateProfile = mutation({
-  args: {
-    displayName: v.string(),
-    bio: v.string(),
-  },
-  returns: v.id("users"),
-  handler: async (ctx, args) => {
-    const authUser = await authComponent.safeGetAuthUser(ctx);
-    if (!authUser) {
-      throw new ConvexError("Unauthorized");
-    }
-
-    const existing = await getOwnProfile(ctx, authUser._id);
-    if (!existing) {
-      throw new ConvexError("User not found");
-    }
-
-    // Temporary adapter for the still-reachable old editor: it writes through
-    // the shared revision-checked helper at the current revision, preserving
-    // the new identity fields. The follow-up boundary retires this entry point.
-    const result = await saveIdentity(
-      ctx,
-      existing,
-      existing.identityRevision ?? 0,
-      {
-        ...storedIdentity(existing),
-        displayName: args.displayName,
-        bio: args.bio,
-      },
-    );
-    if (result.kind !== "saved") {
-      throw new ConvexError("Profile changed. Reload and try again.");
-    }
-
-    return existing._id;
   },
 });

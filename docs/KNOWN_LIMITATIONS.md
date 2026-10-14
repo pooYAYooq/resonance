@@ -11,6 +11,10 @@ evidence resolves them. The previous detailed delivery history remains in
   in Chrome. It is not WCAG conformance, real screen-reader acceptance, touch
   acceptance, or a final design sign-off. Firefox and Safari were not manually
   exercised. Retest after relevant behavior/layout changes.
+- The current `/profile/edit` passed the both-theme Deep browser matrix in
+  managed Windows Chrome. Query-echo timing and late account-switch errors have
+  automated rather than browser fault-injection coverage; see `J6-ProfileEditor`
+  in [Accessibility evidence](ACCESSIBILITY.md). Retest after relevant changes.
 - The maintainer deferred the feed loading-announcement advisory to avoid
   expanding PR #103. A status region created with its initial text may not
   announce reliably in some screen readers; this has not been reproduced with

@@ -9,7 +9,10 @@ const { fetchQueryMock, fetchAuthQueryMock } = vi.hoisted(() => ({
 vi.mock("convex/nextjs", () => ({ fetchQuery: fetchQueryMock }));
 vi.mock("@/lib/auth-server", () => ({ fetchAuthQuery: fetchAuthQueryMock }));
 vi.mock("@/convex/_generated/api", () => ({
-  api: { users: { getUserProfile: "getUserProfile" } },
+  api: {
+    users: { getUserProfile: "getUserProfile" },
+    profiles: { getShowcase: "getShowcase" },
+  },
 }));
 vi.mock("@/components/web/ProfileHeader", () => ({
   ProfileHeader: ({ displayName }: { displayName: string }) => (
@@ -32,6 +35,7 @@ const profile = {
   displayName: "Ada",
   bio: "Writes notes.",
   avatarUrl: null,
+  joinedDate: "January 2020",
   followerCount: 2,
   followingCount: 3,
   postCount: 4,
@@ -43,6 +47,7 @@ describe("profile route fetch boundaries", () => {
   beforeEach(() => {
     fetchQueryMock.mockReset();
     fetchAuthQueryMock.mockReset();
+    fetchQueryMock.mockResolvedValue({ mode: "latest", posts: [] });
   });
 
   it("uses the public query for profile metadata", async () => {
@@ -66,6 +71,44 @@ describe("profile route fetch boundaries", () => {
     expect(fetchAuthQueryMock).toHaveBeenCalledWith("getUserProfile", {
       userId: "author-1",
     });
-    expect(fetchQueryMock).not.toHaveBeenCalled();
+    expect(fetchQueryMock).toHaveBeenCalledWith("getShowcase", {
+      userId: "author-1",
+    });
+  });
+
+  it("shows featured post links in the author's saved order", async () => {
+    fetchAuthQueryMock.mockResolvedValue(profile);
+    fetchQueryMock.mockResolvedValue({
+      mode: "selected",
+      posts: [
+        { postId: "post-beta", title: "Beta", imageUrl: null, likeCount: 0 },
+        { postId: "post-alpha", title: "Alpha", imageUrl: null, likeCount: 0 },
+      ],
+    });
+
+    render(await ProfileRoute({ params }));
+
+    const section = screen.getByRole("region", { name: "Featured posts" });
+    const links = Array.from(section.querySelectorAll("a"));
+    expect(links.map((link) => link.textContent)).toEqual(["Beta", "Alpha"]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/blog/post-beta",
+      "/blog/post-alpha",
+    ]);
+  });
+
+  it("keeps the usual post list without an extra showcase when no posts are featured", async () => {
+    fetchAuthQueryMock.mockResolvedValue(profile);
+    fetchQueryMock.mockResolvedValue({
+      mode: "latest",
+      posts: [
+        { postId: "post-alpha", title: "Alpha", imageUrl: null, likeCount: 0 },
+      ],
+    });
+
+    render(await ProfileRoute({ params }));
+
+    expect(screen.queryByRole("region", { name: "Featured posts" })).toBeNull();
+    expect(screen.getByRole("heading", { name: /Posts/ })).toBeInTheDocument();
   });
 });

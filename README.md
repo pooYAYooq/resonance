@@ -175,7 +175,8 @@ app/
       page.tsx                # Private notifications feed (client-gated + paginated)
       _components/            # NotificationsList (gate + pagination + mark-all-read) + NotificationRow
     profile/edit/
-      page.tsx                # Authenticated display-name and bio editor
+      page.tsx                # Authenticated identity + selected-work editor
+      _components/            # ProfileIdentityForm, CountryPicker, SelectedWorkEditor, edit-state helpers
     saved/
       page.tsx                # Private reader collection of bookmarked posts
       _components/            # SavedSection (client gate + pagination)
@@ -211,7 +212,7 @@ convex/
   feed.ts                     # Published-only 30-day materialized reader feed, fan-out/backfill/deletion/cleanup, paginated query
   postDeletion.ts             # Internal bounded deletion continuations, draft upload cleanup, and stale-job recovery
   profilePostCount.ts         # Transactional profile count adjustment helper
-  users.ts                    # User sync, profile queries, updateProfile, Discover rename repair
+  users.ts                    # User sync, profile queries, Discover rename repair
   profileModel.ts             # Shared profile validators, revision-checked identity/selection helpers
   profiles.ts                 # Public identity/showcase/catalogue reads; authenticated identity and selection edits
   stats.ts                    # Denormalized total post count
