@@ -147,6 +147,45 @@ describe("profiles identity API", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
+  it("enforces the 30-code-point name limit without overwriting a longer stored name", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Ada",
+      email: "name-limit@example.com",
+    });
+    const own = t.withIdentity(identity);
+    await own.mutation(api.users.syncUser, {});
+    const longName = "L".repeat(40);
+    await t.run(async (ctx) => {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique();
+      await ctx.db.patch(user!._id, { displayName: longName });
+    });
+    const before = await own.query(api.profiles.getEditorProfile, {});
+    expect(before?.identity.displayName).toBe(longName);
+    await expect(
+      own.mutation(api.profiles.updateIdentity, {
+        expectedRevision: before!.identityRevision,
+        identity: { ...before!.identity, displayName: "😀".repeat(31) },
+      }),
+    ).rejects.toMatchObject({
+      data: { field: "displayName", message: "Use at most 30 characters." },
+    });
+    const unchanged = await own.query(api.profiles.getEditorProfile, {});
+    expect(unchanged?.identity.displayName).toBe(longName);
+    expect(unchanged?.identityRevision).toBe(before!.identityRevision);
+    await own.mutation(api.profiles.updateIdentity, {
+      expectedRevision: before!.identityRevision,
+      identity: { ...before!.identity, displayName: "😀".repeat(30) },
+    });
+    expect(
+      (await own.query(api.profiles.getEditorProfile, {}))?.identity
+        .displayName,
+    ).toBe("😀".repeat(30));
+  });
+
   it("validates fields and clears optional values", async () => {
     const t = convexTest(schema, modules);
     const identity = await createAuthIdentity(t, {
@@ -969,11 +1008,11 @@ describe("profiles API edge coverage", () => {
     ).rejects.toThrow(/page size/i);
   });
 
-  it("keeps the legacy updateProfile adapter consistent with the shared model", async () => {
+  it("preserves saved identity fields across successive revision-checked saves", async () => {
     const t = convexTest(schema, modules);
     const identity = await createAuthIdentity(t, {
       name: "Provider",
-      email: "legacy-adapter@example.com",
+      email: "successive-saves@example.com",
     });
     await t.withIdentity(identity).mutation(api.users.syncUser, {});
     const own = t.withIdentity(identity);
@@ -988,22 +1027,30 @@ describe("profiles API edge coverage", () => {
       }),
     });
 
-    await own.mutation(api.users.updateProfile, {
-      displayName: "Adapter name",
-      bio: "Adapter introduction",
+    const mid = await own.query(api.profiles.getEditorProfile, {});
+    await own.mutation(api.profiles.updateIdentity, {
+      expectedRevision: mid!.identityRevision,
+      identity: {
+        ...mid!.identity,
+        displayName: "Second save name",
+        bio: "Second save introduction",
+      },
     });
 
     const after = await own.query(api.profiles.getEditorProfile, {});
     expect(after?.identity).toMatchObject({
-      displayName: "Adapter name",
-      bio: "Adapter introduction",
+      displayName: "Second save name",
+      bio: "Second save introduction",
       countryCode: "IR",
       joinDateDisplay: "relative",
     });
-    expect(after?.identityRevision).toBe(before!.identityRevision + 2);
+    expect(after?.identityRevision).toBe(mid!.identityRevision + 1);
 
     await expect(
-      own.mutation(api.users.updateProfile, { displayName: "   ", bio: "" }),
+      own.mutation(api.profiles.updateIdentity, {
+        expectedRevision: after!.identityRevision,
+        identity: identityInput({ displayName: "   " }),
+      }),
     ).rejects.toMatchObject({ data: { field: "displayName" } });
   });
 });

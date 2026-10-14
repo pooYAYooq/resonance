@@ -1,61 +1,63 @@
 /**
  * Edit Profile page at `/profile/edit`.
  *
- * Client Component ("use client"), auth-gated via `useConvexAuth`. When
- * the user is unauthenticated, redirects to `/auth/login`. The form
- * pre-fills with the current user's data via `getCurrentUser` and
- * submits `updateProfile` to patch the display name and bio. Email
- * is read-only because it is owned by Better Auth.
+ * Client Component ("use client"), auth-gated via `useConvexAuth`. When the
+ * user is unauthenticated, redirects to `/auth/login`. The route resolves the
+ * authenticated author's editable profile with `profiles.getEditorProfile` and
+ * mounts the conflict-aware identity form; selected-work editing mounts
+ * alongside it. One page-level Save requests a save from each dirty section,
+ * while identity and selection keep independent save/conflict state.
  *
- * The avatar is read-only in 1.1 — OAuth/DiceBear only. Custom upload
- * is deferred to a later phase.
- *
- * Form state is keyed on the current user's Convex document ID so the
- * inputs re-initialize from server data when the user record changes,
- * without needing a setState-in-effect pattern.
+ * Email and avatar are read-only here: email is owned by Better Auth and
+ * avatars come from the sign-in provider. The form is keyed on the
+ * authenticated `userId` so switching accounts discards local edits.
  */
 
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useCallback, useEffect, useState } from "react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { UserAvatar } from "@/components/web/UserAvatar";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+import { ProfileIdentityForm } from "./_components/ProfileIdentityForm";
+import { SelectedWorkEditor } from "./_components/SelectedWorkEditor";
+import type { ProfileEditSaveStatus } from "./_components/profileEditSave";
 
-const MAX_BIO_LENGTH = 160;
+const CLEAN_SAVE_STATUS: ProfileEditSaveStatus = {
+  dirty: false,
+  pending: false,
+  conflict: false,
+};
+
+type SaveSection = "identity" | "selection";
+
+function sameSaveStatus(
+  current: ProfileEditSaveStatus,
+  next: ProfileEditSaveStatus,
+) {
+  return (
+    current.dirty === next.dirty &&
+    current.pending === next.pending &&
+    current.conflict === next.conflict
+  );
+}
 
 export default function EditProfileRoute() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
-  const currentUser = useQuery(
-    api.users.getCurrentUser,
+  const [saveRequest, setSaveRequest] = useState(0);
+  const [sectionSaveStatus, setSectionSaveStatus] = useState({
+    identity: CLEAN_SAVE_STATUS,
+    selection: CLEAN_SAVE_STATUS,
+  });
+  const editorProfile = useQuery(
+    api.profiles.getEditorProfile,
     !isLoading && isAuthenticated ? {} : "skip",
   );
-  const updateProfile = useMutation(api.users.updateProfile);
-  const [isPending, startTransition] = useTransition();
-
-  // Key form state off the user's Convex doc ID so it re-initializes
-  // from server data whenever the user record changes (e.g., after a
-  // successful save). This avoids the setState-in-effect anti-pattern.
-  const [formKey, setFormKey] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState("");
-  const [bio, setBio] = useState("");
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -63,13 +65,38 @@ export default function EditProfileRoute() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  if (currentUser && formKey !== currentUser._id) {
-    setFormKey(currentUser._id);
-    setDisplayName(currentUser.displayName ?? "");
-    setBio(currentUser.bio ?? "");
-  }
+  const requestSave = useCallback(() => {
+    setSaveRequest((request) => request + 1);
+  }, []);
 
-  if (isLoading || !isAuthenticated || !currentUser) {
+  const reportSaveStatus = useCallback(
+    (section: SaveSection, next: ProfileEditSaveStatus) => {
+      setSectionSaveStatus((current) =>
+        sameSaveStatus(current[section], next)
+          ? current
+          : { ...current, [section]: next },
+      );
+    },
+    [],
+  );
+  const reportIdentitySaveStatus = useCallback(
+    (status: ProfileEditSaveStatus) => reportSaveStatus("identity", status),
+    [reportSaveStatus],
+  );
+  const reportSelectionSaveStatus = useCallback(
+    (status: ProfileEditSaveStatus) => reportSaveStatus("selection", status),
+    [reportSaveStatus],
+  );
+
+  const identityCanSave =
+    sectionSaveStatus.identity.dirty && !sectionSaveStatus.identity.conflict;
+  const selectionCanSave =
+    sectionSaveStatus.selection.dirty && !sectionSaveStatus.selection.conflict;
+  const savePending =
+    sectionSaveStatus.identity.pending || sectionSaveStatus.selection.pending;
+  const canSave = identityCanSave || selectionCanSave;
+
+  if (isLoading || !isAuthenticated || editorProfile === undefined) {
     return (
       <div className="py-12 flex justify-center">
         <Loader2 className="animate-spin size-8 text-muted-foreground" />
@@ -77,137 +104,90 @@ export default function EditProfileRoute() {
     );
   }
 
-  const displayNameTrimmed = displayName.trim();
-  const displayNameInvalid = displayNameTrimmed.length === 0;
-  const bioInvalid = bio.length > MAX_BIO_LENGTH;
-  const userId = currentUser.userId;
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (displayNameInvalid || bioInvalid) return;
-
-    startTransition(async () => {
-      try {
-        await updateProfile({
-          displayName: displayNameTrimmed,
-          bio,
-        });
-        toast.success("Profile updated");
-        router.push(`/u/${userId}`);
-      } catch {
-        toast.error("Failed to update profile");
-      }
-    });
+  if (editorProfile === null) {
+    return (
+      <div className="py-12 flex flex-col items-center gap-4 text-center">
+        <h1 className="text-2xl font-bold">We could not find your profile</h1>
+        <p className="text-muted-foreground">
+          Try signing in again, or return home.
+        </p>
+        <Button asChild>
+          <Link href="/">Go home</Link>
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <div className="py-12 flex flex-col items-center gap-8">
-      <div className="text-center max-w-xl">
-        <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl leading-tight">
-          Edit Profile
-        </h1>
-        <p className="text-lg leading-relaxed text-muted-foreground">
-          Update the public identity readers see on your profile.
-        </p>
+    <div className="mx-auto w-full max-w-190 py-8 sm:py-12 flex flex-col gap-8">
+      <header className="flex flex-col gap-4 border-b pb-6">
+        <Link
+          className="inline-flex w-fit items-center gap-2 rounded-sm py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          href={`/u/${editorProfile.userId}`}
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back to profile
+        </Link>
+        <div className="flex items-end justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-2">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Edit profile
+            </h1>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Introduce yourself and choose the work you’d like to highlight.
+            </p>
+          </div>
+          <Button
+            type="button"
+            className="cursor-pointer px-6 aria-disabled:cursor-default aria-disabled:opacity-50"
+            aria-disabled={!canSave || savePending}
+            variant={canSave && !savePending ? "default" : "secondary"}
+            onClick={() => {
+              if (canSave && !savePending) requestSave();
+            }}
+          >
+            {savePending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              "Save"
+            )}
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex flex-col gap-10">
+        <section
+          aria-label="Profile details"
+          className="min-w-0"
+          data-testid="settings-form"
+        >
+          <ProfileIdentityForm
+            key={editorProfile.userId}
+            userId={editorProfile.userId}
+            email={editorProfile.email}
+            avatarUrl={editorProfile.avatarUrl}
+            initialIdentity={editorProfile.identity}
+            revision={editorProfile.identityRevision}
+            saveRequest={saveRequest}
+            onSaveRequest={requestSave}
+            onSaveStateChange={reportIdentitySaveStatus}
+          />
+        </section>
+
+        <section aria-label="Featured posts" className="min-w-0 border-t pt-8">
+          <SelectedWorkEditor
+            key={`${editorProfile.userId}-selection`}
+            selectedPostIds={editorProfile.selectedPostIds}
+            selectedPosts={editorProfile.selectedPosts}
+            selectionRevision={editorProfile.selectionRevision}
+            saveRequest={saveRequest}
+            onSaveStateChange={reportSelectionSaveStatus}
+          />
+        </section>
       </div>
-
-      <Card
-        className="w-full max-w-2xl mx-auto shadow-md"
-        data-testid="settings-form"
-      >
-        <CardContent className="pt-6">
-          <form onSubmit={handleSubmit}>
-            <FieldGroup className="gap-y-6">
-              <FieldGroup className="gap-y-4">
-                <Field>
-                  <FieldLabel>Avatar</FieldLabel>
-                  <div className="flex items-center gap-3">
-                    <UserAvatar
-                      userId={currentUser.userId}
-                      name={
-                        displayNameTrimmed || currentUser.displayName || "User"
-                      }
-                      avatarUrl={currentUser.avatarUrl}
-                      className="size-12"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Avatars come from your OAuth provider. Custom upload
-                      coming soon.
-                    </p>
-                  </div>
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="email">Email</FieldLabel>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={currentUser.email ?? ""}
-                    readOnly
-                    disabled
-                  />
-                  <FieldDescription>
-                    Email is managed by your sign-in provider and cannot be
-                    changed here.
-                  </FieldDescription>
-                </Field>
-              </FieldGroup>
-
-              <Separator />
-
-              <FieldGroup className="gap-y-4">
-                <Field data-invalid={displayNameInvalid}>
-                  <FieldLabel htmlFor="displayName">Display Name</FieldLabel>
-                  <Input
-                    id="displayName"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    aria-invalid={displayNameInvalid}
-                    placeholder="How should we call you?"
-                  />
-                  {displayNameInvalid && (
-                    <FieldError>Display name cannot be empty.</FieldError>
-                  )}
-                </Field>
-
-                <Field data-invalid={bioInvalid}>
-                  <FieldLabel htmlFor="bio">Bio</FieldLabel>
-                  <Textarea
-                    id="bio"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    aria-invalid={bioInvalid}
-                    placeholder="Tell us a little about yourself."
-                    rows={4}
-                  />
-                  <FieldDescription>
-                    {bio.length} / {MAX_BIO_LENGTH} characters
-                  </FieldDescription>
-                  {bioInvalid && (
-                    <FieldError>
-                      Bio must be {MAX_BIO_LENGTH} characters or fewer.
-                    </FieldError>
-                  )}
-                </Field>
-
-                <Button
-                  type="submit"
-                  disabled={isPending || displayNameInvalid || bioInvalid}
-                >
-                  {isPending ? (
-                    <>
-                      <Loader2 className="animate-spin size-4" />
-                      <span className="ml-2">Saving...</span>
-                    </>
-                  ) : (
-                    <span>Save Changes</span>
-                  )}
-                </Button>
-              </FieldGroup>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
     </div>
   );
 }

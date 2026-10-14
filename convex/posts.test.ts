@@ -2949,9 +2949,16 @@ describe("atomic discovery lifecycle", () => {
       return postId;
     });
 
-    await t.withIdentity(identity).mutation(api.users.updateProfile, {
-      displayName: "Renamed author",
-      bio: "Updated profile",
+    const editorBefore = await t
+      .withIdentity(identity)
+      .query(api.profiles.getEditorProfile, {});
+    await t.withIdentity(identity).mutation(api.profiles.updateIdentity, {
+      expectedRevision: editorBefore!.identityRevision,
+      identity: {
+        ...editorBefore!.identity,
+        displayName: "Renamed author",
+        bio: "Updated profile",
+      },
     });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 

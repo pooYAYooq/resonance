@@ -16,6 +16,23 @@ const base: IdentityInput = {
 };
 
 describe("normalizeProfileIdentity", () => {
+  it("accepts 30 Unicode code points and rejects 31 without truncating", () => {
+    const accepted = normalizeProfileIdentity({
+      ...base,
+      displayName: "😀".repeat(30),
+    });
+    expect(accepted).toEqual({
+      ok: true,
+      value: { ...base, displayName: "😀".repeat(30) },
+    });
+    expect(
+      normalizeProfileIdentity({ ...base, displayName: "😀".repeat(31) }),
+    ).toEqual({
+      ok: false,
+      field: "displayName",
+      message: "Use at most 30 characters.",
+    });
+  });
   it("trims optional text and preserves paragraph breaks", () => {
     expect(
       normalizeProfileIdentity({
