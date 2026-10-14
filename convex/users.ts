@@ -21,7 +21,7 @@ import {
   MAX_POST_AUTHOR_NAME_CODE_POINTS,
   truncatePostAuthorName,
 } from "../lib/post-capacity";
-import { formatJoinedDate } from "../lib/profile-joined-date";
+import { formatCalendarJoinedDate } from "../lib/profile-joined-date";
 
 function validateDisplayName(displayName: string): void {
   if (getCodePointCount(displayName) > MAX_POST_AUTHOR_NAME_CODE_POINTS) {
@@ -236,9 +236,7 @@ export const getUserProfile = query({
       bio: user.bio,
       avatarUrl: user.avatarUrl,
       joinedDate:
-        user.joinedAt != null
-          ? formatJoinedDate(user.joinedAt, "calendar", Date.now())
-          : null,
+        user.joinedAt != null ? formatCalendarJoinedDate(user.joinedAt) : null,
       followerCount: user.followerCount,
       followingCount: user.followingCount,
       postCount: user.publishedPostCount,

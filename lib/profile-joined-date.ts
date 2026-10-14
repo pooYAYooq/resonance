@@ -23,6 +23,12 @@ function relativeLabel(value: number, unit: "day" | "month" | "year"): string {
   return `${value} ${unit}${value === 1 ? "" : "s"} ago`;
 }
 
+/** Formats the UTC join month and year without reading the current time. */
+export function formatCalendarJoinedDate(joinedAt: number): string {
+  const date = new Date(joinedAt);
+  return `${CALENDAR_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
 /**
  * Formats the join date without a leading label so callers can prefix it.
  * Calendar uses the UTC month and year. Relative floors elapsed time at the
@@ -33,10 +39,7 @@ export function formatJoinedDate(
   display: JoinDateDisplay,
   now: number,
 ): string {
-  if (display === "calendar") {
-    const date = new Date(joinedAt);
-    return `${CALENDAR_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
-  }
+  if (display === "calendar") return formatCalendarJoinedDate(joinedAt);
   const elapsed = Math.max(0, now - joinedAt);
   if (elapsed < DAY_MS) return "recently";
   if (elapsed < MONTH_MS)

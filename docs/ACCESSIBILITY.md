@@ -642,6 +642,24 @@ not a new complete editor pass.
   `/tmp/opencode/`. The original review was not rerun after repair; the fixes
   were verified by regression tests and the affected browser checks.
 
+**Profile PR review follow-up (2026-10-14, `6e8b322` plus calendar fix)**
+
+- [The calendar-query finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4268817499)
+  was validated as a query-guideline violation. The existing calendar branch
+  ignored the clock argument, so the finding did not demonstrate an incorrect
+  date. The query now uses a pure UTC calendar formatter without a current-time
+  argument; relative formatting retains its explicit clock.
+- The new formatter regression failed before implementation and passed after
+  extraction. Public-query coverage verifies a UTC year boundary, a zero epoch,
+  and a missing join timestamp without falling back to profile insertion time.
+  All **16** focused date/user tests passed.
+- Fresh ordered lint, **745** edge/backend tests, **831** component tests
+  (one worker), and the production build passed for this repair. No visible
+  layout or date semantics changed; no browser or deployment verification was
+  performed for this backend-only extraction. Recheck the date evidence when
+  formatting or join-date semantics change. The other three PR findings still
+  require their planned repairs; this result is not acceptance of those fixes.
+
 **Settings Appearance follow-up (2026-10-10, `345a2f7`)**
 
 - Executed on the current `/settings` design at 375×900 and 1280×900 in
