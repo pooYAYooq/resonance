@@ -287,12 +287,22 @@ describe("SelectedWorkEditor", () => {
     availabilityCards = {};
     deletedIds = new Set();
 
-    usePaginatedQueryMock.mockImplementation(() => ({
-      results: pickerResults,
-      status: pickerStatus,
-      loadMore: loadMoreMock,
-      isLoading: pickerStatus === "LoadingMore",
-    }));
+    usePaginatedQueryMock.mockImplementation(
+      (_query: unknown, args: unknown) =>
+        args === "skip"
+          ? {
+              results: [],
+              status: "LoadingFirstPage",
+              loadMore: loadMoreMock,
+              isLoading: true,
+            }
+          : {
+              results: pickerResults,
+              status: pickerStatus,
+              loadMore: loadMoreMock,
+              isLoading: pickerStatus === "LoadingMore",
+            },
+    );
     useQueryMock.mockImplementation((_query: unknown, args: unknown) => {
       if (args === "skip") return undefined;
       const { postIds } = args as { postIds: string[] };
@@ -551,6 +561,43 @@ describe("SelectedWorkEditor", () => {
     );
     await user.click(screen.getByRole("button", { name: /load more/i }));
     expect(loadMoreMock).toHaveBeenCalledWith(12);
+  });
+
+  it("skips the picker query until the dialog is open", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+
+    expect(usePaginatedQueryMock).toHaveBeenLastCalledWith(
+      "listOwnPublishedPosts",
+      "skip",
+      { initialNumItems: 12 },
+    );
+
+    await user.click(screen.getByRole("button", { name: "Choose posts" }));
+    expect(usePaginatedQueryMock).toHaveBeenLastCalledWith(
+      "listOwnPublishedPosts",
+      { search: "" },
+      { initialNumItems: 12 },
+    );
+
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    expect(usePaginatedQueryMock).toHaveBeenLastCalledWith(
+      "listOwnPublishedPosts",
+      "skip",
+      { initialNumItems: 12 },
+    );
+  });
+
+  it("keeps a chosen card while the picker is closed", async () => {
+    const user = userEvent.setup();
+    pickerResults = [alpha];
+    renderEditor();
+
+    await user.click(screen.getByRole("button", { name: "Choose posts" }));
+    await user.click(screen.getByRole("button", { name: "Alpha" }));
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(screen.getByRole("button", { name: "Remove Alpha" })).toBeVisible();
   });
 
   it("can load and select a later post after an empty eligible page", async () => {

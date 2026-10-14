@@ -3,8 +3,9 @@
  *
  * Authors choose up to nine of their own published posts and order them. The
  * picker is a bounded, debounced, newest-first browse of the author's own
- * published titles (`listOwnPublishedPosts`); the chosen list keeps a small
- * card cache so search and pagination changes never erase chosen titles.
+ * published titles (`listOwnPublishedPosts`), subscribed only while the dialog
+ * is open; the chosen list keeps a small card cache so search and pagination
+ * changes never erase chosen titles.
  *
  * Selection state is independent of identity state: its own baseline, pending,
  * and conflict flags. A live revision change adopts a clean form's newest saved
@@ -132,9 +133,12 @@ export function SelectedWorkEditor({
     return () => clearTimeout(handle);
   }, [searchInput, committedSearch]);
 
+  // Browse only while the dialog is open. A closed picker must not hold a
+  // subscription or hydrate cards the author never sees; reopening starts from
+  // the first page of the retained search term.
   const { results, status, loadMore } = usePaginatedQuery(
     api.profiles.listOwnPublishedPosts,
-    { search: committedSearch },
+    pickerOpen ? { search: committedSearch } : "skip",
     { initialNumItems: PICKER_PAGE_SIZE },
   );
 
