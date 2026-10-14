@@ -32,6 +32,7 @@ const {
 }));
 
 let currentQueryValue: unknown = undefined;
+let unavailablePostIds = new Set<string>();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
@@ -50,14 +51,9 @@ vi.mock("convex/react", () => ({
     if (query === "getOwnSelectionAvailability") {
       if (args === "skip") return undefined;
       const ids = (args as { postIds: string[] }).postIds;
-      const selectedPosts = (
-        currentQueryValue as {
-          selectedPosts?: Array<{ postId: string }>;
-        } | null
-      )?.selectedPosts;
-      return (selectedPosts ?? []).filter((entry) =>
-        ids.includes(entry.postId),
-      );
+      // Existence is independent of the saved selection: a post the author is
+      // adding right now is published even though it is not saved yet.
+      return ids.filter((id) => !unavailablePostIds.has(id));
     }
     return queryArgsMock(args);
   },
@@ -110,6 +106,7 @@ describe("EditProfileRoute", () => {
     updateSelectionMock.mockClear();
     loadMoreMock.mockClear();
     currentQueryValue = editorProfile;
+    unavailablePostIds = new Set();
     useConvexAuthState.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,

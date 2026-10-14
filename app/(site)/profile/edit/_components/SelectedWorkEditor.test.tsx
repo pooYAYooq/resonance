@@ -63,7 +63,6 @@ const beta = card(betaId, "Beta");
 
 let pickerResults: SelectedWorkCard[] = [];
 let pickerStatus = "Exhausted";
-let availabilityCards: Record<string, SelectedWorkCard> = {};
 let deletedIds = new Set<string>();
 
 type EditorProps = {
@@ -284,7 +283,6 @@ describe("SelectedWorkEditor", () => {
 
     pickerResults = [];
     pickerStatus = "Exhausted";
-    availabilityCards = {};
     deletedIds = new Set();
 
     usePaginatedQueryMock.mockImplementation(
@@ -306,9 +304,7 @@ describe("SelectedWorkEditor", () => {
     useQueryMock.mockImplementation((_query: unknown, args: unknown) => {
       if (args === "skip") return undefined;
       const { postIds } = args as { postIds: string[] };
-      return postIds
-        .filter((id) => !deletedIds.has(id))
-        .map((id) => availabilityCards[id] ?? card(id as Id<"posts">, id));
+      return postIds.filter((id) => !deletedIds.has(id));
     });
   });
 

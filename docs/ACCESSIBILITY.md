@@ -732,6 +732,39 @@ not a new complete editor pass.
   this final correction. Retest empty-state wording when picker eligibility or
   exhaustion semantics change. No new browser/deployment run is claimed.
 
+**Editor query-work review follow-up (2026-10-14, `33b10d7` plus picker/availability fixes)**
+
+- [The closed-picker finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4270539405)
+  was validated: the picker's paginated query ran on mount, so every editor
+  visit hydrated a page of cards and resolved their storage URLs even when the
+  dialog was never opened. The query is now skipped while the dialog is closed;
+  chosen cards stay in the existing selection cache, so the closed list keeps
+  its titles and covers. A component regression asserts the skip, resume, and
+  skip-again argument sequence, and a second regression proves a chosen card
+  still renders while the picker is closed.
+- [The availability-payload finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4270539410)
+  was validated: the subscription returned hydrated cards plus storage URLs and
+  the component read only `postId`. It now returns surviving IDs from a new
+  ID-only reader that shares the existing bounded lookup with card hydration, so
+  filtering and ordering behavior is unchanged. A regression also pins that a
+  coverless published post is still available, since treating it as gone would
+  silently drop an existing selection.
+- RED/GREEN: three backend assertions plus the affected component and page tests
+  failed before the change and passed after it. All **34** profile backend tests
+  and **44** focused component/page tests passed.
+- Fresh ordered lint, **753** edge/backend tests, **844** component tests (one
+  worker), and the production build passed after both fixes.
+- Reviewed locally with the CodeRabbit CLI (0.9.0) against `33b10d7` instead of
+  spending the remaining Codex review budget. The first pass reported one minor
+  finding about the page test double deriving availability from the saved
+  selection; the double now answers existence independently, and a second pass
+  reported **0** findings. No production-code finding was raised in either pass.
+  Local review output is untrusted input and was verified against the code.
+- This is automated query, component, and local-review evidence. Reopening the
+  picker now returns to the first page of the retained search term, which is a
+  deliberate consequence of releasing the query; no browser re-acceptance or
+  deployment check was performed.
+
 **Public profile featured-read follow-up (2026-10-14, `d6f6cc6` plus selected-only read)**
 
 - [This finding](https://github.com/pooYAYooq/resonance/pull/110#discussion_r4270165773)

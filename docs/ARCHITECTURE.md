@@ -199,7 +199,8 @@ resonance/
 │   │                           # Discover rename repair; identity edits live in profiles.ts
 │   ├── profileModel.ts         # Shared profile validators, stored-identity mapping,
 │   │                           # revision-checked identity/selection helpers, bounded
-│   │                           # card hydration, and deleted-selection cleanup. Not registered.
+│   │                           # card hydration, ID-only existence checks, and
+│   │                           # deleted-selection cleanup. Not registered.
 │   ├── profiles.ts             # Public identity, featured-selection, showcase,
 │   │                           # and catalogue reads plus authenticated identity
 │   │                           # and selected-work edits

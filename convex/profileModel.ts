@@ -217,6 +217,41 @@ export async function summariesToCards(
 }
 
 /**
+ * The given post IDs that are currently published projections of this author, in
+ * argument order. Reads stay bounded to the nine-post selection maximum and
+ * resolve no storage URLs, so callers that only need identity stay cheap.
+ */
+async function survivingAuthorSummaries(
+  ctx: QueryCtx,
+  authorId: string,
+  postIds: readonly Id<"posts">[],
+): Promise<Doc<"discoverPosts">[]> {
+  const summaries: Doc<"discoverPosts">[] = [];
+  for (const postId of postIds.slice(0, MAX_SELECTED_POSTS)) {
+    const summary = await ctx.db
+      .query("discoverPosts")
+      .withIndex("by_postId", (q) => q.eq("postId", postId))
+      .unique();
+    if (!summary || summary.authorId !== authorId) continue;
+    summaries.push(summary);
+  }
+  return summaries;
+}
+
+/**
+ * The surviving post IDs only. Live deletion detection needs identity, not the
+ * card fields or a resolved cover URL.
+ */
+export async function survivingAuthorPostIds(
+  ctx: QueryCtx,
+  authorId: string,
+  postIds: readonly Id<"posts">[],
+): Promise<Id<"posts">[]> {
+  const summaries = await survivingAuthorSummaries(ctx, authorId, postIds);
+  return summaries.map((summary) => summary.postId);
+}
+
+/**
  * Resolves the given post IDs to compact cards in argument order, dropping any
  * entry that is not a currently published projection of this author. Reads stay
  * bounded to the nine-post selection maximum.
@@ -226,16 +261,10 @@ export async function hydrateAuthorCards(
   authorId: string,
   postIds: readonly Id<"posts">[],
 ): Promise<AuthorCard[]> {
-  const cards: AuthorCard[] = [];
-  for (const postId of postIds.slice(0, MAX_SELECTED_POSTS)) {
-    const summary = await ctx.db
-      .query("discoverPosts")
-      .withIndex("by_postId", (q) => q.eq("postId", postId))
-      .unique();
-    if (!summary || summary.authorId !== authorId) continue;
-    cards.push(await toAuthorCard(ctx, summary));
-  }
-  return cards;
+  return await summariesToCards(
+    ctx,
+    await survivingAuthorSummaries(ctx, authorId, postIds),
+  );
 }
 
 async function latestAuthorCards(

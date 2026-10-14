@@ -664,7 +664,7 @@ describe("profiles selection API", () => {
       api.profiles.getOwnSelectionAvailability,
       { postIds: [posts[3], foreign, draft, posts[1]] },
     );
-    expect(available.map((card) => card.postId)).toEqual([posts[3], posts[1]]);
+    expect(available).toEqual([posts[3], posts[1]]);
 
     await expect(
       t.query(api.profiles.getOwnSelectionAvailability, { postIds: [] }),
@@ -1015,7 +1015,7 @@ describe("profiles API edge coverage", () => {
     const before = await own.query(api.profiles.getOwnSelectionAvailability, {
       postIds: [posts[0], posts[1]],
     });
-    expect(before.map((card) => card.postId)).toEqual([posts[0], posts[1]]);
+    expect(before).toEqual([posts[0], posts[1]]);
 
     await own.mutation(api.posts.deletePublishedPost, { postId: posts[0] });
     await drainScheduled(t);
@@ -1023,7 +1023,27 @@ describe("profiles API edge coverage", () => {
     const after = await own.query(api.profiles.getOwnSelectionAvailability, {
       postIds: [posts[0], posts[1]],
     });
-    expect(after.map((card) => card.postId)).toEqual([posts[1]]);
+    expect(after).toEqual([posts[1]]);
+  });
+
+  it("keeps a coverless published post available instead of treating it as gone", async () => {
+    const t = convexTest(schema, modules);
+    const { identity, own } = await seedAuthor(
+      t,
+      "availability-coverless@example.com",
+      0,
+    );
+    const coverless = await seedPost(t, identity.subject, {
+      title: "Legacy coverless",
+      publishedAt: 12,
+      cover: false,
+    });
+
+    await expect(
+      own.query(api.profiles.getOwnSelectionAvailability, {
+        postIds: [coverless],
+      }),
+    ).resolves.toEqual([coverless]);
   });
 
   it("drops a search hit whose compact summary is gone", async () => {

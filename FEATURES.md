@@ -283,7 +283,11 @@
   changed section independently; loading a saved version explains the loss of
   local edits.
 - The picker caches only the at-most-nine selected card summaries across
-  searches, evicting removed cards rather than retaining browsing history.
+  searches, evicting removed cards rather than retaining browsing history. It
+  subscribes only while its dialog is open, so a closed picker performs no
+  browse reads; reopening starts from the first page of the retained search
+  term. Chosen posts are checked for existence only, so a published post without
+  a stored cover is never treated as deleted.
 - The editor keeps identity and selected-work saves independent, preserves
   unsaved input across live updates, and requires an explicit reload on a
   revision conflict. Save and pending pagination remain keyboard-focusable with

@@ -209,7 +209,7 @@ export function SelectedWorkEditor({
   // with, and refresh it when the reactive result changes; discard anything
   // stale so a pending/changed subscription is never read as a deletion.
   if (availability !== undefined) {
-    const ids = availability.map((entry) => entry.postId);
+    const ids = availability;
     if (
       resolvedAvailability === null ||
       resolvedAvailability.key !== availabilityKey ||

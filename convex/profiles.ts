@@ -31,6 +31,7 @@ import {
   socialProfilesValidator,
   storedIdentity,
   summariesToCards,
+  survivingAuthorPostIds,
 } from "./profileModel";
 
 const publicIdentityValidator = v.object({
@@ -235,12 +236,13 @@ export const listOwnPublishedPosts = query({
 
 /**
  * Live availability for the current selection arguments: only the caller's own
- * currently published posts, in argument order. Foreign, draft, and missing
- * entries are omitted without exposing their details.
+ * currently published posts, in argument order, as IDs. Foreign, draft, and
+ * missing entries are omitted without exposing their details or hydrating
+ * cards and cover URLs the caller does not read.
  */
 export const getOwnSelectionAvailability = query({
   args: { postIds: v.array(v.id("posts")) },
-  returns: v.array(authorCardValidator),
+  returns: v.array(v.id("posts")),
   handler: async (ctx, args) => {
     const authUser = await authComponent.safeGetAuthUser(ctx);
     if (!authUser) throw new ConvexError("Unauthorized");
@@ -250,7 +252,7 @@ export const getOwnSelectionAvailability = query({
     if (new Set(args.postIds).size !== args.postIds.length) {
       throw new ConvexError("Selection contains duplicates.");
     }
-    return await hydrateAuthorCards(ctx, authUser._id, args.postIds);
+    return await survivingAuthorPostIds(ctx, authUser._id, args.postIds);
   },
 });
 
