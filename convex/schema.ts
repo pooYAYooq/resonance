@@ -301,6 +301,11 @@ export default defineSchema({
   users: defineTable({
     userId: v.string(),
     displayName: v.string(),
+    /** Public username styled for display; `usernameLower` is its lookup key. */
+    username: v.optional(v.string()),
+    usernameLower: v.optional(v.string()),
+    /** Independent revision for the dedicated username editor. */
+    usernameRevision: v.optional(v.number()),
     email: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     bio: v.optional(v.string()),
@@ -360,6 +365,20 @@ export default defineSchema({
      * schema migration.
      */
     .index("by_email", ["email"]),
+
+  /**
+   * Permanent username ownership, one row per canonical spelling for the life
+   * of the deployment. `ownerUserId` present means the name belongs to that
+   * account forever; absent means the name is permanently blocked (a deleted
+   * account's name). Absent never means free.
+   */
+  usernameClaims: defineTable({
+    usernameLower: v.string(),
+    ownerUserId: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_usernameLower", ["usernameLower"])
+    .index("by_ownerUserId", ["ownerUserId"]),
 
   /**
    * Denormalized site-wide statistics. Currently a single-row table that
