@@ -1129,4 +1129,27 @@ describe("username resolution", () => {
     expect(result[1]).toEqual({ userId: "missing-user", username: null });
     expect(result[2]).toEqual({ userId: subject, username: "ownerone" });
   });
+
+  it("refuses a lookup that exceeds the distinct-owner bound", async () => {
+    const t = setup();
+    const distinct = Array.from({ length: 51 }, (_, i) => `owner-${i}`);
+
+    // Over the bound the query must fail loudly instead of silently omitting
+    // owners from the returned array.
+    await expect(
+      t.query(api.usernames.getUsernamesForOwners, { userIds: distinct }),
+    ).rejects.toThrow(/At most 50 owners/);
+  });
+
+  it("counts only distinct owners toward the lookup bound", async () => {
+    const t = setup();
+    const distinct = Array.from({ length: 50 }, (_, i) => `owner-${i}`);
+
+    // 51 entries but 50 distinct owners: duplicates collapse before the check.
+    const result = await t.query(api.usernames.getUsernamesForOwners, {
+      userIds: [...distinct, distinct[0]],
+    });
+    expect(result).toHaveLength(51);
+    expect(result.every((entry) => entry.username === null)).toBe(true);
+  });
 });

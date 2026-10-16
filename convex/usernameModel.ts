@@ -126,14 +126,21 @@ export async function usernameForOwner(
 }
 
 /**
- * Current usernames for a bounded, de-duplicated set of owners. Duplicate
- * inputs collapse to one read so a repeated author costs nothing extra.
+ * Current usernames for a de-duplicated set of owners. Duplicate inputs
+ * collapse to one read so a repeated author costs nothing extra, and only
+ * distinct owners count toward `MAX_USERNAME_LOOKUP`. Exceeding that bound
+ * throws rather than silently dropping owners from the result.
  */
 export async function usernamesForOwners(
   ctx: QueryCtx,
   userIds: readonly string[],
 ): Promise<Map<string, string>> {
-  const unique = Array.from(new Set(userIds)).slice(0, MAX_USERNAME_LOOKUP);
+  const unique = Array.from(new Set(userIds));
+  if (unique.length > MAX_USERNAME_LOOKUP) {
+    throw new ConvexError(
+      `At most ${MAX_USERNAME_LOOKUP} owners can be resolved per lookup.`,
+    );
+  }
   const entries = await Promise.all(
     unique.map(async (userId) => {
       const username = await usernameForOwner(ctx, userId);
