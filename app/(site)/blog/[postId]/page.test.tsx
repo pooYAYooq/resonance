@@ -75,6 +75,7 @@ const basePost = {
   updatedAt: 1,
   publishedAt: 1,
   authorId: "user-1",
+  authorUsername: "ada",
   tags: [],
 };
 
@@ -340,7 +341,7 @@ describe("blog post author byline", () => {
 
     const byline = screen.getByTestId("article-byline");
     const authorLink = screen.getByRole("link", { name: "Ada Lovelace" });
-    expect(authorLink).toHaveAttribute("href", "/u/user-1");
+    expect(authorLink).toHaveAttribute("href", "/u/ada");
     expect(authorLink).toHaveClass("capitalize");
     expect(authorLink).toHaveClass(
       "focus-visible:underline",
@@ -357,6 +358,7 @@ describe("blog post author byline", () => {
     fetchAuthQueryMock.mockResolvedValue({
       ...basePost,
       authorName: null,
+      authorUsername: null,
       authorAvatarUrl: null,
       authorExists: false,
       body: "body",
@@ -364,10 +366,8 @@ describe("blog post author byline", () => {
 
     render(await PostIdRoute({ params }));
 
-    expect(screen.getByRole("link", { name: "Unknown" })).toHaveAttribute(
-      "href",
-      "/u/user-1",
-    );
+    expect(screen.queryByRole("link", { name: "Unknown" })).toBeNull();
+    expect(screen.getByText("Unknown")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Structured Post" }),
     ).toBeInTheDocument();
@@ -386,7 +386,7 @@ describe("blog post author byline", () => {
 
     expect(screen.getByRole("link", { name: "Unknown" })).toHaveAttribute(
       "href",
-      "/u/user-1",
+      "/u/ada",
     );
     expect(screen.getByTestId("follow-button")).toHaveAttribute(
       "data-user",

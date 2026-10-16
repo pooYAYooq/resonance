@@ -7,6 +7,7 @@ import type { Doc } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { query } from "./_generated/server";
 import { isCanonicalPostTag, POST_TAGS } from "../lib/constants/post-tags";
+import { usernamesForOwners } from "./usernameModel";
 
 const discoverSummaryValidator = v.object({
   _id: v.id("posts"),
@@ -14,6 +15,7 @@ const discoverSummaryValidator = v.object({
   bodyText: v.string(),
   authorId: v.string(),
   authorName: v.string(),
+  authorUsername: v.union(v.string(), v.null()),
   tags: v.array(v.string()),
   imageUrl: v.union(v.string(), v.null()),
   publishedAt: v.number(),
@@ -54,6 +56,7 @@ type DiscoverSummary = {
   bodyText: string;
   authorId: string;
   authorName: string;
+  authorUsername: string | null;
   tags: string[];
   imageUrl: string | null;
   publishedAt: number;
@@ -66,6 +69,10 @@ async function hydrateDiscoverPosts(
   ctx: QueryCtx,
   rows: readonly Doc<"discoverPosts">[],
 ): Promise<DiscoverSummary[]> {
+  const usernames = await usernamesForOwners(
+    ctx,
+    rows.map((row) => row.authorId),
+  );
   return await Promise.all(
     rows.map(
       async (row): Promise<DiscoverSummary> => ({
@@ -74,6 +81,7 @@ async function hydrateDiscoverPosts(
         bodyText: row.bodyText,
         authorId: row.authorId,
         authorName: row.authorName,
+        authorUsername: usernames.get(row.authorId) ?? null,
         tags: row.tags,
         imageUrl: row.imageStorageId
           ? await ctx.storage.getUrl(row.imageStorageId)

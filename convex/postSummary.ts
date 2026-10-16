@@ -13,6 +13,7 @@ export type PostSummary = {
   likeCount: number;
   imageUrl: string | null;
   authorName: string | null;
+  authorUsername: string | null;
   authorAvatarUrl: string | null;
   isLiked: boolean;
   isBookmarked: boolean;
@@ -29,6 +30,7 @@ export const postSummaryValidator = v.object({
   likeCount: v.number(),
   imageUrl: v.union(v.string(), v.null()),
   authorName: v.union(v.string(), v.null()),
+  authorUsername: v.union(v.string(), v.null()),
   authorAvatarUrl: v.union(v.string(), v.null()),
   isLiked: v.boolean(),
   isBookmarked: v.boolean(),
@@ -38,6 +40,7 @@ export async function hydratePostSummary(
   ctx: QueryCtx,
   post: Doc<"posts">,
   viewerId: string | null,
+  authorUsername: string | null,
 ): Promise<PostSummary> {
   const imageUrl = post.imageStorageId
     ? await ctx.storage.getUrl(post.imageStorageId)
@@ -77,6 +80,7 @@ export async function hydratePostSummary(
     likeCount: post.likeCount,
     imageUrl,
     authorName: author?.displayName ?? null,
+    authorUsername,
     authorAvatarUrl: author?.avatarUrl ?? null,
     isLiked,
     isBookmarked,

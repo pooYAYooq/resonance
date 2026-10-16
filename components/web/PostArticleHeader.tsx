@@ -2,11 +2,13 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { UserAvatar } from "./UserAvatar";
 import { TagPill } from "./TagPill";
+import { buildProfilePath } from "@/lib/username";
 
 type ArticleAuthor = {
   userId: string;
   name: string;
   avatarUrl?: string | null;
+  username?: string | null;
 };
 
 type PublishedMetadata = {
@@ -58,9 +60,9 @@ export function PostArticleHeader({
         />
         <div className="min-w-0 flex-1 flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-h-10">
-            {interactive ? (
+            {interactive && author.username ? (
               <Link
-                href={`/u/${author.userId}`}
+                href={buildProfilePath(author.username)}
                 className="min-w-0 wrap-anywhere text-base font-semibold text-foreground capitalize underline-offset-4 hover:text-primary hover:underline focus-visible:underline"
               >
                 {author.name}

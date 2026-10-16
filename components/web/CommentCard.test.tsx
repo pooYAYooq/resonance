@@ -33,6 +33,7 @@ vi.mock("@/convex/_generated/api", () => ({
 const baseProps = {
   commentId: "comment-1" as Id<"comments">,
   authorName: "Alice",
+  authorUsername: "alice",
   body: "Great post!",
   createdAt: 1_000,
   authorId: "user-2",
@@ -75,5 +76,19 @@ describe("CommentCard", () => {
       "aria-label",
       "Unlike this comment",
     );
+  });
+
+  it("links the author name to the username address when present", () => {
+    render(<CommentCard {...baseProps} />);
+    expect(screen.getByRole("link", { name: "Alice" })).toHaveAttribute(
+      "href",
+      "/u/alice",
+    );
+  });
+
+  it("renders a plain author label when there is no username", () => {
+    render(<CommentCard {...baseProps} authorUsername={null} />);
+    expect(screen.queryByRole("link", { name: "Alice" })).toBeNull();
+    expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 });

@@ -6,7 +6,7 @@
  *
  * Phase 1.1 rule #3: the post title is an `<h2>` link because the
  * page-level `<h1>` ("Notifications") is the page's only `<h1>`. The
- * row's actor name links to the actor's profile (`/u/[actorId]`).
+ * row's actor name links to the actor's username address when one exists.
  *
  * Relative timestamp: uses `Intl.RelativeTimeFormat` when available
  * (the spec deliberately leaves the formatter open; any reasonable
@@ -18,6 +18,7 @@
 import Link from "next/link";
 import { UserAvatar } from "@/components/web/UserAvatar";
 import type { Id } from "@/convex/_generated/dataModel";
+import { buildProfilePath } from "@/lib/username";
 
 export interface NotificationRowData {
   _id: Id<"notifications">;
@@ -27,6 +28,7 @@ export interface NotificationRowData {
   postId: Id<"posts">;
   createdAt: number;
   actorName: string | null;
+  actorUsername: string | null;
   actorAvatarUrl: string | null;
   postTitle: string;
 }
@@ -91,29 +93,44 @@ function thresholdDivisor(unit: Intl.RelativeTimeFormatUnit): number {
 export function NotificationRow({ notification }: NotificationRowProps) {
   const displayName = notification.actorName?.trim() || "Someone";
   const postHref = `/blog/${notification.postId}`;
-  const profileHref = `/u/${notification.actorId}`;
+  const profileHref = notification.actorUsername
+    ? buildProfilePath(notification.actorUsername)
+    : null;
   // eslint-disable-next-line react-hooks/purity -- Server Component, single render on the server
   const now = Date.now();
   const relative = formatRelativeTime(notification.createdAt, now);
 
   return (
     <article className="flex items-start gap-3 border-b py-4 last:border-b-0">
-      <Link href={profileHref} aria-label={`Open ${displayName}'s profile`}>
+      {profileHref ? (
+        <Link href={profileHref} aria-label={`Open ${displayName}'s profile`}>
+          <UserAvatar
+            userId={notification.actorId}
+            name={displayName}
+            avatarUrl={notification.actorAvatarUrl}
+            className="size-10 shrink-0"
+          />
+        </Link>
+      ) : (
         <UserAvatar
           userId={notification.actorId}
           name={displayName}
           avatarUrl={notification.actorAvatarUrl}
           className="size-10 shrink-0"
         />
-      </Link>
+      )}
       <div className="flex-1 min-w-0">
         <p className="text-sm text-muted-foreground">
-          <Link
-            href={profileHref}
-            className="font-semibold text-foreground hover:underline"
-          >
-            {displayName}
-          </Link>{" "}
+          {profileHref ? (
+            <Link
+              href={profileHref}
+              className="font-semibold text-foreground hover:underline"
+            >
+              {displayName}
+            </Link>
+          ) : (
+            <span className="font-semibold text-foreground">{displayName}</span>
+          )}{" "}
           published a new post
         </p>
         <Link href={postHref} className="block mt-1">

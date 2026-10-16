@@ -73,6 +73,7 @@ const baseNotification = (
   postId: "post-1" as Id<"posts">,
   createdAt: overrides.createdAt ?? Date.now(),
   actorName: overrides.actorName ?? "Ada",
+  actorUsername: "ada",
   actorAvatarUrl: null,
   postTitle: overrides.postTitle === undefined ? "Hello" : overrides.postTitle,
 });

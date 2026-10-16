@@ -59,6 +59,7 @@ export async function RecentPostsSection() {
               createdAt={post.createdAt}
               authorId={post.authorId}
               authorName={post.authorName}
+              authorUsername={post.authorUsername}
               authorAvatarUrl={post.authorAvatarUrl}
               tags={post.tags}
             />

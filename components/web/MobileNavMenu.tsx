@@ -40,6 +40,7 @@ import { signOutUser } from "./account-actions";
 import { useOptionalAuthoringExit } from "./AuthoringExitProvider";
 import { UserAvatar } from "./UserAvatar";
 import { cn } from "@/lib/utils";
+import { buildProfilePath } from "@/lib/username";
 
 const writingLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -154,9 +155,9 @@ export function AppNavigation({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-6">
-      {isAuthenticated && user && (
+      {isAuthenticated && user?.username && (
         <Link
-          href={`/u/${user.userId}`}
+          href={buildProfilePath(user.username)}
           onClick={close}
           className="flex min-w-0 items-center gap-3 rounded-lg bg-muted/50 p-3"
           aria-label={`View profile for ${user.displayName}`}
@@ -179,6 +180,26 @@ export function AppNavigation({
             <p className="mt-1 text-xs text-muted-foreground">View profile</p>
           </div>
         </Link>
+      )}
+      {isAuthenticated && user && !user.username && (
+        <div className="flex min-w-0 items-center gap-3 rounded-lg bg-muted/50 p-3">
+          <UserAvatar
+            userId={user.userId}
+            name={user.displayName}
+            avatarUrl={user.avatarUrl}
+            className="size-11 shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold capitalize">
+              {user.displayName}
+            </p>
+            {user.email && (
+              <p className="truncate text-xs text-muted-foreground">
+                {user.email}
+              </p>
+            )}
+          </div>
+        </div>
       )}
       {isAuthenticated && (
         <nav aria-label="Writing" className="flex flex-col gap-1">
@@ -210,9 +231,9 @@ export function AppNavigation({
                 </span>
               )}
             </Link>
-            {user &&
+            {user?.username &&
               navLink({
-                href: `/u/${user.userId}`,
+                href: buildProfilePath(user.username),
                 label: "Profile",
                 icon: User,
               })}

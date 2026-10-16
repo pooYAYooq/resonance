@@ -102,6 +102,7 @@ const basePost = {
   createdAt: new Date("2026-06-01T12:00:00Z").getTime(),
   authorId: "user-abc",
   authorName: "Ada Lovelace",
+  authorUsername: "ada",
   authorAvatarUrl: "https://example.com/ada.png",
 };
 
@@ -258,7 +259,7 @@ describe("PostCard", () => {
   it("renders the author name and links it to the profile page", () => {
     render(<PostCard {...basePost} />);
     const authorLink = screen.getByRole("link", { name: "Ada Lovelace" });
-    expect(authorLink).toHaveAttribute("href", "/u/user-abc");
+    expect(authorLink).toHaveAttribute("href", "/u/ada");
   });
 
   it("renders the author avatar via UserAvatar", () => {
@@ -272,7 +273,7 @@ describe("PostCard", () => {
     // Cast through unknown so the type system allows the null in tests.
     render(<PostCard {...basePost} authorName={null as unknown as string} />);
     const link = screen.getByRole("link", { name: /Unknown/i });
-    expect(link).toHaveAttribute("href", "/u/user-abc");
+    expect(link).toHaveAttribute("href", "/u/ada");
   });
 
   it("includes a Read More link pointing to the post detail page", () => {
@@ -352,5 +353,47 @@ describe("PostCard", () => {
 
     rerender(<PostCard {...basePost} tags={[]} />);
     expect(screen.queryByRole("link", { name: "Technology" })).toBeNull();
+  });
+
+  it("links the author label to the username address", () => {
+    render(
+      <PostCard
+        postId={"post-1" as never}
+        title="Title"
+        body="Body"
+        commentCount={0}
+        likeCount={0}
+        isLiked={false}
+        isBookmarked={false}
+        createdAt={0}
+        authorId="auth-user-1"
+        authorName="Ada"
+        authorUsername="PooYaYooQ"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Ada" })).toHaveAttribute(
+      "href",
+      "/u/pooyayooq",
+    );
+  });
+
+  it("renders the author label without a link when there is no username", () => {
+    render(
+      <PostCard
+        postId={"post-1" as never}
+        title="Title"
+        body="Body"
+        commentCount={0}
+        likeCount={0}
+        isLiked={false}
+        isBookmarked={false}
+        createdAt={0}
+        authorId="auth-user-1"
+        authorName="Ada"
+        authorUsername={null}
+      />,
+    );
+    expect(screen.queryByRole("link", { name: "Ada" })).toBeNull();
+    expect(screen.getByText("Ada")).toBeInTheDocument();
   });
 });

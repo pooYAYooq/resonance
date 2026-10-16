@@ -31,6 +31,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { TagPill } from "./TagPill";
 import { CoverImage } from "./CoverImage";
 import { extractPlainText, parsePostBody } from "@/lib/post-content";
+import { buildProfilePath } from "@/lib/username";
 
 interface PostCardProps {
   /** Convex document ID of the post; used to build the detail page link. */
@@ -55,6 +56,11 @@ interface PostCardProps {
   authorId: string;
   /** Display name of the author. May be `null` if no `users` record exists. */
   authorName: string | null;
+  /**
+   * Current username whose lowercase address the author label links to.
+   * `null` when the author has no username; then the label renders plain.
+   */
+  authorUsername: string | null;
   /**
    * Optional OAuth-provided avatar URL. When `null` or `undefined`,
    * `UserAvatar` falls back to a DiceBear-generated image.
@@ -84,13 +90,14 @@ export function PostCard({
   createdAt,
   authorId,
   authorName,
+  authorUsername,
   authorAvatarUrl,
   tags,
   authorActions,
 }: PostCardProps) {
   const displayName = authorName?.trim() || "Unknown";
   const postHref = `/blog/${postId}`;
-  const profileHref = `/u/${authorId}`;
+  const profileHref = authorUsername ? buildProfilePath(authorUsername) : null;
   const parsedBody = parsePostBody(body);
   const excerpt =
     parsedBody.kind === "structured"
@@ -116,12 +123,16 @@ export function PostCard({
             avatarUrl={authorAvatarUrl}
             className="size-6 shrink-0"
           />
-          <Link
-            href={profileHref}
-            className="text-sm font-medium hover:text-primary hover:underline"
-          >
-            {displayName}
-          </Link>
+          {profileHref ? (
+            <Link
+              href={profileHref}
+              className="text-sm font-medium hover:text-primary hover:underline"
+            >
+              {displayName}
+            </Link>
+          ) : (
+            <span className="text-sm font-medium">{displayName}</span>
+          )}
           <span className="text-muted-foreground">·</span>
           <time
             dateTime={new Date(createdAt).toISOString()}

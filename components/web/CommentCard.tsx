@@ -5,13 +5,16 @@
 
 "use client";
 
+import Link from "next/link";
 import { UserAvatar } from "./UserAvatar";
 import { CommentLikeButton } from "./CommentLikeButton";
 import type { Id } from "@/convex/_generated/dataModel";
+import { buildProfilePath } from "@/lib/username";
 
 interface CommentCardProps {
   commentId: Id<"comments">;
   authorName: string;
+  authorUsername: string | null;
   body: string;
   createdAt: number;
   authorId: string;
@@ -23,6 +26,7 @@ interface CommentCardProps {
 export function CommentCard({
   commentId,
   authorName,
+  authorUsername,
   body,
   createdAt,
   authorId,
@@ -39,7 +43,16 @@ export function CommentCard({
           avatarUrl={authorAvatarUrl}
           className="size-8 shrink-0"
         />
-        <span className="font-semibold text-sm">{authorName}</span>
+        {authorUsername ? (
+          <Link
+            href={buildProfilePath(authorUsername)}
+            className="font-semibold text-sm hover:text-primary hover:underline"
+          >
+            {authorName}
+          </Link>
+        ) : (
+          <span className="font-semibold text-sm">{authorName}</span>
+        )}
         <span className="text-xs text-muted-foreground ml-auto">
           {new Date(createdAt).toLocaleDateString("en-US", {
             day: "numeric",

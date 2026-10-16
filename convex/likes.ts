@@ -14,6 +14,7 @@ import {
   type PaginationOptions,
 } from "convex/server";
 import { mutation, query, type QueryCtx } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { authComponent } from "./auth";
 import { incrementAuthorAnalytics } from "./analytics";
 import { updateDiscoverPostEngagement } from "./discoverProjection";
@@ -23,6 +24,7 @@ import {
   postSummaryValidator,
   type PostSummary,
 } from "./postSummary";
+import { usernamesForOwners } from "./usernameModel";
 
 function validatePageSize(options: {
   numItems: number;
@@ -63,13 +65,30 @@ export async function getLikedPostsForUser(
     .order("desc")
     .paginate(args.paginationOpts);
 
-  const hydrated = await Promise.all(
-    result.page.map(async (like): Promise<PostSummary | null> => {
+  const posts = await Promise.all(
+    result.page.map(async (like) => {
       const post = await ctx.db.get(like.postId);
-      if (!post || post.status !== "published") {
+      return post && post.status === "published" ? post : null;
+    }),
+  );
+  const usernames = await usernamesForOwners(
+    ctx,
+    posts
+      .filter((post): post is Doc<"posts"> => post !== null)
+      .map((post) => post.authorId),
+  );
+
+  const hydrated = await Promise.all(
+    posts.map(async (post): Promise<PostSummary | null> => {
+      if (!post) {
         return null;
       }
-      return await hydratePostSummary(ctx, post, args.viewerId);
+      return await hydratePostSummary(
+        ctx,
+        post,
+        args.viewerId,
+        usernames.get(post.authorId) ?? null,
+      );
     }),
   );
 
