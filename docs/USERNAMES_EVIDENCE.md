@@ -312,9 +312,11 @@ produce a specific message, so this is intended, not a defect.
   The first-claim confirmation row was re-recorded after the review fixes; the
   cooldown-expiry re-block behavior is component-test only because this account
   has no active cooldown.
-- **Public addressing and signup assignment are absent.** The public profile
-  still serves `/u/[userId]`, and new accounts have no username until one is
-  claimed through `/profile/edit`.
+- **Public addressing is now delivered.** The profile serves `/u/<username>`
+  with redirects and 404s; see
+  [username address evidence](USERNAMES_ADDRESSES_EVIDENCE.md). Automatic signup
+  assignment remains absent: new accounts have no username until one is claimed
+  through `/profile/edit`.
 
 ## Real-runtime concurrency evidence
 

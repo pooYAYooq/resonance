@@ -17,8 +17,14 @@ work is tracked in `ROADMAP.md`.
   Claimed lowercase names are owned permanently, including after a rename, and a
   deliberate claim of a previously unowned name starts a 90-day wait before
   another new name can be claimed. Switching to an owned previous name and
-  changing capitalization bypass the wait. Automatic assignment at signup and
-  username-based public addresses ship separately.
+  changing capitalization bypass the wait. Automatic assignment at signup ships
+  separately.
+- Human-readable public profile addresses at `/u/<username>`. The canonical
+  lowercase spelling renders the profile; every other spelling of an owned name
+  (styled, uppercase, or a previous name) redirects to it, and unknown,
+  reserved, and deleted-account names return a shared 404. Comment author names
+  and every other generated author link resolve to the current lowercase
+  username; authors without a username render a plain label.
 - Profile editor at `/profile/edit`: edit display name, bio, optional
   country and five social links, and choose up to nine
   ordered published posts. One header Save button applies changed sections

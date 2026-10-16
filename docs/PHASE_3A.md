@@ -125,7 +125,7 @@ are authenticated site-shell surfaces, not workspace-mode pages.
 | Workspace sidebar        | Dashboard, New Post, Drafts, My Posts, Analytics, Discover, Feed, Saved, Liked, Profile, Settings | Reader links may leave the workspace shell. Dashboard access is approved; Overview redesign remains deferred. |
 | Workspace utilities      | Notification bell and account actions                                                             | Desktop sidebar footer; mobile workspace header; shared behavior may use different presentation.              |
 
-`Profile` always means public identity at `/u/[userId]`. Its owner action opens
+`Profile` always means public identity at `/u/<username>`. Its owner action opens
 `/profile/edit`. Settings is not an identity-editing form.
 The sidebar and mobile drawer share the Dashboard destination, explicitly
 approved after the late review of PR #96; see the Dashboard access clarification
