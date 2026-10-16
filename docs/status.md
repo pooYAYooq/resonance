@@ -7,13 +7,12 @@ a session history.
 ## Current focus
 
 Username ownership and the dedicated `/profile/edit` username editor are
-implemented on `feat/usernames-ownership`; the confirmation-classification fix
-and the deletion/edit interleave coverage are committed, and the four required
-verification commands passed on `b4f9f73`. The editor review fixes for
-pending-typing preservation (including a newer capitalization typed during a
-pending save), deadline-based eligibility refresh, and first-claim confirmation
-copy are committed on `feat/usernames-ownership`, and the four required commands
-pass again. Usernames use the shared spelling rules in
+implemented on `feat/usernames-ownership`. The confirmation-classification fix
+and the deletion/edit interleave coverage passed the four required verification
+commands on `b4f9f73`. The later editor review fixes for pending-typing
+preservation (including a newer capitalization typed during a pending save),
+deadline-based eligibility refresh, and first-claim confirmation copy are
+committed at `9e2d707`, where the four required commands pass again. Usernames use the shared spelling rules in
 `lib/username.ts`, permanent per-name ownership (`usernameClaims` plus the
 `users.username` fields), and a 90-day wait between deliberate new-name claims
 enforced by the mounted `@convex-dev/rate-limiter` component. Claims are

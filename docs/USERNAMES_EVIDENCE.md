@@ -53,14 +53,14 @@ requested order on the committed fix rounds (`b4f9f73` and `ceb2bc5`):
 | `pnpm lint`                                                             | No ESLint diagnostics              | 0    |
 
 These tests passed on the first run against the existing implementation. There
-was no RED and no backend behavior fix. The full CI order was then re-run on the
-final head (below) and passed. Changed-file Prettier and `git diff --check` also
-passed after documentation reconciliation.
+was no RED and no backend behavior fix. The full CI order was then re-run (below)
+and passed. Changed-file Prettier and `git diff --check` also passed after
+documentation reconciliation.
 
-### Full CI order on the final head
+### Full CI order at `b4f9f73` (before the review fixes)
 
-Run in the repository's CI order on `b4f9f73` (after the editor fix and the
-deletion/edit coverage tests). All four passed:
+Run in the repository's CI order on `b4f9f73`, which precedes the editor review
+fixes recorded further below. All four passed:
 
 | Command                              | Result                                                           | Exit |
 | ------------------------------------ | ---------------------------------------------------------------- | ---- |
@@ -74,13 +74,13 @@ The focused command
 passed 6 files and 132 tests (14.06s). Before implementation, the editor suite
 failed four assertions: Save enabled during debounce, Save enabled after debounce
 with an unresolved query, and confirmation copy drifting in each classification
-direction. After implementation the editor suite passed 24/24; the final focused
-and full component runs also include all 24 editor tests.
+direction. After implementation the editor suite passed 24/24; the focused and
+full component runs for this revision also include the editor tests.
 
 ### Editor review fixes
 
-The fixes are committed on `feat/usernames-ownership` and run on 2026-10-16. All
-four commands passed:
+The editor review fixes are committed at `9e2d707` on
+`feat/usernames-ownership` and were run on 2026-10-16. All four commands passed:
 
 | Command                              | Result                                                           | Exit |
 | ------------------------------------ | ---------------------------------------------------------------- | ---- |
@@ -98,7 +98,8 @@ the editor file to 29 tests. A capitalization regression then added coverage for
 a newer capitalization typed during a pending save; it was captured RED (31 editor
 tests: 1 failed) before the guard compared the normalized styled spelling, and
 brings the editor file to 31 tests. The runs emitted no `act` warnings. The change
-is editor-only, so the edge `test:ci` count is unchanged from the final head.
+is editor-only, so the edge `test:ci` count is unchanged from the `b4f9f73` run
+above.
 
 ### Historical verification at `9fae573`
 
