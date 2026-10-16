@@ -114,3 +114,11 @@ evidence resolves them. The previous detailed delivery history remains in
   [username evidence](USERNAMES_EVIDENCE.md). It is not a repeated or high-load
   stress test; the in-memory concurrent-claim tests remain the regression
   coverage.
+- Account deletion removes the app profile row and permanently blocks the
+  account's names (spec section 8). It does not cascade to relationships or
+  content: follow rows, follower/following counts, and published posts that
+  reference the deleted `userId` remain, and `follows.toggleFollow` throws
+  `User not found.` for a target whose profile row is gone. That cascade is
+  explicitly separate scope (spec section 8), and account deletion is not
+  reachable yet: Better Auth self-service deletion is disabled and there is no
+  deletion UI.
