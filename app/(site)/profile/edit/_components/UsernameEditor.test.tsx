@@ -515,6 +515,65 @@ describe("UsernameEditor", () => {
     expect(screen.getByRole("button", { name: "Save username" })).toBeEnabled();
   });
 
+  it("preserves a newer capitalization typed while a capitalization-only save is pending", async () => {
+    const user = userEvent.setup();
+    let resolveClaim: (value: unknown) => void = () => {};
+    claimUsernameMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveClaim = resolve;
+      }),
+    );
+    render(<UsernameEditor {...baseProps} />);
+    const input = screen.getByLabelText("Username");
+
+    await user.clear(input);
+    await user.type(input, "Pooya");
+    await user.click(screen.getByRole("button", { name: "Save username" }));
+    await waitFor(() =>
+      expect(claimUsernameMock).toHaveBeenCalledWith({
+        username: "Pooya",
+        expectedRevision: 3,
+      }),
+    );
+
+    // The request is still pending. Capitalization is the persisted styled
+    // spelling and case-only edits are supported, so retyping the same name
+    // with a different capitalization is a real newer draft; the completed
+    // result must not overwrite it.
+    await user.clear(input);
+    await user.type(input, "POOYA");
+    await act(async () => {
+      resolveClaim({ kind: "saved", username: "Pooya", revision: 4 });
+    });
+
+    expect(screen.getByLabelText("Username")).toHaveValue("POOYA");
+  });
+
+  it("adopts the saved spelling when an undisturbed draft has surrounding whitespace", async () => {
+    const user = userEvent.setup();
+    claimUsernameMock.mockResolvedValue({
+      kind: "saved",
+      username: "Pooya",
+      revision: 4,
+    });
+    render(<UsernameEditor {...baseProps} />);
+    const input = screen.getByLabelText("Username");
+
+    // Surrounding whitespace is trimmed by the spelling rules, so this draft
+    // still resolves to the submitted target and adopts the saved spelling.
+    await user.clear(input);
+    await user.type(input, "  Pooya  ");
+    await user.click(screen.getByRole("button", { name: "Save username" }));
+    await waitFor(() =>
+      expect(claimUsernameMock).toHaveBeenCalledWith({
+        username: "Pooya",
+        expectedRevision: 3,
+      }),
+    );
+
+    expect(screen.getByLabelText("Username")).toHaveValue("Pooya");
+  });
+
   it("reports a name taken between checking and saving neutrally", async () => {
     const user = userEvent.setup();
     availabilityMock.mockImplementation((args: { username: string }) =>

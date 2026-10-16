@@ -13,7 +13,7 @@ concurrency harness were local and uncommitted.
 
 ## Tested revisions
 
-Final automated verification: `b4f9f73` on `feat/usernames-ownership`, tested on
+Automated verification at `b4f9f73` on `feat/usernames-ownership`, tested on
 2026-10-16. Its source changes are the confirmation-classification fix in
 `UsernameEditor.tsx` with its regression tests, and deterministic deletion/edit
 interleave tests in `convex/usernames.test.ts`. Non-styling saves now wait for a
@@ -30,13 +30,14 @@ amended editor source. The real-runtime concurrent-claim evidence later in this
 document belongs to that earlier collection; the real-runtime deletion/edit race
 belongs to the current revision.
 
-Three editor review fixes were then applied on the working tree on top of
-`ceb2bc5`: preserving typing made while a save is pending, refreshing
-eligibility at the cooldown deadline with a capped re-armed timer, and labeling a
-first claim when the account has no saved username. Their regression tests live
-in `UsernameEditor.test.tsx`, and the four required commands were re-run on that
-working tree (below). No backend, dependency, generated file, or vitest
-configuration changed.
+Three editor review fixes are committed on `feat/usernames-ownership`:
+preserving typing made while a save is pending, refreshing eligibility at the
+cooldown deadline with a capped re-armed timer, and labeling a first claim when
+the account has no saved username. The pending-typing guard compares the
+normalized styled spelling, so a newer capitalization typed during a pending save
+survives. Their regression tests live in `UsernameEditor.test.tsx`, and the four
+required commands were re-run (below). No backend, dependency, generated file, or
+vitest configuration changed.
 
 ## Required verification
 
@@ -76,24 +77,28 @@ with an unresolved query, and confirmation copy drifting in each classification
 direction. After implementation the editor suite passed 24/24; the final focused
 and full component runs also include all 24 editor tests.
 
-### Editor review fixes on the working tree
+### Editor review fixes
 
-Applied on top of `ceb2bc5` and run on 2026-10-16. All four commands passed:
+The fixes are committed on `feat/usernames-ownership` and run on 2026-10-16. All
+four commands passed:
 
 | Command                              | Result                                                           | Exit |
 | ------------------------------------ | ---------------------------------------------------------------- | ---- |
 | `pnpm lint`                          | No ESLint diagnostics                                            | 0    |
-| `pnpm test:ci`                       | 48 files, 813 tests passed (8.72s)                               | 0    |
-| `pnpm test:component --maxWorkers=1` | 88 files, 875 tests passed (266.51s)                             | 0    |
+| `pnpm test:ci`                       | 48 files, 813 tests passed (8.97s)                               | 0    |
+| `pnpm test:component --maxWorkers=1` | 88 files, 877 tests passed (252.02s)                             | 0    |
 | `pnpm build`                         | Compiled successfully; TypeScript step clean; 18/18 static pages | 0    |
 
 The focused command
 `pnpm exec vitest run --config vitest.ui.config.ts 'app/(site)/profile/edit'`
-passed 6 files and 137 tests. The three new editor regressions were captured RED
+passed 6 files and 139 tests. The three new editor regressions were captured RED
 before the implementation (28 editor tests: 3 failed) and passed after it (28
 passed); a follow-up regression re-blocks a later eligibility deadline and brings
-the editor file to 29 tests. The runs emitted no `act` warnings. The change is
-editor-only, so the edge `test:ci` count is unchanged from the final head.
+the editor file to 29 tests. A capitalization regression then added coverage for
+a newer capitalization typed during a pending save; it was captured RED (31 editor
+tests: 1 failed) before the guard compared the normalized styled spelling, and
+brings the editor file to 31 tests. The runs emitted no `act` warnings. The change
+is editor-only, so the edge `test:ci` count is unchanged from the final head.
 
 ### Historical verification at `9fae573`
 
@@ -200,7 +205,7 @@ tests also reject invalid spelling even when the supplied revision is stale.
 
 ### Editor (`app/(site)/profile/edit/_components/`)
 
-`UsernameEditor.test.tsx` (29 tests) and `useDebouncedValue.test.tsx` (2 tests)
+`UsernameEditor.test.tsx` (31 tests) and `useDebouncedValue.test.tsx` (2 tests)
 cover: an immediate format error with the save disabled and no mutation;
 the eligibility date and time shown once the allowance is spent; a free new name
 reported as available but not claimable; a capitalization-only save with no
@@ -221,14 +226,15 @@ wait for actual availability before opening confirmation, rather than relying on
 the former unclassified Save behavior. The server-authoritative unavailable and
 conflict outcomes still preserve the draft. Editor review regressions add: typing
 made while a capitalization-only save is pending survives the resolved mutation,
-while a save with no intervening typing still adopts the saved spelling; a client
-deadline derived from the remaining wait unblocks a new claim and flips the copy
-when the cooldown ends with the tab open, while a roughly 90-day wait is capped
-and re-armed instead of firing immediately; and a first claim with no saved
-username renders `Claim <target> as your username` rather than an empty source.
-A follow-up regression re-blocks a new claim when a refreshed query pushes the
-eligibility deadline later, restoring the blocked copy. The focused
-`/profile/edit` component suite ran 137/137.
+including a newer capitalization typed during the pending save, while a save with
+no intervening typing still adopts the saved spelling (a draft with surrounding
+whitespace adopts it too); a client deadline derived from the remaining wait
+unblocks a new claim and flips the copy when the cooldown ends with the tab open,
+while a roughly 90-day wait is capped and re-armed instead of firing immediately;
+and a first claim with no saved username renders `Claim <target> as your username`
+rather than an empty source. A follow-up regression re-blocks a new claim when a
+refreshed query pushes the eligibility deadline later, restoring the blocked
+copy. The focused `/profile/edit` component suite ran 139/139.
 
 ## Browser and accessibility evidence
 

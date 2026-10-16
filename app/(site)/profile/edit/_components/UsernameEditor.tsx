@@ -242,7 +242,7 @@ export function UsernameEditor({
         setDraft((current) => {
           const cur = normalizeUsername(current);
           const sent = normalizeUsername(username);
-          return cur.ok && sent.ok && cur.canonical === sent.canonical
+          return cur.ok && sent.ok && cur.styled === sent.styled
             ? result.username
             : current;
         });
