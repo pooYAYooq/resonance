@@ -94,12 +94,14 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Usernames
 
-- The public profile still serves the ID route `/u/[userId]`. Username-based
-  addresses and links are the next delivery; no public route resolves a
-  username yet.
 - Automatic signup assignment is not shipped. A new account has no username
   until its owner claims one through `/profile/edit`, and the one-time welcome
   page is not built.
+- Username-address caching is unverified in production. The redirect status and
+  `Cache-Control` header were measured only through a local production-mode
+  server against the personal dev deployment; the app is undeployed, so CDN and
+  production-cache behavior is unconfirmed. See
+  [username address evidence](USERNAMES_ADDRESSES_EVIDENCE.md).
 - The username editor's browser and accessibility evidence is partial. A
   real-browser pass covers the format-error association, the available and
   unavailable states with their icons, the new-claim confirmation (re-recorded

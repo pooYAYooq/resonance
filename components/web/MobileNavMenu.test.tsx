@@ -149,6 +149,7 @@ describe("MobileNavMenu", () => {
         : {
             userId: "auth-user-1",
             displayName: "Ada Lovelace",
+            username: "ada",
             email: "ada@example.com",
             avatarUrl: null,
           },
@@ -188,7 +189,7 @@ describe("MobileNavMenu", () => {
     );
     expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
       "href",
-      "/u/auth-user-1",
+      "/u/ada",
     );
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
       "href",
@@ -221,6 +222,7 @@ describe("MobileNavMenu", () => {
         : {
             userId: "auth-user-1",
             displayName: "Ada Lovelace",
+            username: "ada",
             email: "ada@example.com",
             avatarUrl: null,
           },
@@ -245,6 +247,7 @@ describe("MobileNavMenu", () => {
         : {
             userId: "auth-user-1",
             displayName: "Ada Lovelace",
+            username: "ada",
             email: "ada@example.com",
             avatarUrl: null,
           },
@@ -284,6 +287,7 @@ describe("MobileNavMenu", () => {
         : {
             userId: "auth-user-1",
             displayName: "Ada Lovelace",
+            username: "ada",
             email: "ada@example.com",
             avatarUrl: null,
           },

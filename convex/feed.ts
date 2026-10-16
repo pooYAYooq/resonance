@@ -6,6 +6,8 @@ import {
 import { internalMutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
+import type { Doc } from "./_generated/dataModel";
+import { usernamesForOwners } from "./usernameModel";
 const hydratedPostValidator = v.object({
   _id: v.id("posts"),
   _creationTime: v.number(),
@@ -23,6 +25,7 @@ const hydratedPostValidator = v.object({
   updatedAt: v.number(),
   imageUrl: v.union(v.string(), v.null()),
   authorName: v.union(v.string(), v.null()),
+  authorUsername: v.union(v.string(), v.null()),
   authorAvatarUrl: v.union(v.string(), v.null()),
   isLiked: v.boolean(),
   isBookmarked: v.boolean(),
@@ -63,7 +66,7 @@ export const getFeed = query({
       .paginate({ ...args.paginationOpts, maximumRowsRead: FEED_BATCH_SIZE });
 
     const seenPostIds = new Set<string>();
-    const hydrated = [];
+    const posts: Doc<"posts">[] = [];
     for (const row of result.page) {
       if (seenPostIds.has(row.postId)) {
         continue;
@@ -74,7 +77,16 @@ export const getFeed = query({
       if (!post || post.status !== "published") {
         continue;
       }
+      posts.push(post);
+    }
 
+    const usernames = await usernamesForOwners(
+      ctx,
+      posts.map((post) => post.authorId),
+    );
+
+    const hydrated = [];
+    for (const post of posts) {
       const imageUrl = post.imageStorageId
         ? await ctx.storage.getUrl(post.imageStorageId)
         : null;
@@ -100,6 +112,7 @@ export const getFeed = query({
         tags: post.tags,
         imageUrl,
         authorName: user?.displayName ?? null,
+        authorUsername: usernames.get(post.authorId) ?? null,
         authorAvatarUrl: user?.avatarUrl ?? null,
         isLiked: !!like,
         isBookmarked: !!bookmark,

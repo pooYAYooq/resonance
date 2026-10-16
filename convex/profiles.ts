@@ -38,6 +38,7 @@ import {
 const publicIdentityValidator = v.object({
   userId: v.string(),
   displayName: v.string(),
+  username: v.union(v.string(), v.null()),
   bio: v.union(v.string(), v.null()),
   avatarUrl: v.union(v.string(), v.null()),
   countryCode: v.union(v.string(), v.null()),
@@ -76,6 +77,7 @@ export const getPublicIdentity = query({
     return {
       userId: user.userId,
       displayName: user.displayName,
+      username: user.username ?? null,
       bio: user.bio ?? null,
       avatarUrl: user.avatarUrl ?? null,
       countryCode: user.countryCode ?? null,

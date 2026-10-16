@@ -7,20 +7,20 @@
 
 ## Features
 
-| Feature              | Description                                                                                                                                                           |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                             |
-| **Discover**         | Latest published posts, full-text Search over title/body/author, active canonical Topics, bounded paginated editorial summaries, and Feed recovery                    |
-| **Blog and Posts**   | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, edit published posts in place, and read individual posts |
-| **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                            |
-| **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                             |
-| **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                            |
-| **Profiles**         | Public profiles at `/u/[userId]` with posts, bio, avatar, and follow action; edit via `/profile/edit`                                                                 |
-| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, and published-post edit actions; analytics at `/dashboard/analytics`                                  |
-| **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                             |
-| **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                        |
-| **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                                  |
-| **Responsive**       | Mobile-first design, works across all breakpoints                                                                                                                     |
+| Feature              | Description                                                                                                                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                                                  |
+| **Discover**         | Latest published posts, full-text Search over title/body/author, active canonical Topics, bounded paginated editorial summaries, and Feed recovery                                         |
+| **Blog and Posts**   | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, edit published posts in place, and read individual posts                      |
+| **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                                                 |
+| **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                                                  |
+| **Follows**          | Follow/unfollow authors; live follower/following counts on profile headers                                                                                                                 |
+| **Profiles**         | Public profiles at `/u/<username>` with posts, bio, avatar, and follow action; owned non-canonical spellings redirect, and author links use the current username; edit via `/profile/edit` |
+| **Author Dashboard** | Private workspace at `/dashboard` with drafts, published posts, and published-post edit actions; analytics at `/dashboard/analytics`                                                       |
+| **Authentication**   | Email/password + Google/GitHub OAuth via Better Auth (runs inside Convex)                                                                                                                  |
+| **SEO**              | Per-page metadata, Open Graph tags, and dynamic meta generation for blog posts                                                                                                             |
+| **Dark Mode**        | System-aware dark/light theme toggle                                                                                                                                                       |
+| **Responsive**       | Mobile-first design, works across all breakpoints                                                                                                                                          |
 
 ## Roadmap and Feature Status
 
@@ -182,8 +182,9 @@ app/
       _components/            # SavedSection (client gate + pagination)
     settings/
       page.tsx                # Appearance and account configuration
-    u/[userId]/
-      page.tsx                # Public profile with paginated posts
+    u/[username]/
+      page.tsx                # Public profile: resolves the username, redirects owned spellings, 404s unknown names
+      not-found.tsx           # Route-scoped 404 shared with the missing-profile path
       _components/            # ProfilePostList (Edit Profile + Follow live in components/web/)
   auth/                       # Auth routes (login, sign-up)
     login/page.tsx

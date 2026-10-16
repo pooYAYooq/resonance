@@ -59,6 +59,22 @@ describe("ProfileHeader", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders the styled username beside the display name", () => {
+    render(
+      <ProfileHeader
+        displayName="Ada Lovelace"
+        username="PooYaYooQ"
+        bio={null}
+        avatarUrl={null}
+        userId="auth-user-1"
+        joinedDate={null}
+        rightAction={null}
+        stats={null}
+      />,
+    );
+    expect(screen.getByText("@PooYaYooQ")).toBeInTheDocument();
+  });
+
   it("renders the bio when provided and non-empty", () => {
     render(
       <ProfileHeader

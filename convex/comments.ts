@@ -14,6 +14,7 @@ import {
 import { authComponent } from "./auth";
 import { updateDiscoverPostEngagement } from "./discoverProjection";
 import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
+import { usernamesForOwners } from "./usernameModel";
 
 function validatePaginationOptions(options: {
   numItems: number;
@@ -44,6 +45,7 @@ const commentResultValidator = v.object({
   postId: v.id("posts"),
   authorId: v.string(),
   authorName: v.string(),
+  authorUsername: v.union(v.string(), v.null()),
   body: v.string(),
   likeCount: v.number(),
   createdAt: v.number(),
@@ -96,6 +98,11 @@ export const getCommentsByPostId = query({
 
     const authUser = await authComponent.safeGetAuthUser(ctx);
 
+    const usernames = await usernamesForOwners(
+      ctx,
+      result.page.map((comment) => comment.authorId),
+    );
+
     const page = await Promise.all(
       result.page.map(async (comment) => {
         const user = await ctx.db
@@ -117,6 +124,7 @@ export const getCommentsByPostId = query({
         return {
           ...comment,
           likeCount: comment.likeCount,
+          authorUsername: usernames.get(comment.authorId) ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,
           isLiked,
         };

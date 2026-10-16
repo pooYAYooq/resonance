@@ -233,10 +233,16 @@
 
 ### Profiles & Settings
 
-- Public profiles at `/u/[userId]`: avatar, display name, bio, up to nine featured
-  posts in the author's saved order, and the full paginated post list. The
-  featured area is omitted when no posts are selected; featured posts also remain
+- Public profiles at `/u/<username>`: avatar, display name, bio, up to nine
+  featured posts in the author's saved order, and the full paginated post list.
+  The canonical lowercase spelling is the only form that renders; every other
+  spelling of an owned name (styled, uppercase, previous) redirects to it, and
+  unknown, reserved, and deleted-account names return a shared 404. The featured
+  area is omitted when no posts are selected; featured posts also remain
   available in the full post list.
+- Comment author names and every other generated author link resolve to the
+  author's current lowercase username; authors without a username render a
+  plain label with no account-ID fallback.
 - `/profile/edit` owns the public identity (display name, bio, optional
   country, and five social links) plus up to nine ordered featured posts;
   `/settings` owns Appearance and Account configuration.

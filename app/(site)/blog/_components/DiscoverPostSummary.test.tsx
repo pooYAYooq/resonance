@@ -15,6 +15,7 @@ describe("DiscoverPostSummary", () => {
           bodyText: "A plain text excerpt",
           authorId: "author-1",
           authorName: "Ari",
+          authorUsername: "ari",
           tags: ["Technology"],
           imageUrl: null,
           publishedAt: Date.UTC(2026, 0, 2),
@@ -28,7 +29,10 @@ describe("DiscoverPostSummary", () => {
       screen.getByRole("heading", { name: "Readable title" }),
     ).toBeInTheDocument();
     expect(screen.getByText("A plain text excerpt")).toBeInTheDocument();
-    expect(screen.getByText("Ari")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ari" })).toHaveAttribute(
+      "href",
+      "/u/ari",
+    );
     expect(screen.getByText("Technology")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("8")).toBeInTheDocument();
@@ -60,6 +64,7 @@ describe("DiscoverPostSummary", () => {
           bodyText: "A plain text excerpt",
           authorId: "author-1",
           authorName: "Ari",
+          authorUsername: "ari",
           tags: [],
           imageUrl: "https://cdn.example/cover.png",
           publishedAt: Date.UTC(2026, 0, 2),

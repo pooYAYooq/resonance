@@ -39,6 +39,7 @@ describe("WorkspaceSidebar", () => {
         : {
             userId: "auth-user-1",
             displayName: "Ada Lovelace",
+            username: "ada",
             email: "ada@example.com",
             avatarUrl: null,
           },
@@ -79,7 +80,7 @@ describe("WorkspaceSidebar", () => {
     );
     expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
       "href",
-      "/u/auth-user-1",
+      "/u/ada",
     );
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
       "href",

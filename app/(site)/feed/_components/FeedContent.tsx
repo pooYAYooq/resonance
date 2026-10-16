@@ -15,6 +15,7 @@ import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 type FeedPost = Doc<"posts"> & {
   imageUrl: string | null;
   authorName: string | null;
+  authorUsername: string | null;
   authorAvatarUrl: string | null;
   isLiked: boolean;
   isBookmarked: boolean;
@@ -136,6 +137,7 @@ export function FeedContent() {
             createdAt={post.createdAt}
             authorId={post.authorId}
             authorName={post.authorName}
+            authorUsername={post.authorUsername}
             authorAvatarUrl={post.authorAvatarUrl}
             tags={post.tags}
           />

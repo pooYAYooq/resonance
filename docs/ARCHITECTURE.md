@@ -89,9 +89,13 @@ resonance/
 │   │   │   ├── _components/    # Search, Topics, states, summaries, and paginated results
 │   │   │   └── [postId]/
 │   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
-│   │   ├── u/[userId]/
-│   │   │   ├── page.tsx        # Public profile. Server Component. Uses fetchQuery for
+│   │   ├── u/[username]/
+│   │   │   ├── page.tsx        # Public profile. Server Component. Resolves the requested
+│   │   │   │                   # spelling via api.usernames.resolveUsername, redirects owned
+│   │   │   │                   # non-canonical spellings to the lowercase address, and calls
+│   │   │   │                   # notFound() for unknown/reserved/deleted names. fetchQuery for
 │   │   │   │                   # metadata and featured posts; fetchAuthQuery for viewer-aware rendering.
+│   │   │   ├── not-found.tsx   # Route-scoped 404 shared with the missing-profile path.
 │   │   │   └── _components/
 │   │   │       └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
 │   │   │                              # (Edit Profile + Follow live in components/web/
@@ -488,7 +492,7 @@ app/
 
 Page-specific components that only one route uses live next to that route in
 a `_components/` folder (e.g. `app/(marketing)/_components/` for the landing
-sections, `app/(site)/u/[userId]/_components/` for the profile page). Shared
+sections, `app/(site)/u/[username]/_components/` for the profile page). Shared
 components live in `components/web/`.
 
 Route groups are a Next.js App Router convention: the parentheses mean a group
@@ -826,6 +830,33 @@ owner associations from claims in bounded batches, and resets only that
 account's allowance after the last batch. The dedicated `UsernameEditor.tsx` on
 `/profile/edit` owns its draft, debounced availability check, confirmation
 dialog, and save, so the page-header Save never submits a username.
+
+### Username Addresses and Resolution
+
+The public profile route moved from the account-ID segment to
+`app/(site)/u/[username]/`. `convex/usernames.ts` exposes `resolveUsername`,
+which classifies a requested spelling as `profile` (render the canonical
+lowercase address), `redirect` (an owned non-canonical spelling: styled,
+uppercase, or a previous name, each redirected to the current lowercase
+address), or `notFound` (invalid input, an absent or ownerless claim, or a
+missing owner profile). The route page renders the profile only on `profile`,
+issues a temporary redirect on `redirect`, and calls `next/navigation`
+`notFound()` on `notFound`; a route-scoped `not-found.tsx` shares the 404
+presentation with the missing-profile path. `resolveUsername` performs no
+wall-clock reads; time appears only in test fixtures.
+
+Composed pages resolve each author's current username once per page, not per
+row. `convex/usernameModel.ts` provides `usernamesForOwners`, which deduplicates
+the distinct owner set, bounds the lookup to `MAX_USERNAME_LOOKUP` (50), and
+drops owners with no current username; `usernameForOwner` covers the single
+author case. Discover, comments, notifications, posts, feed, likes, and
+bookmarks resolve usernames inside their page-composing handlers and emit
+`authorUsername` (or `actorUsername` for notifications) on each row. Page sizes
+stay at or below 20, so the 50-owner bound is comfortably satisfied.
+`notifications.ts` reuses its existing deduplicated actor map rather than a
+second lookup pass. `lib/username.ts`'s `buildProfilePath` produces the
+lowercase canonical address for every generated author link; authors without a
+username render a plain label with no account-ID fallback.
 
 ### Analytics Foundation
 

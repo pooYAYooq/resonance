@@ -122,6 +122,7 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           userId: post.authorId,
           name: displayName,
           avatarUrl: post.authorAvatarUrl,
+          username: post.authorUsername,
         }}
         tags={post.tags ?? []}
         published={{ publishedAt: post.publishedAt, updatedAt: post.updatedAt }}

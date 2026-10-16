@@ -62,7 +62,7 @@ async function signedIn(
   });
   const own = t.withIdentity(identity);
   if (sync) await own.mutation(api.users.syncUser, {});
-  return { own, ownerUserId: identity.subject };
+  return { own, ownerUserId: identity.subject, subject: identity.subject };
 }
 
 async function allowance(t: ReturnType<typeof setup>, key: string) {
@@ -154,6 +154,20 @@ describe("username ownership", () => {
       value: 0,
       ts: START,
     });
+  });
+
+  it("exposes the styled username on the public profile", async () => {
+    const t = setup();
+    const { own, subject } = await signedIn(t, "public-name@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "PooYaYooQ",
+      expectedRevision: 0,
+    });
+
+    const profile = await t.query(api.users.getUserProfile, {
+      userId: subject,
+    });
+    expect(profile?.username).toBe("PooYaYooQ");
   });
 
   it("reports the allowance through the editor profile", async () => {
@@ -896,6 +910,39 @@ describe("username ownership", () => {
         }),
       ).toEqual({ status: "taken" });
     }
+    // Mid-batch resolution: the profile is gone but three claims still carry
+    // their owner association, so resolveUsername must take the "claim
+    // outlived its owner's profile" guard and report notFound, never a leak.
+    const stillOwned = during.filter(
+      (claim) => claim.ownerUserId === ownerUserId,
+    );
+    for (const claim of stillOwned) {
+      expect(
+        await t.query(api.usernames.resolveUsername, {
+          username: claim.usernameLower,
+        }),
+      ).toEqual({ kind: "notFound" });
+    }
+    // A deleted-but-still-owned name is indistinguishable from an unknown one.
+    expect(
+      await t.query(api.usernames.resolveUsername, {
+        username: stillOwned[0].usernameLower,
+      }),
+    ).toEqual(
+      await t.query(api.usernames.resolveUsername, {
+        username: "neverclaimedname",
+      }),
+    );
+    expect(
+      await t.query(api.usernames.getUsernamesForOwners, {
+        userIds: [ownerUserId],
+      }),
+    ).toEqual([{ userId: ownerUserId, username: null }]);
+    // Non-regression: an unrelated live account still resolves during
+    // someone else's retirement.
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "other_name" }),
+    ).toMatchObject({ kind: "profile", username: "other_name" });
     await expect(
       own.mutation(api.usernames.claimUsername, {
         username: "another_name",
@@ -903,6 +950,13 @@ describe("username ownership", () => {
       }),
     ).rejects.toThrow("Unauthorized");
     await t.finishAllScheduledFunctions(vi.runAllTimers);
+    // Post-batch: every retired name resolves as notFound via the ownerless
+    // claim guard, mirroring the mid-batch notFound result.
+    expect(
+      await t.query(api.usernames.resolveUsername, {
+        username: "current_name",
+      }),
+    ).toEqual({ kind: "notFound" });
     await t.mutation(internal.usernames.retireAccount, { ownerUserId });
     expect(
       (await claims(t)).filter((claim) => claim.ownerUserId === ownerUserId),
@@ -937,5 +991,184 @@ describe("username ownership", () => {
         }),
       ).toEqual({ kind: "unavailable" });
     }
+  });
+});
+
+describe("username resolution", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(START);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("resolves the current name and redirects an owned previous name", async () => {
+    const t = setup();
+    const { own } = await signedIn(t, "resolver@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "firstname",
+      expectedRevision: 0,
+    });
+    vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
+    await own.mutation(api.usernames.claimUsername, {
+      username: "secondname",
+      expectedRevision: 1,
+    });
+
+    expect(
+      await t.query(api.usernames.resolveUsername, {
+        username: "SecondName",
+      }),
+    ).toEqual({ kind: "redirect", username: "secondname" });
+    expect(
+      await t.query(api.usernames.resolveUsername, {
+        username: "secondname",
+      }),
+    ).toMatchObject({ kind: "profile", username: "secondname" });
+    expect(
+      await t.query(api.usernames.resolveUsername, {
+        username: "firstname",
+      }),
+    ).toMatchObject({ kind: "redirect", username: "secondname" });
+    expect(
+      await t.query(api.usernames.resolveUsername, {
+        username: "unknownname",
+      }),
+    ).toEqual({ kind: "notFound" });
+    expect(
+      await t.query(api.usernames.resolveUsername, {
+        username: "admin",
+      }),
+    ).toEqual({ kind: "notFound" });
+    expect(
+      await t.query(api.usernames.resolveUsername, {
+        username: "not valid",
+      }),
+    ).toEqual({ kind: "notFound" });
+  });
+
+  it("keeps the canonical lowercase address as the only profile and redirects every other spelling without a loop", async () => {
+    const t = setup();
+    const { own } = await signedIn(t, "mixedcase@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "PooYaYooQ",
+      expectedRevision: 0,
+    });
+
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "pooyayooq" }),
+    ).toMatchObject({ kind: "profile", username: "PooYaYooQ" });
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "PooYaYooQ" }),
+    ).toEqual({ kind: "redirect", username: "pooyayooq" });
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "POOYAYOOQ" }),
+    ).toEqual({ kind: "redirect", username: "pooyayooq" });
+    // The redirect target resolves to a profile, never another redirect.
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "pooyayooq" }),
+    ).toMatchObject({ kind: "profile" });
+  });
+
+  it("redirects whitespace-padded spellings instead of rendering a profile", async () => {
+    const t = setup();
+    const { own } = await signedIn(t, "spacecheck@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "spacecheck",
+      expectedRevision: 0,
+    });
+
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "spacecheck" }),
+    ).toMatchObject({ kind: "profile", username: "spacecheck" });
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "spacecheck " }),
+    ).toEqual({ kind: "redirect", username: "spacecheck" });
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: " spacecheck" }),
+    ).toEqual({ kind: "redirect", username: "spacecheck" });
+  });
+
+  it("resolves every name of a deleted account as notFound without leaking ownership", async () => {
+    const t = setup();
+    const { own, subject } = await signedIn(t, "deleted-resolver@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "gonefirst",
+      expectedRevision: 0,
+    });
+    vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
+    await own.mutation(api.usernames.claimUsername, {
+      username: "gonelast",
+      expectedRevision: 1,
+    });
+
+    // The deletion callback removes the live profile and strips the claims'
+    // owner associations, so every former address must read as notFound.
+    await deleteAccount(t, subject);
+
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "gonelast" }),
+    ).toEqual({ kind: "notFound" });
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "GoneLast" }),
+    ).toEqual({ kind: "notFound" });
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "gonefirst" }),
+    ).toEqual({ kind: "notFound" });
+    // A retired name is indistinguishable from one that was never claimed.
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "gonelast" }),
+    ).toEqual(
+      await t.query(api.usernames.resolveUsername, {
+        username: "neverclaimedname",
+      }),
+    );
+    expect(
+      await t.query(api.usernames.getUsernamesForOwners, {
+        userIds: [subject],
+      }),
+    ).toEqual([{ userId: subject, username: null }]);
+  });
+
+  it("returns usernames for a bounded, ordered set of owners", async () => {
+    const t = setup();
+    const { own, subject } = await signedIn(t, "owners@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "ownerone",
+      expectedRevision: 0,
+    });
+
+    const result = await t.query(api.usernames.getUsernamesForOwners, {
+      userIds: [subject, "missing-user", subject],
+    });
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ userId: subject, username: "ownerone" });
+    expect(result[1]).toEqual({ userId: "missing-user", username: null });
+    expect(result[2]).toEqual({ userId: subject, username: "ownerone" });
+  });
+
+  it("refuses a lookup that exceeds the distinct-owner bound", async () => {
+    const t = setup();
+    const distinct = Array.from({ length: 51 }, (_, i) => `owner-${i}`);
+
+    // Over the bound the query must fail loudly instead of silently omitting
+    // owners from the returned array.
+    await expect(
+      t.query(api.usernames.getUsernamesForOwners, { userIds: distinct }),
+    ).rejects.toThrow(/At most 50 owners/);
+  });
+
+  it("counts only distinct owners toward the lookup bound", async () => {
+    const t = setup();
+    const distinct = Array.from({ length: 50 }, (_, i) => `owner-${i}`);
+
+    // 51 entries but 50 distinct owners: duplicates collapse before the check.
+    const result = await t.query(api.usernames.getUsernamesForOwners, {
+      userIds: [...distinct, distinct[0]],
+    });
+    expect(result).toHaveLength(51);
+    expect(result.every((entry) => entry.username === null)).toBe(true);
   });
 });

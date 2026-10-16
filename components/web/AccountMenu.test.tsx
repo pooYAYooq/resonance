@@ -45,6 +45,7 @@ const currentUser = {
   _creationTime: 0,
   userId: "auth-user-1",
   displayName: "Ada Lovelace",
+  username: "ada",
   email: "ada@example.com",
   avatarUrl: null,
   bio: "",
@@ -133,7 +134,7 @@ describe("AccountMenu", () => {
 
     expect(screen.getByRole("menuitem", { name: /profile/i })).toHaveAttribute(
       "href",
-      "/u/auth-user-1",
+      "/u/ada",
     );
     expect(screen.getByRole("menuitem", { name: "Saved" })).toHaveAttribute(
       "href",

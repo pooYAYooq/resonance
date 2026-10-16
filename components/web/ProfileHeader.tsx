@@ -17,6 +17,8 @@ import { UserAvatar } from "./UserAvatar";
 interface ProfileHeaderProps {
   /** Display name rendered as the page-level `<h1>`. */
   displayName: string;
+  /** Optional styled username rendered beneath the display name as `@name`. */
+  username?: string | null;
   /** Optional bio. Hidden when null, undefined, empty, or whitespace. */
   bio?: string | null;
   /** Optional avatar URL passed through to `UserAvatar`. */
@@ -41,6 +43,7 @@ interface ProfileHeaderProps {
 
 export function ProfileHeader({
   displayName,
+  username,
   bio,
   avatarUrl,
   userId,
@@ -62,6 +65,9 @@ export function ProfileHeader({
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
           {displayName}
         </h1>
+        {username && (
+          <p className="text-sm text-muted-foreground">@{username}</p>
+        )}
         {hasBio ? (
           <p className="text-muted-foreground max-w-prose">{bio}</p>
         ) : null}

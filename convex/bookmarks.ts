@@ -13,6 +13,7 @@
  */
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { authComponent } from "./auth";
 import {
   paginationOptsValidator,
@@ -41,6 +42,7 @@ import {
   postSummaryValidator,
   type PostSummary,
 } from "./postSummary";
+import { usernamesForOwners } from "./usernameModel";
 
 /**
  * Toggles a bookmark on a post for the currently authenticated user.
@@ -156,14 +158,31 @@ export const getBookmarkedPosts = query({
       .order("desc")
       .paginate(args.paginationOpts);
 
-    const hydrated = await Promise.all(
-      result.page.map(async (bookmark): Promise<PostSummary | null> => {
+    const posts = await Promise.all(
+      result.page.map(async (bookmark) => {
         const post = await ctx.db.get(bookmark.postId);
-        if (!post || post.status !== "published") {
+        return post && post.status === "published" ? post : null;
+      }),
+    );
+    const usernames = await usernamesForOwners(
+      ctx,
+      posts
+        .filter((post): post is Doc<"posts"> => post !== null)
+        .map((post) => post.authorId),
+    );
+
+    const hydrated = await Promise.all(
+      posts.map(async (post): Promise<PostSummary | null> => {
+        if (!post) {
           // Dangling bookmark — post deleted. Skip it.
           return null;
         }
-        return await hydratePostSummary(ctx, post, authUser._id);
+        return await hydratePostSummary(
+          ctx,
+          post,
+          authUser._id,
+          usernames.get(post.authorId) ?? null,
+        );
       }),
     );
 

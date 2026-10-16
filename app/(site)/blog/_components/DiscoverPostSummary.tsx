@@ -12,6 +12,7 @@ import type { FunctionReturnType } from "convex/server";
 import { api } from "@/convex/_generated/api";
 import { isCanonicalPostTag } from "@/lib/constants/post-tags";
 import { buildDiscoverTopicLink } from "@/lib/discover";
+import { buildProfilePath } from "@/lib/username";
 
 export type DiscoverPost = FunctionReturnType<
   typeof api.discover.getDiscoverPosts
@@ -53,12 +54,18 @@ export function DiscoverPostSummary({
       >
         <p className="line-clamp-3 text-muted-foreground">{post.bodyText}</p>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-          <Link
-            href={`/u/${post.authorId}`}
-            className="font-medium text-foreground hover:text-primary hover:underline"
-          >
-            {post.authorName}
-          </Link>
+          {post.authorUsername ? (
+            <Link
+              href={buildProfilePath(post.authorUsername)}
+              className="font-medium text-foreground hover:text-primary hover:underline"
+            >
+              {post.authorName}
+            </Link>
+          ) : (
+            <span className="font-medium text-foreground">
+              {post.authorName}
+            </span>
+          )}
           <span aria-hidden="true">·</span>
           <time dateTime={new Date(post.publishedAt).toISOString()}>
             {new Date(post.publishedAt).toLocaleDateString("en-US", {

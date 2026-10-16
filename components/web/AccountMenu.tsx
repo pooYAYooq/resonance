@@ -17,6 +17,7 @@ import {
 import { UserAvatar } from "./UserAvatar";
 import { signOutUser } from "./account-actions";
 import { useOptionalAuthoringExit } from "./AuthoringExitProvider";
+import { buildProfilePath } from "@/lib/username";
 
 type AccountMenuProps = {
   presentation: "navbar" | "workspace";
@@ -88,12 +89,17 @@ export function AccountMenu({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href={`/u/${currentUser.userId}`} onClick={onNavigateAction}>
-            <User />
-            <span>Profile</span>
-          </Link>
-        </DropdownMenuItem>
+        {currentUser.username && (
+          <DropdownMenuItem asChild>
+            <Link
+              href={buildProfilePath(currentUser.username)}
+              onClick={onNavigateAction}
+            >
+              <User />
+              <span>Profile</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link href="/saved" onClick={onNavigateAction}>
             <Bookmark />

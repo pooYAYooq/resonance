@@ -38,6 +38,7 @@ const notificationValidator = v.object({
   createdAt: v.number(),
   readAt: v.optional(v.number()),
   actorName: v.union(v.string(), v.null()),
+  actorUsername: v.union(v.string(), v.null()),
   actorAvatarUrl: v.union(v.string(), v.null()),
   postTitle: v.string(),
 });
@@ -192,6 +193,7 @@ export const getUnreadCount = query({
 
 type HydratedNotification = Doc<"notifications"> & {
   actorName: string | null;
+  actorUsername: string | null;
   actorAvatarUrl: string | null;
   postTitle: string;
 };
@@ -278,6 +280,7 @@ export const getNotifications = query({
         return {
           ...notification,
           actorName: actor?.displayName ?? null,
+          actorUsername: actor?.username ?? null,
           actorAvatarUrl: actor?.avatarUrl ?? null,
           postTitle: post?.title ?? null,
         };

@@ -1,17 +1,17 @@
 /**
  * Public user profile page.
  *
- * Server Component at `/u/[userId]`. Fetches the public profile via
- * `getUserProfile` and renders the profile header (avatar, display name,
- * bio). A "User not found" message is shown when the user doesn't exist.
- * The post list is rendered by a Client Component so it can use
+ * Server Component at `/u/[username]`. Resolves the address via
+ * `resolveUsername`, redirecting old spellings to the owner's current
+ * canonical name and 404-ing unknown, reserved, and deleted names. The
+ * resolved profile renders the header (avatar, display name, bio), featured
+ * posts, and the post list, which is a Client Component so it can use
  * `usePaginatedQuery` for live pagination.
  *
  * The "(site)" route group ensures the Navbar wraps the page.
  */
 
 import type { Metadata } from "next";
-import { cache } from "react";
 import { fetchQuery } from "convex/nextjs";
 import { fetchAuthQuery } from "@/lib/auth-server";
 import { api } from "@/convex/_generated/api";
@@ -21,27 +21,30 @@ import { ProfilePostList } from "./_components/ProfilePostList";
 import { ProfileActionButton } from "@/components/web/ProfileActionButton";
 import { ProfileStats } from "@/components/web/ProfileStats";
 import { CoverImage } from "@/components/web/CoverImage";
-import { buttonVariants } from "@/components/ui/button";
-import { BookOpen } from "lucide-react";
 import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 
 interface ProfileRouteProps {
-  params: Promise<{ userId: string }>;
+  params: Promise<{ username: string }>;
 }
 
-const getProfile = cache(async (userId: string) => {
-  return await fetchAuthQuery(api.users.getUserProfile, { userId });
-});
+/** Always resolve against the live owner; never cache a redirect destination. */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function generateMetadata({
   params,
 }: ProfileRouteProps): Promise<Metadata> {
-  const { userId } = await params;
-  const profile = await fetchQuery(api.users.getUserProfile, { userId });
+  const { username } = await params;
+  const resolved = await fetchQuery(api.usernames.resolveUsername, {
+    username,
+  });
+  if (resolved.kind !== "profile") return { title: "Profile not found" };
 
-  if (!profile) {
-    return { title: "User not found" };
-  }
+  const profile = await fetchQuery(api.users.getUserProfile, {
+    userId: resolved.ownerUserId,
+  });
+  if (!profile) return { title: "Profile not found" };
 
   return {
     title: `${profile.displayName} | Resonance`,
@@ -50,27 +53,25 @@ export async function generateMetadata({
 }
 
 export default async function ProfileRoute({ params }: ProfileRouteProps) {
-  const { userId } = await params;
-  const profile = await getProfile(userId);
+  const { username } = await params;
+  const resolved = await fetchQuery(api.usernames.resolveUsername, {
+    username,
+  });
+
+  if (resolved.kind === "redirect") {
+    redirect(`/u/${resolved.username}`);
+  }
+
+  if (resolved.kind === "notFound") {
+    notFound();
+  }
+
+  const profile = await fetchAuthQuery(api.users.getUserProfile, {
+    userId: resolved.ownerUserId,
+  });
 
   if (!profile) {
-    return (
-      <div className="py-24 text-center">
-        <BookOpen
-          className="mx-auto size-12 text-muted-foreground mb-4"
-          strokeWidth={1.5}
-        />
-        <h1 className="text-3xl font-extrabold tracking-tight mb-4">
-          User not found
-        </h1>
-        <p className="text-muted-foreground mb-8">
-          The profile you are looking for does not exist.
-        </p>
-        <Link href="/blog" className={buttonVariants({ variant: "outline" })}>
-          Back to blog
-        </Link>
-      </div>
-    );
+    notFound();
   }
 
   const displayName = profile.displayName?.trim() || "Anonymous";
@@ -83,6 +84,7 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
     <div className="py-12">
       <ProfileHeader
         displayName={displayName}
+        username={profile.username}
         bio={profile.bio}
         avatarUrl={profile.avatarUrl}
         userId={profile.userId}

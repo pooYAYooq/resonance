@@ -1599,12 +1599,61 @@ describe("Public Discover queries", () => {
       bodyText: "New body",
       authorId: "author-2",
       authorName: "Grace Hopper",
+      authorUsername: null,
       tags: ["Science"],
       imageUrl: null,
       publishedAt: 20,
       commentCount: 3,
       likeCount: 4,
     });
+  });
+
+  it("resolves each author's current username once per page", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "author-1",
+        displayName: "Ada Lovelace",
+        username: "AdaLovelace",
+        bio: "",
+        followerCount: 0,
+        followingCount: 0,
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      const postId = await ctx.db.insert("posts", {
+        title: "Usernamed source",
+        body: "Body",
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        publishedAt: 10,
+        commentCount: 0,
+        likeCount: 0,
+        createdAt: 10,
+        updatedAt: 10,
+      });
+      await ctx.db.insert("discoverPosts", {
+        postId,
+        title: "Usernamed",
+        bodyText: "Body",
+        authorId: "author-1",
+        authorName: "Ada Lovelace",
+        tags: [],
+        publishedAt: 10,
+        commentCount: 0,
+        likeCount: 0,
+      });
+    });
+
+    const result = await t.query(api.discover.getDiscoverPosts, {
+      mode: "latest",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(result.page[0].authorName).toBe("Ada Lovelace");
+    expect(result.page[0].authorUsername).toBe("AdaLovelace");
   });
 
   it("searches projected title, body text, and author name with native ordering", async () => {

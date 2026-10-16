@@ -176,12 +176,21 @@ describe("EditProfileRoute", () => {
     expect(screen.getByRole("textbox", { name: "Instagram" })).toBeVisible();
   });
 
-  it("offers a link to the author's public page", () => {
+  it("links the back-to-profile action to the owner's public page", () => {
     render(<SettingsRoute />);
 
-    expect(
-      screen.getByRole("link", { name: /back to profile/i }),
-    ).toHaveAttribute("href", "/u/auth-user-1");
+    const link = screen.getByRole("link", { name: /back to profile/i });
+    expect(link).toHaveAttribute("href", "/u/pooya");
+    expect(link).toHaveTextContent("Back to profile");
+  });
+
+  it("falls back to settings when the owner has no username", () => {
+    currentQueryValue = { ...editorProfile, username: null };
+    render(<SettingsRoute />);
+
+    const link = screen.getByRole("link", { name: /back to settings/i });
+    expect(link).toHaveAttribute("href", "/settings");
+    expect(link).toHaveTextContent("Back to settings");
   });
 
   it("shows recovery when the authenticated user has no profile record", () => {

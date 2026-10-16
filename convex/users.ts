@@ -76,6 +76,7 @@ const userValidator = v.object({
 const publicProfileValidator = v.object({
   userId: v.string(),
   displayName: v.string(),
+  username: v.union(v.string(), v.null()),
   bio: v.optional(v.string()),
   avatarUrl: v.optional(v.string()),
   joinedDate: v.union(v.string(), v.null()),
@@ -236,6 +237,7 @@ export const getUserProfile = query({
     return {
       userId: user.userId,
       displayName: user.displayName,
+      username: user.username ?? null,
       bio: user.bio,
       avatarUrl: user.avatarUrl,
       joinedDate:

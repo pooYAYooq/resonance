@@ -123,6 +123,7 @@ export function CommentSection({ initialTotalCount }: CommentSectionProps) {
                 key={comment._id}
                 commentId={comment._id}
                 authorName={comment.authorName}
+                authorUsername={comment.authorUsername}
                 body={comment.body}
                 createdAt={comment.createdAt}
                 authorId={comment.authorId}

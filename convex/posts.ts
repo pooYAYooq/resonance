@@ -34,6 +34,7 @@ import { decrementPostCountInTransaction } from "./stats";
 import { deletePublishedPostProjection } from "./discoverProjection";
 import { removeDeletedSelection } from "./profileModel";
 import { adjustPublishedPostCount } from "./profilePostCount";
+import { usernameForOwner, usernamesForOwners } from "./usernameModel";
 const MAX_PUBLIC_PAGE_SIZE = 20;
 const postFieldsValidator = {
   _id: v.id("posts"),
@@ -55,6 +56,7 @@ const hydratedPostValidator = v.object({
   ...postFieldsValidator,
   imageUrl: v.union(v.string(), v.null()),
   authorName: v.union(v.string(), v.null()),
+  authorUsername: v.union(v.string(), v.null()),
   authorAvatarUrl: v.union(v.string(), v.null()),
   isLiked: v.boolean(),
   isBookmarked: v.boolean(),
@@ -575,6 +577,10 @@ export const getPosts = query({
     );
 
     const authUser = await authComponent.safeGetAuthUser(ctx);
+    const usernames = await usernamesForOwners(
+      ctx,
+      sourcePage.map((post) => post.authorId),
+    );
 
     const page = await Promise.all(
       sourcePage.map(async (post) => {
@@ -611,6 +617,7 @@ export const getPosts = query({
           tags: post.tags,
           imageUrl,
           authorName: user?.displayName ?? null,
+          authorUsername: usernames.get(post.authorId) ?? null,
           authorAvatarUrl: user?.avatarUrl ?? null,
           isLiked,
           isBookmarked,
@@ -669,6 +676,7 @@ export const getPostById = query({
       ...postFieldsValidator,
       imageUrl: v.union(v.string(), v.null()),
       authorName: v.union(v.string(), v.null()),
+      authorUsername: v.union(v.string(), v.null()),
       authorAvatarUrl: v.union(v.string(), v.null()),
       authorExists: v.boolean(),
       inlineImages: v.array(
@@ -694,6 +702,7 @@ export const getPostById = query({
       .query("users")
       .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
       .unique();
+    const authorUsername = await usernameForOwner(ctx, post.authorId);
 
     const resolvedImageUrl =
       post?.imageStorageId !== undefined
@@ -749,6 +758,7 @@ export const getPostById = query({
       tags: post.tags,
       imageUrl: resolvedImageUrl,
       authorName: author?.displayName ?? null,
+      authorUsername,
       authorAvatarUrl: author?.avatarUrl ?? null,
       inlineImages,
       authorExists: author !== null,
@@ -795,6 +805,7 @@ export const getPostsByAuthorId = query({
       .unique();
 
     const authUser = await authComponent.safeGetAuthUser(ctx);
+    const authorUsername = await usernameForOwner(ctx, args.authorId);
 
     const page = await Promise.all(
       result.page.map(async (post) => {
@@ -826,6 +837,7 @@ export const getPostsByAuthorId = query({
           tags: post.tags,
           imageUrl,
           authorName: user?.displayName ?? null,
+          authorUsername,
           authorAvatarUrl: user?.avatarUrl ?? null,
           isLiked,
           isBookmarked,

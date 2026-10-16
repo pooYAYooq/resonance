@@ -121,8 +121,11 @@ post list. Username ownership and the dedicated `/profile/edit` username editor
 are implemented: shared spelling rules, permanent per-name claims, a 90-day wait
 between new-name claims, and the account-deletion retirement callback, recorded
 in [username evidence](docs/USERNAMES_EVIDENCE.md). Username-based public
-addresses and links are the agreed next delivery, ahead of the author page and
-catalogue; automatic signup assignment follows separately.
+addresses and links are implemented: the profile serves `/u/<username>`, owned
+non-canonical spellings redirect to it, and author links (including commenter
+identity) resolve to the current username, recorded in
+[username address evidence](docs/USERNAMES_ADDRESSES_EVIDENCE.md). Automatic
+signup assignment follows separately.
 
 ### Visual system and responsive polish
 
@@ -197,7 +200,6 @@ Reader engagement follow-ups requested on 2026-10-03, outside V1-09 and committe
 
 - Top-of-article comments link beside estimated reading time, coordinated with
   Phase 1C reading-time polish. No redundant shortcut directly above discussion.
-- Link commenter identity to the comment writer's public profile.
 
 Other uncommitted work:
 
