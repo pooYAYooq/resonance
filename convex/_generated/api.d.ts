@@ -29,9 +29,12 @@ import type * as posts from "../posts.js";
 import type * as profileModel from "../profileModel.js";
 import type * as profilePostCount from "../profilePostCount.js";
 import type * as profiles from "../profiles.js";
+import type * as rateLimiter from "../rateLimiter.js";
 import type * as sessionMediaClaims from "../sessionMediaClaims.js";
 import type * as stats from "../stats.js";
 import type * as testUtils_storage from "../testUtils/storage.js";
+import type * as usernameModel from "../usernameModel.js";
+import type * as usernames from "../usernames.js";
 import type * as users from "../users.js";
 import type * as writeAttempts from "../writeAttempts.js";
 
@@ -63,9 +66,12 @@ declare const fullApi: ApiFromModules<{
   profileModel: typeof profileModel;
   profilePostCount: typeof profilePostCount;
   profiles: typeof profiles;
+  rateLimiter: typeof rateLimiter;
   sessionMediaClaims: typeof sessionMediaClaims;
   stats: typeof stats;
   "testUtils/storage": typeof testUtils_storage;
+  usernameModel: typeof usernameModel;
+  usernames: typeof usernames;
   users: typeof users;
   writeAttempts: typeof writeAttempts;
 }>;
@@ -98,4 +104,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };

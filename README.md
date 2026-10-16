@@ -215,6 +215,10 @@ convex/
   users.ts                    # User sync, profile queries, Discover rename repair
   profileModel.ts             # Shared profile validators, revision-checked identity/selection helpers
   profiles.ts                 # Public identity/showcase/catalogue reads; authenticated identity and selection edits
+  usernameModel.ts            # Transactional username claim lookup, classification, revision checks, and rate-limiter enforcement
+  usernames.ts                # Authenticated claim + public availability APIs; internal permanent account retirement
+  rateLimiter.ts              # Per-account 90-day new-username allowance (one-token bucket, transactional)
+  convex.config.ts            # Mounts the app's Convex components (the rate-limiter)
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth)
   http.ts                     # Convex HTTP actions
@@ -275,6 +279,7 @@ lib/
   profile-identity.ts         # Profile identity types, code-point limits, and normalizer
   profile-socials.ts          # Social platform allowlists and URL validation/canonicalization
   profile-joined-date.ts      # UTC calendar and relative join-date formatting
+  username.ts                 # Shared username spelling rules, reserved names, canonical derivation, and profile-path builder
   constants/profile-countries.ts # Approved selectable country snapshot with source/license note
   draft-recovery.ts           # Versioned localStorage snapshot for unsaved new posts and drafts
   authoring-exit-policy.ts    # Pure exit decisions: recover, confirm, or block per intent

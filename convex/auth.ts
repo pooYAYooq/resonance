@@ -10,9 +10,13 @@
  * endpoint (convex/http.ts).
  */
 
-import { createClient, type GenericCtx } from "@convex-dev/better-auth";
+import {
+  createClient,
+  type AuthFunctions,
+  type GenericCtx,
+} from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import { betterAuth } from "better-auth/minimal";
 import authConfig from "./auth.config";
@@ -121,8 +125,28 @@ interface SocialProviderConfig {
  *
  * Exposes helpers like `adapter(ctx)` for database access and
  * `getSessionId()` for reading the active session.
+ *
+ * The `triggers` callback below runs in the same transaction as the account
+ * deletion, so a deleted account's usernames are retired permanently rather
+ * than depending on a browser callback.
  */
-export const authComponent = createClient<DataModel>(components.betterAuth);
+const authFunctions: AuthFunctions = internal.auth;
+
+export const authComponent = createClient<DataModel>(components.betterAuth, {
+  authFunctions,
+  triggers: {
+    user: {
+      onDelete: async (ctx, doc) => {
+        await ctx.runMutation(internal.usernames.retireAccount, {
+          ownerUserId: doc._id,
+        });
+      },
+    },
+  },
+});
+
+/** Registered so the Better Auth component can execute the trigger callbacks. */
+export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 /**
  * Creates a Better Auth instance wired to the Convex database.

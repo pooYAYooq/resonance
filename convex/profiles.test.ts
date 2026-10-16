@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import { register } from "@convex-dev/better-auth/test";
+import { register as registerRateLimiter } from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
 import { describe, expect, it, vi } from "vitest";
 import { api, components } from "./_generated/api";
@@ -16,6 +17,7 @@ async function createAuthIdentity(
   options: { name: string; email: string; createdAt?: number; image?: string },
 ) {
   register(t);
+  registerRateLimiter(t);
   const now = Date.now();
   return await t.run(async (ctx) => {
     const user = await ctx.runMutation(components.betterAuth.adapter.create, {
@@ -62,6 +64,20 @@ function identityInput(overrides: Record<string, unknown> = {}) {
 }
 
 describe("profiles identity API", () => {
+  it("defaults a legacy editor profile to no username and revision zero", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Ada",
+      email: "username-defaults@example.com",
+    });
+    const own = t.withIdentity(identity);
+    await own.mutation(api.users.syncUser, {});
+    expect(await own.query(api.profiles.getEditorProfile, {})).toMatchObject({
+      username: null,
+      usernameRevision: 0,
+    });
+  });
+
   it("initializes joinedAt from the immutable auth creation time", async () => {
     const t = convexTest(schema, modules);
     const identity = await createAuthIdentity(t, {

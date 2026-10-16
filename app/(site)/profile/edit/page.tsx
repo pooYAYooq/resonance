@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 import { ProfileIdentityForm } from "./_components/ProfileIdentityForm";
 import { SelectedWorkEditor } from "./_components/SelectedWorkEditor";
+import { UsernameEditor } from "./_components/UsernameEditor";
 import type { ProfileEditSaveStatus } from "./_components/profileEditSave";
 
 const CLEAN_SAVE_STATUS: ProfileEditSaveStatus = {
@@ -159,6 +160,17 @@ export default function EditProfileRoute() {
       </header>
 
       <div className="flex flex-col gap-10">
+        <section aria-label="Username settings" className="min-w-0">
+          <UsernameEditor
+            key={editorProfile.userId}
+            userId={editorProfile.userId}
+            initialUsername={editorProfile.username}
+            revision={editorProfile.usernameRevision}
+            newClaimAllowed={editorProfile.newUsernameClaim.allowed}
+            newClaimRetryAfterMs={editorProfile.newUsernameClaim.retryAfterMs}
+          />
+        </section>
+
         <section
           aria-label="Profile details"
           className="min-w-0"

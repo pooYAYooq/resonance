@@ -91,3 +91,34 @@ evidence resolves them. The previous detailed delivery history remains in
   Check changed files without implying the baseline was repaired. Historical
   affected paths and measurements are retained in the linked PR #103 revision;
   rerun the command before describing a current failure list.
+
+## Usernames
+
+- The public profile still serves the ID route `/u/[userId]`. Username-based
+  addresses and links are the next delivery; no public route resolves a
+  username yet.
+- Automatic signup assignment is not shipped. A new account has no username
+  until its owner claims one through `/profile/edit`, and the one-time welcome
+  page is not built.
+- The username editor's browser and accessibility evidence is partial. A
+  real-browser pass covers the format-error association, the available and
+  unavailable states with their icons, the new-claim confirmation (re-recorded
+  after the review fixes), keyboard open/close, and 30-character and narrow
+  layouts. The `already current` and `owned previous name` states and their copy,
+  the cross-tab reload/conflict flow, a real screen-reader session, and the
+  `ProfileIdentityForm` full-width Display name row remain component-test-only.
+  The cooldown-expiry re-block behavior is component-test only because the
+  maintainer's account has no active cooldown.
+- Real-runtime simultaneous-claim behavior has a single deterministic check
+  against the personal dev deployment (exactly one winner), recorded in
+  [username evidence](USERNAMES_EVIDENCE.md). It is not a repeated or high-load
+  stress test; the in-memory concurrent-claim tests remain the regression
+  coverage.
+- Account deletion removes the app profile row and permanently blocks the
+  account's names (spec section 8). It does not cascade to relationships or
+  content: follow rows, follower/following counts, and published posts that
+  reference the deleted `userId` remain, and `follows.toggleFollow` throws
+  `User not found.` for a target whose profile row is gone. That cascade is
+  explicitly separate scope (spec section 8), and account deletion is not
+  reachable yet: Better Auth self-service deletion is disabled and there is no
+  deletion UI.
