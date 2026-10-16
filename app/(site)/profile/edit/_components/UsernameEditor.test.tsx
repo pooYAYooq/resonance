@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UsernameEditor } from "./UsernameEditor";
 
@@ -65,6 +71,7 @@ describe("UsernameEditor", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
@@ -153,6 +160,180 @@ describe("UsernameEditor", () => {
     expect(screen.queryByText("Change your username?")).toBeNull();
   });
 
+  it.each([true, false])(
+    "saves case-only edits immediately without lookup when newClaimAllowed=%s",
+    async (newClaimAllowed) => {
+      vi.useFakeTimers();
+      availabilityMock.mockReturnValue(undefined);
+      claimUsernameMock.mockResolvedValue({
+        kind: "saved",
+        username: "Pooya",
+        revision: 4,
+      });
+      render(
+        <UsernameEditor {...baseProps} newClaimAllowed={newClaimAllowed} />,
+      );
+
+      fireEvent.change(screen.getByLabelText("Username"), {
+        target: { value: "Pooya" },
+      });
+      expect(
+        screen.getByRole("button", { name: "Save username" }),
+      ).toBeEnabled();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+      });
+
+      expect(claimUsernameMock).toHaveBeenCalledWith({
+        username: "Pooya",
+        expectedRevision: 3,
+      });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Username")).toHaveValue("Pooya");
+    },
+  );
+
+  it.each([true, false])(
+    "waits for the current target during debounce before confirming an owned name when newClaimAllowed=%s",
+    async (newClaimAllowed) => {
+      vi.useFakeTimers();
+      availabilityMock.mockImplementation(
+        ({ username }: { username: string }) =>
+          username === "oldname" ? { status: "owned" } : { status: "current" },
+      );
+      claimUsernameMock.mockResolvedValue({
+        kind: "saved",
+        username: "oldname",
+        revision: 4,
+      });
+      render(
+        <UsernameEditor {...baseProps} newClaimAllowed={newClaimAllowed} />,
+      );
+
+      fireEvent.change(screen.getByLabelText("Username"), {
+        target: { value: "oldname" },
+      });
+      expect(screen.getByText("Checking availability...")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Save username" }),
+      ).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(claimUsernameMock).not.toHaveBeenCalled();
+
+      act(() => vi.advanceTimersByTime(350));
+      expect(
+        screen.getByText("This is one of your previous usernames."),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Save username" }),
+      ).toBeEnabled();
+      fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+      expect(screen.getByRole("dialog")).toHaveTextContent("pooya to oldname");
+      expect(screen.getByRole("dialog")).toHaveTextContent(
+        "does not change your 90-day wait",
+      );
+      expect(screen.getByRole("dialog")).not.toHaveTextContent(
+        "90-day wait before you can claim another",
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      });
+      expect(claimUsernameMock).toHaveBeenCalledWith({
+        username: "oldname",
+        expectedRevision: 3,
+      });
+      expect(screen.getByLabelText("Username")).toHaveValue("oldname");
+    },
+  );
+
+  it.each([true, false])(
+    "waits for an unresolved query after debounce before confirming when newClaimAllowed=%s",
+    (newClaimAllowed) => {
+      vi.useFakeTimers();
+      let resolved = false;
+      availabilityMock.mockImplementation(
+        ({ username }: { username: string }) =>
+          username === "oldname"
+            ? resolved
+              ? { status: "owned" }
+              : undefined
+            : { status: "current" },
+      );
+      const { rerender } = render(
+        <UsernameEditor {...baseProps} newClaimAllowed={newClaimAllowed} />,
+      );
+      fireEvent.change(screen.getByLabelText("Username"), {
+        target: { value: "oldname" },
+      });
+      act(() => vi.advanceTimersByTime(350));
+
+      expect(screen.getByText("Checking availability...")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Save username" }),
+      ).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(claimUsernameMock).not.toHaveBeenCalled();
+
+      resolved = true;
+      rerender(
+        <UsernameEditor {...baseProps} newClaimAllowed={newClaimAllowed} />,
+      );
+      expect(
+        screen.getByRole("button", { name: "Save username" }),
+      ).toBeEnabled();
+      fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+      expect(screen.getByRole("dialog")).toHaveTextContent("pooya to oldname");
+      expect(screen.getByRole("dialog")).toHaveTextContent(
+        "does not change your 90-day wait",
+      );
+    },
+  );
+
+  it.each(["owned", "available"] as const)(
+    "keeps the confirmed target and %s classification stable when availability updates",
+    async (initialStatus) => {
+      vi.useFakeTimers();
+      let targetStatus: "owned" | "available" = initialStatus;
+      availabilityMock.mockImplementation(
+        ({ username }: { username: string }) =>
+          username === "candidate"
+            ? { status: targetStatus }
+            : { status: "current" },
+      );
+      claimUsernameMock.mockResolvedValue({
+        kind: "saved",
+        username: "candidate",
+        revision: 4,
+      });
+      const { rerender } = render(<UsernameEditor {...baseProps} />);
+      fireEvent.change(screen.getByLabelText("Username"), {
+        target: { value: "candidate" },
+      });
+      act(() => vi.advanceTimersByTime(350));
+      fireEvent.click(screen.getByRole("button", { name: "Save username" }));
+
+      targetStatus = initialStatus === "owned" ? "available" : "owned";
+      rerender(<UsernameEditor {...baseProps} />);
+      const dialog = screen.getByRole("dialog");
+      expect(dialog).toHaveTextContent("pooya to candidate");
+      expect(dialog).toHaveTextContent(
+        initialStatus === "owned"
+          ? "does not change your 90-day wait"
+          : "90-day wait before you can claim another",
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+      });
+      expect(claimUsernameMock).toHaveBeenCalledWith({
+        username: "candidate",
+        expectedRevision: 3,
+      });
+      expect(screen.getByLabelText("Username")).toHaveValue("candidate");
+    },
+  );
+
   it("confirms a new claim before consuming the allowance", async () => {
     const user = userEvent.setup();
     claimUsernameMock.mockResolvedValue({
@@ -165,6 +346,7 @@ describe("UsernameEditor", () => {
     const input = screen.getByLabelText("Username");
     await user.clear(input);
     await user.type(input, "newchoice");
+    await screen.findByText("Available.");
     await user.click(screen.getByRole("button", { name: "Save username" }));
 
     expect(
@@ -193,6 +375,7 @@ describe("UsernameEditor", () => {
     const input = screen.getByLabelText("Username");
     await user.clear(input);
     await user.type(input, "newchoice");
+    await screen.findByText("Available.");
     await user.click(screen.getByRole("button", { name: "Save username" }));
     await user.click(await screen.findByRole("button", { name: "Confirm" }));
 
@@ -229,6 +412,7 @@ describe("UsernameEditor", () => {
     const input = screen.getByLabelText("Username");
     await user.clear(input);
     await user.type(input, "newchoice");
+    await screen.findByText("Available.");
     await user.click(screen.getByRole("button", { name: "Save username" }));
     await user.click(await screen.findByRole("button", { name: "Confirm" }));
 
@@ -248,6 +432,7 @@ describe("UsernameEditor", () => {
     const input = screen.getByLabelText("Username");
     await user.clear(input);
     await user.type(input, "newchoice");
+    await screen.findByText("Available.");
     await user.click(screen.getByRole("button", { name: "Save username" }));
     await user.click(await screen.findByRole("button", { name: "Confirm" }));
 
@@ -341,6 +526,7 @@ describe("UsernameEditor", () => {
     const input = screen.getByLabelText("Username");
     await user.clear(input);
     await user.type(input, "newchoice");
+    await screen.findByText("Available.");
     await user.click(screen.getByRole("button", { name: "Save username" }));
 
     expect(await screen.findByText("pooya to newchoice")).toBeInTheDocument();

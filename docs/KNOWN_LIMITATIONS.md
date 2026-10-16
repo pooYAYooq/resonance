@@ -100,10 +100,13 @@ evidence resolves them. The previous detailed delivery history remains in
 - Automatic signup assignment is not shipped. A new account has no username
   until its owner claims one through `/profile/edit`, and the one-time welcome
   page is not built.
-- The username editor's availability icons, its cross-tab reload/conflict flow,
-  and the `ProfileIdentityForm` change that let Display name span its row have
-  component-test coverage only. They still need real browser and
-  assistive-technology evidence.
+- The username editor's browser and accessibility evidence is partial. A
+  real-browser pass covers the format-error association, the available and
+  unavailable states with their icons, the new-claim confirmation, keyboard
+  open/close, and 30-character and narrow layouts. The `already current` and
+  `owned previous name` states and copy, the cross-tab reload/conflict flow, a
+  real screen-reader session, and the `ProfileIdentityForm` full-width Display
+  name row remain component-test-only.
 - Real-runtime simultaneous-claim behavior has a single deterministic check
   against the personal dev deployment (exactly one winner), recorded in
   [username evidence](USERNAMES_EVIDENCE.md). It is not a repeated or high-load

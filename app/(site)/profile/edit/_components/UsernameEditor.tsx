@@ -3,9 +3,9 @@
  *
  * Owns its own draft, availability feedback, confirmation, and save so a
  * three-month commitment is never submitted by the page-header Save. Local
- * formatting errors and the save button track the live draft immediately; only
- * the availability check waits for a typing pause, and its result is applied
- * to the current draft only once the debounce has caught up to it.
+ * formatting errors track the live draft immediately. Non-styling saves wait
+ * for a resolved availability classification of the current target, after a
+ * typing pause; capitalization-only edits can save immediately without lookup.
  *
  * Like the identity form, it follows the reactive revision prop: a clean draft
  * adopts another tab's saved username silently, while a dirty draft keeps the
@@ -66,6 +66,8 @@ type Availability =
   | { status: "owned" }
   | { status: "available" };
 
+type ClaimClassification = "owned" | "new";
+
 type StatusKind =
   | "checking"
   | "available"
@@ -104,11 +106,14 @@ export function UsernameEditor({
   const [draft, setDraft] = useState(initialUsername ?? "");
   const [pending, setPending] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [confirmTarget, setConfirmTarget] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    target: string;
+    classification: ClaimClassification;
+  } | null>(null);
   const [usernameConflict, setUsernameConflict] = useState(false);
   const [processedRevision, setProcessedRevision] = useState(revision);
 
-  // R5: validation is immediate; the debounced value only feeds the query.
+  // Format validation is immediate; only availability is debounced.
   const live = normalizeUsername(draft);
   const debounced = useDebouncedValue(draft, AVAILABILITY_DEBOUNCE_MS);
   const debouncedNormalized = normalizeUsername(debounced);
@@ -149,13 +154,19 @@ export function UsernameEditor({
   const isStylingOnly = live.ok && live.canonical === savedCanonical;
   const isOwned = availability?.status === "owned";
   const isBlocked = availability?.status === "taken";
-  const isNewClaim = live.ok && !isStylingOnly && !isOwned;
+  const classification: ClaimClassification | null = isOwned
+    ? "owned"
+    : availability?.status === "available"
+      ? "new"
+      : null;
   const canSave =
     live.ok &&
     !pending &&
     !isUnchanged &&
     !isBlocked &&
-    (!isNewClaim || newClaimAllowed);
+    (isStylingOnly ||
+      classification === "owned" ||
+      (classification === "new" && newClaimAllowed));
 
   function requestSave() {
     if (!canSave || !live.ok) return;
@@ -166,7 +177,11 @@ export function UsernameEditor({
       void submit(live.styled);
       return;
     }
-    setConfirmTarget(live.styled);
+    // Keep the reviewed target and its copy together even if the advisory
+    // query updates while the dialog is open. The mutation rechecks both.
+    if (classification !== null) {
+      setConfirmation({ target: live.styled, classification });
+    }
   }
 
   function handleReload() {
@@ -176,7 +191,7 @@ export function UsernameEditor({
     setProcessedRevision(revision);
     setUsernameConflict(false);
     setSaveError(null);
-    setConfirmTarget(null);
+    setConfirmation(null);
   }
 
   async function submit(username: string) {
@@ -190,13 +205,13 @@ export function UsernameEditor({
         setSavedUsername(result.username);
         setSavedRevision(result.revision);
         setDraft(result.username);
-        setConfirmTarget(null);
+        setConfirmation(null);
         setSaveError(null);
         setUsernameConflict(false);
         toast.success("Username updated");
         return;
       }
-      setConfirmTarget(null);
+      setConfirmation(null);
       if (result.kind === "conflict") {
         setUsernameConflict(true);
         return;
@@ -209,7 +224,7 @@ export function UsernameEditor({
       // choose again, with the same neutral unavailable message.
       setSaveError("Username unavailable.");
     } catch (error) {
-      setConfirmTarget(null);
+      setConfirmation(null);
       const data = (error as { data?: { message?: string } }).data;
       setSaveError(data?.message ?? "Failed to save your username. Try again.");
     } finally {
@@ -322,28 +337,28 @@ export function UsernameEditor({
       )}
 
       <Dialog
-        open={confirmTarget !== null}
+        open={confirmation !== null}
         onOpenChange={(open) => {
-          if (!open) setConfirmTarget(null);
+          if (!open) setConfirmation(null);
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Change your username?</DialogTitle>
             <DialogDescription>
-              {isNewClaim
+              {confirmation?.classification === "new"
                 ? "Claiming a new username starts a 90-day wait before you can claim another. Your previous addresses keep working."
                 : "You are switching back to one of your usernames. This does not change your 90-day wait."}
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">
-            {savedUsername ?? ""} to {confirmTarget}
+            {savedUsername ?? ""} to {confirmation?.target}
           </p>
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => setConfirmTarget(null)}
+              onClick={() => setConfirmation(null)}
             >
               Cancel
             </Button>
@@ -351,7 +366,7 @@ export function UsernameEditor({
               type="button"
               disabled={pending}
               onClick={() => {
-                if (confirmTarget !== null) void submit(confirmTarget);
+                if (confirmation !== null) void submit(confirmation.target);
               }}
             >
               Confirm

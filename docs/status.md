@@ -7,19 +7,31 @@ a session history.
 ## Current focus
 
 Username ownership and the dedicated `/profile/edit` username editor are
-implemented at `9fae573`. Usernames use the shared spelling rules in
-`lib/username.ts`, permanent per-name ownership (`usernameClaims` plus the
+implemented on `feat/usernames-ownership` at `2b56de8` plus an uncommitted
+confirmation-classification fix and deletion/edit interleave coverage. Non-styling saves now wait for current-target
+availability before confirmation, whose copy stays tied to its captured target;
+case-only edits still save immediately without lookup. Usernames use the shared
+spelling rules in `lib/username.ts`, permanent per-name ownership (`usernameClaims` plus the
 `users.username` fields), and a 90-day wait between deliberate new-name claims
 enforced by the mounted `@convex-dev/rate-limiter` component. Claims are
 transactional, the Better Auth deletion callback retires a deleted account's
 names permanently, and the editor saves through its own action rather than the
-page-header Save. The required `pnpm lint`, `pnpm test:ci`, `pnpm test:component`,
-and `pnpm build` commands pass on this revision; the backend claim, cooldown, and
-ownership paths and the editor behaviors have automated coverage; and a single
+page-header Save. The editor fix passed the four required verification commands;
+after the test-only deletion/edit additions, focused backend tests, the full
+edge suite, and lint passed again. Component/build evidence precedes that test-only
+addition. The backend claim, cooldown, ownership, deletion/edit orderings, and
+editor behaviors have automated coverage. A single
 deterministic real-runtime concurrent-claim check passed on a non-production
-deployment. Results and limitations are in
-[username evidence](USERNAMES_EVIDENCE.md). Browser and assistive-technology
-evidence for the editor and the deletion-versus-edit race are not yet covered.
+deployment in the historical `9fae573` evidence collection, not a fresh runtime
+retest of this amendment. Results and limitations are in
+[username evidence](USERNAMES_EVIDENCE.md). A partial browser pass now covers the
+editor's format-error association, availability states and icons, new-claim
+confirmation, keyboard open/close, and 30-character and narrow layouts; the
+owned/current states, the cross-tab flow, a real screen-reader session, and a
+real-runtime deletion/edit overlap remain open. The targeted deletion/edit
+interleave check is covered, and a real-runtime deletion/edit race exercised both
+orderings (deletion-first and edit-first) as single-shot evidence, not a stress
+matrix.
 
 Remaining username work is the other two deliveries: username-based public
 addresses and links, then automatic signup assignment with the one-time welcome.
@@ -36,11 +48,20 @@ submission, after review changes, and before merge handoff.
 
 ## Next action
 
-Deliver username-based public profile addresses and links: canonical
+Finish username ownership acceptance before merge: extend the recorded editor
+browser pass to the owned/current states, the cross-tab flow, and a real
+screen-reader session when they can be exercised without consuming the real
+90-day allowance. Keep the residual real-runtime deletion/edit overlap evidence
+gap visible; the deterministic interleaves and the two single-shot runtime
+orderings are not a stress matrix.
+See [username evidence](USERNAMES_EVIDENCE.md) for coverage and retest triggers.
+
+After that acceptance, deliver username-based public profile addresses and links:
+canonical
 `/u/<usernameLower>` routes, fresh temporary redirects, unavailable states, and
 direct current-username links. Automatic signup assignment and the one-time
-welcome follow separately. Do not reopen the implemented username ownership or
-editor design.
+welcome follow separately. Do not broaden the ownership/editor scope while
+closing these checks.
 
 ## Blockers and constraints
 

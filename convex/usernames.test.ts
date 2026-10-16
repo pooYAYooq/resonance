@@ -78,6 +78,41 @@ async function claims(t: ReturnType<typeof setup>) {
   );
 }
 
+async function deleteAccount(t: ReturnType<typeof setup>, ownerUserId: string) {
+  // Exercise the configured onDelete -> retireAccount callback, not a raw
+  // component deletion that bypasses the application's lifecycle triggers.
+  await t.run(async (ctx) => {
+    await authComponent
+      .adapter(ctx)({})
+      .delete({
+        model: "user",
+        where: [{ field: "_id", value: ownerUserId }],
+      });
+  });
+}
+
+async function retirementState(
+  t: ReturnType<typeof setup>,
+  ownerUserId: string,
+) {
+  return await t.run(async (ctx) => ({
+    profile: await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", ownerUserId))
+      .unique(),
+    orphanClaims: await ctx.db
+      .query("usernameClaims")
+      .withIndex("by_ownerUserId", (q) => q.eq("ownerUserId", ownerUserId))
+      .take(1),
+    claimsByName: Object.fromEntries(
+      (await ctx.db.query("usernameClaims").take(300)).map((claim) => [
+        claim.usernameLower,
+        claim.ownerUserId ?? null,
+      ]),
+    ),
+  }));
+}
+
 describe("username ownership", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -604,6 +639,128 @@ describe("username ownership", () => {
       await t.query(api.users.getUserProfile, { userId: ownerUserId }),
     ).toBeNull();
   });
+
+  it("retires a completed edit and both current and previous names through the deletion callback", async () => {
+    const t = setup();
+    const { own, ownerUserId } = await signedIn(t, "edit-delete@example.com");
+    expect(
+      await own.mutation(api.usernames.claimUsername, {
+        username: "First_Name",
+        expectedRevision: 0,
+      }),
+    ).toEqual({ kind: "saved", username: "First_Name", revision: 1 });
+    vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
+    expect(
+      await own.mutation(api.usernames.claimUsername, {
+        username: "Second_Name",
+        expectedRevision: 1,
+      }),
+    ).toEqual({ kind: "saved", username: "Second_Name", revision: 2 });
+    expect(await own.query(api.profiles.getEditorProfile, {})).toMatchObject({
+      username: "Second_Name",
+      usernameRevision: 2,
+    });
+    expect(await allowance(t, ownerUserId)).toMatchObject({
+      value: 0,
+      ts: START + USERNAME_CLAIM_PERIOD_MS,
+    });
+
+    // Deterministic committed ordering: the edit finishes before deletion.
+    // This does not simulate overlapping real-runtime transactions.
+    await deleteAccount(t, ownerUserId);
+
+    expect(await retirementState(t, ownerUserId)).toEqual({
+      profile: null,
+      orphanClaims: [],
+      claimsByName: { first_name: null, second_name: null },
+    });
+    // getValue returns capacity with ts=0 only when no limiter state remains,
+    // unlike a refilled but still-persisted bucket with a nonzero timestamp.
+    expect(await allowance(t, ownerUserId)).toMatchObject({ value: 1, ts: 0 });
+    const survivor = await signedIn(t, "edit-delete-survivor@example.com");
+    for (const username of ["FIRST_NAME", "SECOND_NAME"]) {
+      expect(
+        await survivor.own.mutation(api.usernames.claimUsername, {
+          username,
+          expectedRevision: 0,
+        }),
+      ).toEqual({ kind: "unavailable" });
+    }
+    expect(await retirementState(t, ownerUserId)).toEqual({
+      profile: null,
+      orphanClaims: [],
+      claimsByName: { first_name: null, second_name: null },
+    });
+  });
+
+  it.each([
+    { ordering: "delete then edit", expectedRevision: 2 },
+    {
+      ordering: "delete then stale edit captured before rename",
+      expectedRevision: 1,
+    },
+  ])(
+    "rejects $ordering without resurrecting profile, claims or allowance",
+    async ({ expectedRevision }) => {
+      const t = setup();
+      const { own, ownerUserId } = await signedIn(t, "delete-edit@example.com");
+      expect(
+        await own.mutation(api.usernames.claimUsername, {
+          username: "First_Name",
+          expectedRevision: 0,
+        }),
+      ).toEqual({ kind: "saved", username: "First_Name", revision: 1 });
+      // Model drafts prepared before retirement, including a revision captured
+      // before a subsequent rename. Invoke them only after deletion has committed.
+      const edits = ["First_Name", "SECOND_NAME", "third_name"].map(
+        (username) => ({
+          username,
+          expectedRevision,
+        }),
+      );
+      vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
+      expect(
+        await own.mutation(api.usernames.claimUsername, {
+          username: "Second_Name",
+          expectedRevision: 1,
+        }),
+      ).toEqual({ kind: "saved", username: "Second_Name", revision: 2 });
+      expect(await allowance(t, ownerUserId)).toMatchObject({ value: 0 });
+      await deleteAccount(t, ownerUserId);
+
+      const retired = {
+        profile: null,
+        orphanClaims: [],
+        claimsByName: { first_name: null, second_name: null },
+      };
+      expect(await retirementState(t, ownerUserId)).toEqual(retired);
+      expect(await allowance(t, ownerUserId)).toMatchObject({
+        value: 1,
+        ts: 0,
+      });
+      for (const edit of edits) {
+        // Reuse the deleted account's original identity/session, not a fresh user.
+        await expect(
+          own.mutation(api.usernames.claimUsername, edit),
+        ).rejects.toThrow("Unauthorized");
+        expect(await retirementState(t, ownerUserId)).toEqual(retired);
+        expect(await allowance(t, ownerUserId)).toMatchObject({
+          value: 1,
+          ts: 0,
+        });
+      }
+      const survivor = await signedIn(t, "delete-edit-survivor@example.com");
+      for (const username of ["first_name", "second_name"]) {
+        expect(
+          await survivor.own.mutation(api.usernames.claimUsername, {
+            username,
+            expectedRevision: 0,
+          }),
+        ).toEqual({ kind: "unavailable" });
+      }
+      expect(await retirementState(t, ownerUserId)).toEqual(retired);
+    },
+  );
 
   it("refuses anonymous, missing-profile, and caller-selected owner writes", async () => {
     const t = setup();
