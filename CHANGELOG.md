@@ -12,6 +12,13 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Username ownership at `/profile/edit`: a dedicated editor claims a username
+  through its own Save username action, separate from the page-header Save.
+  Claimed lowercase names are owned permanently, including after a rename, and a
+  deliberate claim of a previously unowned name starts a 90-day wait before
+  another new name can be claimed. Switching to an owned previous name and
+  changing capitalization bypass the wait. Automatic assignment at signup and
+  username-based public addresses ship separately.
 - Profile editor at `/profile/edit`: edit display name, bio, optional
   country and five social links, and choose up to nine
   ordered published posts. One header Save button applies changed sections

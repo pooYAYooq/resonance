@@ -91,3 +91,21 @@ evidence resolves them. The previous detailed delivery history remains in
   Check changed files without implying the baseline was repaired. Historical
   affected paths and measurements are retained in the linked PR #103 revision;
   rerun the command before describing a current failure list.
+
+## Usernames
+
+- The public profile still serves the ID route `/u/[userId]`. Username-based
+  addresses and links are the next delivery; no public route resolves a
+  username yet.
+- Automatic signup assignment is not shipped. A new account has no username
+  until its owner claims one through `/profile/edit`, and the one-time welcome
+  page is not built.
+- The username editor's availability icons, its cross-tab reload/conflict flow,
+  and the `ProfileIdentityForm` change that let Display name span its row have
+  component-test coverage only. They still need real browser and
+  assistive-technology evidence.
+- Real-runtime simultaneous-claim behavior has a single deterministic check
+  against the personal dev deployment (exactly one winner), recorded in
+  [username evidence](USERNAMES_EVIDENCE.md). It is not a repeated or high-load
+  stress test; the in-memory concurrent-claim tests remain the regression
+  coverage.

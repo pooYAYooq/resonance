@@ -124,8 +124,8 @@ resonance/
 │   │   │       └── LikedSection.tsx      # Client auth gate + pagination.
 │   │   ├── profile/edit/
 │   │   │   ├── page.tsx          # Authenticated identity + selected-work editor.
-│   │   │   └── _components/      # Identity, country, and selected-work forms plus
-│   │   │                         # pure edit-state helpers.
+│   │   │   └── _components/      # Identity, country, username, and selected-work forms
+│   │   │                         # plus pure edit-state helpers.
 │   │   └── settings/page.tsx    # Appearance and Account configuration only.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
 │   │   ├── layout.tsx          # Full-screen centered layout with Back button
@@ -134,7 +134,7 @@ resonance/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
 │
 ├── convex/
-│   ├── schema.ts               # DB schema: source tables plus bounded Discover projections and counters
+│   ├── schema.ts               # DB schema: source tables, username claims, plus bounded Discover projections and counters
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping.
@@ -204,6 +204,15 @@ resonance/
 │   ├── profiles.ts             # Public identity, featured-selection, showcase,
 │   │                           # and catalogue reads plus authenticated identity
 │   │                           # and selected-work edits
+│   ├── usernameModel.ts        # Shared transactional claiming: indexed claim lookup,
+│   │                           # classification, revision checks, real rate-limiter
+│   │                           # consumption, and claim/selection writes. Not registered.
+│   ├── usernames.ts            # Authenticated claim and minimal public availability
+│   │                           # APIs plus internal bounded permanent retirement on
+│   │                           # the configured account-deletion callback.
+│   ├── rateLimiter.ts          # The per-account 90-day new-name allowance: a one-token
+│   │                           # bucket consumed transactionally with the claim.
+│   ├── convex.config.ts        # Mounts the app's Convex components (the rate-limiter).
 │
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (Button, Card, Input, etc.)
@@ -307,6 +316,8 @@ resonance/
     ├── profile-identity.ts     # Profile identity types, code-point limits, and normalizer.
     ├── profile-socials.ts      # Social platform allowlists and URL validation/canonicalization.
     ├── profile-joined-date.ts  # UTC calendar and relative join-date formatting.
+    ├── username.ts             # Shared username spelling rules, reserved names,
+    │                           # canonical lowercase derivation, and profile-path builder.
     ├── use-inline-image-upload.ts # Owner-bound BlockNote file upload and preview lifecycle hook.
     ├── shiki/
     │   ├── code-highlighter.generated.ts # Generated editor grammars and themes.
@@ -776,6 +787,45 @@ states above the title.
   loading and empty state local. Analytics lives separately at `/dashboard/analytics`.
   There is no public draft preview. Paragraph-inline images and general storage garbage
   collection remain future work.
+
+### Username Ownership and the 90-Day Allowance
+
+A username has a **styled** spelling for display and a **canonical** lowercase
+lookup key. `lib/username.ts` owns the shared spelling rules (3-30 English
+letters, digits, and single underscores with at least one letter), the small
+exact-match reserved list, and the `/u/<lowercase>` path builder. The editor and
+the backend both normalize through it, so a client cannot supply its own
+styled/canonical pair.
+
+`users` gains optional `username` (styled), `usernameLower` (canonical), and
+`usernameRevision` (independent editor revision); existing records stay valid
+with the fields absent. The `usernameClaims` table holds one permanent row per
+canonical spelling with `by_usernameLower` for lookups and `by_ownerUserId` for
+bounded owner cleanup and a future private previous-name list. A present
+`ownerUserId` means the name belongs to that account permanently; an absent
+owner means a deleted account's name is permanently blocked, never free.
+
+`convex/usernameModel.ts` performs the transactional write shared by the public
+mutation: validate and normalize, read the authenticated profile and check the
+expected revision, read the target claim, classify the operation, and for a new
+deliberate claim consume one token from `convex/rateLimiter.ts` before inserting
+the claim and updating the current selection. The indexed check, token
+consumption, claim insert, and selection patch commit in one Convex mutation; a
+failure aborts all of them. The rate limiter is a one-token bucket
+(`newUsernameClaim`) at one token per 90 elapsed days with `applyUpdates:
+"transactionally"`, mounted in `convex/convex.config.ts`. Ownership and
+classification stay in Resonance; the component supplies only the allowance.
+
+Unchanged saves, exact saved-target retries, capitalization-only edits, and
+switches to an owned previous name neither consume nor reset the allowance.
+`convex/usernames.ts` exposes the authenticated `claimUsername` mutation and the
+minimal public `checkUsernameAvailability` query, and keeps `retireAccount` as
+an internal mutation. `convex/auth.ts` wires the Better Auth user-deletion
+trigger to that internal retirement, which removes the live profile first, strips
+owner associations from claims in bounded batches, and resets only that
+account's allowance after the last batch. The dedicated `UsernameEditor.tsx` on
+`/profile/edit` owns its draft, debounced availability check, confirmation
+dialog, and save, so the page-header Save never submits a username.
 
 ### Analytics Foundation
 

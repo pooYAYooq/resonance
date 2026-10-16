@@ -6,17 +6,26 @@ a session history.
 
 ## Current focus
 
-The `/profile/edit` identity and Featured posts editor is implemented and
-verified on this branch: one header Save applies changed sections independently,
-unsaved input survives live updates, and a conflict requires an explicit reload.
-Country uses common English names with familiar search aliases, spans its row,
-and clears through No country inside the picker; the separate Location field is
-gone. Username remains local-only. Saved Featured posts appear above the existing
-public profile's full post list. Verification results, browser evidence, and
-scope limits are in [accessibility evidence](ACCESSIBILITY.md). This delivery is
-covered by backend and component regressions for join dates, cover eligibility,
-country composition, and flag casing. Native IME behavior and the latest
-live-browser refresh remain unverified.
+Username ownership and the dedicated `/profile/edit` username editor are
+implemented at `9fae573`. Usernames use the shared spelling rules in
+`lib/username.ts`, permanent per-name ownership (`usernameClaims` plus the
+`users.username` fields), and a 90-day wait between deliberate new-name claims
+enforced by the mounted `@convex-dev/rate-limiter` component. Claims are
+transactional, the Better Auth deletion callback retires a deleted account's
+names permanently, and the editor saves through its own action rather than the
+page-header Save. The required `pnpm lint`, `pnpm test:ci`, `pnpm test:component`,
+and `pnpm build` commands pass on this revision; the backend claim, cooldown, and
+ownership paths and the editor behaviors have automated coverage; and a single
+deterministic real-runtime concurrent-claim check passed on a non-production
+deployment. Results and limitations are in
+[username evidence](USERNAMES_EVIDENCE.md). Browser and assistive-technology
+evidence for the editor and the deletion-versus-edit race are not yet covered.
+
+Remaining username work is the other two deliveries: username-based public
+addresses and links, then automatic signup assignment with the one-time welcome.
+The public profile still serves the ID route `/u/[userId]` until the address
+delivery, so the existing identity and Featured posts editor behavior is
+unchanged.
 
 The Convex dependency is pinned to `1.46.0` and the managed AI files are
 refreshed, so the earlier CLI and guidance mismatch no longer applies.
@@ -27,13 +36,17 @@ submission, after review changes, and before merge handoff.
 
 ## Next action
 
-Plan username persistence and human-readable profile URLs as the next delivery.
-The broader public author page and `/u/[userId]/posts` catalogue follow it. Do
-not reopen the verified editor design.
+Deliver username-based public profile addresses and links: canonical
+`/u/<usernameLower>` routes, fresh temporary redirects, unavailable states, and
+direct current-username links. Automatic signup assignment and the one-time
+welcome follow separately. Do not reopen the implemented username ownership or
+editor design.
 
 ## Blockers and constraints
 
 - The broader public author-page presentation and catalogue are not built.
+- The public profile still serves the ID route `/u/[userId]`; username-based
+  addresses are not built, and automatic signup assignment is not shipped.
 - The feed loading-announcement advisory is explicitly deferred. It is not a
   reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
 - Preserve the demo post, follow relationship, like, and comment. Browser

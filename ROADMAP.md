@@ -117,9 +117,12 @@ implemented, along with the profile editor and ordered selected-work editing.
 The editor's both-theme Deep browser acceptance is recorded under
 J6-ProfileEditor in [accessibility evidence](docs/ACCESSIBILITY.md).
 The saved featured-post selection now appears above the public profile's full
-post list. Persisting the local-only username field and rendering human-readable
-profile URLs are the agreed next delivery, ahead of the author page and
-catalogue.
+post list. Username ownership and the dedicated `/profile/edit` username editor
+are implemented: shared spelling rules, permanent per-name claims, a 90-day wait
+between new-name claims, and the account-deletion retirement callback, recorded
+in [username evidence](docs/USERNAMES_EVIDENCE.md). Username-based public
+addresses and links are the agreed next delivery, ahead of the author page and
+catalogue; automatic signup assignment follows separately.
 
 ### Visual system and responsive polish
 

@@ -241,6 +241,12 @@
   country, and five social links) plus up to nine ordered featured posts;
   `/settings` owns Appearance and Account configuration.
   Provider avatar and email remain contextual/read-only where shown.
+- Usernames are claimed from a dedicated editor with its own Save username
+  action, separate from the page-header Save. A claimed lowercase name is owned
+  permanently, including after a rename, and a deliberate claim of a previously
+  unowned name starts a 90-day wait before another new name can be claimed.
+  Switching to an owned previous name and changing capitalization are not
+  affected by that wait.
 - Country choices use common English names; search also recognizes familiar
   alternatives and abbreviations such as UK, USA, and Czech Republic. Only the
   existing two-letter country code is saved. The field spans its row, long
@@ -278,8 +284,8 @@
   browse/search messages name cover eligibility rather than implying that no
   published posts exist. The section uses a
   selection count and an ordered list with reorder/removal controls. Unused
-  social platforms open through Add social link. Username remains a local layout
-  field and does not save yet. There is no separate Location field. One header Save button
+  social platforms open through Add social link. There is no separate Location
+  field. One header Save button
   becomes actionable when persisted profile details or selected work change and saves each
   changed section independently; loading a saved version explains the loss of
   local edits.
