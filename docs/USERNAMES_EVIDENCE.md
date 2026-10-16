@@ -13,20 +13,22 @@ concurrency harness were local and uncommitted.
 
 ## Tested revisions
 
-Current automated verification: `2b56de8` on `feat/usernames-ownership` plus the
-uncommitted confirmation-classification fix in `UsernameEditor.tsx` and its
-regression tests, plus deterministic deletion/edit interleave tests in
-`convex/usernames.test.ts`, tested on 2026-10-16. Non-styling saves now wait for a resolved
-current-target classification; the dialog captures that classification with the
-target. Format validation remains immediate, and case-only edits do not wait for
-lookup. No backend implementation, generated file, dependency, timeout, or vitest configuration
-changed. A local browser/accessibility pass of the amended editor was performed
-(see the browser section); no deployment or real-runtime backend retest was
-performed for this fix.
+Final automated verification: `b4f9f73` on `feat/usernames-ownership`, tested on
+2026-10-16. Its source changes are the confirmation-classification fix in
+`UsernameEditor.tsx` with its regression tests, and deterministic deletion/edit
+interleave tests in `convex/usernames.test.ts`. Non-styling saves now wait for a
+resolved current-target classification; the dialog captures that classification
+with the target. Format validation remains immediate, and case-only edits do not
+wait for lookup. No backend implementation, generated file, dependency, timeout,
+or vitest configuration changed. A local browser/accessibility pass of the amended
+editor was performed (see the browser section), and the backend was deployed to
+the non-production dev deployment for a real-runtime deletion/edit race (backend
+source unchanged; see below).
 
 Historical verification at `9fae573` is retained below. It does not verify the
-amended editor source. The real-runtime evidence later in this document belongs
-to that earlier collection, not a fresh run of the amended source.
+amended editor source. The real-runtime concurrent-claim evidence later in this
+document belongs to that earlier collection; the real-runtime deletion/edit race
+belongs to the current revision.
 
 ## Required verification
 
@@ -42,21 +44,20 @@ requested order on `2b56de8` plus both uncommitted fix rounds:
 | `pnpm lint`                                                             | No ESLint diagnostics              | 0    |
 
 These tests passed on the first run against the existing implementation. There
-was no RED and no backend behavior fix. Component/build results below precede the
-test-only addition; they were not rerun in this second round. Changed-file
-Prettier and `git diff --check` also passed after documentation reconciliation.
+was no RED and no backend behavior fix. The full CI order was then re-run on the
+final head (below) and passed. Changed-file Prettier and `git diff --check` also
+passed after documentation reconciliation.
 
-### Editor fix verification
+### Full CI order on the final head
 
-Run in the repository's CI order after the final source/test changes. All four
-passed on `2b56de8` plus the uncommitted editor fix, before the deletion/edit
-coverage tests were added; documentation was then reconciled with these results.
+Run in the repository's CI order on `b4f9f73` (after the editor fix and the
+deletion/edit coverage tests). All four passed:
 
 | Command                              | Result                                                           | Exit |
 | ------------------------------------ | ---------------------------------------------------------------- | ---- |
 | `pnpm lint`                          | No ESLint diagnostics                                            | 0    |
-| `pnpm test:ci`                       | 48 files, 810 tests passed (8.03s)                               | 0    |
-| `pnpm test:component --maxWorkers=1` | 88 files, 870 tests passed (258.48s)                             | 0    |
+| `pnpm test:ci`                       | 48 files, 813 tests passed (7.20s)                               | 0    |
+| `pnpm test:component --maxWorkers=1` | 88 files, 870 tests passed (253.48s)                             | 0    |
 | `pnpm build`                         | Compiled successfully; TypeScript step clean; 18/18 static pages | 0    |
 
 The focused command
@@ -196,8 +197,7 @@ component suite ran 132/132.
 
 ## Browser and accessibility evidence
 
-Collected on 2026-10-16 against the amended editor (the uncommitted
-classification fix) served by `next dev` at `http://localhost:3000` and pointed at
+Collected on 2026-10-16 against the amended editor served by `next dev` at `http://localhost:3000` and pointed at
 the personal dev deployment `dev:woozy-spaniel-283`, through an attached Chrome
 session. The signed-in account was the maintainer's own and has no username. No
 account data was changed: no claim was confirmed, no field was saved, and the
