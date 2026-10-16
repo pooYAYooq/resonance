@@ -112,7 +112,7 @@ export const resolveUsername = query({
       // The claim outlived its owner's profile: the address is unavailable.
       return { kind: "notFound" as const };
     }
-    if (normalized.styled === currentLower) {
+    if (args.username === currentLower) {
       return {
         kind: "profile" as const,
         ownerUserId: claim.ownerUserId,

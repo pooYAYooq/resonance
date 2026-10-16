@@ -179,18 +179,18 @@ describe("EditProfileRoute", () => {
   it("links the back-to-profile action to the owner's public page", () => {
     render(<SettingsRoute />);
 
-    expect(
-      screen.getByRole("link", { name: /back to profile/i }),
-    ).toHaveAttribute("href", "/u/pooya");
+    const link = screen.getByRole("link", { name: /back to profile/i });
+    expect(link).toHaveAttribute("href", "/u/pooya");
+    expect(link).toHaveTextContent("Back to profile");
   });
 
   it("falls back to settings when the owner has no username", () => {
     currentQueryValue = { ...editorProfile, username: null };
     render(<SettingsRoute />);
 
-    expect(
-      screen.getByRole("link", { name: /back to profile/i }),
-    ).toHaveAttribute("href", "/settings");
+    const link = screen.getByRole("link", { name: /back to settings/i });
+    expect(link).toHaveAttribute("href", "/settings");
+    expect(link).toHaveTextContent("Back to settings");
   });
 
   it("shows recovery when the authenticated user has no profile record", () => {

@@ -132,7 +132,7 @@ export default function EditProfileRoute() {
           }
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
-          Back to profile
+          {editorProfile.username ? "Back to profile" : "Back to settings"}
         </Link>
         <div className="flex items-end justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-2">

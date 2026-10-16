@@ -1072,6 +1072,25 @@ describe("username resolution", () => {
     ).toMatchObject({ kind: "profile" });
   });
 
+  it("redirects whitespace-padded spellings instead of rendering a profile", async () => {
+    const t = setup();
+    const { own } = await signedIn(t, "spacecheck@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "spacecheck",
+      expectedRevision: 0,
+    });
+
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "spacecheck" }),
+    ).toMatchObject({ kind: "profile", username: "spacecheck" });
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: "spacecheck " }),
+    ).toEqual({ kind: "redirect", username: "spacecheck" });
+    expect(
+      await t.query(api.usernames.resolveUsername, { username: " spacecheck" }),
+    ).toEqual({ kind: "redirect", username: "spacecheck" });
+  });
+
   it("resolves every name of a deleted account as notFound without leaking ownership", async () => {
     const t = setup();
     const { own, subject } = await signedIn(t, "deleted-resolver@example.com");
