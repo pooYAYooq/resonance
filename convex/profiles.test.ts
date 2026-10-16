@@ -62,6 +62,20 @@ function identityInput(overrides: Record<string, unknown> = {}) {
 }
 
 describe("profiles identity API", () => {
+  it("defaults a legacy editor profile to no username and revision zero", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthIdentity(t, {
+      name: "Ada",
+      email: "username-defaults@example.com",
+    });
+    const own = t.withIdentity(identity);
+    await own.mutation(api.users.syncUser, {});
+    expect(await own.query(api.profiles.getEditorProfile, {})).toMatchObject({
+      username: null,
+      usernameRevision: 0,
+    });
+  });
+
   it("initializes joinedAt from the immutable auth creation time", async () => {
     const t = convexTest(schema, modules);
     const identity = await createAuthIdentity(t, {

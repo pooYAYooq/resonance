@@ -33,6 +33,8 @@ import type * as rateLimiter from "../rateLimiter.js";
 import type * as sessionMediaClaims from "../sessionMediaClaims.js";
 import type * as stats from "../stats.js";
 import type * as testUtils_storage from "../testUtils/storage.js";
+import type * as usernameModel from "../usernameModel.js";
+import type * as usernames from "../usernames.js";
 import type * as users from "../users.js";
 import type * as writeAttempts from "../writeAttempts.js";
 
@@ -68,6 +70,8 @@ declare const fullApi: ApiFromModules<{
   sessionMediaClaims: typeof sessionMediaClaims;
   stats: typeof stats;
   "testUtils/storage": typeof testUtils_storage;
+  usernameModel: typeof usernameModel;
+  usernames: typeof usernames;
   users: typeof users;
   writeAttempts: typeof writeAttempts;
 }>;

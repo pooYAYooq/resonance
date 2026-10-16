@@ -50,6 +50,8 @@ const publicIdentityValidator = v.object({
 
 const editorProfileValidator = v.object({
   userId: v.string(),
+  username: v.union(v.string(), v.null()),
+  usernameRevision: v.number(),
   email: v.union(v.string(), v.null()),
   avatarUrl: v.union(v.string(), v.null()),
   identity: identityInputValidator,
@@ -95,6 +97,8 @@ export const getEditorProfile = query({
       email: user.email ?? null,
       avatarUrl: user.avatarUrl ?? null,
       identity: storedIdentity(user),
+      username: user.username ?? null,
+      usernameRevision: user.usernameRevision ?? 0,
       joinedAt: user.joinedAt ?? null,
       identityRevision: user.identityRevision ?? 0,
       selectionRevision: user.selectionRevision ?? 0,
