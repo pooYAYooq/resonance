@@ -5,6 +5,7 @@ import { register as registerRateLimiter } from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, components, internal } from "./_generated/api";
+import { authComponent } from "./auth";
 import {
   rateLimiter,
   USERNAME_CLAIM_LIMIT,
@@ -528,6 +529,63 @@ describe("username ownership", () => {
     const { retireAccount } = await import("./usernames");
     expect(retireAccount.isInternal).toBe(true);
     expect(Object.hasOwn(retireAccount, "isPublic")).toBe(false);
+  });
+
+  it("keeps every name blocked after the Better Auth account is deleted", async () => {
+    const t = setup();
+    const { own, ownerUserId } = await signedIn(t, "deleted@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "firstname",
+      expectedRevision: 0,
+    });
+    // A distinct new name needs the 90-day allowance to refill; otherwise the
+    // second claim is a cooldown and no second permanent row exists to retire.
+    vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
+    await own.mutation(api.usernames.claimUsername, {
+      username: "secondname",
+      expectedRevision: 1,
+    });
+
+    // Better Auth only mints the onDelete handle when deletion runs through the
+    // app adapter configured with both authFunctions and triggers, so exercise
+    // the configured internal.auth.onDelete -> retireAccount callback path
+    // instead of the raw component adapter that skips the trigger.
+    await t.run(async (ctx) => {
+      await authComponent
+        .adapter(ctx)({})
+        .delete({
+          model: "user",
+          where: [{ field: "_id", value: ownerUserId }],
+        });
+    });
+
+    const survivor = await signedIn(t, "survivor@example.com");
+    expect(
+      await survivor.own.mutation(api.usernames.claimUsername, {
+        username: "firstname",
+        expectedRevision: 0,
+      }),
+    ).toEqual({ kind: "unavailable" });
+    expect(
+      await survivor.own.mutation(api.usernames.claimUsername, {
+        username: "secondname",
+        expectedRevision: 0,
+      }),
+    ).toEqual({ kind: "unavailable" });
+    // Both names survive as permanent blocks with no live owner, which is the
+    // retirement write the raw adapter deletion cannot perform on its own.
+    expect(
+      (await claims(t)).map((claim) => ({
+        usernameLower: claim.usernameLower,
+        ownerUserId: claim.ownerUserId ?? null,
+      })),
+    ).toEqual([
+      { usernameLower: "firstname", ownerUserId: null },
+      { usernameLower: "secondname", ownerUserId: null },
+    ]);
+    expect(
+      await t.query(api.users.getUserProfile, { userId: ownerUserId }),
+    ).toBeNull();
   });
 
   it("refuses anonymous, missing-profile, and caller-selected owner writes", async () => {
