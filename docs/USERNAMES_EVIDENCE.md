@@ -30,12 +30,20 @@ amended editor source. The real-runtime concurrent-claim evidence later in this
 document belongs to that earlier collection; the real-runtime deletion/edit race
 belongs to the current revision.
 
+Three editor review fixes were then applied on the working tree on top of
+`ceb2bc5`: preserving typing made while a save is pending, refreshing
+eligibility at the cooldown deadline with a capped re-armed timer, and labeling a
+first claim when the account has no saved username. Their regression tests live
+in `UsernameEditor.test.tsx`, and the four required commands were re-run on that
+working tree (below). No backend, dependency, generated file, or vitest
+configuration changed.
+
 ## Required verification
 
 ### Deletion/edit interleave coverage
 
 After adding the three coverage cases, the following commands passed in the
-requested order on `2b56de8` plus both uncommitted fix rounds:
+requested order on the committed fix rounds (`b4f9f73` and `ceb2bc5`):
 
 | Command                                                                 | Result                             | Exit |
 | ----------------------------------------------------------------------- | ---------------------------------- | ---- |
@@ -67,6 +75,25 @@ failed four assertions: Save enabled during debounce, Save enabled after debounc
 with an unresolved query, and confirmation copy drifting in each classification
 direction. After implementation the editor suite passed 24/24; the final focused
 and full component runs also include all 24 editor tests.
+
+### Editor review fixes on the working tree
+
+Applied on top of `ceb2bc5` and run on 2026-10-16. All four commands passed:
+
+| Command                              | Result                                                           | Exit |
+| ------------------------------------ | ---------------------------------------------------------------- | ---- |
+| `pnpm lint`                          | No ESLint diagnostics                                            | 0    |
+| `pnpm test:ci`                       | 48 files, 813 tests passed (8.72s)                               | 0    |
+| `pnpm test:component --maxWorkers=1` | 88 files, 875 tests passed (266.51s)                             | 0    |
+| `pnpm build`                         | Compiled successfully; TypeScript step clean; 18/18 static pages | 0    |
+
+The focused command
+`pnpm exec vitest run --config vitest.ui.config.ts 'app/(site)/profile/edit'`
+passed 6 files and 137 tests. The three new editor regressions were captured RED
+before the implementation (28 editor tests: 3 failed) and passed after it (28
+passed); a follow-up regression re-blocks a later eligibility deadline and brings
+the editor file to 29 tests. The runs emitted no `act` warnings. The change is
+editor-only, so the edge `test:ci` count is unchanged from the final head.
 
 ### Historical verification at `9fae573`
 
@@ -173,7 +200,7 @@ tests also reject invalid spelling even when the supplied revision is stale.
 
 ### Editor (`app/(site)/profile/edit/_components/`)
 
-`UsernameEditor.test.tsx` (24 tests) and `useDebouncedValue.test.tsx` (2 tests)
+`UsernameEditor.test.tsx` (29 tests) and `useDebouncedValue.test.tsx` (2 tests)
 cover: an immediate format error with the save disabled and no mutation;
 the eligibility date and time shown once the allowance is spent; a free new name
 reported as available but not claimable; a capitalization-only save with no
@@ -192,8 +219,16 @@ during cooldown; and an open dialog keeps its captured target and classification
 when the advisory query changes in either direction. Existing new-claim tests now
 wait for actual availability before opening confirmation, rather than relying on
 the former unclassified Save behavior. The server-authoritative unavailable and
-conflict outcomes still preserve the draft. The focused `/profile/edit`
-component suite ran 132/132.
+conflict outcomes still preserve the draft. Editor review regressions add: typing
+made while a capitalization-only save is pending survives the resolved mutation,
+while a save with no intervening typing still adopts the saved spelling; a client
+deadline derived from the remaining wait unblocks a new claim and flips the copy
+when the cooldown ends with the tab open, while a roughly 90-day wait is capped
+and re-armed instead of firing immediately; and a first claim with no saved
+username renders `Claim <target> as your username` rather than an empty source.
+A follow-up regression re-blocks a new claim when a refreshed query pushes the
+eligibility deadline later, restoring the blocked copy. The focused
+`/profile/edit` component suite ran 137/137.
 
 ## Browser and accessibility evidence
 
@@ -203,15 +238,21 @@ session. The signed-in account was the maintainer's own and has no username. No
 account data was changed: no claim was confirmed, no field was saved, and the
 editor draft was reloaded afterwards.
 
-| Check                        | Method                              | Result                                                                                                                                                                                                 |
-| ---------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Format-error association     | type `pooya-k`                      | `Use only English letters, numbers, and underscores.`; input `aria-invalid="true"`; `aria-describedby` lists both the help and error element ids; the error element exists; Save disabled; no mutation |
-| Reserved/unavailable name    | type `resonance`                    | `Username unavailable.` with an `aria-hidden` `circle-x` icon; Save disabled                                                                                                                           |
-| Free new name                | type `zzbrowsercheck7`              | `Available.` with an `aria-hidden` `circle-check` icon; Save enabled                                                                                                                                   |
-| New-claim confirmation       | open Save                           | title `Change your username?`; new-claim copy naming the 90-day wait plus the old-to-new line; focus moved into the dialog (Cancel focused); Cancel and Escape closed it with no save                  |
-| Keyboard path                | focus input, Tab, Enter, Escape     | Tab reached `Save username`; Enter opened the dialog; Escape closed it                                                                                                                                 |
-| 30-character and narrow name | 30-char value at 2554 px and 375 px | no page-level horizontal overflow at either width; at 375 px the field scrolls its text internally and stays inside the viewport                                                                       |
-| Console                      | during the pass                     | 0 errors, 0 warnings                                                                                                                                                                                   |
+| Check                        | Method                              | Result                                                                                                                                                                                                            |
+| ---------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format-error association     | type `pooya-k`                      | `Use only English letters, numbers, and underscores.`; input `aria-invalid="true"`; `aria-describedby` lists both the help and error element ids; the error element exists; Save disabled; no mutation            |
+| Reserved/unavailable name    | type `resonance`                    | `Username unavailable.` with an `aria-hidden` `circle-x` icon; Save disabled                                                                                                                                      |
+| Free new name                | type `zzbrowsercheck7`              | `Available.` with an `aria-hidden` `circle-check` icon; Save enabled                                                                                                                                              |
+| New-claim confirmation       | open Save                           | title `Change your username?`; new-claim copy naming the 90-day wait and `Claim <new> as your username` (no saved source); focus moved into the dialog (Cancel focused); Cancel and Escape closed it with no save |
+| Keyboard path                | focus input, Tab, Enter, Escape     | Tab reached `Save username`; Enter opened the dialog; Escape closed it                                                                                                                                            |
+| 30-character and narrow name | 30-char value at 2554 px and 375 px | no page-level horizontal overflow at either width; at 375 px the field scrolls its text internally and stays inside the viewport                                                                                  |
+| Console                      | during the pass                     | 0 errors, 0 warnings                                                                                                                                                                                              |
+
+The confirmation row was re-checked against the review-fixed editor: the
+first-claim dialog now reads `Claim zzbrowsercheck7 as your username` with no
+empty source. The `Free new name` Save-gating observation is unchanged for an
+account with no active cooldown; the cooldown-expiry re-block behavior is covered
+by fake-timer component tests.
 
 Not exercised in the browser, and covered by component tests only:
 
@@ -261,6 +302,9 @@ produce a specific message, so this is intended, not a defect.
   remain component-test-only, because the signed-in account has no username and
   exercising them would consume its real 90-day allowance. No real screen-reader
   session was run; the pass inspected keyboard behavior and ARIA wiring directly.
+  The first-claim confirmation row was re-recorded after the review fixes; the
+  cooldown-expiry re-block behavior is component-test only because this account
+  has no active cooldown.
 - **Public addressing and signup assignment are absent.** The public profile
   still serves `/u/[userId]`, and new accounts have no username until one is
   claimed through `/profile/edit`.

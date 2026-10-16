@@ -113,13 +113,107 @@ describe("UsernameEditor", () => {
     ).toBeInTheDocument();
   });
 
-  it("reports a free new name as available but not yet claimable", async () => {
-    const user = userEvent.setup();
+  it("enables a new claim when the cooldown deadline passes while the tab is open", () => {
+    vi.useFakeTimers();
     render(
       <UsernameEditor
         {...baseProps}
         newClaimAllowed={false}
-        newClaimRetryAfterMs={1}
+        newClaimRetryAfterMs={1000}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Username"), {
+      target: { value: "someoneelse" },
+    });
+    act(() => vi.advanceTimersByTime(350));
+
+    // The query still reports the allowance as spent, so Save is blocked.
+    expect(
+      screen.getByText("Available, but you cannot claim a new name yet."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save username" }),
+    ).toBeDisabled();
+
+    // Elapsed time is a client-derived deadline: once the server would accept
+    // the claim, the editor must unblock without a reactive data change.
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText("Available.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save username" })).toBeEnabled();
+  });
+
+  it("does not fire an extremely long cooldown timer immediately", () => {
+    vi.useFakeTimers();
+    render(
+      <UsernameEditor
+        {...baseProps}
+        newClaimAllowed={false}
+        newClaimRetryAfterMs={90 * 24 * 60 * 60 * 1000}
+      />,
+    );
+
+    // A raw ~90-day timeout overflows the 32-bit setTimeout limit and fires at
+    // once; the capped, re-armed timer must keep waiting.
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(
+      screen.getByText(
+        /You can claim a new username after your 90-day wait ends/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("re-blocks a new claim when a later eligibility deadline arrives", () => {
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <UsernameEditor
+        {...baseProps}
+        newClaimAllowed={false}
+        newClaimRetryAfterMs={1000}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Username"), {
+      target: { value: "someoneelse" },
+    });
+    act(() => vi.advanceTimersByTime(350));
+    expect(
+      screen.getByText("Available, but you cannot claim a new name yet."),
+    ).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText("Available.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save username" })).toBeEnabled();
+
+    // A refreshed query pushes the deadline into the future. The local flag
+    // must track the new deadline instead of staying elapsed.
+    rerender(
+      <UsernameEditor
+        {...baseProps}
+        newClaimAllowed={false}
+        newClaimRetryAfterMs={60_000}
+      />,
+    );
+    expect(
+      screen.getByText("Available, but you cannot claim a new name yet."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save username" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(
+        /You can claim a new username after your 90-day wait ends/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("reports a free new name as available but not yet claimable", async () => {
+    const user = userEvent.setup();
+    render(
+      // A realistic remaining wait keeps the client deadline in the future for
+      // the duration of the test; a near-zero retry would legitimately be due.
+      <UsernameEditor
+        {...baseProps}
+        newClaimAllowed={false}
+        newClaimRetryAfterMs={78 * 24 * 60 * 60 * 1000}
       />,
     );
 
@@ -385,6 +479,42 @@ describe("UsernameEditor", () => {
     expect(screen.getByLabelText("Username")).toHaveValue("NewChoice");
   });
 
+  it("preserves newer typing when a capitalization-only save resolves", async () => {
+    const user = userEvent.setup();
+    let resolveClaim: (value: unknown) => void = () => {};
+    claimUsernameMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveClaim = resolve;
+      }),
+    );
+    render(<UsernameEditor {...baseProps} />);
+    const input = screen.getByLabelText("Username");
+
+    await user.clear(input);
+    await user.type(input, "Pooya");
+    await user.click(screen.getByRole("button", { name: "Save username" }));
+    await waitFor(() =>
+      expect(claimUsernameMock).toHaveBeenCalledWith({
+        username: "Pooya",
+        expectedRevision: 3,
+      }),
+    );
+
+    // The request is still pending, so the field stays editable. Type a
+    // different valid name before it resolves.
+    await user.clear(input);
+    await user.type(input, "newchoice");
+    await act(async () => {
+      resolveClaim({ kind: "saved", username: "Pooya", revision: 4 });
+    });
+
+    // The completed request must not clobber the newer draft, and that draft
+    // must remain saveable.
+    expect(screen.getByLabelText("Username")).toHaveValue("newchoice");
+    expect(await screen.findByText("Available.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save username" })).toBeEnabled();
+  });
+
   it("reports a name taken between checking and saving neutrally", async () => {
     const user = userEvent.setup();
     availabilityMock.mockImplementation((args: { username: string }) =>
@@ -533,6 +663,21 @@ describe("UsernameEditor", () => {
     expect(
       screen.getByText(/90-day wait before you can claim another/),
     ).toBeInTheDocument();
+  });
+
+  it("labels a first claim when there is no saved username", async () => {
+    const user = userEvent.setup();
+    render(<UsernameEditor {...baseProps} initialUsername={null} />);
+    const input = screen.getByLabelText("Username");
+    await user.clear(input);
+    await user.type(input, "newchoice");
+    await screen.findByText("Available.");
+    await user.click(screen.getByRole("button", { name: "Save username" }));
+
+    expect(
+      await screen.findByText("Claim newchoice as your username"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/ to newchoice/)).toBeNull();
   });
 
   it("distinguishes switching to a previous name from a new claim", async () => {

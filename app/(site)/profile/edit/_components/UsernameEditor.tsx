@@ -14,7 +14,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -159,6 +159,38 @@ export function UsernameEditor({
     : availability?.status === "available"
       ? "new"
       : null;
+  // Elapsed time mutates no subscribed data, so the query alone cannot unblock
+  // a tab that stays open past the cooldown's end. Derive a client deadline and
+  // re-arm a capped timer to flip the allowance locally; the mutation still
+  // decides authority, and a `cooldown` result is handled on save.
+  const waitDeadline = useMemo(
+    () =>
+      newClaimAllowed ? null : Date.now() + Math.max(0, newClaimRetryAfterMs),
+    [newClaimAllowed, newClaimRetryAfterMs],
+  );
+  const [waitElapsed, setWaitElapsed] = useState(false);
+  useEffect(() => {
+    const deadlinePassed = waitDeadline !== null && waitDeadline <= Date.now();
+    // Always reflect the current deadline, so a refreshed, later deadline
+    // re-blocks a claim that had locally become eligible.
+    setWaitElapsed(deadlinePassed);
+    if (waitDeadline === null || deadlinePassed) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      const remaining = waitDeadline - Date.now();
+      if (remaining <= 0) {
+        setWaitElapsed(true);
+        return;
+      }
+      // Cap below the 32-bit setTimeout limit (~24.8 days) and re-arm.
+      timer = setTimeout(schedule, Math.min(remaining, 3_600_000));
+    };
+    schedule();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [waitDeadline]);
+  const claimAllowed = newClaimAllowed || waitElapsed;
   const canSave =
     live.ok &&
     !pending &&
@@ -166,7 +198,7 @@ export function UsernameEditor({
     !isBlocked &&
     (isStylingOnly ||
       classification === "owned" ||
-      (classification === "new" && newClaimAllowed));
+      (classification === "new" && claimAllowed));
 
   function requestSave() {
     if (!canSave || !live.ok) return;
@@ -204,7 +236,16 @@ export function UsernameEditor({
       if (result.kind === "saved") {
         setSavedUsername(result.username);
         setSavedRevision(result.revision);
-        setDraft(result.username);
+        // Adopt the saved spelling only while the draft still resolves to the
+        // submitted target; text typed while this request was pending must not
+        // be clobbered.
+        setDraft((current) => {
+          const cur = normalizeUsername(current);
+          const sent = normalizeUsername(username);
+          return cur.ok && sent.ok && cur.canonical === sent.canonical
+            ? result.username
+            : current;
+        });
         setConfirmation(null);
         setSaveError(null);
         setUsernameConflict(false);
@@ -235,7 +276,7 @@ export function UsernameEditor({
   const status: { kind: StatusKind; text: string } | null = isBlocked
     ? { kind: "taken", text: "Username unavailable." }
     : availability?.status === "available"
-      ? newClaimAllowed
+      ? claimAllowed
         ? { kind: "available", text: "Available." }
         : {
             kind: "unclaimable",
@@ -260,12 +301,12 @@ export function UsernameEditor({
       )}.`,
     [newClaimRetryAfterMs],
   );
-  const defaultDescription = newClaimAllowed
+  const defaultDescription = claimAllowed
     ? "You can claim a new username now."
     : allowanceWaitText;
   // The wait line is always visible when the allowance is spent, even while a
   // status line occupies the primary description.
-  const showAllowanceDate = !newClaimAllowed && status !== null;
+  const showAllowanceDate = !claimAllowed && status !== null;
   const errorText = saveError ?? localError;
   const inputId = `username-${userId}`;
   const helpId = `${inputId}-help`;
@@ -352,7 +393,9 @@ export function UsernameEditor({
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">
-            {savedUsername ?? ""} to {confirmation?.target}
+            {savedUsername
+              ? `${savedUsername} to ${confirmation?.target}`
+              : `Claim ${confirmation?.target} as your username`}
           </p>
           <DialogFooter>
             <Button

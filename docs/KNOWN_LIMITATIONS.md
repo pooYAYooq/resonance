@@ -102,11 +102,13 @@ evidence resolves them. The previous detailed delivery history remains in
   page is not built.
 - The username editor's browser and accessibility evidence is partial. A
   real-browser pass covers the format-error association, the available and
-  unavailable states with their icons, the new-claim confirmation, keyboard
-  open/close, and 30-character and narrow layouts. The `already current` and
-  `owned previous name` states and copy, the cross-tab reload/conflict flow, a
-  real screen-reader session, and the `ProfileIdentityForm` full-width Display
-  name row remain component-test-only.
+  unavailable states with their icons, the new-claim confirmation (re-recorded
+  after the review fixes), keyboard open/close, and 30-character and narrow
+  layouts. The `already current` and `owned previous name` states and their copy,
+  the cross-tab reload/conflict flow, a real screen-reader session, and the
+  `ProfileIdentityForm` full-width Display name row remain component-test-only.
+  The cooldown-expiry re-block behavior is component-test only because the
+  maintainer's account has no active cooldown.
 - Real-runtime simultaneous-claim behavior has a single deterministic check
   against the personal dev deployment (exactly one winner), recorded in
   [username evidence](USERNAMES_EVIDENCE.md). It is not a repeated or high-load
