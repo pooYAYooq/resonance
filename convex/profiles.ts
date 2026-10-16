@@ -11,8 +11,9 @@ import {
   paginationOptsValidator,
   paginationResultValidator,
 } from "convex/server";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { authComponent } from "./auth";
+import { rateLimiter, USERNAME_CLAIM_LIMIT } from "./rateLimiter";
 import { MAX_SELECTED_POSTS, countCodePoints } from "../lib/profile-identity";
 import {
   assertPageSize,
@@ -52,6 +53,10 @@ const editorProfileValidator = v.object({
   userId: v.string(),
   username: v.union(v.string(), v.null()),
   usernameRevision: v.number(),
+  newUsernameClaim: v.object({
+    allowed: v.boolean(),
+    retryAfterMs: v.number(),
+  }),
   email: v.union(v.string(), v.null()),
   avatarUrl: v.union(v.string(), v.null()),
   identity: identityInputValidator,
@@ -84,6 +89,17 @@ export const getPublicIdentity = query({
   },
 });
 
+/** The caller's remaining new-name allowance, read without consuming it. */
+async function readClaimAllowance(
+  ctx: QueryCtx,
+  userId: string,
+): Promise<{ allowed: boolean; retryAfterMs: number }> {
+  const status = await rateLimiter.check(ctx, USERNAME_CLAIM_LIMIT, {
+    key: userId,
+  });
+  return { allowed: status.ok, retryAfterMs: status.retryAfter ?? 0 };
+}
+
 export const getEditorProfile = query({
   args: {},
   returns: v.union(editorProfileValidator, v.null()),
@@ -99,6 +115,7 @@ export const getEditorProfile = query({
       identity: storedIdentity(user),
       username: user.username ?? null,
       usernameRevision: user.usernameRevision ?? 0,
+      newUsernameClaim: await readClaimAllowance(ctx, authUser._id),
       joinedAt: user.joinedAt ?? null,
       identityRevision: user.identityRevision ?? 0,
       selectionRevision: user.selectionRevision ?? 0,

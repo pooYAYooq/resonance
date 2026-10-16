@@ -160,7 +160,6 @@ export function ProfileIdentityForm({
   );
   const [processedRevision, setProcessedRevision] = useState(revision);
   const [pending, setPending] = useState(false);
-  const [usernameDraft, setUsernameDraft] = useState("");
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof IdentityInput, string>>
   >({});
@@ -214,7 +213,6 @@ export function ProfileIdentityForm({
   const { value, conflict } = state;
   const dirty = !identityEquals(value, state.baseline);
   const nameCount = countCodePoints(value.displayName.trim());
-  const usernameCount = countCodePoints(usernameDraft);
   const bioCount = countCodePoints(value.bio);
   function patch<K extends keyof IdentityInput>(
     key: K,
@@ -384,10 +382,6 @@ export function ProfileIdentityForm({
       ? `Use at most ${MAX_PROFILE_NAME_CODE_POINTS} characters.`
       : fieldErrors.displayName;
   const nameError = { invalid: Boolean(nameMessage), error: nameMessage };
-  const usernameMessage =
-    usernameCount > MAX_PROFILE_NAME_CODE_POINTS
-      ? `Use at most ${MAX_PROFILE_NAME_CODE_POINTS} characters.`
-      : undefined;
   const bioError = fieldErrorProps("bio");
   const countryError = fieldErrorProps("countryCode");
   const socialError = fieldErrors.socialProfiles;
@@ -412,75 +406,42 @@ export function ProfileIdentityForm({
         <Separator />
 
         <FieldGroup className="gap-y-4">
-          <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field data-invalid={nameError.invalid || undefined}>
-              <FieldLabel htmlFor={`${BASE}-display-name`}>
-                Display name
-              </FieldLabel>
-              <div className="relative w-full">
-                <Input
-                  id={`${BASE}-display-name`}
-                  value={value.displayName}
-                  onChange={(event) => patch("displayName", event.target.value)}
-                  aria-describedby={
-                    nameError.error
-                      ? `${BASE}-display-name-error ${BASE}-display-name-count`
-                      : `${BASE}-display-name-count`
-                  }
-                  aria-invalid={nameError.invalid || undefined}
-                  className="w-full pr-16 aria-invalid:text-destructive"
-                  placeholder="Your name"
-                />
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums text-muted-foreground"
-                >
-                  {nameCount}/30
-                </span>
-              </div>
-              <span id={`${BASE}-display-name-count`} className="sr-only">
-                {nameCount} of 30 characters
+          <Field data-invalid={nameError.invalid || undefined}>
+            <FieldLabel htmlFor={`${BASE}-display-name`}>
+              Display name
+            </FieldLabel>
+            <div className="relative w-full">
+              <Input
+                id={`${BASE}-display-name`}
+                value={value.displayName}
+                onChange={(event) => patch("displayName", event.target.value)}
+                aria-describedby={
+                  nameError.error
+                    ? `${BASE}-display-name-error ${BASE}-display-name-count`
+                    : `${BASE}-display-name-count`
+                }
+                aria-invalid={nameError.invalid || undefined}
+                className="w-full pr-16 aria-invalid:text-destructive"
+                placeholder="Your name"
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums text-muted-foreground"
+              >
+                {nameCount}/30
               </span>
-              <div className="min-h-5">
-                {nameError.error && (
-                  <FieldError id={`${BASE}-display-name-error`}>
-                    {nameError.error}
-                  </FieldError>
-                )}
-              </div>
-            </Field>
-
-            <Field data-invalid={Boolean(usernameMessage) || undefined}>
-              <FieldLabel htmlFor={`${BASE}-username`}>Username</FieldLabel>
-              <div className="relative w-full">
-                <Input
-                  id={`${BASE}-username`}
-                  value={usernameDraft}
-                  onChange={(event) => setUsernameDraft(event.target.value)}
-                  placeholder="Choose a username"
-                  aria-describedby={`${BASE}-username-count${usernameMessage ? ` ${BASE}-username-error` : ""}`}
-                  aria-invalid={Boolean(usernameMessage) || undefined}
-                  className="w-full pr-16"
-                />
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums text-muted-foreground"
-                >
-                  {usernameCount}/{MAX_PROFILE_NAME_CODE_POINTS}
-                </span>
-              </div>
-              <span id={`${BASE}-username-count`} className="sr-only">
-                {usernameCount} of {MAX_PROFILE_NAME_CODE_POINTS} characters
-              </span>
-              <div className="min-h-5">
-                {usernameMessage && (
-                  <FieldError id={`${BASE}-username-error`}>
-                    {usernameMessage}
-                  </FieldError>
-                )}
-              </div>
-            </Field>
-          </FieldGroup>
+            </div>
+            <span id={`${BASE}-display-name-count`} className="sr-only">
+              {nameCount} of 30 characters
+            </span>
+            <div className="min-h-5">
+              {nameError.error && (
+                <FieldError id={`${BASE}-display-name-error`}>
+                  {nameError.error}
+                </FieldError>
+              )}
+            </div>
+          </Field>
 
           <Field data-invalid={bioError.invalid || undefined}>
             <FieldLabel htmlFor={`${BASE}-bio`}>Bio</FieldLabel>

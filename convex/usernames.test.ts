@@ -121,6 +121,23 @@ describe("username ownership", () => {
     });
   });
 
+  it("reports the allowance through the editor profile", async () => {
+    const t = setup();
+    const { own } = await signedIn(t, "allowance@example.com");
+
+    const before = await own.query(api.profiles.getEditorProfile, {});
+    expect(before?.newUsernameClaim.allowed).toBe(true);
+
+    await own.mutation(api.usernames.claimUsername, {
+      username: "firstname",
+      expectedRevision: 0,
+    });
+
+    const after = await own.query(api.profiles.getEditorProfile, {});
+    expect(after?.newUsernameClaim.allowed).toBe(false);
+    expect(after?.newUsernameClaim.retryAfterMs).toBeGreaterThan(0);
+  });
+
   it.each([
     "ab",
     "a".repeat(31),

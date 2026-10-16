@@ -55,6 +55,9 @@ vi.mock("convex/react", () => ({
       // adding right now is published even though it is not saved yet.
       return ids.filter((id) => !unavailablePostIds.has(id));
     }
+    if (query === "checkUsernameAvailability") {
+      return args === "skip" ? undefined : { status: "current" };
+    }
     return queryArgsMock(args);
   },
   useMutation: (mutation: unknown) =>
@@ -76,11 +79,18 @@ vi.mock("@/convex/_generated/api", () => ({
       getOwnSelectionAvailability: "getOwnSelectionAvailability",
       listOwnPublishedPosts: "listOwnPublishedPosts",
     },
+    usernames: {
+      claimUsername: "claimUsername",
+      checkUsernameAvailability: "checkUsernameAvailability",
+    },
   },
 }));
 
 const editorProfile = {
   userId: "auth-user-1",
+  username: "pooya",
+  usernameRevision: 0,
+  newUsernameClaim: { allowed: true, retryAfterMs: 0 },
   email: "ada@example.com",
   avatarUrl: "https://example.com/ada.png",
   identity: {
