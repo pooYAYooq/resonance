@@ -156,6 +156,20 @@ describe("username ownership", () => {
     });
   });
 
+  it("exposes the styled username on the public profile", async () => {
+    const t = setup();
+    const { own, subject } = await signedIn(t, "public-name@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "PooYaYooQ",
+      expectedRevision: 0,
+    });
+
+    const profile = await t.query(api.users.getUserProfile, {
+      userId: subject,
+    });
+    expect(profile?.username).toBe("PooYaYooQ");
+  });
+
   it("reports the allowance through the editor profile", async () => {
     const t = setup();
     const { own } = await signedIn(t, "allowance@example.com");

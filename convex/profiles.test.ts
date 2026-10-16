@@ -331,6 +331,7 @@ describe("profiles identity API", () => {
     expect(result).toEqual({
       userId: "public-author",
       displayName: "Public Author",
+      username: null,
       bio: "Hello",
       avatarUrl: null,
       countryCode: "IR",

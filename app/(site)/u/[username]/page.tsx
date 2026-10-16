@@ -84,6 +84,7 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
     <div className="py-12">
       <ProfileHeader
         displayName={displayName}
+        username={profile.username}
         bio={profile.bio}
         avatarUrl={profile.avatarUrl}
         userId={profile.userId}

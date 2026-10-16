@@ -23,6 +23,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+import { buildProfilePath } from "@/lib/username";
 import { ProfileIdentityForm } from "./_components/ProfileIdentityForm";
 import { SelectedWorkEditor } from "./_components/SelectedWorkEditor";
 import { UsernameEditor } from "./_components/UsernameEditor";
@@ -124,7 +125,11 @@ export default function EditProfileRoute() {
       <header className="flex flex-col gap-4 border-b pb-6">
         <Link
           className="inline-flex w-fit items-center gap-2 rounded-sm py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-          href={`/u/${editorProfile.userId}`}
+          href={
+            editorProfile.username
+              ? buildProfilePath(editorProfile.username)
+              : "/settings"
+          }
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back to profile
