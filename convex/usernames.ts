@@ -10,6 +10,7 @@ import {
   findClaim,
   MAX_RETIRE_BATCH,
   saveUsername,
+  usernamesForOwners,
   usernameAvailabilityValidator,
   usernameSaveValidator,
 } from "./usernameModel";
@@ -76,5 +77,70 @@ export const retireAccount = internalMutation({
       await rateLimiter.reset(ctx, USERNAME_CLAIM_LIMIT, { key: ownerUserId });
     }
     return null;
+  },
+});
+
+/**
+ * Resolves any spelling of a username to its owner's current address. Only the
+ * exact canonical lowercase form renders a profile; every other spelling of an
+ * owned name (mixed-case current spellings, previous names) redirects to the
+ * canonical address. Missing, invalid, reserved, and ownerless names resolve
+ * to `notFound` without disclosing ownership or history.
+ */
+export const resolveUsername = query({
+  args: { username: v.string() },
+  returns: v.union(
+    v.object({
+      kind: v.literal("profile"),
+      ownerUserId: v.string(),
+      username: v.string(),
+    }),
+    v.object({ kind: v.literal("redirect"), username: v.string() }),
+    v.object({ kind: v.literal("notFound") }),
+  ),
+  handler: async (ctx, args) => {
+    const normalized = normalizeUsername(args.username);
+    if (!normalized.ok) return { kind: "notFound" as const };
+
+    const claim = await findClaim(ctx, normalized.canonical);
+    if (!claim?.ownerUserId) return { kind: "notFound" as const };
+
+    const owner = await getOwnProfile(ctx, claim.ownerUserId);
+    const current = owner?.username;
+    const currentLower = owner?.usernameLower;
+    if (!current || !currentLower) {
+      // The claim outlived its owner's profile: the address is unavailable.
+      return { kind: "notFound" as const };
+    }
+    if (normalized.styled === currentLower) {
+      return {
+        kind: "profile" as const,
+        ownerUserId: claim.ownerUserId,
+        username: current,
+      };
+    }
+    return { kind: "redirect" as const, username: currentLower };
+  },
+});
+
+/**
+ * Current usernames for a set of owner IDs in argument order. Duplicate inputs
+ * return duplicate entries; reads are de-duplicated and bounded to
+ * `MAX_USERNAME_LOOKUP` distinct owners.
+ */
+export const getUsernamesForOwners = query({
+  args: { userIds: v.array(v.string()) },
+  returns: v.array(
+    v.object({
+      userId: v.string(),
+      username: v.union(v.string(), v.null()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const known = await usernamesForOwners(ctx, args.userIds);
+    return args.userIds.map((userId) => ({
+      userId,
+      username: known.get(userId) ?? null,
+    }));
   },
 });

@@ -3,10 +3,14 @@ import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { isReservedUsername, normalizeUsername } from "../lib/username";
+import { getOwnProfile } from "./profileModel";
 import { rateLimiter, USERNAME_CLAIM_LIMIT } from "./rateLimiter";
 
 /** One bounded retirement batch; larger accounts schedule a continuation. */
 export const MAX_RETIRE_BATCH = 100;
+
+/** One bounded lookup page; callers compose at most this many authors. */
+export const MAX_USERNAME_LOOKUP = 50;
 
 export type UsernameSave =
   | { kind: "saved"; username: string; revision: number }
@@ -110,4 +114,35 @@ export async function saveUsername(
     usernameRevision: revision + 1,
   });
   return { kind: "saved", username: styled, revision: revision + 1 };
+}
+
+/** The owner's current styled username, or null when they have none. */
+export async function usernameForOwner(
+  ctx: QueryCtx,
+  userId: string,
+): Promise<string | null> {
+  const user = await getOwnProfile(ctx, userId);
+  return user?.username ?? null;
+}
+
+/**
+ * Current usernames for a bounded, de-duplicated set of owners. Duplicate
+ * inputs collapse to one read so a repeated author costs nothing extra.
+ */
+export async function usernamesForOwners(
+  ctx: QueryCtx,
+  userIds: readonly string[],
+): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(userIds)).slice(0, MAX_USERNAME_LOOKUP);
+  const entries = await Promise.all(
+    unique.map(async (userId) => {
+      const username = await usernameForOwner(ctx, userId);
+      return [userId, username] as const;
+    }),
+  );
+  return new Map(
+    entries.filter(
+      (entry): entry is readonly [string, string] => entry[1] !== null,
+    ),
+  );
 }
