@@ -2,6 +2,7 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { ensureAppProfile } from "./accountProvisioning";
 import { authComponent } from "./auth";
 import { getOwnProfile } from "./profileModel";
 import { isReservedUsername, normalizeUsername } from "../lib/username";
@@ -50,6 +51,33 @@ export const checkUsernameAvailability = query({
     }
     if (isReservedUsername(canonical)) return { status: "taken" as const };
     return { status: "available" as const };
+  },
+});
+
+/**
+ * The Better Auth account-created trigger. Runs in the same transaction as the
+ * auth-user insert, so a signup that survives account creation also has an app
+ * profile and its generated username. Idempotent with `users.syncUser`, which
+ * converges the same record through the shared `ensureAppProfile` helper.
+ */
+export const provisionAccount = internalMutation({
+  args: {
+    authUserId: v.string(),
+    name: v.union(v.string(), v.null()),
+    email: v.union(v.string(), v.null()),
+    image: v.union(v.string(), v.null()),
+    createdAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    await ensureAppProfile(ctx, {
+      _id: args.authUserId,
+      name: args.name,
+      email: args.email,
+      image: args.image,
+      createdAt: args.createdAt,
+    });
+    return null;
   },
 });
 

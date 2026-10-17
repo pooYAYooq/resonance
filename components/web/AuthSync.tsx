@@ -14,35 +14,76 @@
  *
  * This component is deliberately placed inside `ConvexClientProvider`
  * (and thus inside `ConvexBetterAuthProvider`) so `useConvexAuth` has
- * access to the auth state. It does not render any UI — it only runs
- * a side effect and passes children through.
+ * access to the auth state.
+ *
+ * A failed sync is recoverable, not swallowed: the children always render and a
+ * non-blocking banner offers a manual retry. There is no automatic backoff, so
+ * the retry path stays deterministic and the user controls when to try again.
+ * The `onCreate` trigger in `convex/auth.ts` already provisions the profile at
+ * account creation; this effect converges accounts that predate that trigger.
  */
 
 "use client";
 
-import { useEffect } from "react";
-import { useConvexAuth } from "convex/react";
-import { useMutation } from "convex/react";
+import { useEffect, useState } from "react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 interface AuthSyncProps {
   children: React.ReactNode;
 }
 
+type SyncState = "idle" | "failed" | "retrying";
+
 export function AuthSync({ children }: AuthSyncProps) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const syncUser = useMutation(api.users.syncUser);
+  const [syncState, setSyncState] = useState<SyncState>("idle");
 
-  // Sync app-level user record after every sign-in. The catch() suppresses
-  // errors because the user might already exist or the mutation might race
-  // with a concurrent sync. `syncUser` is idempotent, so races are safe.
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      syncUser({}).catch(() => {
-        // Intentionally suppressed — syncUser is idempotent and races are harmless.
-      });
-    }
+    if (!isAuthenticated || isLoading) return;
+    let cancelled = false;
+    // Handle both outcomes so a failure never becomes an unhandled rejection.
+    syncUser({}).then(
+      () => {
+        if (!cancelled) setSyncState("idle");
+      },
+      () => {
+        if (!cancelled) setSyncState("failed");
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, isLoading, syncUser]);
 
-  return <>{children}</>;
+  const retry = () => {
+    setSyncState("retrying");
+    syncUser({}).then(
+      () => setSyncState("idle"),
+      () => setSyncState("failed"),
+    );
+  };
+
+  return (
+    <>
+      {children}
+      {syncState !== "idle" && (
+        <div
+          role="alert"
+          className="fixed bottom-4 right-4 z-50 flex max-w-sm items-center gap-3 rounded-lg border border-border bg-background p-4 text-sm text-foreground shadow-lg"
+        >
+          <span>We could not finish setting up your account.</span>
+          <button
+            type="button"
+            onClick={retry}
+            disabled={syncState === "retrying"}
+            className="shrink-0 rounded-md border border-border px-3 py-1 font-medium disabled:opacity-60"
+          >
+            {syncState === "retrying" ? "Retrying…" : "Try again"}
+          </button>
+        </div>
+      )}
+    </>
+  );
 }

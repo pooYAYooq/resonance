@@ -6,6 +6,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, components, internal } from "./_generated/api";
 import { authComponent } from "./auth";
+import { buildGeneratedUsername } from "../lib/username";
 import {
   rateLimiter,
   USERNAME_CLAIM_LIMIT,
@@ -65,6 +66,56 @@ async function signedIn(
   const own = t.withIdentity(identity);
   if (sync) await own.mutation(api.users.syncUser, {});
   return { own, ownerUserId: identity.subject, subject: identity.subject };
+}
+
+/**
+ * Creates a Better Auth user plus session through the app adapter configured
+ * with the lifecycle triggers, without calling `syncUser`. This proves the
+ * `onCreate` trigger alone provisions the profile and its generated username.
+ * The raw `components.betterAuth.adapter.create` path skips triggers because
+ * the component only runs `onCreate` when the app adapter attaches the handle.
+ */
+async function createAccount(t: ReturnType<typeof setup>, email: string) {
+  return await t.run(async (ctx) => {
+    const now = Date.now();
+    const user = await authComponent.adapter(ctx)({}).create({
+      model: "user",
+      data: {
+        name: "Ada",
+        email,
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user.id,
+            token: `session-${user.id}`,
+            expiresAt: now + 20 * USERNAME_CLAIM_PERIOD_MS,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user.id, sessionId: session._id };
+  });
+}
+
+/** Claim rows owned by one account, read through the ownership index. */
+async function ownerClaims(t: ReturnType<typeof setup>, ownerUserId: string) {
+  return await t.run(
+    async (ctx) =>
+      await ctx.db
+        .query("usernameClaims")
+        .withIndex("by_ownerUserId", (q) => q.eq("ownerUserId", ownerUserId))
+        .take(300),
+  );
 }
 
 async function allowance(t: ReturnType<typeof setup>, key: string) {
@@ -164,6 +215,119 @@ describe("initial assignment", () => {
     await own.mutation(api.users.syncUser, {});
     const profile = await own.query(api.profiles.getEditorProfile, {});
     expect(profile?.username).toBe("mychoice");
+  });
+});
+
+describe("account lifecycle provisioning", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(START);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("provisions the profile and a username when the auth account is created", async () => {
+    const t = setup();
+    const identity = await createAccount(t, "triggered@example.com");
+    const own = t.withIdentity(identity);
+
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile).not.toBeNull();
+    expect(profile?.username).toMatch(/^Reso_[a-z2-9]{10}$/i);
+    expect(profile?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, identity.subject);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: profile?.username?.toLowerCase(),
+      ownerUserId: identity.subject,
+      createdAt: START,
+    });
+  });
+
+  it("converges a pre-existing app record without a username onto one generated name", async () => {
+    const t = setup();
+    const { own, ownerUserId } = await signedIn(t, "legacy@example.com", false);
+    // Model an app record that predates automatic assignment: no lifecycle
+    // trigger ran and no username exists yet.
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: ownerUserId,
+        displayName: "Legacy",
+        bio: "",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
+        publishedPostCount: 0,
+        createdAt: START,
+      });
+    });
+    expect(await ownerClaims(t, ownerUserId)).toHaveLength(0);
+
+    await own.mutation(api.users.syncUser, {});
+
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile?.username).toMatch(/^Reso_[a-z2-9]{10}$/i);
+    expect(profile?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, ownerUserId);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: profile?.username?.toLowerCase(),
+      ownerUserId,
+    });
+  });
+
+  it("rolls the auth account and profile back when provisioning exhausts its budget", async () => {
+    const t = setup();
+    // A constant generator makes budget exhaustion deterministic: every
+    // attempt targets the same canonical name, which a pre-existing claim owns.
+    const collision = buildGeneratedUsername(() => 0.5);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("usernameClaims", {
+        usernameLower: collision.canonical,
+        ownerUserId: "existing-owner",
+        createdAt: START,
+      });
+    });
+    const claimsBefore = await claims(t);
+
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    let failure: unknown;
+    try {
+      await createAccount(t, "exhausted@example.com");
+    } catch (error) {
+      failure = error;
+    } finally {
+      random.mockRestore();
+    }
+
+    // The trigger failure must propagate through the auth-user creation
+    // mutation instead of being swallowed.
+    expect(failure).toBeInstanceOf(Error);
+    expect(String(failure)).toMatch(/username/i);
+    // Atomic rollback: no auth user, no app profile, and no new claim row.
+    expect(
+      await t.run(
+        async (ctx) =>
+          await authComponent.adapter(ctx)({}).findOne({
+            model: "user",
+            where: [{ field: "email", value: "exhausted@example.com" }],
+          }),
+      ),
+    ).toBeNull();
+    expect(
+      await t.run(
+        async (ctx) =>
+          await ctx.db
+            .query("users")
+            .withIndex("by_email", (q) =>
+              q.eq("email", "exhausted@example.com"),
+            )
+            .unique(),
+      ),
+    ).toBeNull();
+    expect(await claims(t)).toEqual(claimsBefore);
   });
 });
 

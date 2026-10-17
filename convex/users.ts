@@ -11,32 +11,41 @@
  * rather than accepting user IDs as arguments — this prevents callers from
  * impersonating other users.
  */
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { authComponent } from "./auth";
 import { internal } from "./_generated/api";
+import { ensureAppProfile } from "./accountProvisioning";
 import { DISCOVER_BATCH_SIZE } from "./discoverProjection";
-import { getCodePointCount } from "../lib/post-content";
-import {
-  MAX_POST_AUTHOR_NAME_CODE_POINTS,
-  truncatePostAuthorName,
-} from "../lib/post-capacity";
 import { formatCalendarJoinedDate } from "../lib/profile-joined-date";
-import { ensureUsername } from "./usernameModel";
 
-function validateDisplayName(displayName: string): void {
-  if (getCodePointCount(displayName) > MAX_POST_AUTHOR_NAME_CODE_POINTS) {
-    throw new ConvexError(
-      `Display name must be ${MAX_POST_AUTHOR_NAME_CODE_POINTS} characters or fewer.`,
-    );
-  }
-}
-
-function normalizeProviderDisplayName(
-  providerName: string | null | undefined,
-): string | null {
-  const normalizedName = providerName?.trim();
-  return normalizedName ? truncatePostAuthorName(normalizedName) : null;
+/**
+ * Aligns Discover's denormalized author name after a profile is created.
+ *
+ * `syncUser` never changes display names (the author owns them), so this only
+ * runs for a record that was just created. An author-initiated display-name
+ * change is repaired by `saveIdentity` in `profileModel`.
+ */
+async function scheduleDiscoverRepairIfNeeded(
+  ctx: MutationCtx,
+  authorId: string,
+  displayName: string,
+): Promise<void> {
+  const projectedPosts = await ctx.db
+    .query("discoverPosts")
+    .withIndex("by_authorId", (q) => q.eq("authorId", authorId))
+    .take(1);
+  if (projectedPosts.length === 0) return;
+  // Keep Discover's denormalized author fields aligned without blocking auth sync.
+  await ctx.scheduler.runAfter(
+    0,
+    internal.discoverProjection.repairAuthorName,
+    {
+      authorId,
+      newAuthorName: displayName,
+      paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
+    },
+  );
 }
 
 const userValidator = v.object({
@@ -96,11 +105,14 @@ const publicProfileValidator = v.object({
  * the `users` table stays in sync with auth state. The mutation is
  * idempotent — calling it multiple times for the same user is safe.
  *
- * Why not a hook or trigger? Better Auth inside Convex does not expose
- * post-signup hooks, so the client must explicitly call syncUser after
- * auth state changes. The global `AuthSync` component (in
- * `components/web/AuthSync.tsx`) handles this via useEffect so it fires
- * on every page, not just pages that render the Navbar.
+ * New accounts are provisioned by the Better Auth `user.onCreate` trigger
+ * (`internal.usernames.provisionAccount`), which runs in the same transaction
+ * as the auth-user insert and reserves a generated username there. This
+ * mutation converges the same record through the shared `ensureAppProfile`
+ * helper, so a signup that survives account creation already has a username and
+ * a later sync is a no-op. The global `AuthSync` component (in
+ * `components/web/AuthSync.tsx`) calls this on every sign-in, not just on pages
+ * that render the Navbar.
  *
  * @returns `Id<"users">` — the Convex document ID of the upserted user.
  * @throws `ConvexError("Unauthorized")` if no valid session exists.
@@ -114,79 +126,17 @@ export const syncUser = mutation({
       throw new ConvexError("Unauthorized");
     }
 
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_userId", (q) => q.eq("userId", authUser._id))
-      .unique();
+    const { user, created } = await ensureAppProfile(ctx, authUser);
 
-    if (existing) {
-      // The author owns their display name, so auth sync never overwrites it.
-      // Email and provider avatar stay synced; a provider avatar change
-      // advances identityRevision so an open editor detects the new record.
-      const avatarChanged =
-        authUser.image != null && authUser.image !== existing.avatarUrl;
-      await ctx.db.patch(existing._id, {
-        email: authUser.email != null ? authUser.email : existing.email,
-        avatarUrl: authUser.image != null ? authUser.image : existing.avatarUrl,
-        ...(existing.joinedAt === undefined &&
-          typeof authUser.createdAt === "number" && {
-            joinedAt: authUser.createdAt,
-          }),
-        ...(avatarChanged && {
-          identityRevision: (existing.identityRevision ?? 0) + 1,
-        }),
-      });
-      // Converge accounts that predate automatic assignment onto the same rule.
-      const provisioned = await ensureUsername(ctx, existing);
-      return provisioned._id;
-    }
-
-    // Create new user record
-    // `?? undefined` coerces `null` → `undefined` so the value aligns with
-    // `v.optional(v.string())`, which accepts `string | undefined` but not `null`.
-    const displayName =
-      normalizeProviderDisplayName(authUser.name) ?? "Anonymous";
-    validateDisplayName(displayName);
-    const userId = await ctx.db.insert("users", {
-      userId: authUser._id,
-      displayName,
-      email: authUser.email ?? undefined,
-      avatarUrl: authUser.image ?? undefined,
-      bio: "",
-      joinedAt:
-        typeof authUser.createdAt === "number" ? authUser.createdAt : undefined,
-      followerCount: 0,
-      followingCount: 0,
-      unreadNotificationCount: 0,
-      publishedPostCount: 0,
-      createdAt: Date.now(),
-    });
-
-    const projectedPosts = await ctx.db
-      .query("discoverPosts")
-      .withIndex("by_authorId", (q) => q.eq("authorId", authUser._id))
-      .take(1);
-    if (projectedPosts.length > 0) {
-      // Keep Discover's denormalized author fields aligned without blocking auth sync.
-      await ctx.scheduler.runAfter(
-        0,
-        internal.discoverProjection.repairAuthorName,
-        {
-          authorId: authUser._id,
-          newAuthorName: displayName,
-          paginationOpts: { numItems: DISCOVER_BATCH_SIZE, cursor: null },
-        },
+    if (created) {
+      await scheduleDiscoverRepairIfNeeded(
+        ctx,
+        user.userId,
+        user.displayName,
       );
     }
 
-    const createdUser = await ctx.db.get(userId);
-    if (!createdUser) {
-      throw new ConvexError("Failed to create the app profile");
-    }
-    // Reserving a readable name here means a new account is usable without
-    // waiting on a later browser effect to finish provisioning.
-    const provisioned = await ensureUsername(ctx, createdUser);
-    return provisioned._id;
+    return user._id;
   },
 });
 
