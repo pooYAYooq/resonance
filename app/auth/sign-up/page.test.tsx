@@ -91,7 +91,7 @@ describe("SignUpPage", () => {
     expect(signUpMock).not.toHaveBeenCalled();
   });
 
-  it("routes a direct sign-up through the welcome", async () => {
+  it("routes a direct sign-up to the dashboard", async () => {
     const user = userEvent.setup();
     signUpMock.mockImplementation(({ fetchOptions }) => {
       fetchOptions.onSuccess();
@@ -121,13 +121,11 @@ describe("SignUpPage", () => {
       expect(toastSuccessMock).toHaveBeenCalledWith(
         "Account created successfully!",
       );
-      expect(pushMock).toHaveBeenCalledWith(
-        "/auth/welcome?returnTo=%2Fdashboard",
-      );
+      expect(pushMock).toHaveBeenCalledWith("/dashboard");
     });
   });
 
-  it("routes a validated internal return through the welcome", async () => {
+  it("ignores the return target for sign-up and lands on the dashboard", async () => {
     const user = userEvent.setup();
     searchParamsMock.set("returnTo", "/blog/post-1?tag=design");
     signUpMock.mockImplementation(({ fetchOptions }) => {
@@ -143,13 +141,11 @@ describe("SignUpPage", () => {
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith(
-        "/auth/welcome?returnTo=%2Fblog%2Fpost-1%3Ftag%3Ddesign",
-      );
+      expect(pushMock).toHaveBeenCalledWith("/dashboard");
     });
   });
 
-  it("uses the validated return route for OAuth providers", async () => {
+  it("lands every OAuth sign-up on the dashboard", async () => {
     const user = userEvent.setup();
     searchParamsMock.set("returnTo", "/u/user-1");
     render(<SignUpPage />);
@@ -159,11 +155,11 @@ describe("SignUpPage", () => {
 
     expect(signInSocialMock).toHaveBeenNthCalledWith(1, {
       provider: "google",
-      callbackURL: "/auth/welcome?returnTo=%2Fu%2Fuser-1",
+      callbackURL: "/dashboard",
     });
     expect(signInSocialMock).toHaveBeenNthCalledWith(2, {
       provider: "github",
-      callbackURL: "/auth/welcome?returnTo=%2Fu%2Fuser-1",
+      callbackURL: "/dashboard",
     });
   });
 
@@ -176,7 +172,7 @@ describe("SignUpPage", () => {
 
     expect(signInSocialMock).toHaveBeenCalledWith({
       provider: "google",
-      callbackURL: "/auth/welcome?returnTo=%2Fdashboard",
+      callbackURL: "/dashboard",
     });
 
     searchParamsMock.set("returnTo", "/auth/login");
@@ -186,7 +182,7 @@ describe("SignUpPage", () => {
 
     expect(signInSocialMock).toHaveBeenLastCalledWith({
       provider: "github",
-      callbackURL: "/auth/welcome?returnTo=%2Fdashboard",
+      callbackURL: "/dashboard",
     });
   });
 

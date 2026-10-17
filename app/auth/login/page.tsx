@@ -55,7 +55,6 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = getSafeReturnTo(searchParams.get("returnTo"));
-  const welcomePath = buildAuthHref("/auth/welcome", returnTo);
 
   /**
    * Submits the login form and logs the user in using the provided email and password.
@@ -70,13 +69,12 @@ function LoginForm() {
         fetchOptions: {
           /**
            * Called when the login request is successful.
-           * Shows a success toast and routes through the welcome, which carries
-           * the validated return path forward and decides whether to show the
-           * one-time greeting for this account.
+           * Shows a success toast and redirects to the validated return path,
+           * falling back to /dashboard.
            */
           onSuccess: () => {
             toast.success("Logged in successfully!");
-            router.push(welcomePath);
+            router.push(returnTo);
           },
 
           /**
@@ -174,7 +172,7 @@ function LoginForm() {
                   onClick={() =>
                     authClient.signIn.social({
                       provider: "google",
-                      callbackURL: welcomePath,
+                      callbackURL: returnTo,
                     })
                   }
                 >
@@ -205,7 +203,7 @@ function LoginForm() {
                   onClick={() =>
                     authClient.signIn.social({
                       provider: "github",
-                      callbackURL: welcomePath,
+                      callbackURL: returnTo,
                     })
                   }
                 >
