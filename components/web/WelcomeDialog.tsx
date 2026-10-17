@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /**
  * The dashboard-scoped one-time welcome.
@@ -15,6 +21,12 @@ import { api } from "@/convex/_generated/api";
  * author-page study, archived as `resonance-welcome-popup-2026-10-18` (its
  * `content/popup-styles.html`, Option 1). They are kept as literal arbitrary
  * classes rather than new global tokens.
+ *
+ * It is built on the app's accessible `Dialog` primitive, so it is a real modal:
+ * focus is trapped inside the card, the dashboard behind it is inert, Escape
+ * and an overlay click dismiss it, and focus is restored on close. The
+ * primitive's overlay already matches the approved backdrop, so it is left
+ * untouched.
  *
  * The dismissal is persisted on the account (see `convex/welcome.ts`), so
  * closing the popup keeps it closed across devices and sessions rather than
@@ -68,8 +80,6 @@ export function WelcomeDialog() {
     !isLoading && isAuthenticated ? {} : "skip",
   );
   const [closed, setClosed] = useState(false);
-  const headingId = useId();
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const open =
     !isLoading &&
@@ -91,36 +101,19 @@ export function WelcomeDialog() {
     });
   }, [dismissWelcome]);
 
-  useEffect(() => {
-    if (!open) return;
-    closeButtonRef.current?.focus();
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") close();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, close]);
-
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-      <div
-        data-testid="welcome-backdrop"
-        aria-hidden="true"
-        className="absolute inset-0 bg-black/10 supports-backdrop-filter:backdrop-blur-xs"
-        onClick={close}
-      />
-      <div
-        role="dialog"
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Escape and an overlay click both surface here as `false`, so they run
+        // through the same best-effort dismissal as the close button.
+        if (!next) close();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
         aria-modal="true"
-        aria-labelledby={headingId}
-        className="relative z-10 grid min-h-[188px] w-[440px] max-w-full place-items-center overflow-hidden rounded-[9px] bg-[#ffffff] text-center text-[#33261e] shadow-[0_18px_60px_#1e2a2422] dark:bg-[#30231e] dark:text-[#f1ddd0] dark:shadow-[0_18px_60px_#00000055]"
-        onClick={(event) => event.stopPropagation()}
+        className="grid min-h-[188px] w-[440px] max-w-full place-items-center gap-0 overflow-hidden rounded-[9px] bg-[#ffffff] p-0 text-center text-[#33261e] shadow-[0_18px_60px_#1e2a2422] ring-0 sm:max-w-[440px] dark:bg-[#30231e] dark:text-[#f1ddd0] dark:shadow-[0_18px_60px_#00000055]"
       >
         {/* Centred artwork band, faded 30% at each edge, nudged 3px below centre. */}
         <div
@@ -148,7 +141,6 @@ export function WelcomeDialog() {
         </div>
         <button
           type="button"
-          ref={closeButtonRef}
           aria-label="Close welcome"
           onClick={close}
           className="absolute top-[9px] right-[9px] grid size-[30px] cursor-pointer place-items-center rounded-[7px] text-[#33261e] opacity-65 hover:bg-[#00000010] hover:opacity-100 dark:text-[#f1ddd0] dark:hover:bg-[#ffffff14]"
@@ -156,17 +148,14 @@ export function WelcomeDialog() {
           <X className="size-[15px]" strokeWidth={1.8} />
         </button>
         <div className="relative z-1 px-[44px] py-[38px]">
-          <h2
-            id={headingId}
-            className="text-[30px] leading-[1.12] font-semibold tracking-[-0.05em]"
-          >
+          <DialogTitle className="text-[30px] leading-[1.12] font-semibold tracking-[-0.05em]">
             Welcome to RESONANCE.
-          </h2>
-          <p className="mt-[10px] text-[13px] leading-[1.65]">
+          </DialogTitle>
+          <DialogDescription className="mt-[10px] text-[13px] leading-[1.65] text-inherit">
             We&apos;re glad you&apos;re here.
-          </p>
+          </DialogDescription>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -8,7 +8,7 @@
  * rejection when the write fails.
  */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -49,15 +49,21 @@ describe("WelcomeDialog", () => {
   });
 
   it("shows the welcome copy when authenticated and undismissed", () => {
-    const { container } = render(<WelcomeDialog />);
+    render(<WelcomeDialog />);
 
     expect(
       screen.getByRole("heading", { name: "Welcome to RESONANCE." }),
     ).toBeInTheDocument();
     expect(screen.getByText("We're glad you're here.")).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "true");
-    // The approved "Sound canvas" treatment renders its decorative artwork.
-    expect(container.querySelector("svg")).toBeInTheDocument();
+
+    // The approved "Sound canvas" artwork: 15 layered harmonic-wave paths on
+    // its own 0 0 360 240 viewBox, distinct from the close button's icon.
+    const artwork = screen
+      .getByRole("dialog")
+      .querySelector('svg[viewBox="0 0 360 240"]');
+    expect(artwork).toBeInTheDocument();
+    expect(artwork?.querySelectorAll("path")).toHaveLength(15);
   });
 
   it("renders nothing once the account has dismissed it", () => {
@@ -131,7 +137,11 @@ describe("WelcomeDialog", () => {
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
-    await user.click(screen.getByTestId("welcome-backdrop"));
+    // The Radix overlay is the approved blurred backdrop. Pointer-down outside
+    // the content is what Radix treats as an overlay dismissal.
+    const backdrop = document.querySelector('[data-slot="dialog-overlay"]');
+    expect(backdrop).not.toBeNull();
+    fireEvent.pointerDown(backdrop as HTMLElement);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(useMutationMock).toHaveBeenCalledWith({});
   });
@@ -160,5 +170,36 @@ describe("WelcomeDialog", () => {
     render(<WelcomeDialog />);
 
     expect(screen.getByRole("button", { name: "Close welcome" })).toHaveFocus();
+  });
+
+  it("traps focus inside the dialog so the dashboard behind stays inert", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <>
+        <button type="button">Dashboard action</button>
+        <WelcomeDialog />
+      </>,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    // The dashboard control is rendered, but Radix marks the obscured page
+    // inert: it is outside the accessible tree while the modal is open.
+    expect(container.querySelector("button")).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Dashboard action" }),
+    ).not.toBeInTheDocument();
+
+    // Focus starts inside, and forward and backward tabbing both stay inside
+    // (there is a single focusable, so the trap loops on it).
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await user.tab();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await user.tab();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await user.tab({ shift: true });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await user.tab({ shift: true });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(container.querySelector("button")).not.toHaveFocus();
   });
 });
