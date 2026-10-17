@@ -202,4 +202,45 @@ describe("WelcomeDialog", () => {
     expect(dialog).toContainElement(document.activeElement as HTMLElement);
     expect(container.querySelector("button")).not.toHaveFocus();
   });
+
+  it("restores focus to the dashboard control that was focused before it opened", async () => {
+    const user = userEvent.setup();
+    // Start with the query unresolved so the popup stays closed while the
+    // dashboard control takes focus.
+    useQueryMock.mockReturnValue(undefined);
+    const { container, rerender } = render(
+      <>
+        <button type="button">Dashboard action</button>
+        <WelcomeDialog />
+      </>,
+    );
+
+    const dashboardButton = container.querySelector(
+      "button",
+    ) as HTMLButtonElement;
+    dashboardButton.focus();
+    expect(dashboardButton).toHaveFocus();
+
+    // Resolve the query: the popup opens and captures the focused control.
+    useQueryMock.mockReturnValue({ dismissed: false, username: null });
+    rerender(
+      <>
+        <button type="button">Dashboard action</button>
+        <WelcomeDialog />
+      </>,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+
+    // Move focus around inside the dialog, then dismiss with Escape.
+    await user.tab();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(useMutationMock).toHaveBeenCalledWith({});
+    // Focus returns to the control that was focused before the popup opened.
+    expect(dashboardButton).toHaveFocus();
+  });
 });

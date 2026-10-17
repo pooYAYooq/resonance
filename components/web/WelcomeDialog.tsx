@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
@@ -80,6 +80,7 @@ export function WelcomeDialog() {
     !isLoading && isAuthenticated ? {} : "skip",
   );
   const [closed, setClosed] = useState(false);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   const open =
     !isLoading &&
@@ -113,6 +114,25 @@ export function WelcomeDialog() {
       <DialogContent
         showCloseButton={false}
         aria-modal="true"
+        onOpenAutoFocus={() => {
+          // Capture the element that had focus before the modal opened, while
+          // the primitive's auto-focus has not moved it yet. Restored below.
+          const active = document.activeElement;
+          previouslyFocusedRef.current =
+            active instanceof HTMLElement ? active : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          // The modal primitive otherwise focuses only its (absent) trigger, so
+          // restore the control that was focused before the popup opened. Fall
+          // back to the body when that element is gone, so focus is never lost.
+          event.preventDefault();
+          const target = previouslyFocusedRef.current;
+          if (target && target.isConnected) {
+            target.focus();
+            return;
+          }
+          document.body.focus();
+        }}
         className="grid min-h-[188px] w-[440px] max-w-full place-items-center gap-0 overflow-hidden rounded-[9px] bg-[#ffffff] p-0 text-center text-[#33261e] shadow-[0_18px_60px_#1e2a2422] ring-0 sm:max-w-[440px] dark:bg-[#30231e] dark:text-[#f1ddd0] dark:shadow-[0_18px_60px_#00000055]"
       >
         {/* Centred artwork band, faded 30% at each edge, nudged 3px below centre. */}
