@@ -76,6 +76,7 @@ const userValidator = v.object({
   selectedPostIds: v.optional(v.array(v.id("posts"))),
   identityRevision: v.optional(v.number()),
   selectionRevision: v.optional(v.number()),
+  welcomeDismissedAt: v.optional(v.number()),
   followerCount: v.optional(v.number()),
   followingCount: v.optional(v.number()),
   publishedPostCount: v.number(),
@@ -129,11 +130,7 @@ export const syncUser = mutation({
     const { user, created } = await ensureAppProfile(ctx, authUser);
 
     if (created) {
-      await scheduleDiscoverRepairIfNeeded(
-        ctx,
-        user.userId,
-        user.displayName,
-      );
+      await scheduleDiscoverRepairIfNeeded(ctx, user.userId, user.displayName);
     }
 
     return user._id;

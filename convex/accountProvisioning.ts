@@ -82,7 +82,8 @@ export async function ensureAppProfile(
     return { user, created: false };
   }
 
-  const displayName = normalizeProviderDisplayName(authUser.name) ?? "Anonymous";
+  const displayName =
+    normalizeProviderDisplayName(authUser.name) ?? "Anonymous";
   validateDisplayName(displayName);
   // `?? undefined` coerces `null` → `undefined` so the values align with
   // `v.optional(v.string())`, which accepts `string | undefined` but not `null`.

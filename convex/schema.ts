@@ -337,6 +337,8 @@ export default defineSchema({
     /** Revisions for conflict-checked identity and selection edits. */
     identityRevision: v.optional(v.number()),
     selectionRevision: v.optional(v.number()),
+    /** Set when the account closes the one-time welcome; absent means still due. */
+    welcomeDismissedAt: v.optional(v.number()),
     /**
      * Denormalized follow counts maintained by `toggleFollow`.
      * Optional for backward compatibility with users created before follow feature was added.

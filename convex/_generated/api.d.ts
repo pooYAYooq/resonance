@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accountProvisioning from "../accountProvisioning.js";
 import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
 import type * as bookmarks from "../bookmarks.js";
@@ -36,6 +37,7 @@ import type * as testUtils_storage from "../testUtils/storage.js";
 import type * as usernameModel from "../usernameModel.js";
 import type * as usernames from "../usernames.js";
 import type * as users from "../users.js";
+import type * as welcome from "../welcome.js";
 import type * as writeAttempts from "../writeAttempts.js";
 
 import type {
@@ -45,6 +47,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountProvisioning: typeof accountProvisioning;
   analytics: typeof analytics;
   auth: typeof auth;
   bookmarks: typeof bookmarks;
@@ -73,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   usernameModel: typeof usernameModel;
   usernames: typeof usernames;
   users: typeof users;
+  welcome: typeof welcome;
   writeAttempts: typeof writeAttempts;
 }>;
 
