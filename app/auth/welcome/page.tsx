@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,6 +29,25 @@ export default function WelcomePage() {
   );
 }
 
+function LoadingSpinner() {
+  return (
+    <div className="flex justify-center py-12">
+      <Loader2 className="size-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+function SignInPrompt({ returnTo }: { returnTo: string }) {
+  return (
+    <div className="text-center">
+      <p className="text-muted-foreground">Sign in to continue.</p>
+      <Button asChild className="mt-4">
+        <Link href={buildAuthHref("/auth/login", returnTo)}>Sign in</Link>
+      </Button>
+    </div>
+  );
+}
+
 function WelcomeContent() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
@@ -41,40 +60,43 @@ function WelcomeContent() {
   );
   const dismissed = state?.dismissed === true;
 
+  // The destination the visitor chose from this page, set before the dismissal
+  // is written. While it is set, the effect below must not redirect: the local
+  // exit already navigates, and the account reporting `dismissed` as the write
+  // lands must not override that choice.
+  const [exitDestination, setExitDestination] = useState<string | null>(null);
+
   // Leaving for the destination is a side effect, so it runs after render
   // rather than during it. It covers an account that dismissed the welcome on
-  // another device or in an earlier session.
+  // another device or in an earlier session, but never a dismissal this page
+  // is currently performing.
   useEffect(() => {
-    if (dismissed) {
+    if (dismissed && exitDestination === null) {
       router.replace(returnTo);
     }
-  }, [dismissed, returnTo, router]);
+  }, [dismissed, exitDestination, returnTo, router]);
 
-  if (isLoading || !isAuthenticated || state === undefined) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  // A settled signed-out visitor, including one whose session just expired,
+  // is offered the sign-in route instead of waiting on a query that is skipped
+  // while unauthenticated.
+  if (!isAuthenticated) {
+    return <SignInPrompt returnTo={returnTo} />;
+  }
+
+  if (state === undefined) {
+    return <LoadingSpinner />;
   }
 
   if (state === null) {
-    return (
-      <div className="text-center">
-        <p className="text-muted-foreground">Sign in to continue.</p>
-        <Button asChild className="mt-4">
-          <Link href={buildAuthHref("/auth/login", returnTo)}>Sign in</Link>
-        </Button>
-      </div>
-    );
+    return <SignInPrompt returnTo={returnTo} />;
   }
 
   if (dismissed) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   /**
@@ -82,7 +104,8 @@ function WelcomeContent() {
    * failed write must not strand the account on this page or be reported as a
    * success, so the rejection is swallowed and navigation still happens.
    */
-  async function dismissThen(navigate: () => void) {
+  async function dismissThen(destination: string, navigate: () => void) {
+    setExitDestination(destination);
     try {
       await dismissWelcome({});
     } catch {
@@ -91,6 +114,8 @@ function WelcomeContent() {
       navigate();
     }
   }
+
+  const exitPending = exitDestination !== null;
 
   return (
     <Card>
@@ -110,7 +135,10 @@ function WelcomeContent() {
           <Button
             type="button"
             className="cursor-pointer"
-            onClick={() => void dismissThen(() => router.replace(returnTo))}
+            disabled={exitPending}
+            onClick={() =>
+              void dismissThen(returnTo, () => router.replace(returnTo))
+            }
           >
             Start exploring
           </Button>
@@ -118,7 +146,12 @@ function WelcomeContent() {
             type="button"
             variant="outline"
             className="cursor-pointer"
-            onClick={() => void dismissThen(() => router.push("/profile/edit"))}
+            disabled={exitPending}
+            onClick={() =>
+              void dismissThen("/profile/edit", () =>
+                router.push("/profile/edit"),
+              )
+            }
           >
             Choose my username
           </Button>

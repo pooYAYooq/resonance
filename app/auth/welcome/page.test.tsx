@@ -79,4 +79,73 @@ describe("WelcomePage", () => {
     await waitFor(() => expect(dismissMock).toHaveBeenCalled());
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/profile/edit"));
   });
+
+  it("prompts a settled signed-out visitor to sign in", () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    render(<WelcomePage />);
+
+    expect(screen.getByText("Sign in to continue.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/auth/login?returnTo=%2Fdashboard",
+    );
+  });
+
+  it("keeps the editor destination when the account reports dismissed mid-exit", async () => {
+    const user = userEvent.setup();
+    let resolveDismiss: (value: null) => void = () => {};
+    dismissMock.mockImplementation(
+      () =>
+        new Promise<null>((resolve) => {
+          resolveDismiss = resolve;
+        }),
+    );
+
+    const { rerender } = render(<WelcomePage />);
+    await user.click(
+      screen.getByRole("button", { name: "Choose my username" }),
+    );
+    expect(dismissMock).toHaveBeenCalled();
+
+    // The write is still in flight when the subscribed account state flips to
+    // dismissed. The automatic return redirect must not fire for a dismissal
+    // this page is performing.
+    useQueryMock.mockReturnValue({
+      dismissed: true,
+      username: "Reso_k7m4p9t2x6",
+    });
+    rerender(<WelcomePage />);
+
+    resolveDismiss(null);
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/profile/edit"));
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("still leaves for the destination when dismissal fails", async () => {
+    const user = userEvent.setup();
+    dismissMock.mockRejectedValue(new Error("offline"));
+
+    render(<WelcomePage />);
+    await user.click(screen.getByRole("button", { name: "Start exploring" }));
+
+    await waitFor(() => expect(dismissMock).toHaveBeenCalled());
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/dashboard"));
+  });
+
+  it("still opens the editor when dismissal fails", async () => {
+    const user = userEvent.setup();
+    dismissMock.mockRejectedValue(new Error("offline"));
+
+    render(<WelcomePage />);
+    await user.click(
+      screen.getByRole("button", { name: "Choose my username" }),
+    );
+
+    await waitFor(() => expect(dismissMock).toHaveBeenCalled());
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/profile/edit"));
+  });
 });
