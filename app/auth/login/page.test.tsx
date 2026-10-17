@@ -95,7 +95,7 @@ describe("LoginPage", () => {
     expect(signInMock).not.toHaveBeenCalled();
   });
 
-  it("redirects a direct login to the dashboard", async () => {
+  it("routes a direct login through the welcome", async () => {
     const user = userEvent.setup();
     signInMock.mockImplementation(({ fetchOptions }) => {
       fetchOptions.onSuccess();
@@ -121,11 +121,13 @@ describe("LoginPage", () => {
 
     await waitFor(() => {
       expect(toastSuccessMock).toHaveBeenCalledWith("Logged in successfully!");
-      expect(pushMock).toHaveBeenCalledWith("/dashboard");
+      expect(pushMock).toHaveBeenCalledWith(
+        "/auth/welcome?returnTo=%2Fdashboard",
+      );
     });
   });
 
-  it("returns to a validated internal route after login", async () => {
+  it("routes a validated internal return through the welcome", async () => {
     const user = userEvent.setup();
     searchParamsMock.set("returnTo", "/blog/post-1?tag=design");
     signInMock.mockImplementation(({ fetchOptions }) => {
@@ -140,7 +142,9 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("button", { name: /login/i }));
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/blog/post-1?tag=design");
+      expect(pushMock).toHaveBeenCalledWith(
+        "/auth/welcome?returnTo=%2Fblog%2Fpost-1%3Ftag%3Ddesign",
+      );
     });
   });
 
@@ -154,11 +158,11 @@ describe("LoginPage", () => {
 
     expect(signInSocialMock).toHaveBeenNthCalledWith(1, {
       provider: "google",
-      callbackURL: "/u/user-1",
+      callbackURL: "/auth/welcome?returnTo=%2Fu%2Fuser-1",
     });
     expect(signInSocialMock).toHaveBeenNthCalledWith(2, {
       provider: "github",
-      callbackURL: "/u/user-1",
+      callbackURL: "/auth/welcome?returnTo=%2Fu%2Fuser-1",
     });
   });
 
@@ -171,7 +175,7 @@ describe("LoginPage", () => {
 
     expect(signInSocialMock).toHaveBeenCalledWith({
       provider: "google",
-      callbackURL: "/dashboard",
+      callbackURL: "/auth/welcome?returnTo=%2Fdashboard",
     });
 
     searchParamsMock.set("returnTo", "/auth/sign-up");
@@ -181,7 +185,7 @@ describe("LoginPage", () => {
 
     expect(signInSocialMock).toHaveBeenLastCalledWith({
       provider: "github",
-      callbackURL: "/dashboard",
+      callbackURL: "/auth/welcome?returnTo=%2Fdashboard",
     });
   });
 

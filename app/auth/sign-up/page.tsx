@@ -56,6 +56,7 @@ function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = getSafeReturnTo(searchParams.get("returnTo"));
+  const welcomePath = buildAuthHref("/auth/welcome", returnTo);
 
   /**
    * Submits the sign up form and creates a new user account.
@@ -71,13 +72,13 @@ function SignUpForm() {
         fetchOptions: {
           /**
            * Called when the sign up request is successful.
-           * Shows a success toast and redirects to the validated return path,
-           * falling back to /dashboard.
+           * Shows a success toast and routes through the welcome, which carries
+           * the validated return path forward.
            */
           onSuccess: () => {
             // Show a success toast message when the sign up is successful
             toast.success("Account created successfully!");
-            router.push(returnTo);
+            router.push(welcomePath);
           },
           /**
            * Called when the sign up request is rejected.
@@ -197,7 +198,7 @@ function SignUpForm() {
                   onClick={() =>
                     authClient.signIn.social({
                       provider: "google",
-                      callbackURL: returnTo,
+                      callbackURL: welcomePath,
                     })
                   }
                 >
@@ -228,7 +229,7 @@ function SignUpForm() {
                   onClick={() =>
                     authClient.signIn.social({
                       provider: "github",
-                      callbackURL: returnTo,
+                      callbackURL: welcomePath,
                     })
                   }
                 >
