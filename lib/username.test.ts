@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildGeneratedUsername,
   buildProfilePath,
+  GENERATED_USERNAME_ALPHABET,
+  GENERATED_USERNAME_SUFFIX_LENGTH,
   isReservedUsername,
   normalizeUsername,
   USERNAME_MAX_LENGTH,
@@ -112,5 +115,35 @@ describe("reserved names", () => {
 describe("buildProfilePath", () => {
   it("emits the lowercase canonical address", () => {
     expect(buildProfilePath("PooYAYooq")).toBe("/u/pooyayooq");
+  });
+});
+
+describe("buildGeneratedUsername", () => {
+  it("uses the Reso_ prefix and an unambiguous suffix", () => {
+    const generated = buildGeneratedUsername(() => 0.5);
+    expect(generated.styled.startsWith("Reso_")).toBe(true);
+    expect(generated.styled.slice("Reso_".length)).toHaveLength(
+      GENERATED_USERNAME_SUFFIX_LENGTH,
+    );
+    expect(generated.canonical).toBe(generated.styled.toLowerCase());
+  });
+
+  it("never emits a confusable character", () => {
+    for (const value of [0, 0.25, 0.5, 0.75, 0.999]) {
+      const suffix = buildGeneratedUsername(() => value).styled.slice(5);
+      for (const character of suffix) {
+        expect(GENERATED_USERNAME_ALPHABET).toContain(character);
+      }
+    }
+    expect(GENERATED_USERNAME_ALPHABET).not.toMatch(/[lo01]/);
+  });
+
+  it("satisfies the username rules", () => {
+    const generated = buildGeneratedUsername(Math.random);
+    expect(normalizeUsername(generated.styled)).toEqual({
+      ok: true,
+      styled: generated.styled,
+      canonical: generated.canonical,
+    });
   });
 });

@@ -2,7 +2,11 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { isReservedUsername, normalizeUsername } from "../lib/username";
+import {
+  buildGeneratedUsername,
+  isReservedUsername,
+  normalizeUsername,
+} from "../lib/username";
 import { getOwnProfile } from "./profileModel";
 import { rateLimiter, USERNAME_CLAIM_LIMIT } from "./rateLimiter";
 
@@ -114,6 +118,43 @@ export async function saveUsername(
     usernameRevision: revision + 1,
   });
   return { kind: "saved", username: styled, revision: revision + 1 };
+}
+
+/** Bounded internal retries; exhaustion fails provisioning instead of retrying forever. */
+export const MAX_GENERATED_ATTEMPTS = 8;
+
+/**
+ * Ensures the account has a username, without claiming a deliberate choice and
+ * without touching the 90-day allowance. Idempotent: an account that already
+ * has a name is returned unchanged.
+ */
+export async function ensureUsername(
+  ctx: MutationCtx,
+  user: Doc<"users">,
+): Promise<Doc<"users">> {
+  if (user.username && user.usernameLower) return user;
+
+  const revision = user.usernameRevision ?? 0;
+  for (let attempt = 0; attempt < MAX_GENERATED_ATTEMPTS; attempt += 1) {
+    const candidate = buildGeneratedUsername(Math.random);
+    if (await findClaim(ctx, candidate.canonical)) continue;
+
+    await ctx.db.insert("usernameClaims", {
+      usernameLower: candidate.canonical,
+      ownerUserId: user.userId,
+      createdAt: Date.now(),
+    });
+    await ctx.db.patch(user._id, {
+      username: candidate.styled,
+      usernameLower: candidate.canonical,
+      usernameRevision: revision + 1,
+    });
+    const updated = await ctx.db.get(user._id);
+    if (!updated) throw new ConvexError("Failed to assign a username");
+    return updated;
+  }
+
+  throw new ConvexError("Could not assign a username");
 }
 
 /** The owner's current styled username, or null when they have none. */

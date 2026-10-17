@@ -22,6 +22,7 @@ import {
   truncatePostAuthorName,
 } from "../lib/post-capacity";
 import { formatCalendarJoinedDate } from "../lib/profile-joined-date";
+import { ensureUsername } from "./usernameModel";
 
 function validateDisplayName(displayName: string): void {
   if (getCodePointCount(displayName) > MAX_POST_AUTHOR_NAME_CODE_POINTS) {
@@ -135,7 +136,9 @@ export const syncUser = mutation({
           identityRevision: (existing.identityRevision ?? 0) + 1,
         }),
       });
-      return existing._id;
+      // Converge accounts that predate automatic assignment onto the same rule.
+      const provisioned = await ensureUsername(ctx, existing);
+      return provisioned._id;
     }
 
     // Create new user record
@@ -176,7 +179,14 @@ export const syncUser = mutation({
       );
     }
 
-    return userId;
+    const createdUser = await ctx.db.get(userId);
+    if (!createdUser) {
+      throw new ConvexError("Failed to create the app profile");
+    }
+    // Reserving a readable name here means a new account is usable without
+    // waiting on a later browser effect to finish provisioning.
+    const provisioned = await ensureUsername(ctx, createdUser);
+    return provisioned._id;
   },
 });
 
