@@ -33,6 +33,15 @@ import { CatalogueQueryBoundary } from "./CatalogueQueryBoundary";
 /** Native page size, within the server-validated 1..20 bound. */
 const PAGE_SIZE = 12;
 
+/**
+ * The grid is `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`, and the page caps at
+ * `max-w-7xl` (1280px) with 24px gaps, so above that cap a three-column card is
+ * about 383px. Sizing from the viewport alone would under-serve the 640-1023px
+ * two-column range and over-download past the cap.
+ */
+const CATALOGUE_IMAGE_SIZES =
+  "(min-width: 1280px) 400px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw";
+
 export interface AuthorCatalogueProps {
   /** Better Auth user ID of the author whose posts are catalogued. */
   userId: string;
@@ -104,7 +113,7 @@ function AuthorPostList({ userId, username }: AuthorCatalogueProps) {
         <ol className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {results.map((post) => (
             <li key={post.postId} className="min-w-0">
-              <AuthorPostCard post={post} />
+              <AuthorPostCard post={post} sizes={CATALOGUE_IMAGE_SIZES} />
             </li>
           ))}
         </ol>

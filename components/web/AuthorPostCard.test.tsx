@@ -40,6 +40,23 @@ describe("AuthorPostCard", () => {
     expect(likes).toHaveTextContent("128");
   });
 
+  it("sizes the image for the showcase's third-width desktop grid by default", () => {
+    const { container } = render(<AuthorPostCard post={post} />);
+
+    expect(container.querySelector("img")).toHaveAttribute(
+      "sizes",
+      "(min-width: 768px) 33vw, 100vw",
+    );
+  });
+
+  it("applies a caller-supplied sizes value instead of the showcase default", () => {
+    const sizes =
+      "(min-width: 1280px) 400px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw";
+    const { container } = render(<AuthorPostCard post={post} sizes={sizes} />);
+
+    expect(container.querySelector("img")).toHaveAttribute("sizes", sizes);
+  });
+
   it("always pluralizes the like label to match the approved copy", () => {
     render(<AuthorPostCard post={{ ...post, likeCount: 1 }} />);
 

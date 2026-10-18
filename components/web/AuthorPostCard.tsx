@@ -24,7 +24,20 @@ export type AuthorCard = {
   likeCount: number;
 };
 
-export function AuthorPostCard({ post }: { post: AuthorCard }) {
+/**
+ * The showcase grid is `grid-cols-1 md:grid-cols-3`, so cards are full width
+ * below 768px and a third of the viewport above it. The catalogue has a
+ * different column schedule and passes its own `sizes`.
+ */
+const SHOWCASE_IMAGE_SIZES = "(min-width: 768px) 33vw, 100vw";
+
+export function AuthorPostCard({
+  post,
+  sizes = SHOWCASE_IMAGE_SIZES,
+}: {
+  post: AuthorCard;
+  sizes?: string;
+}) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -47,7 +60,7 @@ export function AuthorPostCard({ post }: { post: AuthorCard }) {
               src={post.imageUrl}
               alt=""
               fill
-              sizes="(min-width: 768px) 33vw, 100vw"
+              sizes={sizes}
               className="object-cover transition-transform duration-[350ms] group-hover:scale-[1.035]"
               onError={() => setFailedUrl(post.imageUrl)}
             />

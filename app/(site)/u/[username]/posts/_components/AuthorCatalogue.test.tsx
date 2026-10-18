@@ -126,6 +126,22 @@ describe("AuthorCatalogue", () => {
     expect(loadMoreMock).toHaveBeenCalledWith(12);
   });
 
+  it("sizes card covers for the catalogue's own responsive column schedule", () => {
+    publish({
+      results: [{ ...card(1), imageUrl: "https://cdn.example/cover.png" }],
+      status: "Exhausted",
+    });
+
+    const { container } = render(catalogue());
+
+    const image = container.querySelector("img");
+    expect(image).toBeTruthy();
+    expect(image).toHaveAttribute(
+      "sizes",
+      "(min-width: 1280px) 400px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw",
+    );
+  });
+
   it("still offers continuation after a short nonfinal page", async () => {
     const user = userEvent.setup();
     publish({ results: [card(1), card(2)], status: "CanLoadMore" });
