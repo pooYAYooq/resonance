@@ -1001,13 +1001,14 @@ Browser                 Next.js              Convex HTTP
 Auth supports email + password and OAuth (Google and GitHub). Email
 verification is disabled. For OAuth sign-ins, `convex/auth.ts` maps provider
 profile fields (Google `picture`, GitHub `avatar_url`) onto the Better Auth
-user so avatars display immediately; `AuthSync` then seeds the app-level
-display name for new user records and keeps email/avatar fields synchronized.
-Subsequent display-name changes remain author-owned and are not overwritten by
-provider sync. The same `convex/auth.ts` client also registers user
-`onCreate`/`onDelete` triggers that run inside the account write: creation
+user so avatars display immediately. The same `convex/auth.ts` client registers
+user `onCreate`/`onDelete` triggers that run inside the account write: creation
 provisions the app profile and its generated username, and deletion retires the
-account's names. See [Account Provisioning and the One-Time Welcome](#account-provisioning-and-the-one-time-welcome).
+account's names. `AuthSync` then converges legacy accounts and refreshes
+existing profiles through `users.syncUser`, creating a missing record from the
+provider display name and keeping email/avatar fields synchronized; display
+names remain author-owned and are not overwritten by provider sync. See
+[Account Provisioning and the One-Time Welcome](#account-provisioning-and-the-one-time-welcome).
 
 ---
 

@@ -193,7 +193,8 @@ app/
   api/auth/[...all]/          # Better Auth route handler → Convex HTTP
 
 convex/
-  schema.ts                   # Database schema, including Discover projections and counters
+  schema.ts                   # Database schema, including Discover projections and counters, and users.welcomeDismissedAt
+                              # (one-time welcome state; see the account provisioning section in docs/ARCHITECTURE.md)
   posts.ts                    # Draft save/publish, published editing/deletion, published-only reads, uploads, claims, and URL hydration
   postLifecycle.ts             # Transactional post writes, deterministic preconditions, and projection synchronization
   discover.ts                 # Public Latest, Search, Topics, and Topic-post queries
