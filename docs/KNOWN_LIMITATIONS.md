@@ -96,12 +96,6 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Usernames
 
-- OAuth account creation with a fresh provider identity is unverified. The
-  provisioning trigger runs in the same transaction as account creation and the
-  code path matches the verified email/password path, but no spare Google or
-  GitHub identity was exercised, and mock coverage is not proof. Retest with a
-  spare provider account; see
-  [username signup evidence](USERNAMES_SIGNUP_EVIDENCE.md).
 - The one-time welcome is dashboard-scoped. An undismissed account that never
   reaches the dashboard does not see it, and a returning undismissed account
   that lands elsewhere sees it on their next dashboard visit.

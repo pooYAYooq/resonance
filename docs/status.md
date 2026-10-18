@@ -11,8 +11,8 @@ implemented on `feat/username-signup-welcome` and verified at `c3ca0ee`. Every
 new account (email/password, Google, or GitHub) is provisioned an app profile
 and one generated `Reso_` username in the same transaction as the auth account
 creation, without consuming the 90-day new-name allowance, and the
-dashboard-scoped popup remembers its dismissal on the account. Verification,
-live evidence, and the open OAuth-creation item are in
+dashboard-scoped popup remembers its dismissal on the account. Verification and
+live evidence, including fresh Google and GitHub account creation, are in
 [username signup evidence](USERNAMES_SIGNUP_EVIDENCE.md); behavior is cataloged
 in [FEATURES.md](../FEATURES.md). This completes the three planned username
 deliveries; the ownership delivery merged in PR #112 and the address delivery is
@@ -43,8 +43,6 @@ interleaves and the two single-shot runtime orderings are not a stress matrix.
 ## Blockers and constraints
 
 - The broader public author-page presentation and catalogue are not built.
-- OAuth account creation with a fresh provider identity is unverified (no spare
-  provider accounts were available); see [known limitations](KNOWN_LIMITATIONS.md).
 - The feed loading-announcement advisory is explicitly deferred. It is not a
   reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
 - Preserve the demo post, follow relationship, like, and comment. Browser

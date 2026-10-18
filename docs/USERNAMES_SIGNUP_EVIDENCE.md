@@ -114,9 +114,15 @@ Measured against `dev:woozy-spaniel-283` at `c3ca0ee`.
   the popup; the x closed it; a reload showed no popup; the database recorded
   `welcomeDismissedAt`; Tab stayed inside the dialog; Escape dismissed it; and
   the light and dark appearance matches the approved study.
-- NOT exercised: OAuth account creation with a fresh provider identity. No
-  spare Google or GitHub account was available, so the OAuth `onCreate` path
-  itself is unverified (see the open item below).
+- Fresh provider creation (maintainer, 2026-10-18, same dev deployment): the
+  maintainer deleted their dev account and re-created it through Google, which
+  landed on `/dashboard` with the one-time welcome popup and a generated `Reso_`
+  username; a separate fresh account created through GitHub also landed on
+  `/dashboard` with the popup and a generated `Reso_` username. The maintainer
+  then claimed and restyled a username (`pooYAYooq`, revision 3) and dismissed
+  the welcome.
+- The development fixtures from these checks were cleaned up afterwards, so the
+  observations record what was measured at the time.
 
 ## Delivery rulings and deviations
 
@@ -137,11 +143,6 @@ plan's sample logic. Phrased to stand without the local plan artifact.
 
 ## Limitations and retest triggers
 
-- **OAuth account creation with a fresh provider identity is unverified.** The
-  trigger runs in the same transaction as account creation and the code path is
-  identical to the verified email/password path, but no fresh Google or GitHub
-  identity was exercised, and mock coverage is not proof. Retest with a spare
-  provider account.
 - **The welcome is dashboard-scoped.** An undismissed account that never reaches
   the dashboard does not see it, and a returning undismissed account that lands
   elsewhere sees it on their next dashboard visit.
@@ -154,5 +155,5 @@ Re-run the four required commands on any source, dependency, or base-integration
 change. Re-check the provisioning path after any change to the auth triggers,
 `accountProvisioning.ts`, `usernameModel.ensureUsername`, or `users.syncUser`.
 Re-check the welcome after any change to `welcome.ts`, `WelcomeDialog.tsx`, or
-the dashboard mount, and re-run a fresh-provider OAuth signup when a spare
-provider identity is available.
+the dashboard mount, and re-run a fresh-provider signup when the auth triggers
+or provisioning change.
