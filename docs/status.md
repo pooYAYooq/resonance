@@ -6,22 +6,21 @@ a session history.
 
 ## Current focus
 
-Automatic username assignment at signup and the one-time dashboard welcome are
-implemented on `feat/username-signup-welcome` and verified at `fb67eca`. Every
-new account (email/password, Google, or GitHub) is provisioned an app profile
-and one generated `Reso_` username in the same transaction as the auth account
-creation, without consuming the 90-day new-name allowance, and the
-dashboard-scoped popup remembers its dismissal on the account. Verification and
-live evidence, including fresh Google and GitHub account creation, are in
-[username signup evidence](USERNAMES_SIGNUP_EVIDENCE.md); behavior is cataloged
-in [FEATURES.md](../FEATURES.md). This completes the three planned username
-deliveries; the ownership delivery merged in PR #112 and the address delivery is
-recorded in [username address evidence](USERNAMES_ADDRESSES_EVIDENCE.md).
+The final V1-17 boundary is implemented on `feat/public-author-showcase`: the
+approved public author page (`app/(site)/u/[username]/`) and the public post
+catalogue (`app/(site)/u/[username]/posts/`). The page renders the hero band,
+introduction, social links, display-only follower/following counts, the
+owner/viewer/signed-out action, and the bounded selected or latest work; the
+catalogue pages the author's published posts newest first. Behavior is cataloged
+in [FEATURES.md](../FEATURES.md); the fixture protocol and browser verification
+are in [author page verification](AUTHOR_PROFILE_VERIFICATION.md).
 
-Carry-forward from the ownership delivery stays open and recorded in
-[known limitations](KNOWN_LIMITATIONS.md): the username editor's owned/current
-and cross-tab browser states, a real screen-reader session, a real-runtime
-deletion/edit stress matrix, and the deletion-cascade limitation.
+Carry-forward from the earlier username, profile, and author-page deliveries
+stays open in [known limitations](KNOWN_LIMITATIONS.md): the username editor's
+owned/current and cross-tab browser states, a real screen-reader session, a
+real-runtime deletion/edit stress matrix, the deletion-cascade limitation, the
+author page's missing join-date control, and the catalogue query boundary's
+component-only coverage.
 
 The Convex dependency is pinned to `1.46.0` and the managed AI files are
 refreshed, so the earlier CLI and guidance mismatch no longer applies.
@@ -32,24 +31,21 @@ submission, after review changes, and before merge handoff.
 
 ## Next action
 
-Deliver the remaining V1-17 public author-page presentation and catalogue work;
-the approved author-page design study is archived locally at
-`resonance-profile-design-2026-10-11`. Extend the username editor browser pass to
-the owned/current and cross-tab states and run a real screen-reader session when
-they can be exercised without consuming the real 90-day allowance. Keep the
-real-runtime deletion/edit stress-matrix gap visible; the deterministic
-interleaves and the two single-shot runtime orderings are not a stress matrix.
+Hand off `feat/public-author-showcase` through the PR workflow: complete
+[PR_CHECKLIST.md](PR_CHECKLIST.md), open the pull request for review, and merge
+it. The remaining username-editor and reader-facing gaps stay with their own
+records rather than this branch.
 
 ## Blockers and constraints
 
-- The broader public author-page presentation and catalogue are not built.
 - The feed loading-announcement advisory is explicitly deferred. It is not a
   reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
-- Preserve the demo post, follow relationship, like, and comment. Browser
-  checks use disposable fixtures and delete only those fixtures afterward.
-- The app is not deployed; development data is disposable, subject to those
-  fixture-preservation instructions. A production migration would need its own
-  rollout plan.
+- The dev deployment carries the disposable `acceptanceauthor` and
+  `acceptanceviewer` fixtures with no published posts and no selections. Account
+  deletion is unreachable, so they remain as recorded fixtures; browser checks
+  use disposable data and delete only what they create.
+- The app is not deployed; development data is disposable. A production
+  migration would need its own rollout plan.
 
 ## Read when relevant
 

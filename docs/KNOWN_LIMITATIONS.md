@@ -121,3 +121,21 @@ evidence resolves them. The previous detailed delivery history remains in
   explicitly separate scope (spec section 8), and account deletion is not
   reachable yet: Better Auth self-service deletion is disabled and there is no
   deletion UI.
+
+## Author page and catalogue
+
+- The author page's join-date display preference has no editor control: the
+  approved editor layout superseded the date-preference UI, so `relative` is
+  reachable only for records that still store it while the canvas renders both
+  `calendar` and `relative` formats. Component tests cover the formatting
+  thresholds, not a browser-edited preference.
+- The catalogue's query-error boundary and its Retry are component-tested only.
+  A live Convex subscription failure cannot be injected with the browser
+  tooling, so the browser pass exercised the card-image recovery instead;
+  `J6-ProfileEditor` used the same automated-only pattern for query-echo timing.
+  See [accessibility evidence](ACCESSIBILITY.md).
+- The dev deployment carries two disposable acceptance accounts
+  (`acceptanceauthor`, `acceptanceviewer`) with no published posts and no
+  selections. Account deletion is not reachable, so they remain as recorded
+  disposable fixtures; see
+  [author page verification](AUTHOR_PROFILE_VERIFICATION.md).

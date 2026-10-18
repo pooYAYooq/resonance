@@ -36,16 +36,21 @@ work is tracked in `ROADMAP.md`.
   require an explicit reload on a revision conflict. A centered 760px layout and
   concise Featured posts section keep editing focused; optional social links
   are added from one menu.
-- Public profiles display the author's featured posts in their saved order
-  above the full post list.
+- Public author page at `/u/<username>`: a hero band carrying the country and
+  join date over the display name, the introduction, fixed secure social links,
+  display-only follower/following counts, and the owner's Edit Profile, another
+  viewer's Follow, or a signed-out Follow that returns to the page after login.
+  A bounded work section shows up to nine author-selected posts three at a time,
+  or the three newest published posts when nothing is selected, and a public
+  catalogue at `/u/<username>/posts` pages the author's published posts twelve
+  at a time. Identity edits, deletions, and counts update live.
 - Limit author-edited display names to 30 Unicode code points with inline
   validation; preserve existing longer names without automatic truncation.
 - Public author identity foundation: an optional country from a reviewed local
   list, five validated social profile links, and a calendar or relative join
   date sourced from the immutable account creation time. Identity and
   selected-work edits are revision-checked, and selected work is bounded to nine
-  ordered published posts. The broader public author-page presentation and
-  catalogue follow separately.
+  ordered published posts.
 - Responsive draft management rows matching My Posts: linked titles, 16:9
   covers with the blank fallback, tags, Last saved dates, and grouped Resume
   and Delete actions. Draft deletion has named-draft confirmation, pending

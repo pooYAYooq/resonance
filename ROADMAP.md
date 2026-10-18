@@ -104,32 +104,27 @@ Source: Track 4 in `FEATURES.md` at `46d26a3`, 3A.3 requirements, and decision
 
 Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 
-| ID    | Item                                             | Status      | Estimate |
-| ----- | ------------------------------------------------ | ----------- | -------- |
-| V1-17 | Stronger public profile identity and author work | In progress | M        |
-| V1-18 | Compact, actionable Notifications                | Todo        | M        |
-| V1-19 | Saved and Liked collection presentation          | Todo        | S        |
-| V1-20 | Context-specific post-card variants              | Todo        | M        |
+| ID    | Item                                             | Status | Estimate |
+| ----- | ------------------------------------------------ | ------ | -------- |
+| V1-17 | Stronger public profile identity and author work | Done   | M        |
+| V1-18 | Compact, actionable Notifications                | Todo   | M        |
+| V1-19 | Saved and Liked collection presentation          | Todo   | S        |
+| V1-20 | Context-specific post-card variants              | Todo   | M        |
 
-Required publication covers and the profile foundation (identity constraints,
-authoritative join date, and bounded identity and selected-work APIs) are
-implemented, along with the profile editor and ordered selected-work editing.
-The editor's both-theme Deep browser acceptance is recorded under
-J6-ProfileEditor in [accessibility evidence](docs/ACCESSIBILITY.md).
-The saved featured-post selection now appears above the public profile's full
-post list. Username ownership and the dedicated `/profile/edit` username editor
-are implemented: shared spelling rules, permanent per-name claims, a 90-day wait
-between new-name claims, and the account-deletion retirement callback, recorded
-in [username evidence](docs/USERNAMES_EVIDENCE.md). Username-based public
-addresses and links are implemented: the profile serves `/u/<username>`, owned
-non-canonical spellings redirect to it, and author links (including commenter
-identity) resolve to the current username, recorded in
-[username address evidence](docs/USERNAMES_ADDRESSES_EVIDENCE.md). Automatic
-signup assignment and the one-time welcome are delivered for this revision:
-every new account receives an app profile and one generated `Reso_` username
-without consuming the 90-day allowance, recorded in
-[username signup evidence](docs/USERNAMES_SIGNUP_EVIDENCE.md). V1-17 stays in
-progress for the remaining public author-page presentation and catalogue work.
+The approved public author page and its paged post catalogue are implemented and
+browser-verified on `feat/public-author-showcase`, recorded in
+[author page verification](docs/AUTHOR_PROFILE_VERIFICATION.md). The identity
+constraints, bounded identity and selected-work APIs, `/profile/edit` editor,
+username ownership, username addresses, and automatic signup assignment
+delivered earlier keep their own records in
+[username evidence](docs/USERNAMES_EVIDENCE.md),
+[username address evidence](docs/USERNAMES_ADDRESSES_EVIDENCE.md),
+[username signup evidence](docs/USERNAMES_SIGNUP_EVIDENCE.md), and the
+`J6-ProfileEditor` rows in [accessibility evidence](docs/ACCESSIBILITY.md). The
+remaining username-editor states, the real screen-reader session, the
+real-runtime stress matrix, and the deletion-cascade limitation stay visible in
+[known limitations](docs/KNOWN_LIMITATIONS.md). V1-20 context-specific post-card
+variants are untouched.
 
 ### Visual system and responsive polish
 
