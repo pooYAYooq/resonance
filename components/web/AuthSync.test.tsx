@@ -217,6 +217,94 @@ describe("AuthSync", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("keeps a prior session's failure hidden while the next sign-in syncs", async () => {
+    const nextSync = deferred<undefined>();
+    useMutationMock
+      .mockRejectedValueOnce(new Error("first sync failed"))
+      .mockReturnValueOnce(nextSync.promise);
+    const { rerender } = render(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+
+    // The first session fails, so the banner is visible.
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    rerender(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+    );
+
+    // Sign in again while the new session's sync is still pending: the previous
+    // session's failure must not resurface under the new session.
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    rerender(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(useMutationMock).toHaveBeenCalledTimes(2);
+
+    // The new session's sync succeeding keeps the banner hidden.
+    await act(async () => {
+      nextSync.resolve(undefined);
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows the banner for the new session's own failure after signing in", async () => {
+    useMutationMock
+      .mockRejectedValueOnce(new Error("first sync failed"))
+      .mockRejectedValueOnce(new Error("second sync failed"));
+    const { rerender } = render(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    rerender(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+    );
+
+    // A failure belonging to the new session is not suppressed by the epoch.
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    rerender(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "We could not finish setting up your account.",
+    );
+  });
+
   it("does not emit an unhandled rejection when the sync fails", async () => {
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);

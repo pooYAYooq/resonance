@@ -22,12 +22,13 @@
  * The `onCreate` trigger in `convex/auth.ts` already provisions the profile at
  * account creation; this effect converges accounts that predate that trigger.
  *
- * The banner is keyed by the auth lifecycle. Stored status carries the
- * lifecycle it belongs to, and the render derives `idle` whenever the stored
- * lifecycle is not the current one, so a sign-out clears a stale failure
- * without a reset write. A retry tags its outcome with the lifecycle it
- * started under, so a completion that lands after the lifecycle changed is
- * ignored by the same derivation.
+ * The banner is keyed by the auth lifecycle and a per-sign-in epoch. Entering a
+ * new lifecycle advances the epoch, and the visible status is derived by
+ * comparing the status's epoch to the current session's epoch, so a sign-out
+ * clears a stale failure without a reset write and a failure from a previous
+ * sign-in stays hidden when the next session starts. A retry, and any
+ * `syncUser` result, tags its outcome with the epoch it started under, so a
+ * completion from an earlier session cannot update the current one.
  */
 
 "use client";
@@ -53,42 +54,68 @@ export function AuthSync({ children }: AuthSyncProps) {
     : isAuthenticated
       ? "in"
       : "out";
-  // The status is stored with the lifecycle it was produced under. Rendering
-  // derives `idle` whenever the stored lifecycle is stale, so a sign-out or a
-  // later sign-in clears the banner with no state write in the effect.
-  const [sync, setSync] = useState<{ lifecycle: Lifecycle; status: SyncState }>(
-    {
-      lifecycle: "out",
-      status: "idle",
-    },
-  );
-  const status = sync.lifecycle === lifecycle ? sync.status : "idle";
+  // The current session: its lifecycle and a monotonic epoch. The epoch is
+  // adjusted during render (the documented pattern for state derived from a
+  // changing input) so entering a new lifecycle - including a later sign-in -
+  // advances it and never reuses a previous session's key.
+  const [session, setSession] = useState<{
+    lifecycle: Lifecycle;
+    epoch: number;
+  }>({ lifecycle: "out", epoch: 0 });
+  if (session.lifecycle !== lifecycle) {
+    setSession({ lifecycle, epoch: session.epoch + 1 });
+  }
+  const [sync, setSync] = useState<{ epoch: number; status: SyncState }>({
+    epoch: 0,
+    status: "idle",
+  });
+  // A status is visible only while it belongs to the current session.
+  const status = sync.epoch === session.epoch ? sync.status : "idle";
 
   useEffect(() => {
     if (lifecycle !== "in") return;
+    const epoch = session.epoch;
     let cancelled = false;
     // Handle both outcomes so a failure never becomes an unhandled rejection.
+    // A stale result (older epoch) is dropped rather than overwriting a newer
+    // session's status.
     syncUser({}).then(
       () => {
-        if (!cancelled) setSync({ lifecycle: "in", status: "idle" });
+        if (!cancelled) {
+          setSync((prev) =>
+            epoch >= prev.epoch ? { epoch, status: "idle" } : prev,
+          );
+        }
       },
       () => {
-        if (!cancelled) setSync({ lifecycle: "in", status: "failed" });
+        if (!cancelled) {
+          setSync((prev) =>
+            epoch >= prev.epoch ? { epoch, status: "failed" } : prev,
+          );
+        }
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [lifecycle, syncUser]);
+  }, [lifecycle, session.epoch, syncUser]);
 
   const retry = () => {
-    // Tag the outcome with the lifecycle it started under: if the lifecycle has
-    // since changed, the derivation renders `idle` and ignores the stale write.
-    const startedIn = lifecycle;
-    setSync({ lifecycle: startedIn, status: "retrying" });
+    // Tag the outcome with the session it started under: a completion that
+    // lands after the lifecycle changed is ignored by the epoch comparison.
+    const epoch = session.epoch;
+    setSync((prev) =>
+      epoch >= prev.epoch ? { epoch, status: "retrying" } : prev,
+    );
     syncUser({}).then(
-      () => setSync({ lifecycle: startedIn, status: "idle" }),
-      () => setSync({ lifecycle: startedIn, status: "failed" }),
+      () =>
+        setSync((prev) =>
+          epoch >= prev.epoch ? { epoch, status: "idle" } : prev,
+        ),
+      () =>
+        setSync((prev) =>
+          epoch >= prev.epoch ? { epoch, status: "failed" } : prev,
+        ),
     );
   };
 
