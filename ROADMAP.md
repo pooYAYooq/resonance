@@ -125,7 +125,11 @@ addresses and links are implemented: the profile serves `/u/<username>`, owned
 non-canonical spellings redirect to it, and author links (including commenter
 identity) resolve to the current username, recorded in
 [username address evidence](docs/USERNAMES_ADDRESSES_EVIDENCE.md). Automatic
-signup assignment follows separately.
+signup assignment and the one-time welcome are delivered for this revision:
+every new account receives an app profile and one generated `Reso_` username
+without consuming the 90-day allowance, recorded in
+[username signup evidence](docs/USERNAMES_SIGNUP_EVIDENCE.md). V1-17 stays in
+progress for the remaining public author-page presentation and catalogue work.
 
 ### Visual system and responsive polish
 

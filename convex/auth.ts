@@ -126,9 +126,10 @@ interface SocialProviderConfig {
  * Exposes helpers like `adapter(ctx)` for database access and
  * `getSessionId()` for reading the active session.
  *
- * The `triggers` callback below runs in the same transaction as the account
- * deletion, so a deleted account's usernames are retired permanently rather
- * than depending on a browser callback.
+ * The `triggers` callbacks below run in the same transaction as the account
+ * write: creation provisions the app profile and a generated username, and
+ * deletion retires the account's usernames permanently, rather than depending
+ * on a browser callback.
  */
 const authFunctions: AuthFunctions = internal.auth;
 
@@ -136,6 +137,15 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
   authFunctions,
   triggers: {
     user: {
+      onCreate: async (ctx, doc) => {
+        await ctx.runMutation(internal.usernames.provisionAccount, {
+          authUserId: doc._id,
+          name: doc.name ?? null,
+          email: doc.email ?? null,
+          image: doc.image ?? null,
+          createdAt: doc.createdAt,
+        });
+      },
       onDelete: async (ctx, doc) => {
         await ctx.runMutation(internal.usernames.retireAccount, {
           ownerUserId: doc._id,

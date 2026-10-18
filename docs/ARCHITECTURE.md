@@ -141,7 +141,8 @@ resonance/
 │   ├── schema.ts               # DB schema: source tables, username claims, plus bounded Discover projections and counters
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
-│   │                           # Google + GitHub OAuth with profile field mapping.
+│   │                           # Google + GitHub OAuth with profile field mapping;
+│   │                           # user onCreate/onDelete triggers run in the account write.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
 │   ├── posts.ts                # attempt-bound saveDraft/publishPost/updatePublishedPost (owner-scoped drafts,
 │   │                           # published edits, tag validation,
@@ -199,8 +200,9 @@ resonance/
 │   ├── crons.ts                # Daily feed expiration, upload cleanup, and deletion recovery.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
-│   ├── users.ts                # syncUser, getCurrentUser, and getUserProfile plus
-│   │                           # Discover rename repair; identity edits live in profiles.ts
+│   ├── users.ts                # syncUser (converges accounts through
+│   │                           # accountProvisioning.ts), getCurrentUser, and getUserProfile
+│   │                           # plus Discover rename repair; identity edits live in profiles.ts
 │   ├── profileModel.ts         # Shared profile validators, stored-identity mapping,
 │   │                           # revision-checked identity/selection helpers, bounded
 │   │                           # card hydration, ID-only existence checks, and
@@ -214,6 +216,10 @@ resonance/
 │   ├── usernames.ts            # Authenticated claim and minimal public availability
 │   │                           # APIs plus internal bounded permanent retirement on
 │   │                           # the configured account-deletion callback.
+│   ├── accountProvisioning.ts  # Shared profile create/refresh from Better Auth identity;
+│   │                           # guarantees one generated username. Not registered.
+│   ├── welcome.ts              # One-time dashboard welcome state and account-persisted
+│   │                           # dismissal (getWelcomeState, dismissWelcome).
 │   ├── rateLimiter.ts          # The per-account 90-day new-name allowance: a one-token
 │   │                           # bucket consumed transactionally with the claim.
 │   ├── convex.config.ts        # Mounts the app's Convex components (the rate-limiter).
@@ -223,7 +229,9 @@ resonance/
 │   └── web/
 │       ├── ConvexClientProvider.tsx  # Convex + Better Auth session bridge.
 │       │                           # Wraps children in <AuthSync>.
-│       ├── AuthSync.tsx         # Fires users.syncUser on every auth state change
+│       ├── AuthSync.tsx         # Fires users.syncUser on every auth state change,
+│       │                       # with a recoverable retry banner on failure
+│       ├── WelcomeDialog.tsx    # Dashboard-scoped one-time welcome; account-persisted dismissal
 │       ├── PostViewTracker.tsx  # Non-visual signed-in post-detail view recorder
 │       ├── Navbar.tsx           # Top nav. Dashboard actions and account dropdown.
 │       ├── MobileNavMenu.tsx    # Mobile drawer and shared AppNavigation for the workspace sidebar.
@@ -363,11 +371,10 @@ components/
     │
     ├── AuthSync.tsx
     │     Client component mounted inside ConvexClientProvider. Fires
-    │     the users.syncUser mutation whenever auth state changes. Provider
-    │     display name seeds new user records; existing names remain
-    │     author-owned while email and OAuth avatar stay synced. Known issue: sync is
-    │     fire-and-forget, so on first OAuth sign-up the Navbar can
-    │     briefly render initials instead of the provider avatar.
+    │     the users.syncUser mutation whenever auth state changes. The
+    │     account-created trigger provisions new user records; AuthSync
+    │     converges and refreshes them. Existing display names remain
+    │     author-owned while email and OAuth avatar stay synced.
     │
     ├── Navbar.tsx
      │     Reads auth state with useConvexAuth(). Reactive to the
@@ -858,6 +865,35 @@ second lookup pass. `lib/username.ts`'s `buildProfilePath` produces the
 lowercase canonical address for every generated author link; authors without a
 username render a plain label with no account-ID fallback.
 
+### Account Provisioning and the One-Time Welcome
+
+`convex/auth.ts` configures Better Auth user `onCreate`/`onDelete` triggers that
+run in the same transaction as the account write, rather than depending on a
+browser callback. `onCreate` calls `internal.usernames.provisionAccount`, which
+converges the account through `ensureAppProfile` in
+`convex/accountProvisioning.ts` and then `ensureUsername` in
+`convex/usernameModel.ts`; `onDelete` retires the account's names (see the
+ownership section above). Every signup, whether email/password, Google, or
+GitHub, therefore has an app profile and one generated `Reso_` + 10-character
+username as soon as account creation survives. Generation never consumes the
+90-day new-name allowance, is idempotent for an account that already has a name,
+and bounds collision retries to eight inside the transaction; exhaustion fails
+account creation instead of retrying forever. `users.syncUser` converges
+pre-existing accounts through the same idempotent helper, and
+`components/web/AuthSync.tsx` surfaces a recoverable retry banner rather than
+suppressing sync errors.
+
+The one-time welcome is a dashboard-scoped popup
+(`components/web/WelcomeDialog.tsx`, mounted by `DashboardOverview`). It shows
+only a welcome message; dismissal is persisted on the account as
+`users.welcomeDismissedAt` through `convex/welcome.ts` (`getWelcomeState` reads
+the live state and current username, `dismissWelcome` records the first
+dismissal). The popup is built on the app's accessible `Dialog` primitive, so
+focus is trapped, the background is inert, and focus is restored on close; it
+closes via the x, Escape, or an outside click, with no timer. Signup lands on
+`/dashboard` for email/password and both OAuth callbacks; login keeps its
+validated return destination.
+
 ### Analytics Foundation
 
 `postViews` stores one durable `(postId, viewerKey)` row per signed-in reader.
@@ -964,10 +1000,14 @@ Browser                 Next.js              Convex HTTP
 Auth supports email + password and OAuth (Google and GitHub). Email
 verification is disabled. For OAuth sign-ins, `convex/auth.ts` maps provider
 profile fields (Google `picture`, GitHub `avatar_url`) onto the Better Auth
-user so avatars display immediately; `AuthSync` then seeds the app-level
-display name for new user records and keeps email/avatar fields synchronized.
-Subsequent display-name changes remain author-owned and are not overwritten by
-provider sync.
+user so avatars display immediately. The same `convex/auth.ts` client registers
+user `onCreate`/`onDelete` triggers that run inside the account write: creation
+provisions the app profile and its generated username, and deletion retires the
+account's names. `AuthSync` then converges legacy accounts and refreshes
+existing profiles through `users.syncUser`, creating a missing record from the
+provider display name and keeping email/avatar fields synchronized; display
+names remain author-owned and are not overwritten by provider sync. See
+[Account Provisioning and the One-Time Welcome](#account-provisioning-and-the-one-time-welcome).
 
 ---
 

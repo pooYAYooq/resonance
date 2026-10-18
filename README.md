@@ -193,7 +193,8 @@ app/
   api/auth/[...all]/          # Better Auth route handler → Convex HTTP
 
 convex/
-  schema.ts                   # Database schema, including Discover projections and counters
+  schema.ts                   # Database schema, including Discover projections and counters, and users.welcomeDismissedAt
+                              # (one-time welcome state)
   posts.ts                    # Draft save/publish, published editing/deletion, published-only reads, uploads, claims, and URL hydration
   postLifecycle.ts             # Transactional post writes, deterministic preconditions, and projection synchronization
   discover.ts                 # Public Latest, Search, Topics, and Topic-post queries
@@ -217,11 +218,13 @@ convex/
   profileModel.ts             # Shared profile validators, revision-checked identity/selection helpers
   profiles.ts                 # Public identity/showcase/catalogue reads; authenticated identity and selection edits
   usernameModel.ts            # Transactional username claim lookup, classification, revision checks, and rate-limiter enforcement
-  usernames.ts                # Authenticated claim + public availability APIs; internal permanent account retirement
+  usernames.ts                # Authenticated claim + public availability APIs; internal account provisioning and permanent retirement
+  accountProvisioning.ts      # Shared profile create/refresh from Better Auth identity; guarantees one generated username
+  welcome.ts                  # One-time dashboard welcome state and account-persisted dismissal
   rateLimiter.ts              # Per-account 90-day new-username allowance (one-token bucket, transactional)
   convex.config.ts            # Mounts the app's Convex components (the rate-limiter)
   stats.ts                    # Denormalized total post count
-  auth.ts                     # Better Auth integration inside Convex (email + OAuth)
+  auth.ts                     # Better Auth integration inside Convex (email + OAuth, user onCreate/onDelete triggers)
   http.ts                     # Convex HTTP actions
 
 components/
@@ -257,7 +260,8 @@ components/
     SectionHeading.tsx
     EmptyState.tsx
     UserAvatar.tsx
-    AuthSync.tsx              # Syncs Better Auth identity → users table
+    AuthSync.tsx              # Syncs Better Auth identity → users table, with a recoverable retry banner
+    WelcomeDialog.tsx         # Dashboard-scoped one-time welcome; dismissal persisted on the account
     AuthoringExitProvider.tsx # Root exit coordinator: recovery, history, sign-out, native warning
     AuthoringExitDialog.tsx   # Light/strong/blocking exit surfaces
     ConvexClientProvider.tsx
@@ -313,6 +317,12 @@ Browser → Next.js API route (app/api/auth/[...all]/route.ts)
 ```
 
 User and session records live in the same Convex DB as application data.
+
+Account creation provisions the app profile and its generated `Reso_` username
+inside the same Convex transaction as the auth write, so a new account is usable
+at `/u/<username>` immediately. The one-time welcome's state lives on the
+account as `users.welcomeDismissedAt`; see
+[Account Provisioning and the One-Time Welcome](docs/ARCHITECTURE.md#account-provisioning-and-the-one-time-welcome).
 
 ### Data Fetching Patterns
 

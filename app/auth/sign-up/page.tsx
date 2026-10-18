@@ -71,13 +71,13 @@ function SignUpForm() {
         fetchOptions: {
           /**
            * Called when the sign up request is successful.
-           * Shows a success toast and redirects to the validated return path,
-           * falling back to /dashboard.
+           * Shows a success toast and lands on the dashboard, where the
+           * one-time welcome popup is shown.
            */
           onSuccess: () => {
             // Show a success toast message when the sign up is successful
             toast.success("Account created successfully!");
-            router.push(returnTo);
+            router.push("/dashboard");
           },
           /**
            * Called when the sign up request is rejected.
@@ -197,7 +197,7 @@ function SignUpForm() {
                   onClick={() =>
                     authClient.signIn.social({
                       provider: "google",
-                      callbackURL: returnTo,
+                      callbackURL: "/dashboard",
                     })
                   }
                 >
@@ -228,7 +228,7 @@ function SignUpForm() {
                   onClick={() =>
                     authClient.signIn.social({
                       provider: "github",
-                      callbackURL: returnTo,
+                      callbackURL: "/dashboard",
                     })
                   }
                 >

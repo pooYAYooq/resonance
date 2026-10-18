@@ -64,7 +64,7 @@ function identityInput(overrides: Record<string, unknown> = {}) {
 }
 
 describe("profiles identity API", () => {
-  it("defaults a legacy editor profile to no username and revision zero", async () => {
+  it("assigns a generated username and revision one on first sync", async () => {
     const t = convexTest(schema, modules);
     const identity = await createAuthIdentity(t, {
       name: "Ada",
@@ -73,8 +73,8 @@ describe("profiles identity API", () => {
     const own = t.withIdentity(identity);
     await own.mutation(api.users.syncUser, {});
     expect(await own.query(api.profiles.getEditorProfile, {})).toMatchObject({
-      username: null,
-      usernameRevision: 0,
+      username: expect.stringMatching(/^Reso_[a-z2-9]{10}$/i),
+      usernameRevision: 1,
     });
   });
 

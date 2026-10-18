@@ -86,3 +86,26 @@ export function isReservedUsername(canonical: string): boolean {
 export function buildProfilePath(username: string): string {
   return `/u/${username.toLowerCase()}`;
 }
+
+export const GENERATED_USERNAME_PREFIX = "Reso_";
+export const GENERATED_USERNAME_SUFFIX_LENGTH = 10;
+/** Letters and digits with l, o, 0, and 1 removed to avoid visual confusion. */
+export const GENERATED_USERNAME_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
+
+/** Builds one candidate generated name; the caller checks whether it is free. */
+export function buildGeneratedUsername(random: () => number): {
+  styled: string;
+  canonical: string;
+} {
+  let suffix = "";
+  for (let index = 0; index < GENERATED_USERNAME_SUFFIX_LENGTH; index += 1) {
+    const pick = Math.floor(random() * GENERATED_USERNAME_ALPHABET.length);
+    const character =
+      GENERATED_USERNAME_ALPHABET[
+        Math.min(Math.max(pick, 0), GENERATED_USERNAME_ALPHABET.length - 1)
+      ];
+    suffix += character;
+  }
+  const styled = `${GENERATED_USERNAME_PREFIX}${suffix}`;
+  return { styled, canonical: styled.toLowerCase() };
+}

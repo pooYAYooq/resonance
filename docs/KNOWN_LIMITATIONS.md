@@ -63,13 +63,15 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Engineering and verification
 
-- Direct `pnpm exec tsc --noEmit` currently fails on three pre-existing test
+- Direct `pnpm exec tsc --noEmit` currently fails on four pre-existing test
   typing errors: a null assignment in `app/(workspace)/create/page.test.tsx`
   (present before the cover changes), an unsupported role-query option in
-  `components/web/AuthoringExitProvider.test.tsx`, and an `Element`/`HTMLElement`
-  mismatch in `components/web/FollowButton.test.tsx`. The cover changes removed
-  the unsupported role-query options they had added. A successful Next build
-  does not establish that these included test files typecheck.
+  `components/web/AuthoringExitProvider.test.tsx`, an `Element`/`HTMLElement`
+  mismatch in `components/web/FollowButton.test.tsx`, and a further typing error
+  in `app/(site)/profile/edit/_components/CountryPicker.test.tsx`. The cover
+  changes removed the unsupported role-query options they had added. `pnpm build`
+  (the repo's typecheck path) passes, but a successful Next build does not
+  establish that these included test files typecheck.
 - No stored-data migration/backfill exists for this undeployed app. A large
   existing deployment would need a staged migration before new indexed callers.
 - Search-index pagination cannot be bounded by read budgets: the installed
@@ -94,9 +96,13 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Usernames
 
-- Automatic signup assignment is not shipped. A new account has no username
-  until its owner claims one through `/profile/edit`, and the one-time welcome
-  page is not built.
+- The one-time welcome is dashboard-scoped. An undismissed account that never
+  reaches the dashboard does not see it, and a returning undismissed account
+  that lands elsewhere sees it on their next dashboard visit.
+- Welcome dismissal persistence was verified across independent browser contexts
+  and sessions, not two physical devices.
+- The welcome popup's visual values are literal, ported from the approved study
+  rather than global theme tokens. Retest after global theme changes.
 - Username-address caching is unverified in production. The redirect status and
   `Cache-Control` header were measured only through a local production-mode
   server against the personal dev deployment; the app is undeployed, so CDN and

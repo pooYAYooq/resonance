@@ -7,6 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, components, internal } from "./_generated/api";
 import { authComponent } from "./auth";
 import {
+  buildGeneratedUsername,
+  GENERATED_USERNAME_SUFFIX_LENGTH,
+} from "../lib/username";
+import {
   rateLimiter,
   USERNAME_CLAIM_LIMIT,
   USERNAME_CLAIM_PERIOD_MS,
@@ -15,6 +19,8 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 const START = 1_800_000_000_000;
+/** Canonical form of a username assigned by provisioning, not by a claim call. */
+const GENERATED_USERNAME_CLAIM = /^reso_[a-z2-9]{10}$/;
 
 function setup() {
   const t = convexTest(schema, modules);
@@ -65,6 +71,58 @@ async function signedIn(
   return { own, ownerUserId: identity.subject, subject: identity.subject };
 }
 
+/**
+ * Creates a Better Auth user plus session through the app adapter configured
+ * with the lifecycle triggers, without calling `syncUser`. This proves the
+ * `onCreate` trigger alone provisions the profile and its generated username.
+ * The raw `components.betterAuth.adapter.create` path skips triggers because
+ * the component only runs `onCreate` when the app adapter attaches the handle.
+ */
+async function createAccount(t: ReturnType<typeof setup>, email: string) {
+  return await t.run(async (ctx) => {
+    const now = Date.now();
+    const user = await authComponent
+      .adapter(ctx)({})
+      .create({
+        model: "user",
+        data: {
+          name: "Ada",
+          email,
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user.id,
+            token: `session-${user.id}`,
+            expiresAt: now + 20 * USERNAME_CLAIM_PERIOD_MS,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user.id, sessionId: session._id };
+  });
+}
+
+/** Claim rows owned by one account, read through the ownership index. */
+async function ownerClaims(t: ReturnType<typeof setup>, ownerUserId: string) {
+  return await t.run(
+    async (ctx) =>
+      await ctx.db
+        .query("usernameClaims")
+        .withIndex("by_ownerUserId", (q) => q.eq("ownerUserId", ownerUserId))
+        .take(300),
+  );
+}
+
 async function allowance(t: ReturnType<typeof setup>, key: string) {
   return await t.run(
     async (ctx) =>
@@ -75,6 +133,17 @@ async function allowance(t: ReturnType<typeof setup>, key: string) {
 async function claims(t: ReturnType<typeof setup>) {
   return await t.run(
     async (ctx) => await ctx.db.query("usernameClaims").take(300),
+  );
+}
+
+/**
+ * Claims created by an explicit `claimUsername` call. Provisioning reserves one
+ * generated name per synced account, so assertions about deliberate ownership
+ * filter those incidental rows out.
+ */
+async function deliberateClaims(t: ReturnType<typeof setup>) {
+  return (await claims(t)).filter(
+    (claim) => !GENERATED_USERNAME_CLAIM.test(claim.usernameLower),
   );
 }
 
@@ -105,13 +174,293 @@ async function retirementState(
       .withIndex("by_ownerUserId", (q) => q.eq("ownerUserId", ownerUserId))
       .take(1),
     claimsByName: Object.fromEntries(
-      (await ctx.db.query("usernameClaims").take(300)).map((claim) => [
-        claim.usernameLower,
-        claim.ownerUserId ?? null,
-      ]),
+      (await ctx.db.query("usernameClaims").take(300))
+        // Generated provisioning names are incidental to these assertions.
+        .filter((claim) => !GENERATED_USERNAME_CLAIM.test(claim.usernameLower))
+        .map((claim) => [claim.usernameLower, claim.ownerUserId ?? null]),
     ),
   }));
 }
+
+describe("initial assignment", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(START);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("assigns one generated name without consuming the allowance", async () => {
+    const t = setup();
+    const { own } = await signedIn(t, "generated@example.com");
+
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile?.username).toMatch(/^Reso_[a-z2-9]{10}$/i);
+    expect(profile?.newUsernameClaim.allowed).toBe(true);
+  });
+
+  it("keeps the existing name when provisioning runs again", async () => {
+    const t = setup();
+    const { own } = await signedIn(t, "idempotent@example.com");
+    const first = await own.query(api.profiles.getEditorProfile, {});
+    await own.mutation(api.users.syncUser, {});
+    const second = await own.query(api.profiles.getEditorProfile, {});
+    expect(second?.username).toBe(first?.username);
+  });
+
+  it("keeps a chosen name when provisioning runs again", async () => {
+    const t = setup();
+    const { own } = await signedIn(t, "chosen@example.com");
+    await own.mutation(api.usernames.claimUsername, {
+      username: "mychoice",
+      expectedRevision: 1,
+    });
+    await own.mutation(api.users.syncUser, {});
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile?.username).toBe("mychoice");
+  });
+});
+
+describe("account lifecycle provisioning", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(START);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("provisions the profile and a username when the auth account is created", async () => {
+    const t = setup();
+    const identity = await createAccount(t, "triggered@example.com");
+    const own = t.withIdentity(identity);
+
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile).not.toBeNull();
+    expect(profile?.username).toMatch(/^Reso_[a-z2-9]{10}$/i);
+    expect(profile?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, identity.subject);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: profile?.username?.toLowerCase(),
+      ownerUserId: identity.subject,
+      createdAt: START,
+    });
+  });
+
+  it("converges a pre-existing app record without a username onto one generated name", async () => {
+    const t = setup();
+    const { own, ownerUserId } = await signedIn(t, "legacy@example.com", false);
+    // Model an app record that predates automatic assignment: no lifecycle
+    // trigger ran and no username exists yet.
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: ownerUserId,
+        displayName: "Legacy",
+        bio: "",
+        followerCount: 0,
+        followingCount: 0,
+        unreadNotificationCount: 0,
+        publishedPostCount: 0,
+        createdAt: START,
+      });
+    });
+    expect(await ownerClaims(t, ownerUserId)).toHaveLength(0);
+
+    await own.mutation(api.users.syncUser, {});
+
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile?.username).toMatch(/^Reso_[a-z2-9]{10}$/i);
+    expect(profile?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, ownerUserId);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: profile?.username?.toLowerCase(),
+      ownerUserId,
+    });
+  });
+
+  it("rolls the auth account and profile back when provisioning exhausts its budget", async () => {
+    const t = setup();
+    // A constant generator makes budget exhaustion deterministic: every
+    // attempt targets the same canonical name, which a pre-existing claim owns.
+    const collision = buildGeneratedUsername(() => 0.5);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("usernameClaims", {
+        usernameLower: collision.canonical,
+        ownerUserId: "existing-owner",
+        createdAt: START,
+      });
+    });
+    const claimsBefore = await claims(t);
+
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    let failure: unknown;
+    try {
+      await createAccount(t, "exhausted@example.com");
+    } catch (error) {
+      failure = error;
+    } finally {
+      random.mockRestore();
+    }
+
+    // The trigger failure must propagate through the auth-user creation
+    // mutation instead of being swallowed.
+    expect(failure).toBeInstanceOf(Error);
+    expect(String(failure)).toMatch(/username/i);
+    // Atomic rollback: no auth user, no app profile, and no new claim row.
+    expect(
+      await t.run(
+        async (ctx) =>
+          await authComponent
+            .adapter(ctx)({})
+            .findOne({
+              model: "user",
+              where: [{ field: "email", value: "exhausted@example.com" }],
+            }),
+      ),
+    ).toBeNull();
+    expect(
+      await t.run(
+        async (ctx) =>
+          await ctx.db
+            .query("users")
+            .withIndex("by_email", (q) =>
+              q.eq("email", "exhausted@example.com"),
+            )
+            .unique(),
+      ),
+    ).toBeNull();
+    expect(await claims(t)).toEqual(claimsBefore);
+  });
+
+  it("retries past a colliding candidate and assigns exactly one generated name", async () => {
+    const t = setup();
+    const { own, ownerUserId } = await signedIn(
+      t,
+      "collision-retry@example.com",
+      false,
+    );
+    // A constant generator names the collision deterministically, mirroring the
+    // exhaustion test: the first candidate targets a name a foreign claim owns.
+    const collision = buildGeneratedUsername(() => 0.5);
+    const free = buildGeneratedUsername(() => 0.25);
+    expect(free.canonical).not.toBe(collision.canonical);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("usernameClaims", {
+        usernameLower: collision.canonical,
+        ownerUserId: "existing-owner",
+        createdAt: START,
+      });
+    });
+    const before = await allowance(t, ownerUserId);
+
+    // Each candidate consumes one random() call per suffix character: serve the
+    // collision value for the first candidate, then a different value so the
+    // second candidate is free.
+    const random = vi.spyOn(Math, "random");
+    for (let i = 0; i < GENERATED_USERNAME_SUFFIX_LENGTH; i += 1) {
+      random.mockReturnValueOnce(0.5);
+    }
+    random.mockReturnValue(0.25);
+    try {
+      await own.mutation(api.users.syncUser, {});
+    } finally {
+      random.mockRestore();
+    }
+
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile?.username).toBe(free.styled);
+    expect(profile?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, ownerUserId);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: free.canonical,
+      ownerUserId,
+      createdAt: START,
+    });
+    // Only the seeded foreign claim and the one generated claim exist, and the
+    // seeded claim still belongs to its original owner.
+    const all = await claims(t);
+    expect(all).toHaveLength(2);
+    expect(
+      all.find((claim) => claim.usernameLower === collision.canonical),
+    ).toMatchObject({
+      usernameLower: collision.canonical,
+      ownerUserId: "existing-owner",
+      createdAt: START,
+    });
+    expect(await allowance(t, ownerUserId)).toEqual(before);
+  });
+
+  it("provisions one profile and one claim when first-time syncs race", async () => {
+    const t = setup();
+    const { own, ownerUserId } = await signedIn(
+      t,
+      "racing-sync@example.com",
+      false,
+    );
+    const before = await allowance(t, ownerUserId);
+
+    // The emulator serializes top-level mutations, so these interleave rather
+    // than run in true parallel; either way provisioning must stay idempotent.
+    const results = await Promise.all([
+      own.mutation(api.users.syncUser, {}),
+      own.mutation(api.users.syncUser, {}),
+    ]);
+    await own.mutation(api.users.syncUser, {});
+
+    const profiles = await t.run(
+      async (ctx) =>
+        await ctx.db
+          .query("users")
+          .withIndex("by_userId", (q) => q.eq("userId", ownerUserId))
+          .take(10),
+    );
+    expect(profiles).toHaveLength(1);
+    expect(results).toEqual([profiles[0]._id, profiles[0]._id]);
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile?.username).toMatch(/^Reso_[a-z2-9]{10}$/i);
+    expect(profile?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, ownerUserId);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: profile?.username?.toLowerCase(),
+      ownerUserId,
+    });
+    expect(await allowance(t, ownerUserId)).toEqual(before);
+  });
+
+  it("keeps the trigger-assigned name through repeated syncs", async () => {
+    const t = setup();
+    const identity = await createAccount(t, "repeat-sync@example.com");
+    const own = t.withIdentity(identity);
+    // Trigger provisioning must not consume the 90-day allowance: an unused key
+    // reads back at full capacity with ts 0, so assert that pristine shape here
+    // rather than only comparing a baseline captured after creation.
+    const pristine = await allowance(t, identity.subject);
+    expect(pristine).toMatchObject({ value: 1, ts: 0 });
+    const first = await own.query(api.profiles.getEditorProfile, {});
+    expect(first?.usernameRevision).toBe(1);
+
+    await own.mutation(api.users.syncUser, {});
+    await own.mutation(api.users.syncUser, {});
+
+    const after = await own.query(api.profiles.getEditorProfile, {});
+    expect(after?.username).toBe(first?.username);
+    expect(after?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, identity.subject);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: after?.username?.toLowerCase(),
+      ownerUserId: identity.subject,
+    });
+    expect(await allowance(t, identity.subject)).toEqual(pristine);
+  });
+});
 
 describe("username ownership", () => {
   beforeEach(() => {
@@ -129,21 +478,21 @@ describe("username ownership", () => {
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "  PooYAYooq  ",
-        expectedRevision: 0,
+        expectedRevision: 1,
       }),
-    ).toEqual({ kind: "saved", username: "PooYAYooq", revision: 1 });
+    ).toEqual({ kind: "saved", username: "PooYAYooq", revision: 2 });
     expect(await own.query(api.profiles.getEditorProfile, {})).toMatchObject({
       username: "PooYAYooq",
-      usernameRevision: 1,
+      usernameRevision: 2,
       identityRevision: 0,
       selectionRevision: 0,
     });
     expect(await own.query(api.users.getCurrentUser, {})).toMatchObject({
       username: "PooYAYooq",
       usernameLower: "pooyayooq",
-      usernameRevision: 1,
+      usernameRevision: 2,
     });
-    expect(await claims(t)).toEqual([
+    expect(await deliberateClaims(t)).toEqual([
       expect.objectContaining({
         usernameLower: "pooyayooq",
         ownerUserId,
@@ -161,7 +510,7 @@ describe("username ownership", () => {
     const { own, subject } = await signedIn(t, "public-name@example.com");
     await own.mutation(api.usernames.claimUsername, {
       username: "PooYaYooQ",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
 
     const profile = await t.query(api.users.getUserProfile, {
@@ -179,7 +528,7 @@ describe("username ownership", () => {
 
     await own.mutation(api.usernames.claimUsername, {
       username: "firstname",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
 
     const after = await own.query(api.profiles.getEditorProfile, {});
@@ -203,18 +552,18 @@ describe("username ownership", () => {
       const t = setup();
       const { own, ownerUserId } = await signedIn(t);
       const before = await allowance(t, ownerUserId);
+      const beforeProfile = await own.query(api.profiles.getEditorProfile, {});
       await expect(
         own.mutation(api.usernames.claimUsername, {
           username,
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
       ).rejects.toMatchObject({ data: { field: "username" } });
       expect(await allowance(t, ownerUserId)).toEqual(before);
-      expect(await claims(t)).toEqual([]);
-      expect(await own.query(api.profiles.getEditorProfile, {})).toMatchObject({
-        username: null,
-        usernameRevision: 0,
-      });
+      expect(await deliberateClaims(t)).toEqual([]);
+      expect(await own.query(api.profiles.getEditorProfile, {})).toEqual(
+        beforeProfile,
+      );
     },
   );
 
@@ -225,9 +574,9 @@ describe("username ownership", () => {
       expect(
         await own.mutation(api.usernames.claimUsername, {
           username,
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
-      ).toEqual({ kind: "saved", username, revision: 1 });
+      ).toEqual({ kind: "saved", username, revision: 2 });
     },
   );
 
@@ -236,7 +585,7 @@ describe("username ownership", () => {
     const first = await signedIn(t, "holder@example.com");
     await first.own.mutation(api.usernames.claimUsername, {
       username: "Pooya",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     await t.run(async (ctx) => {
       await ctx.db.insert("usernameClaims", {
@@ -250,7 +599,7 @@ describe("username ownership", () => {
       expect(
         await own.mutation(api.usernames.claimUsername, {
           username,
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
       ).toEqual({ kind: "unavailable" });
       expect(
@@ -264,9 +613,9 @@ describe("username ownership", () => {
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "free_name",
-        expectedRevision: 0,
+        expectedRevision: 1,
       }),
-    ).toEqual({ kind: "saved", username: "free_name", revision: 1 });
+    ).toEqual({ kind: "saved", username: "free_name", revision: 2 });
   });
 
   it("availability never reserves names or allowance and exposes only minimal outcomes", async () => {
@@ -288,13 +637,13 @@ describe("username ownership", () => {
         message: "Use only English letters, numbers, and underscores.",
       });
     }
-    expect(await claims(t)).toEqual([]);
+    expect(await deliberateClaims(t)).toEqual([]);
     expect(await allowance(t, ownerUserId)).toEqual(before);
     const other = await signedIn(t, "other@example.com");
     expect(
       await other.own.mutation(api.usernames.claimUsername, {
         username: "free_name",
-        expectedRevision: 0,
+        expectedRevision: 1,
       }),
     ).toMatchObject({ kind: "saved" });
     expect(
@@ -309,25 +658,25 @@ describe("username ownership", () => {
     const { own, ownerUserId } = await signedIn(t);
     await own.mutation(api.usernames.claimUsername, {
       username: "pooya",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     const before = await allowance(t, ownerUserId);
     vi.setSystemTime(START + 1000);
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "Pooya",
-        expectedRevision: 1,
+        expectedRevision: 2,
       }),
-    ).toEqual({ kind: "saved", username: "Pooya", revision: 2 });
+    ).toEqual({ kind: "saved", username: "Pooya", revision: 3 });
     const savedUser = await own.query(api.users.getCurrentUser, {});
     const savedClaims = await claims(t);
-    for (const expectedRevision of [2, 1, 0]) {
+    for (const expectedRevision of [3, 2, 1]) {
       expect(
         await own.mutation(api.usernames.claimUsername, {
           username: "Pooya",
           expectedRevision,
         }),
-      ).toEqual({ kind: "saved", username: "Pooya", revision: 2 });
+      ).toEqual({ kind: "saved", username: "Pooya", revision: 3 });
     }
     expect(await own.query(api.users.getCurrentUser, {})).toEqual(savedUser);
     expect(await claims(t)).toEqual(savedClaims);
@@ -336,7 +685,7 @@ describe("username ownership", () => {
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "new_name",
-        expectedRevision: 2,
+        expectedRevision: 3,
       }),
     ).toEqual({
       kind: "cooldown",
@@ -350,7 +699,7 @@ describe("username ownership", () => {
     const { own, ownerUserId } = await signedIn(t);
     await own.mutation(api.usernames.claimUsername, {
       username: "first_name",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     const before = await own.query(api.users.getCurrentUser, {});
     const quota = await allowance(t, ownerUserId);
@@ -364,7 +713,7 @@ describe("username ownership", () => {
     }
     expect(await own.query(api.users.getCurrentUser, {})).toEqual(before);
     expect(await allowance(t, ownerUserId)).toEqual(quota);
-    expect(await claims(t)).toHaveLength(1);
+    expect(await deliberateClaims(t)).toHaveLength(1);
   });
 
   it.each([-1, 0.5, Infinity, NaN])(
@@ -374,7 +723,7 @@ describe("username ownership", () => {
       const { own } = await signedIn(t);
       await own.mutation(api.usernames.claimUsername, {
         username: "first_name",
-        expectedRevision: 0,
+        expectedRevision: 1,
       });
       await expect(
         own.mutation(api.usernames.claimUsername, {
@@ -389,7 +738,7 @@ describe("username ownership", () => {
     const { own } = await signedIn(setup());
     await own.mutation(api.usernames.claimUsername, {
       username: "first_name",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     await expect(
       own.mutation(api.usernames.claimUsername, {
@@ -404,12 +753,12 @@ describe("username ownership", () => {
     const { own } = await signedIn(t);
     await own.mutation(api.usernames.claimUsername, {
       username: "first_name",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS - 1);
     const justBefore = await own.mutation(api.usernames.claimUsername, {
       username: "second_name",
-      expectedRevision: 1,
+      expectedRevision: 2,
     });
     expect(justBefore.kind).toBe("cooldown");
     if (justBefore.kind !== "cooldown") throw new Error("Expected cooldown");
@@ -419,19 +768,19 @@ describe("username ownership", () => {
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "second_name",
-        expectedRevision: 1,
+        expectedRevision: 2,
       }),
-    ).toEqual({ kind: "saved", username: "second_name", revision: 2 });
+    ).toEqual({ kind: "saved", username: "second_name", revision: 3 });
     vi.setSystemTime(START + 10 * USERNAME_CLAIM_PERIOD_MS);
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "third_name",
-        expectedRevision: 2,
+        expectedRevision: 3,
       }),
-    ).toMatchObject({ kind: "saved", revision: 3 });
+    ).toMatchObject({ kind: "saved", revision: 4 });
     const afterIdle = await own.mutation(api.usernames.claimUsername, {
       username: "fourth_name",
-      expectedRevision: 3,
+      expectedRevision: 4,
     });
     expect(afterIdle.kind).toBe("cooldown");
     if (afterIdle.kind !== "cooldown") throw new Error("Expected cooldown");
@@ -443,12 +792,12 @@ describe("username ownership", () => {
     const { own, ownerUserId } = await signedIn(t);
     await own.mutation(api.usernames.claimUsername, {
       username: "first_name",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
     await own.mutation(api.usernames.claimUsername, {
       username: "second_name",
-      expectedRevision: 1,
+      expectedRevision: 2,
     });
     const before = await allowance(t, ownerUserId);
     vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS + 1000);
@@ -460,9 +809,9 @@ describe("username ownership", () => {
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "First_Name",
-        expectedRevision: 2,
+        expectedRevision: 3,
       }),
-    ).toEqual({ kind: "saved", username: "First_Name", revision: 3 });
+    ).toEqual({ kind: "saved", username: "First_Name", revision: 4 });
     expect(
       await own.query(api.usernames.checkUsernameAvailability, {
         username: "FIRST_NAME",
@@ -477,7 +826,7 @@ describe("username ownership", () => {
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "third_name",
-        expectedRevision: 3,
+        expectedRevision: 4,
       }),
     ).toEqual({
       kind: "cooldown",
@@ -488,12 +837,12 @@ describe("username ownership", () => {
       expect(
         await other.own.mutation(api.usernames.claimUsername, {
           username,
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
       ).toEqual({ kind: "unavailable" });
     }
     expect(
-      (await claims(t)).map((claim) => claim.usernameLower).sort(),
+      (await deliberateClaims(t)).map((claim) => claim.usernameLower).sort(),
     ).toEqual(["first_name", "second_name"]);
   });
 
@@ -504,7 +853,7 @@ describe("username ownership", () => {
       ["first_name", "second_name"].map((username) =>
         own.mutation(api.usernames.claimUsername, {
           username,
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
       ),
     );
@@ -512,12 +861,12 @@ describe("username ownership", () => {
       "conflict",
       "saved",
     ]);
-    expect(await claims(t)).toHaveLength(1);
+    expect(await deliberateClaims(t)).toHaveLength(1);
     const other = await signedIn(t, "other@example.com");
     expect(
       await other.own.mutation(api.usernames.claimUsername, {
         username: "other_name",
-        expectedRevision: 0,
+        expectedRevision: 1,
       }),
     ).toMatchObject({ kind: "saved" });
   });
@@ -532,7 +881,7 @@ describe("username ownership", () => {
       accounts.map(({ own }, index) =>
         own.mutation(api.usernames.claimUsername, {
           username: index ? "Pooya" : "pooya",
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
       ),
     );
@@ -540,16 +889,19 @@ describe("username ownership", () => {
       "saved",
       "unavailable",
     ]);
-    expect(await claims(t)).toHaveLength(1);
+    expect(await deliberateClaims(t)).toHaveLength(1);
     const loser =
       accounts[results.findIndex((result) => result.kind === "unavailable")];
     expect(
       await loser.own.query(api.profiles.getEditorProfile, {}),
-    ).toMatchObject({ username: null, usernameRevision: 0 });
+    ).toMatchObject({
+      username: expect.stringMatching(/^Reso_[a-z2-9]{10}$/i),
+      usernameRevision: 1,
+    });
     expect(
       await loser.own.mutation(api.usernames.claimUsername, {
         username: "other_name",
-        expectedRevision: 0,
+        expectedRevision: 1,
       }),
     ).toMatchObject({ kind: "saved" });
   });
@@ -559,19 +911,19 @@ describe("username ownership", () => {
     const { own } = await signedIn(t);
     await own.mutation(api.usernames.claimUsername, {
       username: "first_name",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
     await own.mutation(api.usernames.claimUsername, {
       username: "second_name",
-      expectedRevision: 1,
+      expectedRevision: 2,
     });
     vi.setSystemTime(START + 2 * USERNAME_CLAIM_PERIOD_MS);
     const results = await Promise.all(
       ["third_name", "First_Name", "SECOND_NAME"].map((username) =>
         own.mutation(api.usernames.claimUsername, {
           username,
-          expectedRevision: 2,
+          expectedRevision: 3,
         }),
       ),
     );
@@ -585,7 +937,7 @@ describe("username ownership", () => {
       throw new Error("Expected one saved target");
     expect(await own.query(api.profiles.getEditorProfile, {})).toMatchObject({
       username: saved.username,
-      usernameRevision: 3,
+      usernameRevision: 4,
     });
   });
 
@@ -602,14 +954,14 @@ describe("username ownership", () => {
     const { own, ownerUserId } = await signedIn(t, "deleted@example.com");
     await own.mutation(api.usernames.claimUsername, {
       username: "firstname",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     // A distinct new name needs the 90-day allowance to refill; otherwise the
     // second claim is a cooldown and no second permanent row exists to retire.
     vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
     await own.mutation(api.usernames.claimUsername, {
       username: "secondname",
-      expectedRevision: 1,
+      expectedRevision: 2,
     });
 
     // Better Auth only mints the onDelete handle when deletion runs through the
@@ -629,19 +981,19 @@ describe("username ownership", () => {
     expect(
       await survivor.own.mutation(api.usernames.claimUsername, {
         username: "firstname",
-        expectedRevision: 0,
+        expectedRevision: 1,
       }),
     ).toEqual({ kind: "unavailable" });
     expect(
       await survivor.own.mutation(api.usernames.claimUsername, {
         username: "secondname",
-        expectedRevision: 0,
+        expectedRevision: 1,
       }),
     ).toEqual({ kind: "unavailable" });
     // Both names survive as permanent blocks with no live owner, which is the
     // retirement write the raw adapter deletion cannot perform on its own.
     expect(
-      (await claims(t)).map((claim) => ({
+      (await deliberateClaims(t)).map((claim) => ({
         usernameLower: claim.usernameLower,
         ownerUserId: claim.ownerUserId ?? null,
       })),
@@ -660,19 +1012,19 @@ describe("username ownership", () => {
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "First_Name",
-        expectedRevision: 0,
+        expectedRevision: 1,
       }),
-    ).toEqual({ kind: "saved", username: "First_Name", revision: 1 });
+    ).toEqual({ kind: "saved", username: "First_Name", revision: 2 });
     vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
     expect(
       await own.mutation(api.usernames.claimUsername, {
         username: "Second_Name",
-        expectedRevision: 1,
+        expectedRevision: 2,
       }),
-    ).toEqual({ kind: "saved", username: "Second_Name", revision: 2 });
+    ).toEqual({ kind: "saved", username: "Second_Name", revision: 3 });
     expect(await own.query(api.profiles.getEditorProfile, {})).toMatchObject({
       username: "Second_Name",
-      usernameRevision: 2,
+      usernameRevision: 3,
     });
     expect(await allowance(t, ownerUserId)).toMatchObject({
       value: 0,
@@ -696,7 +1048,7 @@ describe("username ownership", () => {
       expect(
         await survivor.own.mutation(api.usernames.claimUsername, {
           username,
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
       ).toEqual({ kind: "unavailable" });
     }
@@ -708,10 +1060,10 @@ describe("username ownership", () => {
   });
 
   it.each([
-    { ordering: "delete then edit", expectedRevision: 2 },
+    { ordering: "delete then edit", expectedRevision: 3 },
     {
       ordering: "delete then stale edit captured before rename",
-      expectedRevision: 1,
+      expectedRevision: 2,
     },
   ])(
     "rejects $ordering without resurrecting profile, claims or allowance",
@@ -721,9 +1073,9 @@ describe("username ownership", () => {
       expect(
         await own.mutation(api.usernames.claimUsername, {
           username: "First_Name",
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
-      ).toEqual({ kind: "saved", username: "First_Name", revision: 1 });
+      ).toEqual({ kind: "saved", username: "First_Name", revision: 2 });
       // Model drafts prepared before retirement, including a revision captured
       // before a subsequent rename. Invoke them only after deletion has committed.
       const edits = ["First_Name", "SECOND_NAME", "third_name"].map(
@@ -736,9 +1088,9 @@ describe("username ownership", () => {
       expect(
         await own.mutation(api.usernames.claimUsername, {
           username: "Second_Name",
-          expectedRevision: 1,
+          expectedRevision: 2,
         }),
-      ).toEqual({ kind: "saved", username: "Second_Name", revision: 2 });
+      ).toEqual({ kind: "saved", username: "Second_Name", revision: 3 });
       expect(await allowance(t, ownerUserId)).toMatchObject({ value: 0 });
       await deleteAccount(t, ownerUserId);
 
@@ -768,7 +1120,7 @@ describe("username ownership", () => {
         expect(
           await survivor.own.mutation(api.usernames.claimUsername, {
             username,
-            expectedRevision: 0,
+            expectedRevision: 1,
           }),
         ).toEqual({ kind: "unavailable" });
       }
@@ -794,7 +1146,7 @@ describe("username ownership", () => {
     const holder = await signedIn(t, "holder@example.com");
     await holder.own.mutation(api.usernames.claimUsername, {
       username: "holder_name",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     const args = {
       username: "Holder_Name",
@@ -806,7 +1158,7 @@ describe("username ownership", () => {
     ).rejects.toThrow();
     expect(
       await holder.own.query(api.profiles.getEditorProfile, {}),
-    ).toMatchObject({ username: "holder_name", usernameRevision: 1 });
+    ).toMatchObject({ username: "holder_name", usernameRevision: 2 });
     expect(await t.query(api.profiles.getEditorProfile, {})).toBeNull();
   });
 
@@ -829,21 +1181,21 @@ describe("username ownership", () => {
             .spyOn(ctx.db, stage)
             .mockRejectedValueOnce(new Error(`injected ${stage} failure`));
           try {
-            await saveUsername(ctx, user!, 0, "failed_name");
+            await saveUsername(ctx, user!, 1, "failed_name");
           } finally {
             fault.mockRestore();
           }
         }),
       ).rejects.toThrow(`injected ${stage} failure`);
       expect(await allowance(t, ownerUserId)).toEqual(quota);
-      expect(await claims(t)).toEqual([]);
+      expect(await deliberateClaims(t)).toEqual([]);
       expect(await own.query(api.users.getCurrentUser, {})).toEqual(
         originalUser,
       );
       expect(
         await own.mutation(api.usernames.claimUsername, {
           username: "success_name",
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
       ).toMatchObject({ kind: "saved" });
     },
@@ -853,22 +1205,22 @@ describe("username ownership", () => {
     const t = setup();
     const { own, ownerUserId } = await signedIn(t);
     const quota = await allowance(t, ownerUserId);
+    const beforeProfile = await own.query(api.profiles.getEditorProfile, {});
     const fault = vi
       .spyOn(rateLimiter, "limit")
       .mockRejectedValueOnce(new Error("limiter unavailable"));
     await expect(
       own.mutation(api.usernames.claimUsername, {
         username: "failed_name",
-        expectedRevision: 0,
+        expectedRevision: 1,
       }),
     ).rejects.toThrow("limiter unavailable");
     fault.mockRestore();
     expect(await allowance(t, ownerUserId)).toEqual(quota);
-    expect(await claims(t)).toEqual([]);
-    expect(await own.query(api.profiles.getEditorProfile, {})).toMatchObject({
-      username: null,
-      usernameRevision: 0,
-    });
+    expect(await deliberateClaims(t)).toEqual([]);
+    expect(await own.query(api.profiles.getEditorProfile, {})).toEqual(
+      beforeProfile,
+    );
   });
 
   it("retires in bounded idempotent batches, removes the live profile immediately and resets only its limiter", async () => {
@@ -876,12 +1228,12 @@ describe("username ownership", () => {
     const { own, ownerUserId } = await signedIn(t);
     await own.mutation(api.usernames.claimUsername, {
       username: "current_name",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     const other = await signedIn(t, "other@example.com");
     await other.own.mutation(api.usernames.claimUsername, {
       username: "other_name",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     const otherQuota = await allowance(t, other.ownerUserId);
     await t.run(async (ctx) => {
@@ -900,9 +1252,9 @@ describe("username ownership", () => {
     const during = await claims(t);
     expect(
       during.filter((claim) => claim.ownerUserId === ownerUserId),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     for (const claim of during.filter(
-      (claim) => claim.usernameLower !== "other_name",
+      (claim) => claim.ownerUserId === ownerUserId,
     )) {
       expect(
         await other.own.query(api.usernames.checkUsernameAvailability, {
@@ -910,7 +1262,7 @@ describe("username ownership", () => {
         }),
       ).toEqual({ status: "taken" });
     }
-    // Mid-batch resolution: the profile is gone but three claims still carry
+    // Mid-batch resolution: the profile is gone but four claims still carry
     // their owner association, so resolveUsername must take the "claim
     // outlived its owner's profile" guard and report notFound, never a leak.
     const stillOwned = during.filter(
@@ -961,7 +1313,7 @@ describe("username ownership", () => {
     expect(
       (await claims(t)).filter((claim) => claim.ownerUserId === ownerUserId),
     ).toEqual([]);
-    expect(await claims(t)).toHaveLength(104);
+    expect(await claims(t)).toHaveLength(106);
     expect(
       await t.run(
         async (ctx) =>
@@ -987,7 +1339,7 @@ describe("username ownership", () => {
       expect(
         await replacement.own.mutation(api.usernames.claimUsername, {
           username,
-          expectedRevision: 0,
+          expectedRevision: 1,
         }),
       ).toEqual({ kind: "unavailable" });
     }
@@ -1009,12 +1361,12 @@ describe("username resolution", () => {
     const { own } = await signedIn(t, "resolver@example.com");
     await own.mutation(api.usernames.claimUsername, {
       username: "firstname",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
     await own.mutation(api.usernames.claimUsername, {
       username: "secondname",
-      expectedRevision: 1,
+      expectedRevision: 2,
     });
 
     expect(
@@ -1054,7 +1406,7 @@ describe("username resolution", () => {
     const { own } = await signedIn(t, "mixedcase@example.com");
     await own.mutation(api.usernames.claimUsername, {
       username: "PooYaYooQ",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
 
     expect(
@@ -1077,7 +1429,7 @@ describe("username resolution", () => {
     const { own } = await signedIn(t, "spacecheck@example.com");
     await own.mutation(api.usernames.claimUsername, {
       username: "spacecheck",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
 
     expect(
@@ -1096,12 +1448,12 @@ describe("username resolution", () => {
     const { own, subject } = await signedIn(t, "deleted-resolver@example.com");
     await own.mutation(api.usernames.claimUsername, {
       username: "gonefirst",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
     vi.setSystemTime(START + USERNAME_CLAIM_PERIOD_MS);
     await own.mutation(api.usernames.claimUsername, {
       username: "gonelast",
-      expectedRevision: 1,
+      expectedRevision: 2,
     });
 
     // The deletion callback removes the live profile and strips the claims'
@@ -1137,7 +1489,7 @@ describe("username resolution", () => {
     const { own, subject } = await signedIn(t, "owners@example.com");
     await own.mutation(api.usernames.claimUsername, {
       username: "ownerone",
-      expectedRevision: 0,
+      expectedRevision: 1,
     });
 
     const result = await t.query(api.usernames.getUsernamesForOwners, {
