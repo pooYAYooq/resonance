@@ -6,19 +6,19 @@ a session history.
 
 ## Current focus
 
-Username-based public addresses and links are implemented on
-`feat/username-addresses` and verified at `0713a91`. Public profiles serve the
-canonical lowercase `/u/<username>`; every other spelling of an owned name
-(styled, uppercase, or a previous name) redirects to it, and unknown, reserved,
-and deleted-account names return a shared 404. Comment author names and every
-other generated author link resolve to the current lowercase username; authors
-without a username render a plain label. Verification and measured redirect
-headers are in [username address evidence](USERNAMES_ADDRESSES_EVIDENCE.md);
-behavior is cataloged in [FEATURES.md](../FEATURES.md). The ownership delivery
-merged in PR #112.
+Automatic username assignment at signup and the one-time dashboard welcome are
+implemented on `feat/username-signup-welcome` and verified at `c3ca0ee`. Every
+new account (email/password, Google, or GitHub) is provisioned an app profile
+and one generated `Reso_` username in the same transaction as the auth account
+creation, without consuming the 90-day new-name allowance, and the
+dashboard-scoped popup remembers its dismissal on the account. Verification,
+live evidence, and the open OAuth-creation item are in
+[username signup evidence](USERNAMES_SIGNUP_EVIDENCE.md); behavior is cataloged
+in [FEATURES.md](../FEATURES.md). This completes the three planned username
+deliveries; the ownership delivery merged in PR #112 and the address delivery is
+recorded in [username address evidence](USERNAMES_ADDRESSES_EVIDENCE.md).
 
-Remaining username work is the automatic signup assignment with the one-time
-welcome. Carry-forward from the ownership delivery stays open and recorded in
+Carry-forward from the ownership delivery stays open and recorded in
 [known limitations](KNOWN_LIMITATIONS.md): the username editor's owned/current
 and cross-tab browser states, a real screen-reader session, a real-runtime
 deletion/edit stress matrix, and the deletion-cascade limitation.
@@ -32,10 +32,10 @@ submission, after review changes, and before merge handoff.
 
 ## Next action
 
-Deliver automatic signup assignment and the one-time welcome: a new account
-receives a username at signup, with a fallback when assignment is unavailable,
-and a one-time welcome page. Extend the username editor browser pass to the
-owned/current and cross-tab states and run a real screen-reader session when
+Deliver the remaining V1-17 public author-page presentation and catalogue work;
+the approved author-page design study is archived locally at
+`resonance-profile-design-2026-10-11`. Extend the username editor browser pass to
+the owned/current and cross-tab states and run a real screen-reader session when
 they can be exercised without consuming the real 90-day allowance. Keep the
 real-runtime deletion/edit stress-matrix gap visible; the deterministic
 interleaves and the two single-shot runtime orderings are not a stress matrix.
@@ -43,9 +43,8 @@ interleaves and the two single-shot runtime orderings are not a stress matrix.
 ## Blockers and constraints
 
 - The broader public author-page presentation and catalogue are not built.
-- Automatic signup assignment is not shipped; a new account has no username
-  until its owner claims one through `/profile/edit`, and the one-time welcome
-  page is not built.
+- OAuth account creation with a fresh provider identity is unverified (no spare
+  provider accounts were available); see [known limitations](KNOWN_LIMITATIONS.md).
 - The feed loading-announcement advisory is explicitly deferred. It is not a
   reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
 - Preserve the demo post, follow relationship, like, and comment. Browser

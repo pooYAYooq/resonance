@@ -17,8 +17,12 @@ work is tracked in `ROADMAP.md`.
   Claimed lowercase names are owned permanently, including after a rename, and a
   deliberate claim of a previously unowned name starts a 90-day wait before
   another new name can be claimed. Switching to an owned previous name and
-  changing capitalization bypass the wait. Automatic assignment at signup ships
-  separately.
+  changing capitalization bypass the wait.
+- Every new account (email/password, Google, or GitHub) receives an app profile
+  and one generated `Reso_` username in the same transaction as the auth
+  account creation, without consuming the 90-day new-name allowance. A one-time
+  dashboard welcome remembers its dismissal on the account across sessions and
+  browser contexts.
 - Human-readable public profile addresses at `/u/<username>`. The canonical
   lowercase spelling renders the profile; every other spelling of an owned name
   (styled, uppercase, or a previous name) redirects to it, and unknown,

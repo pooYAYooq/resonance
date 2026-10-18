@@ -23,6 +23,12 @@
 ### Authentication
 
 - Email/password **and** Google/GitHub OAuth via Better Auth (runs inside Convex)
+- Every new account (email/password, Google, or GitHub) is provisioned an app
+  profile and one generated `Reso_` + 10-character username in the same
+  transaction as the auth account creation; automatic assignment never consumes
+  the 90-day new-name allowance
+- A one-time dashboard welcome remembers its dismissal on the account across
+  sessions and browser contexts
 - `AuthSync` bridges Better Auth identity into the app-level `users` table on sign-in
 - Navbar avatar dropdown (profile / settings / logout); `/create` is auth-gated
 - Below 768px, the site and workspace use a logo plus hamburger drawer instead

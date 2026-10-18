@@ -6,7 +6,8 @@ at the canonical lowercase username, redirecting every other owned spelling,
 and linking authors by their current username. This is the second of the three
 planned username deliveries. The first (ownership and the editor) is recorded
 in [username evidence](USERNAMES_EVIDENCE.md); automatic signup assignment is
-the remaining delivery.
+delivered and recorded in
+[username signup evidence](USERNAMES_SIGNUP_EVIDENCE.md).
 
 Scope and completion live in [ROADMAP.md](../ROADMAP.md); current constraints
 are in [known limitations](KNOWN_LIMITATIONS.md). Raw command output and the

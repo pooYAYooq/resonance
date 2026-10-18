@@ -315,8 +315,8 @@ produce a specific message, so this is intended, not a defect.
 - **Public addressing is now delivered.** The profile serves `/u/<username>`
   with redirects and 404s; see
   [username address evidence](USERNAMES_ADDRESSES_EVIDENCE.md). Automatic signup
-  assignment remains absent: new accounts have no username until one is claimed
-  through `/profile/edit`.
+  assignment is delivered and recorded in
+  [username signup evidence](USERNAMES_SIGNUP_EVIDENCE.md).
 
 ## Real-runtime concurrency evidence
 
