@@ -21,11 +21,15 @@
  * the retry path stays deterministic and the user controls when to try again.
  * The `onCreate` trigger in `convex/auth.ts` already provisions the profile at
  * account creation; this effect converges accounts that predate that trigger.
+ *
+ * The banner belongs to one auth lifecycle: when that lifecycle settles to
+ * signed-out it is cleared, and a completion that lands after the lifecycle
+ * changed cannot write stale state back into a later session.
  */
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
@@ -39,9 +43,20 @@ export function AuthSync({ children }: AuthSyncProps) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const syncUser = useMutation(api.users.syncUser);
   const [syncState, setSyncState] = useState<SyncState>("idle");
+  // Bumped whenever the auth lifecycle changes. A manual retry captures the
+  // generation it started under and only applies its outcome while that
+  // generation is still current, so a completion that lands after sign-out
+  // cannot resurrect a banner for a session that no longer exists.
+  const generation = useRef(0);
 
   useEffect(() => {
-    if (!isAuthenticated || isLoading) return;
+    generation.current += 1;
+    if (isLoading) return;
+    if (!isAuthenticated) {
+      // Settled signed-out: the previous session's setup failure must not linger.
+      setSyncState("idle");
+      return;
+    }
     let cancelled = false;
     // Handle both outcomes so a failure never becomes an unhandled rejection.
     syncUser({}).then(
@@ -58,10 +73,15 @@ export function AuthSync({ children }: AuthSyncProps) {
   }, [isAuthenticated, isLoading, syncUser]);
 
   const retry = () => {
+    const current = generation.current;
     setSyncState("retrying");
     syncUser({}).then(
-      () => setSyncState("idle"),
-      () => setSyncState("failed"),
+      () => {
+        if (generation.current === current) setSyncState("idle");
+      },
+      () => {
+        if (generation.current === current) setSyncState("failed");
+      },
     );
   };
 

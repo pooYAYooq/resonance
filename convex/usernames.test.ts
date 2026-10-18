@@ -6,7 +6,10 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, components, internal } from "./_generated/api";
 import { authComponent } from "./auth";
-import { buildGeneratedUsername } from "../lib/username";
+import {
+  buildGeneratedUsername,
+  GENERATED_USERNAME_SUFFIX_LENGTH,
+} from "../lib/username";
 import {
   rateLimiter,
   USERNAME_CLAIM_LIMIT,
@@ -78,16 +81,18 @@ async function signedIn(
 async function createAccount(t: ReturnType<typeof setup>, email: string) {
   return await t.run(async (ctx) => {
     const now = Date.now();
-    const user = await authComponent.adapter(ctx)({}).create({
-      model: "user",
-      data: {
-        name: "Ada",
-        email,
-        emailVerified: true,
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
+    const user = await authComponent
+      .adapter(ctx)({})
+      .create({
+        model: "user",
+        data: {
+          name: "Ada",
+          email,
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
     const session = await ctx.runMutation(
       components.betterAuth.adapter.create,
       {
@@ -310,10 +315,12 @@ describe("account lifecycle provisioning", () => {
     expect(
       await t.run(
         async (ctx) =>
-          await authComponent.adapter(ctx)({}).findOne({
-            model: "user",
-            where: [{ field: "email", value: "exhausted@example.com" }],
-          }),
+          await authComponent
+            .adapter(ctx)({})
+            .findOne({
+              model: "user",
+              where: [{ field: "email", value: "exhausted@example.com" }],
+            }),
       ),
     ).toBeNull();
     expect(
@@ -328,6 +335,126 @@ describe("account lifecycle provisioning", () => {
       ),
     ).toBeNull();
     expect(await claims(t)).toEqual(claimsBefore);
+  });
+
+  it("retries past a colliding candidate and assigns exactly one generated name", async () => {
+    const t = setup();
+    const { own, ownerUserId } = await signedIn(
+      t,
+      "collision-retry@example.com",
+      false,
+    );
+    // A constant generator names the collision deterministically, mirroring the
+    // exhaustion test: the first candidate targets a name a foreign claim owns.
+    const collision = buildGeneratedUsername(() => 0.5);
+    const free = buildGeneratedUsername(() => 0.25);
+    expect(free.canonical).not.toBe(collision.canonical);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("usernameClaims", {
+        usernameLower: collision.canonical,
+        ownerUserId: "existing-owner",
+        createdAt: START,
+      });
+    });
+    const before = await allowance(t, ownerUserId);
+
+    // Each candidate consumes one random() call per suffix character: serve the
+    // collision value for the first candidate, then a different value so the
+    // second candidate is free.
+    const random = vi.spyOn(Math, "random");
+    for (let i = 0; i < GENERATED_USERNAME_SUFFIX_LENGTH; i += 1) {
+      random.mockReturnValueOnce(0.5);
+    }
+    random.mockReturnValue(0.25);
+    try {
+      await own.mutation(api.users.syncUser, {});
+    } finally {
+      random.mockRestore();
+    }
+
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile?.username).toBe(free.styled);
+    expect(profile?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, ownerUserId);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: free.canonical,
+      ownerUserId,
+      createdAt: START,
+    });
+    // Only the seeded foreign claim and the one generated claim exist, and the
+    // seeded claim still belongs to its original owner.
+    const all = await claims(t);
+    expect(all).toHaveLength(2);
+    expect(
+      all.find((claim) => claim.usernameLower === collision.canonical),
+    ).toMatchObject({
+      usernameLower: collision.canonical,
+      ownerUserId: "existing-owner",
+      createdAt: START,
+    });
+    expect(await allowance(t, ownerUserId)).toEqual(before);
+  });
+
+  it("provisions one profile and one claim when first-time syncs race", async () => {
+    const t = setup();
+    const { own, ownerUserId } = await signedIn(
+      t,
+      "racing-sync@example.com",
+      false,
+    );
+    const before = await allowance(t, ownerUserId);
+
+    // The emulator serializes top-level mutations, so these interleave rather
+    // than run in true parallel; either way provisioning must stay idempotent.
+    const results = await Promise.all([
+      own.mutation(api.users.syncUser, {}),
+      own.mutation(api.users.syncUser, {}),
+    ]);
+    await own.mutation(api.users.syncUser, {});
+
+    const profiles = await t.run(
+      async (ctx) =>
+        await ctx.db
+          .query("users")
+          .withIndex("by_userId", (q) => q.eq("userId", ownerUserId))
+          .take(10),
+    );
+    expect(profiles).toHaveLength(1);
+    expect(results).toEqual([profiles[0]._id, profiles[0]._id]);
+    const profile = await own.query(api.profiles.getEditorProfile, {});
+    expect(profile?.username).toMatch(/^Reso_[a-z2-9]{10}$/i);
+    expect(profile?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, ownerUserId);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: profile?.username?.toLowerCase(),
+      ownerUserId,
+    });
+    expect(await allowance(t, ownerUserId)).toEqual(before);
+  });
+
+  it("keeps the trigger-assigned name through repeated syncs", async () => {
+    const t = setup();
+    const identity = await createAccount(t, "repeat-sync@example.com");
+    const own = t.withIdentity(identity);
+    const first = await own.query(api.profiles.getEditorProfile, {});
+    expect(first?.usernameRevision).toBe(1);
+    const before = await allowance(t, identity.subject);
+
+    await own.mutation(api.users.syncUser, {});
+    await own.mutation(api.users.syncUser, {});
+
+    const after = await own.query(api.profiles.getEditorProfile, {});
+    expect(after?.username).toBe(first?.username);
+    expect(after?.usernameRevision).toBe(1);
+    const owned = await ownerClaims(t, identity.subject);
+    expect(owned).toHaveLength(1);
+    expect(owned[0]).toMatchObject({
+      usernameLower: after?.username?.toLowerCase(),
+      ownerUserId: identity.subject,
+    });
+    expect(await allowance(t, identity.subject)).toEqual(before);
   });
 });
 

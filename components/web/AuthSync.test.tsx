@@ -28,10 +28,12 @@ import { AuthSync } from "./AuthSync";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 describe("AuthSync", () => {
@@ -150,6 +152,69 @@ describe("AuthSync", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "We could not finish setting up your account.",
     );
+  });
+
+  it("clears a visible failure banner when the session signs out", async () => {
+    useMutationMock.mockRejectedValueOnce(new Error("sync failed"));
+    const { rerender } = render(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    // The auth lifecycle settles to signed-out; the previous session's setup
+    // failure must not remain on screen for a visitor with no account.
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    rerender(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("does not resurrect the banner when a retry lands after sign-out", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<undefined>();
+    useMutationMock
+      .mockRejectedValueOnce(new Error("sync failed"))
+      .mockReturnValueOnce(pending.promise);
+    const { rerender } = render(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    rerender(
+      <AuthSync>
+        <p>Public content</p>
+      </AuthSync>,
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+    );
+
+    // The in-flight retry fails only after the lifecycle moved to signed-out.
+    // Its stale completion must not restore the banner.
+    await act(async () => {
+      pending.reject(new Error("retry failed"));
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("does not emit an unhandled rejection when the sync fails", async () => {
