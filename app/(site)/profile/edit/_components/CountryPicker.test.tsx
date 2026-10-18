@@ -69,7 +69,7 @@ describe("CountryPicker", () => {
         .spyOn(String.prototype, "toLocaleLowerCase")
         .mockImplementation(function (
           this: string,
-          locales?: string | string[],
+          locales?: Intl.LocalesArgument,
         ) {
           return original.call(this, locales ?? "tr");
         });
@@ -78,7 +78,7 @@ describe("CountryPicker", () => {
         const trigger = screen.getByLabelText("Location");
         expect(trigger.querySelector(".fi")).toHaveClass(flagClass);
         await user.click(trigger);
-        const option = screen.getByRole("option", { name, exact: true });
+        const option = screen.getByRole("option", { name });
         expect(option.querySelector(".fi")).toHaveClass(flagClass);
         expect(option).toHaveAttribute("aria-selected", "true");
       } finally {
@@ -97,7 +97,10 @@ describe("CountryPicker", () => {
     const original = String.prototype.toLocaleLowerCase;
     const casing = vi
       .spyOn(String.prototype, "toLocaleLowerCase")
-      .mockImplementation(function (this: string, locales?: string | string[]) {
+      .mockImplementation(function (
+        this: string,
+        locales?: Intl.LocalesArgument,
+      ) {
         return original.call(this, locales ?? "tr");
       });
     try {
@@ -108,12 +111,12 @@ describe("CountryPicker", () => {
         screen.getByRole("combobox", { name: "Search location" }),
         query,
       );
-      expect(screen.getByRole("option", { name, exact: true })).toBeVisible();
+      expect(screen.getByRole("option", { name })).toBeVisible();
       await user.keyboard("{ArrowDown}{Enter}");
       expect(trigger).toHaveTextContent(name);
       expect(trigger).toHaveFocus();
       await user.click(trigger);
-      expect(screen.getByRole("option", { name, exact: true })).toHaveAttribute(
+      expect(screen.getByRole("option", { name })).toHaveAttribute(
         "aria-selected",
         "true",
       );
@@ -180,7 +183,7 @@ describe("CountryPicker", () => {
         screen.getByRole("combobox", { name: "Search country" }),
         name.toUpperCase(),
       );
-      expect(screen.getByRole("option", { name, exact: true })).toBeVisible();
+      expect(screen.getByRole("option", { name })).toBeVisible();
       await user.keyboard("{ArrowDown}{Enter}");
       expect(onChange).toHaveBeenCalledWith(code);
     },
@@ -204,7 +207,7 @@ describe("CountryPicker", () => {
       screen.getByRole("combobox", { name: "Search location" }),
       query,
     );
-    expect(screen.getByRole("option", { name, exact: true })).toBeVisible();
+    expect(screen.getByRole("option", { name })).toBeVisible();
   });
   it("exposes a closed select button with its visible label and open indicator", () => {
     render(<Harness />);
@@ -364,7 +367,6 @@ describe("CountryPicker", () => {
     expect(
       screen.getByRole("option", {
         name: "Saint Vincent and the Grenadines",
-        exact: true,
       }),
     ).toHaveAttribute("aria-selected", "true");
   });

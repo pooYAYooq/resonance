@@ -372,14 +372,8 @@ Use `pnpm shadcn add <component>` to add new primitives. Do not edit `components
 ### CI Before PR
 
 ```
-pnpm lint → pnpm test:ci → pnpm test:component → pnpm build
+pnpm lint → pnpm exec tsc --noEmit → pnpm test:ci → pnpm test:component → pnpm build
 ```
-
-### Known Issue
-
-- On first OAuth sign-up, the Navbar avatar shows initials instead of the
-  provider picture until the user record sync completes (`AuthSync` fires
-  `syncUser` as fire-and-forget).
 
 ### Sessions
 
