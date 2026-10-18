@@ -15,7 +15,7 @@ pass notes, and screenshots were local and uncommitted.
 
 ## Tested revision and environment
 
-- Code revision: `c3ca0ee` on `feat/username-signup-welcome` (base `29d08f1`).
+- Code revision: `fb67eca` on `feat/username-signup-welcome` (base `29d08f1`).
 - Backend functions deployed to the personal dev deployment
   `dev:woozy-spaniel-283` (functions deployed 2026-10-17).
 - The email/password live checks ran through the real Next route handler against
@@ -25,13 +25,13 @@ pass notes, and screenshots were local and uncommitted.
 
 ## Required verification
 
-Run in the repository's CI order at `c3ca0ee`. All four passed:
+Run in the repository's CI order at `fb67eca`. All four passed:
 
 | Command                              | Result                                          |
 | ------------------------------------ | ----------------------------------------------- |
 | `pnpm lint`                          | No ESLint diagnostics                           |
-| `pnpm test:ci`                       | 49 files, 835 tests passed                      |
-| `pnpm test:component --maxWorkers=1` | 90 files, 902 tests passed                      |
+| `pnpm test:ci`                       | 49 files, 838 tests passed                      |
+| `pnpm test:component --maxWorkers=1` | 90 files, 906 tests passed                      |
 | `pnpm build`                         | Compiled successfully; no `/auth/welcome` route |
 
 The build route table lists `/u/[username]` as the only dynamic profile route
@@ -89,7 +89,7 @@ changed later in Edit profile.
 
 ## Live evidence
 
-Measured against `dev:woozy-spaniel-283` at `c3ca0ee`.
+Measured against `dev:woozy-spaniel-283` at `c3ca0ee`, with the fresh provider checks on 2026-10-18 against the same deployment.
 
 - Email/password signup through the real Next route handler:
   `reso-check-a-01@example.com` received `Reso_3ug9w6dwiz` at revision 1 with
@@ -102,7 +102,7 @@ Measured against `dev:woozy-spaniel-283` at `c3ca0ee`.
   up, dismissed the welcome, and passed straight through on a second sign-in;
   `reso-ui-check-02` abandoned the welcome, returned to it, and dismissed it;
   account 01's dismissal held in an independent browser context.
-- The maintainer's own account (`pooyayooq@gmail.com`, Google): a
+- The maintainer's own Google account: a
   username-less legacy account converged to `Reso_xki9rtf6ky` at revision 1
   through the authenticated idempotent path, showed the welcome once, and
   dismissed it; a later GitHub sign-in linked to the same account kept both the

@@ -7,7 +7,7 @@ a session history.
 ## Current focus
 
 Automatic username assignment at signup and the one-time dashboard welcome are
-implemented on `feat/username-signup-welcome` and verified at `c3ca0ee`. Every
+implemented on `feat/username-signup-welcome` and verified at `fb67eca`. Every
 new account (email/password, Google, or GitHub) is provisioned an app profile
 and one generated `Reso_` username in the same transaction as the auth account
 creation, without consuming the 90-day new-name allowance, and the

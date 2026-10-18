@@ -371,11 +371,10 @@ components/
     │
     ├── AuthSync.tsx
     │     Client component mounted inside ConvexClientProvider. Fires
-    │     the users.syncUser mutation whenever auth state changes. Provider
-    │     display name seeds new user records; existing names remain
-    │     author-owned while email and OAuth avatar stay synced. Known issue: sync is
-    │     fire-and-forget, so on first OAuth sign-up the Navbar can
-    │     briefly render initials instead of the provider avatar.
+    │     the users.syncUser mutation whenever auth state changes. The
+    │     account-created trigger provisions new user records; AuthSync
+    │     converges and refreshes them. Existing display names remain
+    │     author-owned while email and OAuth avatar stay synced.
     │
     ├── Navbar.tsx
      │     Reads auth state with useConvexAuth(). Reactive to the
