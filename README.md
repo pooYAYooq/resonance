@@ -194,7 +194,7 @@ app/
 
 convex/
   schema.ts                   # Database schema, including Discover projections and counters, and users.welcomeDismissedAt
-                              # (one-time welcome state; see the account provisioning section in docs/ARCHITECTURE.md)
+                              # (one-time welcome state)
   posts.ts                    # Draft save/publish, published editing/deletion, published-only reads, uploads, claims, and URL hydration
   postLifecycle.ts             # Transactional post writes, deterministic preconditions, and projection synchronization
   discover.ts                 # Public Latest, Search, Topics, and Topic-post queries
@@ -317,6 +317,12 @@ Browser → Next.js API route (app/api/auth/[...all]/route.ts)
 ```
 
 User and session records live in the same Convex DB as application data.
+
+Account creation provisions the app profile and its generated `Reso_` username
+inside the same Convex transaction as the auth write, so a new account is usable
+at `/u/<username>` immediately. The one-time welcome's state lives on the
+account as `users.welcomeDismissedAt`; see
+[Account Provisioning and the One-Time Welcome](docs/ARCHITECTURE.md#account-provisioning-and-the-one-time-welcome).
 
 ### Data Fetching Patterns
 
