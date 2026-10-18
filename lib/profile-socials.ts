@@ -11,6 +11,15 @@ export const SOCIAL_PLATFORMS = [
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
 export type SocialProfiles = Partial<Record<SocialPlatform, string>>;
 
+/** Fixed display labels shared by the identity editor and the public page. */
+export const SOCIAL_LABELS: Record<SocialPlatform, string> = {
+  instagram: "Instagram",
+  linkedin: "LinkedIn",
+  behance: "Behance",
+  youtube: "YouTube",
+  x: "X",
+};
+
 export type SocialProfilesResult =
   | { ok: true; value: SocialProfiles }
   | { ok: false; message: string };

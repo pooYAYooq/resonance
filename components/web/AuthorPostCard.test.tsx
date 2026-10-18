@@ -1,0 +1,102 @@
+/**
+ * Component tests for `AuthorPostCard`.
+ *
+ * The card is the only interactive surface of the showcase, so these tests pin
+ * the single-anchor contract, the 3:2 cover frame, the like-count accessible
+ * name, and the recoverable cover error (a sibling retry, no nested control).
+ */
+
+import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+
+import { AuthorPostCard, type AuthorCard } from "./AuthorPostCard";
+
+const post: AuthorCard = {
+  postId: "post-1",
+  title: "A quiet header",
+  imageUrl: "https://cdn.example/cover.png",
+  likeCount: 128,
+};
+
+describe("AuthorPostCard", () => {
+  it("renders one link whose accessible name is the title", () => {
+    const { container } = render(<AuthorPostCard post={post} />);
+
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "/blog/post-1");
+    expect(links[0]).toHaveAccessibleName("A quiet header");
+    expect(screen.getByText("A quiet header")).toBeInTheDocument();
+
+    const image = container.querySelector("img");
+    expect(image).toHaveAttribute("alt", "");
+  });
+
+  it("keeps a 3:2 cover frame and an accessible like count", () => {
+    render(<AuthorPostCard post={post} />);
+
+    expect(screen.getByTestId("author-card-cover")).toHaveClass("aspect-[3/2]");
+    const likes = screen.getByLabelText("128 likes");
+    expect(likes).toHaveTextContent("128");
+  });
+
+  it("always pluralizes the like label to match the approved copy", () => {
+    render(<AuthorPostCard post={{ ...post, likeCount: 1 }} />);
+
+    expect(screen.getByLabelText("1 likes")).toBeInTheDocument();
+  });
+
+  it("shows a sibling recovery with retry when the cover fails, keeping the link", () => {
+    const { container } = render(<AuthorPostCard post={post} />);
+    const link = screen.getByRole("link");
+
+    fireEvent.error(container.querySelector("img")!);
+
+    expect(screen.getByText("Cover unavailable")).toBeInTheDocument();
+    const retry = screen.getByRole("button", {
+      name: "Retry cover for A quiet header",
+    });
+    expect(link.contains(retry)).toBe(false);
+    expect(link).toHaveAttribute("href", "/blog/post-1");
+    expect(link).toHaveAccessibleName("A quiet header");
+  });
+
+  it("retries the cover, resetting the error and remounting the image", () => {
+    const { container } = render(<AuthorPostCard post={post} />);
+    fireEvent.error(container.querySelector("img")!);
+
+    fireEvent.click(screen.getByRole("button", { name: /retry cover/i }));
+
+    expect(screen.queryByText("Cover unavailable")).toBeNull();
+    expect(container.querySelector("img")).toBeTruthy();
+  });
+
+  it("renders a blank cover and no recovery when there is no image", () => {
+    const { container } = render(
+      <AuthorPostCard post={{ ...post, imageUrl: null }} />,
+    );
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.queryByText("Cover unavailable")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByTestId("author-card-cover")).toHaveClass("aspect-[3/2]");
+    expect(
+      screen.getByRole("link", { name: "A quiet header" }),
+    ).toHaveAttribute("href", "/blog/post-1");
+  });
+
+  it("clears a prior failure when the image URL changes", () => {
+    const { container, rerender } = render(<AuthorPostCard post={post} />);
+    fireEvent.error(container.querySelector("img")!);
+    expect(screen.getByText("Cover unavailable")).toBeInTheDocument();
+
+    rerender(
+      <AuthorPostCard
+        post={{ ...post, imageUrl: "https://cdn.example/other.png" }}
+      />,
+    );
+
+    expect(screen.queryByText("Cover unavailable")).toBeNull();
+    expect(container.querySelector("img")).toBeTruthy();
+  });
+});

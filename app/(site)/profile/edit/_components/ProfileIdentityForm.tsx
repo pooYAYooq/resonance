@@ -25,6 +25,7 @@ import {
 } from "@/lib/profile-identity";
 import {
   normalizeSocialProfiles,
+  SOCIAL_LABELS,
   SOCIAL_PLATFORMS,
   type SocialPlatform,
 } from "@/lib/profile-socials";
@@ -71,14 +72,6 @@ import {
 import type { ProfileEditSaveStatus } from "./profileEditSave";
 
 const BASE = "profile-identity";
-
-const SOCIAL_LABELS: Record<SocialPlatform, string> = {
-  instagram: "Instagram",
-  linkedin: "LinkedIn",
-  behance: "Behance",
-  youtube: "YouTube",
-  x: "X",
-};
 
 const SOCIAL_PLACEHOLDERS: Record<SocialPlatform, string> = {
   instagram: "https://instagram.com/username",
