@@ -63,15 +63,6 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Engineering and verification
 
-- Direct `pnpm exec tsc --noEmit` currently fails on four pre-existing test
-  typing errors: a null assignment in `app/(workspace)/create/page.test.tsx`
-  (present before the cover changes), an unsupported role-query option in
-  `components/web/AuthoringExitProvider.test.tsx`, an `Element`/`HTMLElement`
-  mismatch in `components/web/FollowButton.test.tsx`, and a further typing error
-  in `app/(site)/profile/edit/_components/CountryPicker.test.tsx`. The cover
-  changes removed the unsupported role-query options they had added. `pnpm build`
-  (the repo's typecheck path) passes, but a successful Next build does not
-  establish that these included test files typecheck.
 - No stored-data migration/backfill exists for this undeployed app. A large
   existing deployment would need a staged migration before new indexed callers.
 - Search-index pagination cannot be bounded by read budgets: the installed

@@ -115,7 +115,9 @@ describe("FollowButton", () => {
   it("reserves the longer label width without announcing both labels", () => {
     const { rerender } = render(<FollowButton {...baseProps} />);
     const button = screen.getByRole("button", { name: "Follow Ada" });
-    const reservation = button.querySelector('[aria-hidden="true"]:not(svg)');
+    const reservation = button.querySelector<HTMLElement>(
+      '[aria-hidden="true"]:not(svg)',
+    );
     expect(reservation).toHaveTextContent("Following");
     expect(reservation).toHaveClass("invisible", "col-start-1", "row-start-1");
 

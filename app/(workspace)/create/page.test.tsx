@@ -2801,7 +2801,7 @@ describe("CreateRoute", () => {
       );
 
       draftIdParam.value = "draft-loading";
-      editPostIdParam.value = null;
+      editPostIdParam.value = undefined;
       getDraftByIdMock.mockReturnValue(undefined);
       view.rerender(<CreateRoute />);
       await user.click(

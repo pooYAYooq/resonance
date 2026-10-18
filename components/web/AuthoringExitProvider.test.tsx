@@ -158,7 +158,7 @@ it("guards notification navigation from a published edit and preserves Cancel", 
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   expect(pushMock).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "Notifications" }));
-  await user.click(screen.getByRole("button", { name: "Leave", exact: true }));
+  await user.click(screen.getByRole("button", { name: "Leave" }));
   expect(pushMock).toHaveBeenCalledWith("/notifications");
 });
 
