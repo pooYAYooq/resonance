@@ -438,9 +438,13 @@ describe("account lifecycle provisioning", () => {
     const t = setup();
     const identity = await createAccount(t, "repeat-sync@example.com");
     const own = t.withIdentity(identity);
+    // Trigger provisioning must not consume the 90-day allowance: an unused key
+    // reads back at full capacity with ts 0, so assert that pristine shape here
+    // rather than only comparing a baseline captured after creation.
+    const pristine = await allowance(t, identity.subject);
+    expect(pristine).toMatchObject({ value: 1, ts: 0 });
     const first = await own.query(api.profiles.getEditorProfile, {});
     expect(first?.usernameRevision).toBe(1);
-    const before = await allowance(t, identity.subject);
 
     await own.mutation(api.users.syncUser, {});
     await own.mutation(api.users.syncUser, {});
@@ -454,7 +458,7 @@ describe("account lifecycle provisioning", () => {
       usernameLower: after?.username?.toLowerCase(),
       ownerUserId: identity.subject,
     });
-    expect(await allowance(t, identity.subject)).toEqual(before);
+    expect(await allowance(t, identity.subject)).toEqual(pristine);
   });
 });
 
