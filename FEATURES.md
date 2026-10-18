@@ -259,9 +259,11 @@
   posts newest first, twelve at a time with Load more. An author with no
   published posts sees an explanation and the return link with no placeholder
   grid; unknown names use the shared 404 recovery.
-- The author page and its catalogue stay live without a reload: identity edits,
-  deleted posts, and follower/following counts update in place, and deleting the
-  author's final selection falls back to their latest posts.
+- The author page stays live without a reload: identity edits, deleted posts,
+  and follower/following counts update in place, and deleting the author's final
+  selection falls back to their latest posts. The catalogue keeps only its card
+  list live: published-post changes appear in place, while the compact identity
+  header renders on page load and does not live-update.
 - Comment author names and every other generated author link resolve to the
   author's current lowercase username; authors without a username render a
   plain label with no account-ID fallback.

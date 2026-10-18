@@ -43,7 +43,9 @@ work is tracked in `ROADMAP.md`.
   A bounded work section shows up to nine author-selected posts three at a time,
   or the three newest published posts when nothing is selected, and a public
   catalogue at `/u/<username>/posts` pages the author's published posts twelve
-  at a time. Identity edits, deletions, and counts update live.
+  at a time. Identity edits, deletions, and counts update live on the author
+  page; the catalogue's card list follows published-post changes, while its
+  compact header renders on load.
 - Limit author-edited display names to 30 Unicode code points with inline
   validation; preserve existing longer names without automatic truncation.
 - Public author identity foundation: an optional country from a reviewed local
