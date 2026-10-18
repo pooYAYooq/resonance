@@ -39,7 +39,7 @@ claiming this is enforced; changing those settings needs maintainer approval.
 
 ## 3. Verification and artifact check
 
-- Run lint, edge tests, component tests, and build in the order in `AGENTS.md`
+- Run lint, the standalone typecheck, edge tests, component tests, and build in the order in `AGENTS.md`
   for code changes and final implementation handoff. Use the single-worker
   component command when needed for the recorded worker-contention baseline.
 - For documentation-only changes, check changed-file formatting, links, factual

@@ -29,7 +29,7 @@ Convex agent skills for common tasks can be installed by running
 | Dev server           | `pnpm dev`                                                                                                                                                 |
 | Lint                 | `pnpm lint` (ESLint via `eslint.config.mjs`)                                                                                                               |
 | Format               | `pnpm format` (Prettier), `pnpm format:check`                                                                                                              |
-| Typecheck            | `pnpm build` runs `next build` (includes TS type-checking via Next plugin)                                                                                 |
+| Typecheck            | `pnpm exec tsc --noEmit` (standalone; also runs in CI); `pnpm build` includes Next's type checking                                                         |
 | Tests (edge-runtime) | `pnpm test:ci` — vitest, edge-runtime, `app/**/*.test.ts`, `lib/**/*.test.ts`, `convex/**/*.test.ts`                                                       |
 | Component tests      | `pnpm test:component` — vitest with jsdom, `app/**/*.test.tsx`, `components/**/*.test.tsx`, and `lib/**/*.test.tsx`; auto-cleanup via `vitest.ui.setup.ts` |
 | Single test file     | `pnpm test -- <path>` (vitest in watch mode)                                                                                                               |
@@ -67,7 +67,7 @@ Convex agent skills for common tasks can be installed by running
 
 ## CI order
 
-Before PR: `pnpm lint` → `pnpm test:ci` → `pnpm test:component` → `pnpm build`.
+Before PR: `pnpm lint` → `pnpm exec tsc --noEmit` → `pnpm test:ci` → `pnpm test:component` → `pnpm build`.
 
 ## Documentation
 
