@@ -22,14 +22,17 @@
  * The `onCreate` trigger in `convex/auth.ts` already provisions the profile at
  * account creation; this effect converges accounts that predate that trigger.
  *
- * The banner belongs to one auth lifecycle: when that lifecycle settles to
- * signed-out it is cleared, and a completion that lands after the lifecycle
- * changed cannot write stale state back into a later session.
+ * The banner is keyed by the auth lifecycle. Stored status carries the
+ * lifecycle it belongs to, and the render derives `idle` whenever the stored
+ * lifecycle is not the current one, so a sign-out clears a stale failure
+ * without a reset write. A retry tags its outcome with the lifecycle it
+ * started under, so a completion that lands after the lifecycle changed is
+ * ignored by the same derivation.
  */
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
@@ -37,58 +40,62 @@ interface AuthSyncProps {
   children: React.ReactNode;
 }
 
+/** The three states the auth lifecycle settles into between renders. */
+type Lifecycle = "loading" | "in" | "out";
+
 type SyncState = "idle" | "failed" | "retrying";
 
 export function AuthSync({ children }: AuthSyncProps) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const syncUser = useMutation(api.users.syncUser);
-  const [syncState, setSyncState] = useState<SyncState>("idle");
-  // Bumped whenever the auth lifecycle changes. A manual retry captures the
-  // generation it started under and only applies its outcome while that
-  // generation is still current, so a completion that lands after sign-out
-  // cannot resurrect a banner for a session that no longer exists.
-  const generation = useRef(0);
+  const lifecycle: Lifecycle = isLoading
+    ? "loading"
+    : isAuthenticated
+      ? "in"
+      : "out";
+  // The status is stored with the lifecycle it was produced under. Rendering
+  // derives `idle` whenever the stored lifecycle is stale, so a sign-out or a
+  // later sign-in clears the banner with no state write in the effect.
+  const [sync, setSync] = useState<{ lifecycle: Lifecycle; status: SyncState }>(
+    {
+      lifecycle: "out",
+      status: "idle",
+    },
+  );
+  const status = sync.lifecycle === lifecycle ? sync.status : "idle";
 
   useEffect(() => {
-    generation.current += 1;
-    if (isLoading) return;
-    if (!isAuthenticated) {
-      // Settled signed-out: the previous session's setup failure must not linger.
-      setSyncState("idle");
-      return;
-    }
+    if (lifecycle !== "in") return;
     let cancelled = false;
     // Handle both outcomes so a failure never becomes an unhandled rejection.
     syncUser({}).then(
       () => {
-        if (!cancelled) setSyncState("idle");
+        if (!cancelled) setSync({ lifecycle: "in", status: "idle" });
       },
       () => {
-        if (!cancelled) setSyncState("failed");
+        if (!cancelled) setSync({ lifecycle: "in", status: "failed" });
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, isLoading, syncUser]);
+  }, [lifecycle, syncUser]);
 
   const retry = () => {
-    const current = generation.current;
-    setSyncState("retrying");
+    // Tag the outcome with the lifecycle it started under: if the lifecycle has
+    // since changed, the derivation renders `idle` and ignores the stale write.
+    const startedIn = lifecycle;
+    setSync({ lifecycle: startedIn, status: "retrying" });
     syncUser({}).then(
-      () => {
-        if (generation.current === current) setSyncState("idle");
-      },
-      () => {
-        if (generation.current === current) setSyncState("failed");
-      },
+      () => setSync({ lifecycle: startedIn, status: "idle" }),
+      () => setSync({ lifecycle: startedIn, status: "failed" }),
     );
   };
 
   return (
     <>
       {children}
-      {syncState !== "idle" && (
+      {status !== "idle" && (
         <div
           role="alert"
           className="fixed bottom-4 right-4 z-50 flex max-w-sm items-center gap-3 rounded-lg border border-border bg-background p-4 text-sm text-foreground shadow-lg"
@@ -97,10 +104,10 @@ export function AuthSync({ children }: AuthSyncProps) {
           <button
             type="button"
             onClick={retry}
-            disabled={syncState === "retrying"}
+            disabled={status === "retrying"}
             className="shrink-0 rounded-md border border-border px-3 py-1 font-medium disabled:opacity-60"
           >
-            {syncState === "retrying" ? "Retrying…" : "Try again"}
+            {status === "retrying" ? "Retrying…" : "Try again"}
           </button>
         </div>
       )}
