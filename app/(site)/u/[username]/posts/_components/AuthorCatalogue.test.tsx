@@ -167,17 +167,32 @@ describe("AuthorCatalogue", () => {
     expect(loadMoreMock).toHaveBeenCalledWith(12);
   });
 
-  it("disables the control while the next page is in flight", async () => {
+  it("keeps the control focusable and guards repeat activation while loading", async () => {
     const user = userEvent.setup();
-    publish({ results: twelve, status: "LoadingMore" });
+    publish({ results: twelve, status: "CanLoadMore" });
 
-    render(catalogue());
+    const { rerender } = render(catalogue());
+
+    const more = screen.getByRole("button", { name: "Load more" });
+    more.focus();
+    await user.keyboard("{Enter}");
+
+    expect(loadMoreMock).toHaveBeenCalledTimes(1);
+
+    publish({ results: twelve, status: "LoadingMore" });
+    rerender(catalogue());
 
     const loading = screen.getByRole("button", { name: /loading/i });
-    expect(loading).toBeDisabled();
+    expect(loading).toBe(more);
+    expect(loading).toHaveAttribute("aria-disabled", "true");
+    expect(loading).not.toHaveAttribute("disabled");
+    expect(loading).toBeEnabled();
+    expect(loading).toHaveFocus();
+
     await user.click(loading);
 
-    expect(loadMoreMock).not.toHaveBeenCalled();
+    expect(loadMoreMock).toHaveBeenCalledTimes(1);
+    expect(loading).toHaveFocus();
     expect(cardLinks()).toHaveLength(12);
     expect(screen.getByRole("status")).toHaveTextContent(/loading more/i);
   });
@@ -297,14 +312,27 @@ describe("AuthorCatalogue", () => {
     publish({ results: [card(1), card(2)], status: "CanLoadMore" });
 
     const { rerender } = render(catalogue());
-    screen.getByRole("button", { name: "Load more" }).focus();
-    expect(screen.getByRole("button", { name: "Load more" })).toHaveFocus();
+    const more = screen.getByRole("button", { name: "Load more" });
+    more.focus();
+    expect(more).toHaveFocus();
 
-    publish({ results: [card(1), card(2)], status: "Exhausted" });
+    // The page request starts: the same control stays in the DOM, pending and
+    // focusable, so the restore still knows where focus came from.
+    publish({ results: [card(1), card(2)], status: "LoadingMore" });
+    rerender(catalogue());
+
+    const loading = screen.getByRole("button", { name: /loading/i });
+    expect(loading).toBe(more);
+    expect(loading).toHaveAttribute("aria-disabled", "true");
+    expect(loading).not.toHaveAttribute("disabled");
+    expect(loading).toHaveFocus();
+
+    // The appended page is also the last one, so the control disappears.
+    publish({ results: [card(1), card(2), card(3)], status: "Exhausted" });
     rerender(catalogue());
 
     expect(screen.queryByRole("button")).toBeNull();
-    expect(screen.getByRole("link", { name: "Post 2" })).toHaveFocus();
+    expect(screen.getByRole("link", { name: "Post 3" })).toHaveFocus();
   });
 
   it("never shows the previous author's posts after the author changes", () => {

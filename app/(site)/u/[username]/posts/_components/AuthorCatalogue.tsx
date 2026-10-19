@@ -143,8 +143,14 @@ function AuthorPostList({ userId, username }: AuthorCatalogueProps) {
           <Button
             type="button"
             variant="outline"
-            disabled={status === "LoadingMore"}
-            onClick={() => loadMore(PAGE_SIZE)}
+            // Keep the in-flight control focusable: native disabling blurs it
+            // before the appended-page restore can use its tracked position.
+            aria-disabled={status === "LoadingMore"}
+            className="aria-disabled:opacity-50"
+            onClick={() => {
+              if (status === "LoadingMore") return;
+              loadMore(PAGE_SIZE);
+            }}
           >
             {status === "LoadingMore" ? (
               <>
