@@ -23,24 +23,16 @@ import { ArrowLeft } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { UserAvatar } from "@/components/web/UserAvatar";
 import { buildProfilePath } from "@/lib/username";
+import { boundProfileDescription } from "@/lib/constants/seo";
 import { AuthorCatalogue } from "./_components/AuthorCatalogue";
 
 interface CatalogueRouteProps {
   params: Promise<{ username: string }>;
 }
 
-const DESCRIPTION_MAX_LENGTH = 160;
-
 /** Always resolve against the live owner; never cache a redirect destination. */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-/** Collapses whitespace and bounds the bio to a search-friendly description. */
-function boundedDescription(bio: string | null, displayName: string): string {
-  const collapsed = (bio ?? "").replace(/\s+/g, " ").trim();
-  if (collapsed.length > 0) return collapsed.slice(0, DESCRIPTION_MAX_LENGTH);
-  return `Posts by ${displayName} on Resonance.`;
-}
 
 export async function generateMetadata({
   params,
@@ -60,7 +52,7 @@ export async function generateMetadata({
 
   return {
     title: `All posts by ${displayName} | Resonance`,
-    description: boundedDescription(identity.bio, displayName),
+    description: boundProfileDescription(identity.bio, displayName),
   };
 }
 

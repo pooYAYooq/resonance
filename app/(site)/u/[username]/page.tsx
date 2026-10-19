@@ -16,24 +16,16 @@ import { fetchQuery } from "convex/nextjs";
 import { fetchAuthQuery } from "@/lib/auth-server";
 import { api } from "@/convex/_generated/api";
 import { notFound, redirect } from "next/navigation";
+import { boundProfileDescription } from "@/lib/constants/seo";
 import { AuthorProfile } from "./_components/AuthorProfile";
 
 interface ProfileRouteProps {
   params: Promise<{ username: string }>;
 }
 
-const DESCRIPTION_MAX_LENGTH = 160;
-
 /** Always resolve against the live owner; never cache a redirect destination. */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-/** Collapses whitespace and bounds the bio to a search-friendly description. */
-function boundedDescription(bio: string | null, displayName: string): string {
-  const collapsed = (bio ?? "").replace(/\s+/g, " ").trim();
-  if (collapsed.length > 0) return collapsed.slice(0, DESCRIPTION_MAX_LENGTH);
-  return `Posts by ${displayName} on Resonance.`;
-}
 
 /**
  * The single server clock passed to the client canvas. Kept out of the
@@ -62,7 +54,7 @@ export async function generateMetadata({
 
   return {
     title: `${displayName} | Resonance`,
-    description: boundedDescription(identity.bio, displayName),
+    description: boundProfileDescription(identity.bio, displayName),
   };
 }
 
