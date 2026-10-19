@@ -43,12 +43,12 @@ function getRequiredEnv(name: string, value: string | undefined): string {
 function getRequiredString(
   profile: Record<string, unknown>,
   key: string,
-  source: string
+  source: string,
 ): string {
   const value = profile[key];
   if (typeof value !== "string") {
     throw new Error(
-      `Missing required field "${key}" in ${source} OAuth profile`
+      `Missing required field "${key}" in ${source} OAuth profile`,
     );
   }
   return value;
@@ -61,12 +61,12 @@ function getRequiredString(
 function getRequiredNumber(
   profile: Record<string, unknown>,
   key: string,
-  source: string
+  source: string,
 ): number {
   const value = profile[key];
   if (typeof value !== "number") {
     throw new Error(
-      `Missing required field "${key}" in ${source} OAuth profile`
+      `Missing required field "${key}" in ${source} OAuth profile`,
     );
   }
   return value;
@@ -79,7 +79,7 @@ function getRequiredNumber(
 function getNullableString(
   profile: Record<string, unknown>,
   key: string,
-  source: string
+  source: string,
 ): string | null {
   const value = profile[key];
   if (value === undefined || value === null) {
@@ -87,7 +87,7 @@ function getNullableString(
   }
   if (typeof value !== "string") {
     throw new Error(
-      `Invalid type for "${key}" in ${source} OAuth profile: expected string, got ${typeof value}`
+      `Invalid type for "${key}" in ${source} OAuth profile: expected string, got ${typeof value}`,
     );
   }
   return value;
@@ -208,7 +208,9 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         // GitHub API returns `id` as a number; convert to string for storage.
         id: String(getRequiredNumber(profile, "id", "GitHub")),
         // `name` can be null, fall back to `login` (always present).
-        name: getNullableString(profile, "name", "GitHub") ?? getRequiredString(profile, "login", "GitHub"),
+        name:
+          getNullableString(profile, "name", "GitHub") ??
+          getRequiredString(profile, "login", "GitHub"),
         email: getNullableString(profile, "email", "GitHub"),
         image: getRequiredString(profile, "avatar_url", "GitHub"),
       }),

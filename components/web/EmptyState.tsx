@@ -16,7 +16,9 @@ interface EmptyStateProps {
    * component shape (`className` + `strokeWidth` props) so plain
    * function components also satisfy it in tests and consumers.
    */
-  icon: LucideIcon | React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon:
+    | LucideIcon
+    | React.ComponentType<{ className?: string; strokeWidth?: number }>;
   /** Primary message. Rendered as bold text. */
   title: string;
   /** Optional supporting copy under the title. */

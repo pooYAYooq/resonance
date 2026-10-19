@@ -78,28 +78,28 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           {!isLoading && <MobileNavMenu isAuthenticated={isAuthenticated} />}
           <div className="hidden items-center gap-2 md:flex">
-          {isLoading ? null : isAuthenticated ? (
-            <>
-              <NotificationBell />
-              <AccountMenu presentation="navbar" />
-            </>
-          ) : (
-            <>
-              <Link
-                className={buttonVariants({ variant: "default" })}
-                href="/auth/sign-up"
-              >
-                Sign Up
-              </Link>
-              <Link
-                className={buttonVariants({ variant: "outline" })}
-                href="/auth/login"
-              >
-                Log In
-              </Link>
-            </>
-          )}
-          <ThemeToggle />
+            {isLoading ? null : isAuthenticated ? (
+              <>
+                <NotificationBell />
+                <AccountMenu presentation="navbar" />
+              </>
+            ) : (
+              <>
+                <Link
+                  className={buttonVariants({ variant: "default" })}
+                  href="/auth/sign-up"
+                >
+                  Sign Up
+                </Link>
+                <Link
+                  className={buttonVariants({ variant: "outline" })}
+                  href="/auth/login"
+                >
+                  Log In
+                </Link>
+              </>
+            )}
+            <ThemeToggle />
           </div>
         </div>
       </div>

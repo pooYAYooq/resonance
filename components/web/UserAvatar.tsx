@@ -48,7 +48,12 @@ interface UserAvatarProps {
  * <UserAvatar userId="user-123" name="Jane Doe" className="size-10" />
  * ```
  */
-export function UserAvatar({ userId, name, avatarUrl, className }: UserAvatarProps) {
+export function UserAvatar({
+  userId,
+  name,
+  avatarUrl,
+  className,
+}: UserAvatarProps) {
   const safeName = name.trim();
   const displayName = safeName || "User";
   const initials = safeName ? safeName.slice(0, 2).toUpperCase() : "?";
@@ -59,10 +64,7 @@ export function UserAvatar({ userId, name, avatarUrl, className }: UserAvatarPro
 
   return (
     <Avatar className={className}>
-      <AvatarImage
-        src={imageSrc}
-        alt={`${displayName} avatar`}
-      />
+      <AvatarImage src={imageSrc} alt={`${displayName} avatar`} />
       <AvatarFallback className="font-extrabold text-primary">
         {initials}
       </AvatarFallback>
