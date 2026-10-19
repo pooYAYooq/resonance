@@ -79,7 +79,14 @@ export const getUnreadCount = query({
   },
 });
 
-type HydratedNotification = Doc<"notifications"> & {
+type HydratedNotification = {
+  _id: Id<"notifications">;
+  _creationTime: number;
+  recipientId: string;
+  actorId: string;
+  postId: Id<"posts">;
+  createdAt: number;
+  readAt?: number;
   actorName: string | null;
   actorUsername: string | null;
   actorAvatarUrl: string | null;
@@ -161,16 +168,24 @@ export const getNotifications = query({
     const hydrated: (HydratedNotification | null)[] = await Promise.all(
       result.page.map(async (notification) => {
         const actor = actorById.get(notification.actorId) ?? null;
-        const post = await ctx.db.get(notification.postId);
+        const post = notification.postId
+          ? await ctx.db.get(notification.postId)
+          : null;
         if (!post || post.status !== "published") {
           return null;
         }
         return {
-          ...notification,
+          _id: notification._id,
+          _creationTime: notification._creationTime,
+          recipientId: notification.recipientId,
+          actorId: notification.actorId,
+          postId: post._id,
+          createdAt: notification.createdAt,
+          readAt: notification.readAt,
           actorName: actor?.displayName ?? null,
           actorUsername: actor?.username ?? null,
           actorAvatarUrl: actor?.avatarUrl ?? null,
-          postTitle: post?.title ?? null,
+          postTitle: post.title,
         };
       }),
     );

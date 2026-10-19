@@ -68,6 +68,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -114,12 +116,16 @@ describe("notifications functions", () => {
         await ctx.db.insert("notifications", {
           recipientId: "other",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
         const notificationId = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 2,
         });
@@ -190,6 +196,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -234,6 +242,8 @@ describe("notifications functions", () => {
         const id = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -264,6 +274,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader-without-profile",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -308,6 +320,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -359,6 +373,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -439,6 +455,8 @@ describe("notifications functions", () => {
           await ctx.db.insert("notifications", {
             recipientId: "reader",
             actorId: "author-1",
+            type: "post_like",
+            dedupeKey: `post_like:${targetPostId}`,
             postId: targetPostId,
             createdAt: i + 1,
           });
@@ -446,6 +464,8 @@ describe("notifications functions", () => {
         const unrelatedId = await ctx.db.insert("notifications", {
           recipientId: "other-reader",
           actorId: "author-2",
+          type: "post_like",
+          dedupeKey: `post_like:${unrelatedPostId}`,
           postId: unrelatedPostId,
           createdAt: 1,
         });
@@ -509,12 +529,16 @@ describe("notifications functions", () => {
         await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
         await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 2,
           readAt: 1,
@@ -522,6 +546,8 @@ describe("notifications functions", () => {
         await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 3,
         });
@@ -582,6 +608,8 @@ describe("notifications functions", () => {
         await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 10,
         });
@@ -670,12 +698,16 @@ describe("notifications functions", () => {
         const old1 = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
         const old2 = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 2,
         });
@@ -697,6 +729,8 @@ describe("notifications functions", () => {
         const newId = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${seed.postId}`,
           postId: seed.postId,
           createdAt: 10,
         });

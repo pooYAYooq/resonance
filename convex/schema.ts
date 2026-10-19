@@ -188,25 +188,33 @@ export default defineSchema({
     .index("by_userId_and_createdAt", ["userId", "createdAt"]),
 
   /**
-   * Individual notification records, one per follower per published
-   * post. `readAt` is optional so legacy rows remain valid and are treated
-   * as unread until the bounded mark-all-read job reaches them.
+   * One row per engagement event against a recipient's content.
    *
-   * `recipientId` and `actorId` are Better Auth user ID strings
-   * (same shape as `follows.followerId` / `follows.followingId` and
-   * `posts.authorId`), NOT Convex `users._id`. The compound index
-   * supports the paginated newest-first list query (prefix scan on
-   * `recipientId` with `.order("desc")`).
+   * `dedupeKey` is always present and encodes the event type and its target,
+   * so all four event types share one dedupe lookup. `postId` is set for every
+   * event raised by a post, which keeps the post-deletion cascade working.
    */
   notifications: defineTable({
     recipientId: v.string(),
     actorId: v.string(),
-    postId: v.id("posts"),
+    type: v.union(
+      v.literal("follow"),
+      v.literal("post_like"),
+      v.literal("comment"),
+      v.literal("comment_like"),
+    ),
+    dedupeKey: v.string(),
+    postId: v.optional(v.id("posts")),
+    commentId: v.optional(v.id("comments")),
     createdAt: v.number(),
     readAt: v.optional(v.number()),
   })
     .index("by_recipientId_and_createdAt", ["recipientId", "createdAt"])
-    .index("by_recipientId_and_postId", ["recipientId", "postId"])
+    .index("by_recipientId_and_actorId_and_dedupeKey", [
+      "recipientId",
+      "actorId",
+      "dedupeKey",
+    ])
     .index("by_postId", ["postId"]),
 
   /**

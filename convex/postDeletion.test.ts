@@ -169,6 +169,8 @@ describe("published post deletion", () => {
         createdAt: 1,
       });
       await ctx.db.insert("notifications", {
+        type: "post_like",
+        dedupeKey: `post_like:${postId}`,
         postId,
         recipientId: "recipient",
         actorId: identity.subject,
@@ -763,6 +765,8 @@ describe("published post deletion", () => {
         createdAt: 1,
       });
       await ctx.db.insert("notifications", {
+        type: "post_like",
+        dedupeKey: `post_like:${postId}`,
         postId,
         recipientId: "recipient",
         actorId: "owner",
