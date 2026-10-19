@@ -15,7 +15,7 @@
 
 "use client";
 
-import { Component, Fragment, type ReactNode } from "react";
+import { Component, createRef, Fragment, type ReactNode } from "react";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -36,8 +36,28 @@ export class CatalogueQueryBoundary extends Component<
 > {
   state: CatalogueQueryBoundaryState = { failed: false, generation: 0 };
 
+  private retryButtonRef = createRef<HTMLButtonElement>();
+
   static getDerivedStateFromError(): Partial<CatalogueQueryBoundaryState> {
     return { failed: true };
+  }
+
+  // The failure unmounts the subtree, so a reader whose focused control lived
+  // inside it now has `document.activeElement` fall back to `<body>` (or null).
+  // A reader who had moved focus to an unaffected control outside the boundary
+  // still has that control focused, and the committed fallback does not touch
+  // it. Only claim focus when the failure actually displaced the reader, so we
+  // never steal focus from a surviving control; `null`, `<body>`, or a
+  // disconnected element all mean displaced. The Retry ref is null-guarded in
+  // case a future render drops the button.
+  componentDidCatch() {
+    const active = document.activeElement;
+    const displaced =
+      active === null || active === document.body || !active.isConnected;
+
+    if (displaced) {
+      this.retryButtonRef.current?.focus();
+    }
   }
 
   private retry = () => {
@@ -64,7 +84,12 @@ export class CatalogueQueryBoundary extends Component<
             Something went wrong while loading these published posts. Please try
             again.
           </p>
-          <Button type="button" variant="outline" onClick={this.retry}>
+          <Button
+            ref={this.retryButtonRef}
+            type="button"
+            variant="outline"
+            onClick={this.retry}
+          >
             Retry
           </Button>
         </div>

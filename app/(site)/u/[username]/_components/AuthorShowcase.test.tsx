@@ -204,7 +204,9 @@ describe("AuthorShowcase", () => {
     );
 
     expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.getByTestId("author-showcase")).toHaveFocus();
+    const context = screen.getByRole("region", { name: "No posts yet" });
+    expect(context).toBe(screen.getByTestId("author-showcase"));
+    expect(context).toHaveFocus();
   });
 
   it("moves focus to the work context when a revealed selection is emptied", () => {
@@ -229,7 +231,9 @@ describe("AuthorShowcase", () => {
       />,
     );
 
-    expect(screen.getByTestId("author-showcase")).toHaveFocus();
+    const context = screen.getByRole("region", { name: "No posts yet" });
+    expect(context).toBe(screen.getByTestId("author-showcase"));
+    expect(context).toHaveFocus();
     expect(screen.getByRole("status")).toHaveTextContent("");
   });
 

@@ -16,7 +16,9 @@
  *
  * The focus-restoration root is always mounted and programmatically focusable,
  * even when the live result is empty, so deleting the final card moves focus to
- * a surviving context instead of stranding it on the document body. The polite
+ * a surviving context instead of stranding it on the document body. The root is
+ * always a named region: the heading when work exists, else "No posts yet", so
+ * the empty state focuses a named, if visually empty, context. The polite
  * status is likewise persistent and always derived from the current visible and
  * live totals, so a live deletion can never leave a stale announcement on
  * screen; it is cleared on an author change and on the empty transition.
@@ -104,8 +106,9 @@ export function AuthorShowcase({
       ref={rootRef}
       data-testid="author-showcase"
       tabIndex={-1}
-      role={hasWork ? "region" : undefined}
+      role="region"
       aria-labelledby={hasWork ? headingId : undefined}
+      aria-label={hasWork ? undefined : "No posts yet"}
       className="focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-ring"
     >
       {hasWork ? (
