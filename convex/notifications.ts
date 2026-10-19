@@ -1,10 +1,9 @@
 /**
- * Convex queries and mutations for the notifications fan-out, list,
- * per-row read, and mark-all-read flow.
+ * Convex queries and mutations for the notifications list, per-row
+ * read, and mark-all-read flow.
  *
  * Data access: writes to `notifications` and `users` (denormalized
- * `unreadNotificationCount`); reads from `follows` (via the
- * `by_followingId` index), `notifications` (via
+ * `unreadNotificationCount`); reads from `notifications` (via
  * `by_recipientId_and_createdAt`), `users` (for actor + recipient
  * hydration), and `posts` (for the post title).
  *
@@ -13,8 +12,7 @@
  * `ConvexError("Unauthorized")`. `getUnreadCount` and
  * `getNotifications` fail-soft (return 0 / empty page) for
  * unauthenticated callers so the bell and `/notifications` route can
- * mount safely in anonymous contexts. `fanOutForPost` is internal and
- * trusts its caller (the only caller is the auth-gated `publishPost`).
+ * mount safely in anonymous contexts.
  */
 import { ConvexError, v } from "convex/values";
 import {
@@ -32,7 +30,6 @@ import {
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 
-export const FANOUT_BATCH_SIZE = 200;
 const READ_BATCH_SIZE = 100;
 
 const notificationValidator = v.object({
@@ -47,121 +44,6 @@ const notificationValidator = v.object({
   actorUsername: v.union(v.string(), v.null()),
   actorAvatarUrl: v.union(v.string(), v.null()),
   postTitle: v.string(),
-});
-
-/**
- * Fans out a single published post to the author's followers by
- * inserting one `notifications` row per follower and bumping each
- * recipient's denormalized `users.unreadNotificationCount`.
- *
- * Reads followers in `paginate` batches via the `follows.by_followingId`
- * index, ordered `(followingId, createdAt)`. Convex's built-in
- * `paginate` cursor handles tie-breaking correctly — a manual
- * `lastCreatedAt` cursor would skip followers that share the same
- * `createdAt` (very plausible for batched sign-ups). The first call
- * from `publishPost` passes `cursor: null`; scheduler continuations
- * pass the previous batch's `continueCursor`.
- *
- * If the batch is full (`!isDone`), the function self-schedules a
- * continuation with the returned `continueCursor`, returning
- * immediately. `publishPost` therefore returns the post ID after the
- * first batch is queued (or after the fan-out completes if the author
- * has < 200 followers).
- *
- * Trust model: invoked only by `publishPost` via
- * `ctx.runMutation(internal.notifications.fanOutForPost, ...)`. The
- * only caller is the auth-gated `publishPost`, so this function does
- * NOT call `safeGetAuthUser` — mirroring the
- * `internal.stats.incrementPostCount` precedent.
- *
- * Failure mode: if the mutation throws (transaction limit, OCC), the
- * post is already published and `publishPost` already returned the
- * post ID. Convex discards ALL writes from the top-level mutation
- * when it throws, including notifications processed earlier in the
- * loop. Acceptable for the Medium-High slice: the post is the source
- * of truth, the notification is a hint.
- *
- * @param args.postId - `Id<"posts">`: the freshly published post.
- * @param args.authorId - Better Auth user ID (string) of the
- *   publishing author. Not a Convex `users._id`.
- * @param args.paginationOpts - `PaginationOptions`: the first call
- *   from `publishPost` passes `{ numItems: FANOUT_BATCH_SIZE, cursor:
- *   null }`; scheduler continuations pass the previous batch's
- *   `continueCursor` with the same `numItems`.
- * @returns `{ done: boolean, processed: number }`: `done` is `true`
- *   on the final batch; `processed` is the count of followers handled
- *   in this batch.
- */
-export const fanOutForPost = internalMutation({
-  args: {
-    postId: v.id("posts"),
-    authorId: v.string(),
-    paginationOpts: paginationOptsValidator,
-  },
-  handler: async (ctx, args) => {
-    const post = await ctx.db.get(args.postId);
-    if (
-      !post ||
-      post.status !== "published" ||
-      post.authorId !== args.authorId
-    ) {
-      return { done: true, processed: 0 };
-    }
-
-    const result = await ctx.db
-      .query("follows")
-      .withIndex("by_followingId", (q) => q.eq("followingId", args.authorId))
-      .paginate({ ...args.paginationOpts, maximumRowsRead: FANOUT_BATCH_SIZE });
-
-    for (const follower of result.page) {
-      const existing = await ctx.db
-        .query("notifications")
-        .withIndex("by_recipientId_and_postId", (q) =>
-          q.eq("recipientId", follower.followerId).eq("postId", args.postId),
-        )
-        .unique();
-      if (existing) {
-        continue;
-      }
-
-      await ctx.db.insert("notifications", {
-        recipientId: follower.followerId,
-        actorId: args.authorId,
-        postId: args.postId,
-        createdAt: Date.now(),
-      });
-
-      const recipient = await ctx.db
-        .query("users")
-        .withIndex("by_userId", (q) => q.eq("userId", follower.followerId))
-        .unique();
-      if (recipient) {
-        if (
-          !Number.isSafeInteger(recipient.unreadNotificationCount) ||
-          recipient.unreadNotificationCount < 0 ||
-          recipient.unreadNotificationCount === Number.MAX_SAFE_INTEGER
-        ) {
-          throw new ConvexError("Unread notification counter is invalid.");
-        }
-        await ctx.db.patch(recipient._id, {
-          unreadNotificationCount: recipient.unreadNotificationCount + 1,
-        });
-      }
-    }
-
-    if (!result.isDone) {
-      await ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, {
-        postId: args.postId,
-        authorId: args.authorId,
-        paginationOpts: {
-          numItems: args.paginationOpts.numItems,
-          cursor: result.continueCursor,
-        },
-      });
-      return { done: false, processed: result.page.length };
-    }
-    return { done: true, processed: result.page.length };
-  },
 });
 
 /**

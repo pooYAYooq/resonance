@@ -1362,6 +1362,7 @@ describe("posts functions", () => {
     register(t);
     vi.useFakeTimers();
     vi.setSystemTime(100);
+    const followerId = "publish-follower";
     const identity = await t.run(async (ctx) => {
       const now = Date.now();
       const user = await ctx.runMutation(components.betterAuth.adapter.create, {
@@ -1410,6 +1411,20 @@ describe("posts functions", () => {
           updatedAt: createdAt,
         });
       }
+      await ctx.db.insert("users", {
+        userId: followerId,
+        displayName: "Follower",
+        followerCount: 0,
+        followingCount: 1,
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert("follows", {
+        followerId,
+        followingId: identity.subject,
+        createdAt: Date.now(),
+      });
     });
     const postId = await t.run(async (ctx) =>
       ctx.db.insert("posts", {
@@ -1447,6 +1462,13 @@ describe("posts functions", () => {
       }),
       tags: [],
     };
+    const before = await t.run(async (ctx) => {
+      const follower = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", followerId))
+        .unique();
+      return follower?.unreadNotificationCount;
+    });
     const attempt = await t
       .withIdentity(identity)
       .mutation(api.writeAttempts.reserveAttempt, {
@@ -1460,6 +1482,28 @@ describe("posts functions", () => {
       attemptId: attempt.attemptId,
       proposal,
     });
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const notifications = await t.run(
+      async (ctx) => await ctx.db.query("notifications").collect(),
+    );
+    expect(notifications).toHaveLength(0);
+
+    const after = await t.run(async (ctx) => {
+      const follower = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", followerId))
+        .unique();
+      return follower?.unreadNotificationCount;
+    });
+    expect(after).toBe(before);
+
+    const feedRows = await t.run(
+      async (ctx) => await ctx.db.query("feed").collect(),
+    );
+    expect(feedRows.length).toBeGreaterThan(0);
+
     await expect(
       t.run(async (ctx) =>
         ctx.db

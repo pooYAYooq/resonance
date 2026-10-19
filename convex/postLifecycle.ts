@@ -21,7 +21,6 @@ import {
   DiscoverProjectionCapacityError,
   syncPublishedPostProjection,
 } from "./discoverProjection";
-import { FANOUT_BATCH_SIZE } from "./notifications";
 import { FEED_BATCH_SIZE } from "./feed";
 import { consumeSessionMediaClaims } from "./sessionMediaClaims";
 import type { WriteErrorCategory } from "../lib/write-contract";
@@ -671,11 +670,6 @@ export async function executePublish(
   await incrementPostCountInTransaction(ctx);
   await adjustPublishedPostCount(ctx, userId, 1);
   await syncPublishedPostProjection(ctx, postId);
-  await ctx.scheduler.runAfter(0, internal.notifications.fanOutForPost, {
-    postId,
-    authorId: userId,
-    paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
-  });
   await ctx.scheduler.runAfter(0, internal.feed.fanOutForPost, {
     postId,
     authorId: userId,
