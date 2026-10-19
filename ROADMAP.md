@@ -96,7 +96,8 @@ Source: Track 4 in `FEATURES.md` at `46d26a3`, 3A.3 requirements, and decision
   [executed evidence](docs/ACCESSIBILITY.md). Agreed keyboard/focus/name and
   mobile-navigation scope is complete. Touch and real screen-reader acceptance
   are not claimed; the loading-announcement advisory is explicitly deferred.
-  Owner handoffs: V1-18 for notification empty-state recovery, V1-21/V1-23 for
+  Owner handoffs: V1-18 for notification empty-state recovery (delivered; see
+  the V1-18 row), V1-21/V1-23 for
   visual/responsive polish, V1-24 for release consolidation. These checks do
   not finalize unfinished page designs.
 
@@ -107,7 +108,7 @@ Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 | ID    | Item                                             | Status | Estimate |
 | ----- | ------------------------------------------------ | ------ | -------- |
 | V1-17 | Stronger public profile identity and author work | Done   | M        |
-| V1-18 | Compact, actionable Notifications                | Todo   | M        |
+| V1-18 | Compact, actionable Notifications                | Done   | M        |
 | V1-19 | Saved and Liked collection presentation          | Todo   | S        |
 | V1-20 | Context-specific post-card variants              | Todo   | M        |
 
@@ -125,6 +126,14 @@ remaining username-editor states, the real screen-reader session, the
 real-runtime stress matrix, and the deletion-cascade limitation stay visible in
 [known limitations](docs/KNOWN_LIMITATIONS.md). V1-20 context-specific post-card
 variants are untouched.
+
+Compact, actionable notifications are implemented and browser-verified on
+`feat/compact-actionable-notifications`, recorded in
+[notifications verification](docs/NOTIFICATIONS_EVIDENCE.md): persistent
+per-row read state with the owner-scoped `markRead`, a visible New marker on
+unread rows, Mark all read with focus return, and Discover recovery from the
+empty state. The pass also fixed the bell's unread badge anchor. The retention
+gap stays recorded in [known limitations](docs/KNOWN_LIMITATIONS.md).
 
 ### Visual system and responsive polish
 

@@ -6,14 +6,17 @@ a session history.
 
 ## Current focus
 
-The final V1-17 boundary is implemented on `feat/public-author-showcase`: the
-approved public author page (`app/(site)/u/[username]/`) and the public post
-catalogue (`app/(site)/u/[username]/posts/`). The page renders the hero band,
-introduction, social links, display-only follower/following counts, the
-owner/viewer/signed-out action, and the bounded selected or latest work; the
-catalogue pages the author's published posts newest first. Behavior is cataloged
-in [FEATURES.md](../FEATURES.md); the fixture protocol and browser verification
-are in [author page verification](AUTHOR_PROFILE_VERIFICATION.md).
+The notifications slice on `feat/compact-actionable-notifications` is
+implemented and verified: per-row persistent read state through
+`notifications.markRead`, a visible New marker on unread rows, a Mark all read
+action with focus return, and Discover recovery from the empty state. Visiting
+the page no longer clears unread state, and
+[decision 3A-033](PHASE_3A_DECISIONS.md) records the semantics. The browser
+pass also fixed the bell's unread badge, which anchored to the page corner
+instead of the bell.
+Browser results are in
+[notifications verification](NOTIFICATIONS_EVIDENCE.md); V1-18 is Done. The
+full CI order passes on this revision.
 
 Carry-forward from the earlier username, profile, and author-page deliveries
 stays open in [known limitations](KNOWN_LIMITATIONS.md): the username editor's
@@ -31,19 +34,18 @@ submission, after review changes, and before merge handoff.
 
 ## Next action
 
-Hand off `feat/public-author-showcase` through the PR workflow: complete
-[PR_CHECKLIST.md](PR_CHECKLIST.md), open the pull request for review, and merge
-it. The remaining username-editor and reader-facing gaps stay with their own
-records rather than this branch.
+The next notification work is the planned notification-boundary change, which
+awaits its own scoped requirements before implementation. The remaining
+username-editor and reader-facing gaps stay with their own records rather than
+this branch.
 
 ## Blockers and constraints
 
 - The feed loading-announcement advisory is explicitly deferred. It is not a
   reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
-- The dev deployment carries the disposable `acceptanceauthor` and
-  `acceptanceviewer` fixtures with no published posts and no selections. Account
-  deletion is unreachable, so they remain as recorded fixtures; browser checks
-  use disposable data and delete only what they create.
+- The dev deployment carries disposable fixture accounts with no published
+  posts; see [known limitations](KNOWN_LIMITATIONS.md). Browser checks use
+  disposable data and delete only what they create.
 - The app is not deployed; development data is disposable. A production
   migration would need its own rollout plan.
 

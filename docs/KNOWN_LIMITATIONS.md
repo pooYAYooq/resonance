@@ -31,7 +31,10 @@ evidence resolves them. The previous detailed delivery history remains in
   coverage because there were insufficient drafts during its acceptance pass.
   Later keyboard matrices in `ACCESSIBILITY.md` supplement that original scope.
 - Follow colors and the light-theme contrast observations remain under V1-21.
-  Notifications' missing empty-state recovery action remains under V1-18.
+- Notifications have no age-based retention: a row persists until its post is
+  deleted, and the post-deletion cascade decrements each unread row's counter
+  exactly once. A future purge must reconcile `unreadNotificationCount` for
+  purged unread rows, or the bell overcounts.
 
 ## Authoring and recovery
 
@@ -134,8 +137,11 @@ evidence resolves them. The previous detailed delivery history remains in
   tooling, so the browser pass exercised the card-image recovery instead;
   `J6-ProfileEditor` used the same automated-only pattern for query-echo timing.
   See [accessibility evidence](ACCESSIBILITY.md).
-- The dev deployment carries two disposable acceptance accounts
-  (`acceptanceauthor`, `acceptanceviewer`) with no published posts and no
-  selections. Account deletion is not reachable, so they remain as recorded
-  disposable fixtures; see
-  [author page verification](AUTHOR_PROFILE_VERIFICATION.md).
+- The dev deployment carries two disposable fixture accounts,
+  `notification.author@example.com` (`/u/reso_z2sss43gck`) and
+  `notification.viewer@example.com` (`/u/reso_nfgngix5xn`): no published posts,
+  no selections, and the viewer follows the author. Account deletion is not
+  reachable, so they remain as recorded disposable fixtures; see
+  [notifications verification](NOTIFICATIONS_EVIDENCE.md). The earlier
+  `acceptanceauthor`/`acceptanceviewer` fixtures no longer exist on this
+  deployment.

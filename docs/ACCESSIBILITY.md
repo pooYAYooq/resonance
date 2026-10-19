@@ -441,7 +441,7 @@ checks, record cleanup, and exercise pagination only with sufficient fixtures.
 | ---------------- | -------------------------------------------------------- | --------------------------------------- | ------------- | ---------- | ------------------- | ------------------------------------------------------------- |
 | J5-Nav           | navbar, sidebar, mobile drawer; signed-in and signed-out | keyboard, names, focus, dialog behavior | Deep          | Pass       | See notes           | None                                                          |
 | J5-Menus         | account and theme menus; notification bell from editor   | keyboard, names, focus, guard context   | Deep          | Pass       | See notes           | None                                                          |
-| J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Pass       | See notes           | Fixed pagination focus; no empty-state recovery link (V1-18)  |
+| J5-Notifications | `/notifications` list and empty state                    | keyboard, names, focus                  | Standard      | Pass       | See notes           | Pagination focus fixed; recovery link delivered (V1-18)       |
 | J5-Settings      | `/settings` appearance and account                       | keyboard, names, focus                  | Standard      | Pass       | See notes           | None                                                          |
 | J5-ProfileEdit   | Previous `/profile/edit` validation and save             | keyboard, names, focus                  | Standard      | Superseded | See notes           | Replaced by J6-ProfileEditor; not evidence for the new editor |
 | J5-SignOut       | sign-out confirmation choices                            | keyboard, names, focus, dialog behavior | Standard      | Pass       | See notes           | None                                                          |
@@ -1250,7 +1250,9 @@ not a new complete editor pass.
   (the form announced "Profile updated" and redirected to the profile).
 - The Notifications empty state offers no recovery link (J5-Notifications).
   The approved reader-utilities requirement says empty states recover to
-  Discover; recorded for V1-18's notifications slice rather than fixed here.
+  Discover. Delivered by the notifications slice: the empty state now carries a
+  Discover action, and an exhausted page with no visible rows focuses it; see
+  [notifications verification](NOTIFICATIONS_EVIDENCE.md).
 
 ## Limitations
 

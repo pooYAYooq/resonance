@@ -173,7 +173,7 @@ app/
       _components/            # LikedSection (client gate + pagination)
     notifications/
       page.tsx                # Private notifications feed (client-gated + paginated)
-      _components/            # NotificationsList (gate + pagination + mark-all-read) + NotificationRow
+      _components/            # NotificationsList (gate + pagination + read state + Discover recovery) + NotificationRow
     profile/edit/
       page.tsx                # Authenticated identity + selected-work editor
       _components/            # ProfileIdentityForm, CountryPicker, SelectedWorkEditor, edit-state helpers
@@ -213,7 +213,7 @@ convex/
                                # index only — by_followingId supports notification fan-out
   bookmarks.ts                # toggleBookmark + isBookmarked + getBookmarkedPosts (1.5).
                               # Private reading list, no denormalized counters.
-  notifications.ts            # Published-post fan-out (batched 200 + scheduler, retry-idempotent), unread count, list, mark-all-read
+  notifications.ts            # Published-post fan-out (batched 200 + scheduler, retry-idempotent), unread count, list, per-row read, mark-all-read
   feed.ts                     # Published-only 30-day materialized reader feed, fan-out/backfill/deletion/cleanup, paginated query
   postDeletion.ts             # Internal bounded deletion continuations, draft upload cleanup, and stale-job recovery
   profilePostCount.ts         # Transactional profile count adjustment helper

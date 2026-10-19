@@ -14,7 +14,13 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -22,13 +28,20 @@ const {
   useConvexAuthState,
   usePaginatedState,
   usePaginatedQueryArgsMock,
-  useMutationMock,
+  useMutationMocks,
+  useQueryArgsMock,
+  useQueryState,
   pushMock,
 } = vi.hoisted(() => ({
   useConvexAuthState: vi.fn(),
   usePaginatedState: vi.fn(),
   usePaginatedQueryArgsMock: vi.fn(),
-  useMutationMock: vi.fn(),
+  useMutationMocks: {
+    markAllRead: vi.fn(),
+    markRead: vi.fn(),
+  },
+  useQueryArgsMock: vi.fn(),
+  useQueryState: vi.fn(),
   pushMock: vi.fn(),
 }));
 
@@ -42,7 +55,14 @@ vi.mock("convex/react", () => ({
     usePaginatedQueryArgsMock(args);
     return usePaginatedState();
   },
-  useMutation: () => useMutationMock,
+  useMutation: (ref: unknown) =>
+    ref === "markAllRead"
+      ? useMutationMocks.markAllRead
+      : useMutationMocks.markRead,
+  useQuery: (_query: unknown, args: unknown) => {
+    useQueryArgsMock(args);
+    return useQueryState();
+  },
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
@@ -50,12 +70,23 @@ vi.mock("@/convex/_generated/api", () => ({
     notifications: {
       getNotifications: "getNotifications",
       markAllRead: "markAllRead",
+      markRead: "markRead",
       getUnreadCount: "getUnreadCount",
     },
   },
 }));
 
 import { NotificationsList } from "./NotificationsList";
+
+/**
+ * Middle-button activation arrives as `auxclick`; this testing-library
+ * version has no `fireEvent.auxClick` helper.
+ */
+const auxClick = (element: Element, button: number) =>
+  fireEvent(
+    element,
+    new MouseEvent("auxclick", { bubbles: true, cancelable: true, button }),
+  );
 
 const baseNotification = (
   overrides: Partial<{
@@ -64,6 +95,7 @@ const baseNotification = (
     actorName: string;
     createdAt: number;
     actorId: string;
+    readAt: number | undefined;
   }> = {},
 ) => ({
   _id: (overrides._id ?? "notif-1") as Id<"notifications">,
@@ -72,6 +104,7 @@ const baseNotification = (
   actorId: (overrides.actorId ?? "actor-1") as string,
   postId: "post-1" as Id<"posts">,
   createdAt: overrides.createdAt ?? Date.now(),
+  readAt: overrides.readAt,
   actorName: overrides.actorName ?? "Ada",
   actorUsername: "ada",
   actorAvatarUrl: null,
@@ -82,8 +115,12 @@ describe("NotificationsList", () => {
   beforeEach(() => {
     pushMock.mockClear();
     usePaginatedQueryArgsMock.mockClear();
-    useMutationMock.mockReset();
-    useMutationMock.mockResolvedValue({ ok: true });
+    useQueryArgsMock.mockClear();
+    useMutationMocks.markAllRead.mockReset();
+    useMutationMocks.markAllRead.mockResolvedValue({ ok: true });
+    useMutationMocks.markRead.mockReset();
+    useMutationMocks.markRead.mockResolvedValue({ ok: true });
+    useQueryState.mockReturnValue(0);
     usePaginatedState.mockReturnValue({
       results: [],
       status: "Exhausted",
@@ -130,7 +167,9 @@ describe("NotificationsList", () => {
     render(<NotificationsList />);
 
     expect(usePaginatedQueryArgsMock).toHaveBeenCalledWith("skip");
-    expect(useMutationMock).not.toHaveBeenCalled();
+    expect(useQueryArgsMock).toHaveBeenCalledWith("skip");
+    expect(useMutationMocks.markAllRead).not.toHaveBeenCalled();
+    expect(useMutationMocks.markRead).not.toHaveBeenCalled();
   });
 
   it("shows a loading spinner while the first page is loading", () => {
@@ -165,6 +204,10 @@ describe("NotificationsList", () => {
     expect(
       screen.getByText(/when an author you follow publishes a new post/i),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute(
+      "href",
+      "/blog",
+    );
     expect(pushMock).not.toHaveBeenCalled();
     expect(usePaginatedQueryArgsMock).toHaveBeenCalledWith({});
   });
@@ -215,6 +258,101 @@ describe("NotificationsList", () => {
     expect(screen.getByText("Visible")).toBeInTheDocument();
     expect(screen.queryByText("published a new post")).toBeInTheDocument();
     expect(screen.getAllByRole("article")).toHaveLength(1);
+  });
+
+  it("shows the New marker only on unread notifications", () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    usePaginatedState.mockReturnValue({
+      results: [
+        baseNotification({ _id: "unread" }),
+        baseNotification({ _id: "read", readAt: 123, actorId: "actor-2" }),
+      ],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    render(<NotificationsList />);
+
+    expect(screen.getAllByText("New")).toHaveLength(1);
+  });
+
+  it("marks a notification read when its post link is opened", async () => {
+    const user = userEvent.setup();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    usePaginatedState.mockReturnValue({
+      results: [baseNotification({ _id: "notif-42" })],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    render(<NotificationsList />);
+
+    await user.click(screen.getByRole("link", { name: "Hello" }));
+    await waitFor(() =>
+      expect(useMutationMocks.markRead).toHaveBeenCalledWith({
+        notificationId: "notif-42",
+      }),
+    );
+  });
+
+  it("marks a notification read when its post link is opened by middle click", () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    usePaginatedState.mockReturnValue({
+      results: [baseNotification({ _id: "notif-42" })],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    render(<NotificationsList />);
+
+    auxClick(screen.getByRole("link", { name: "Hello" }), 1);
+    expect(useMutationMocks.markRead).toHaveBeenCalledWith({
+      notificationId: "notif-42",
+    });
+  });
+
+  it("does not mark read when a non-opening button is pressed on the post link", () => {
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    usePaginatedState.mockReturnValue({
+      results: [baseNotification({ _id: "notif-42" })],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    render(<NotificationsList />);
+
+    auxClick(screen.getByRole("link", { name: "Hello" }), 2);
+    expect(useMutationMocks.markRead).not.toHaveBeenCalled();
+  });
+
+  it("does not mark read when the actor link is opened instead", async () => {
+    const user = userEvent.setup();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    usePaginatedState.mockReturnValue({
+      results: [baseNotification({ _id: "notif-42" })],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    render(<NotificationsList />);
+
+    await user.click(screen.getByRole("link", { name: "Open Ada's profile" }));
+    expect(useMutationMocks.markRead).not.toHaveBeenCalled();
   });
 
   it("keeps Load more (not EmptyState) when all loaded rows are deleted-post and more pages remain", async () => {
@@ -395,7 +533,7 @@ describe("NotificationsList", () => {
       ).toHaveFocus();
     });
 
-    it("focuses the empty notification context when pagination exhausts with no visible rows", async () => {
+    it("focuses the Discover recovery action when pagination exhausts with no visible rows", async () => {
       const user = userEvent.setup();
       setPage([], "CanLoadMore");
       const view = render(<NotificationsList />);
@@ -405,9 +543,7 @@ describe("NotificationsList", () => {
       view.rerender(<NotificationsList />);
       setPage([], "Exhausted");
       view.rerender(<NotificationsList />);
-      expect(
-        screen.getByRole("region", { name: "Notifications list" }),
-      ).toHaveFocus();
+      expect(screen.getByRole("link", { name: "Discover" })).toHaveFocus();
       expect(screen.getByText("No notifications yet")).toBeVisible();
     });
 
@@ -434,29 +570,172 @@ describe("NotificationsList", () => {
     });
   });
 
-  it("calls markAllRead exactly once on mount when authenticated", async () => {
-    useConvexAuthState.mockReturnValue({
-      isAuthenticated: true,
-      isLoading: false,
-    });
-    usePaginatedState.mockReturnValue({
-      results: [],
-      status: "Exhausted",
-      loadMore: vi.fn(),
-      isLoading: false,
-    });
-    render(<NotificationsList />);
+  describe("mark all read", () => {
+    const authenticated = () => {
+      useConvexAuthState.mockReturnValue({
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      usePaginatedState.mockReturnValue({
+        results: [baseNotification()],
+        status: "Exhausted",
+        loadMore: vi.fn(),
+        isLoading: false,
+      });
+    };
 
-    await waitFor(() => expect(useMutationMock).toHaveBeenCalledTimes(1));
-    expect(useMutationMock).toHaveBeenCalledWith({});
-  });
+    it("does not mark all read merely on mount", () => {
+      authenticated();
+      render(<NotificationsList />);
 
-  it("does not call markAllRead when unauthenticated", () => {
-    useConvexAuthState.mockReturnValue({
-      isAuthenticated: false,
-      isLoading: false,
+      expect(useMutationMocks.markAllRead).not.toHaveBeenCalled();
     });
-    render(<NotificationsList />);
-    expect(useMutationMock).not.toHaveBeenCalled();
+
+    it("does not call the mutations when unauthenticated", () => {
+      useConvexAuthState.mockReturnValue({
+        isAuthenticated: false,
+        isLoading: false,
+      });
+      render(<NotificationsList />);
+      expect(useMutationMocks.markAllRead).not.toHaveBeenCalled();
+      expect(useMutationMocks.markRead).not.toHaveBeenCalled();
+    });
+
+    it("shows the action only while unread notifications remain", () => {
+      authenticated();
+      useQueryState.mockReturnValue(2);
+      const view = render(<NotificationsList />);
+      expect(
+        screen.getByRole("button", { name: "Mark all read" }),
+      ).toBeInTheDocument();
+
+      useQueryState.mockReturnValue(0);
+      view.rerender(<NotificationsList />);
+      expect(
+        screen.queryByRole("button", { name: "Mark all read" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("calls markAllRead when the action is activated", async () => {
+      const user = userEvent.setup();
+      authenticated();
+      useQueryState.mockReturnValue(1);
+      render(<NotificationsList />);
+
+      await user.click(screen.getByRole("button", { name: "Mark all read" }));
+      expect(useMutationMocks.markAllRead).toHaveBeenCalledWith({});
+    });
+
+    it("disables the action while the mutation is pending", async () => {
+      const user = userEvent.setup();
+      authenticated();
+      useQueryState.mockReturnValue(1);
+      let resolveMarkAll!: () => void;
+      useMutationMocks.markAllRead.mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveMarkAll = resolve;
+        }),
+      );
+      render(<NotificationsList />);
+
+      const button = screen.getByRole("button", { name: "Mark all read" });
+      await user.click(button);
+      expect(button).toBeDisabled();
+
+      await act(async () => {
+        resolveMarkAll();
+      });
+    });
+
+    it("shows the action when the loaded page leaves no visible rows but unread remain", () => {
+      useConvexAuthState.mockReturnValue({
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      useQueryState.mockReturnValue(4);
+      usePaginatedState.mockReturnValue({
+        results: [baseNotification({ _id: "deleted", postTitle: null })],
+        status: "CanLoadMore",
+        loadMore: vi.fn(),
+        isLoading: false,
+      });
+      render(<NotificationsList />);
+
+      expect(
+        screen.queryByText("No notifications yet"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Mark all read" }),
+      ).toBeInTheDocument();
+    });
+
+    it("still offers the action in the empty state when a stale count remains", () => {
+      useConvexAuthState.mockReturnValue({
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      useQueryState.mockReturnValue(2);
+      usePaginatedState.mockReturnValue({
+        results: [],
+        status: "Exhausted",
+        loadMore: vi.fn(),
+        isLoading: false,
+      });
+      render(<NotificationsList />);
+
+      expect(screen.getByText("No notifications yet")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Mark all read" }),
+      ).toBeInTheDocument();
+    });
+
+    it("returns focus to the named list region when the action clears the count on a filtered page", async () => {
+      const user = userEvent.setup();
+      useConvexAuthState.mockReturnValue({
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      useQueryState.mockReturnValue(1);
+      usePaginatedState.mockReturnValue({
+        results: [baseNotification({ _id: "deleted", postTitle: null })],
+        status: "CanLoadMore",
+        loadMore: vi.fn(),
+        isLoading: false,
+      });
+      const view = render(<NotificationsList />);
+
+      await user.click(screen.getByRole("button", { name: "Mark all read" }));
+      await waitFor(() =>
+        expect(useMutationMocks.markAllRead).toHaveBeenCalled(),
+      );
+
+      useQueryState.mockReturnValue(0);
+      view.rerender(<NotificationsList />);
+      await waitFor(() =>
+        expect(
+          screen.getByRole("region", { name: "Notifications list" }),
+        ).toHaveFocus(),
+      );
+    });
+
+    it("returns focus to the named list region when the action clears the count", async () => {
+      const user = userEvent.setup();
+      authenticated();
+      useQueryState.mockReturnValue(1);
+      const view = render(<NotificationsList />);
+
+      await user.click(screen.getByRole("button", { name: "Mark all read" }));
+      await waitFor(() =>
+        expect(useMutationMocks.markAllRead).toHaveBeenCalled(),
+      );
+
+      useQueryState.mockReturnValue(0);
+      view.rerender(<NotificationsList />);
+      await waitFor(() =>
+        expect(
+          screen.getByRole("region", { name: "Notifications list" }),
+        ).toHaveFocus(),
+      );
+    });
   });
 });
