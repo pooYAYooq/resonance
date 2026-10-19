@@ -49,17 +49,13 @@ describe("UserAvatar", () => {
   });
 
   it("uses the first two characters of the name in uppercase for initials", () => {
-    const { container } = render(
-      <UserAvatar userId="user-789" name="alice" />,
-    );
+    const { container } = render(<UserAvatar userId="user-789" name="alice" />);
 
     expect(container).toHaveTextContent("AL");
   });
 
   it("handles single-character names gracefully", () => {
-    const { container } = render(
-      <UserAvatar userId="user-000" name="B" />,
-    );
+    const { container } = render(<UserAvatar userId="user-000" name="B" />);
 
     expect(container).toHaveTextContent("B");
   });
@@ -71,9 +67,7 @@ describe("UserAvatar", () => {
   });
 
   it("renders '?' fallback for whitespace-only names", () => {
-    const { container } = render(
-      <UserAvatar userId="user-space" name="   " />,
-    );
+    const { container } = render(<UserAvatar userId="user-space" name="   " />);
 
     expect(container).toHaveTextContent("?");
   });
@@ -109,9 +103,7 @@ describe("UserAvatar", () => {
   });
 
   it("falls back to DiceBear when avatarUrl is null", () => {
-    render(
-      <UserAvatar userId="user-123" name="Jane Doe" avatarUrl={null} />,
-    );
+    render(<UserAvatar userId="user-123" name="Jane Doe" avatarUrl={null} />);
 
     const img = screen.getByRole("img", { name: "Jane Doe avatar" });
     const expectedSeed = hashUserId("user-123");

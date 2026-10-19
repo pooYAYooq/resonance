@@ -18,6 +18,11 @@ lib/shiki/code-highlighter.generated.ts
 # shadcn UI primitives (managed by shadcn CLI)
 components/ui/**
 
+# Agent skill instructions (installed and refreshed by `npx convex ai-files
+# install` / `npx skills add`); upstream owns their formatting and rewrites them
+.agents/skills/**
+.claude/skills/**
+
 # Local / env files
 .env*
 NOTES.local.md
