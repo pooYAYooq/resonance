@@ -1149,6 +1149,47 @@ not a new complete editor pass.
   disposition is in [known limitations](KNOWN_LIMITATIONS.md). Real
   screen-reader and touch acceptance remain limitations.
 
+### Journey 7: Public author page and catalogue
+
+| Check ID      | Journey / surface / state                   | Check                                    | Width / theme | Result | Evidence / revision | Finding                                                  |
+| ------------- | ------------------------------------------- | ---------------------------------------- | ------------- | ------ | ------------------- | -------------------------------------------------------- |
+| J7-AuthorPage | `/u/[username]` public author canvas        | keyboard, names, focus, status           | Deep          | Pass   | See J7 notes        | None                                                     |
+| J7-Catalogue  | `/u/[username]/posts` public post catalogue | keyboard, names, focus, status, boundary | Deep          | Pass   | See J7 notes        | Query-error boundary and Retry are component-tested only |
+
+**J7 notes (managed Chrome, dark and light)**
+
+- Executed on `feat/public-author-showcase` (commits `d856b5b` and `08e0852`)
+  against dev `woozy-spaniel-283`; the delivery, its fixtures, and the browser
+  results are recorded in [author page verification](AUTHOR_PROFILE_VERIFICATION.md).
+- Keyboard: the signed-out author page traverses navigation, the social links,
+  Follow, the catalogue link, and the first card in order, and the catalogue
+  traverses its header and card controls in order; each stop shows a visible
+  focus ring. Inspected screenshots `focus-home.png` and `focus-card.png` (local
+  artifacts).
+- Reveal: More of my work appends three cards at a time, announces
+  `Showing 6 of 9 posts.` and then `Showing 9 of 9 posts.` through the polite
+  status region, moves focus to the first newly revealed card, and is removed
+  once everything is shown.
+- Deletion focus: live deletion kept the surviving cards and the loaded list
+  usable; component regressions pin restoration for a removed card, an emptied
+  list (focus moves to the return link or the named empty context), and a
+  disconnected Load more control.
+- Image recovery: with the image request blocked the card kept its 3:2 frame and
+  a `Retry` control that is a sibling of the card link, and the link stayed
+  usable; after unblocking, Retry remounted the image and the recovery cleared.
+  Both steps were exercised in the browser.
+- Layout: at 320, 375, 768, and 1280 in light and dark, document scroll width
+  equalled client width on both the author page and the catalogue, so neither
+  surface produced horizontal overflow.
+- No hydration warning appeared on either surface.
+- The catalogue's query-error boundary and its Retry have component-test
+  coverage only: a live Convex subscription failure cannot be injected with this
+  browser tooling. The `J6-ProfileEditor` query-echo timing used the same
+  automated-only pattern.
+- Not claimed: screen-reader, touch, Firefox/Safari, or WCAG-conformance
+  coverage. This is Chromium keyboard, focus, and layout evidence, consistent
+  with the rest of this document.
+
 ## Findings
 
 - Auth and editor forms exposed raw Zod messages to users ("Too small:

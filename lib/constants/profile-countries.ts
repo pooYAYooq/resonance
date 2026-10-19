@@ -136,3 +136,18 @@ export const PROFILE_COUNTRIES: readonly ProfileCountry[] = [
   { code: "VE", name: "Venezuela" },
   { code: "VN", name: "Vietnam" },
 ];
+
+const COUNTRY_NAMES = new Map(
+  PROFILE_COUNTRIES.map((country) => [country.code, country.name]),
+);
+
+/**
+ * Resolves a stored ISO 3166-1 alpha-2 code to its display name. The public
+ * author page prints the name, not the code, so the map stays the single source
+ * of truth instead of a second copy in page code. Unknown, empty, and absent
+ * codes resolve to null so callers can omit the whole segment.
+ */
+export function getProfileCountryName(code: string | null): string | null {
+  if (!code) return null;
+  return COUNTRY_NAMES.get(code.toUpperCase()) ?? null;
+}

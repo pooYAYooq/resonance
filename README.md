@@ -183,9 +183,12 @@ app/
     settings/
       page.tsx                # Appearance and account configuration
     u/[username]/
-      page.tsx                # Public profile: resolves the username, redirects owned spellings, 404s unknown names
+      page.tsx                # Public author page: hero band, identity, socials, stats, action, bounded work
       not-found.tsx           # Route-scoped 404 shared with the missing-profile path
-      _components/            # ProfilePostList (Edit Profile + Follow live in components/web/)
+      _components/            # AuthorProfile (canvas) + AuthorShowcase (bounded live work)
+      posts/
+        page.tsx              # Public catalogue: compact header over the paged published-post list
+        _components/          # AuthorCatalogue (12-per-page list) + CatalogueQueryBoundary (retry)
   auth/                       # Auth routes (login, sign-up)
     login/page.tsx
     sign-up/page.tsx
@@ -236,7 +239,7 @@ components/
     MobileNavMenu.tsx         # Mobile drawer and shared AppNavigation for the workspace sidebar
     NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
     Footer.tsx
-    PostCard.tsx              # Shared post card (listing, landing, profile, feed, saved)
+    PostCard.tsx              # Shared post card (landing, dashboard preview, feed, liked, saved)
     CoverImage.tsx            # Custom cover image or the blank transparent fallback surface with a subtle bottom border
     PostCover.tsx             # Uncapped published 16:9 cover frame: shared ratio and single crop seam
     PostArticleHeader.tsx     # Shared reader and noninteractive Review title, attribution, and topics
@@ -252,7 +255,9 @@ components/
     CommentLikeButton.tsx       # Comment like button wrapper rendered on CommentCard
     CommentSection.tsx
     CommentCard.tsx
-    ProfileHeader.tsx           # Profile hero (avatar, name, bio, stats slot, rightAction slot)
+    AuthorPostCard.tsx          # Reader-facing author-work card (3:2 frame, cover recovery Retry)
+    AuthorJoinedDate.tsx        # Hydration-safe calendar/relative join-date label with refresh
+    HarmonicWaves.tsx           # Static hero-band harmonic-wave artwork
     ProfileStats.tsx            # Reactive follower/following counts row (subscribes getFollowCounts)
     FollowButton.tsx           # Self-contained follow/unfollow toggle (owns toggleFollow mutation)
     BookmarkButton.tsx         # Self-contained bookmark toggle (owns toggleBookmark mutation)

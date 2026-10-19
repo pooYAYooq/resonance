@@ -239,13 +239,31 @@
 
 ### Profiles & Settings
 
-- Public profiles at `/u/<username>`: avatar, display name, bio, up to nine
-  featured posts in the author's saved order, and the full paginated post list.
-  The canonical lowercase spelling is the only form that renders; every other
-  spelling of an owned name (styled, uppercase, previous) redirects to it, and
-  unknown, reserved, and deleted-account names return a shared 404. The featured
-  area is omitted when no posts are selected; featured posts also remain
-  available in the full post list.
+- Public author page at `/u/<username>`: a hero band with static harmonic-wave
+  artwork carrying the country and join date above the display name, an
+  introduction, the fixed secure social links, follower/following counts as
+  display values, and the owner's Edit Profile, another viewer's Follow, or a
+  signed-out Follow that returns to the page after login. The canonical
+  lowercase spelling is the only form that renders; every other spelling of an
+  owned name (styled, uppercase, previous) redirects to it, and unknown,
+  reserved, and deleted-account names return a shared 404.
+- The author page shows up to nine posts selected by the author in their saved
+  order, three at a time with three more per More of my work and a polite
+  `Showing N of M posts.` announcement. An author with no selection instead
+  shows their three newest published posts. An author with no published work
+  renders no work section at all: no heading, cards, catalogue link, or reserved
+  space.
+- The public catalogue at `/u/<username>/posts` opens from the author page's
+  same-tab All my posts link. A compact header (avatar, display name, optional
+  `@username`, and a Back to profile link) sits over the author's published
+  posts newest first, twelve at a time with Load more. An author with no
+  published posts sees an explanation and the return link with no placeholder
+  grid; unknown names use the shared 404 recovery.
+- The author page stays live without a reload: identity edits, deleted posts,
+  and follower/following counts update in place, and deleting the author's final
+  selection falls back to their latest posts. The catalogue keeps only its card
+  list live: published-post changes appear in place, while the compact identity
+  header renders on page load and does not live-update.
 - Comment author names and every other generated author link resolve to the
   author's current lowercase username; authors without a username render a
   plain label with no account-ID fallback.
@@ -312,8 +330,7 @@
   revision conflict. Save and pending pagination remain keyboard-focusable with
   guarded activation; exhausted pagination focuses an available appended post.
   Query echoes cannot roll back newer saved revisions or overwrite a newer
-  revert during an in-flight save. The broader public author-page presentation and catalogue
-  remain.
+  revert during an in-flight save.
 
 ### Analytics
 

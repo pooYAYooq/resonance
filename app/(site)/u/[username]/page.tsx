@@ -1,12 +1,12 @@
 /**
- * Public user profile page.
+ * Public author page.
  *
  * Server Component at `/u/[username]`. Resolves the address via
  * `resolveUsername`, redirecting old spellings to the owner's current
- * canonical name and 404-ing unknown, reserved, and deleted names. The
- * resolved profile renders the header (avatar, display name, bio), featured
- * posts, and the post list, which is a Client Component so it can use
- * `usePaginatedQuery` for live pagination.
+ * canonical name and 404-ing unknown, reserved, and deleted names. It then
+ * fetches the viewer-independent public identity and showcase as plain cached
+ * queries, the viewer-aware action state through the authenticated fetch, and
+ * passes one server clock to the client canvas.
  *
  * The "(site)" route group ensures the Navbar wraps the page.
  */
@@ -15,14 +15,9 @@ import type { Metadata } from "next";
 import { fetchQuery } from "convex/nextjs";
 import { fetchAuthQuery } from "@/lib/auth-server";
 import { api } from "@/convex/_generated/api";
-import { ProfileHeader } from "@/components/web/ProfileHeader";
-import { SectionHeading } from "@/components/web/SectionHeading";
-import { ProfilePostList } from "./_components/ProfilePostList";
-import { ProfileActionButton } from "@/components/web/ProfileActionButton";
-import { ProfileStats } from "@/components/web/ProfileStats";
-import { CoverImage } from "@/components/web/CoverImage";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { boundProfileDescription } from "@/lib/constants/seo";
+import { AuthorProfile } from "./_components/AuthorProfile";
 
 interface ProfileRouteProps {
   params: Promise<{ username: string }>;
@@ -31,6 +26,15 @@ interface ProfileRouteProps {
 /** Always resolve against the live owner; never cache a redirect destination. */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+/**
+ * The single server clock passed to the client canvas. Kept out of the
+ * component body so it is a deliberate one-shot read rather than a
+ * render-time expression.
+ */
+function readServerClock(): number {
+  return Date.now();
+}
 
 export async function generateMetadata({
   params,
@@ -41,14 +45,16 @@ export async function generateMetadata({
   });
   if (resolved.kind !== "profile") return { title: "Profile not found" };
 
-  const profile = await fetchQuery(api.users.getUserProfile, {
+  const identity = await fetchQuery(api.profiles.getPublicIdentity, {
     userId: resolved.ownerUserId,
   });
-  if (!profile) return { title: "Profile not found" };
+  if (!identity) return { title: "Profile not found" };
+
+  const displayName = identity.displayName.trim() || "Anonymous";
 
   return {
-    title: `${profile.displayName} | Resonance`,
-    description: profile.bio || `Posts by ${profile.displayName} on Resonance.`,
+    title: `${displayName} | Resonance`,
+    description: boundProfileDescription(identity.bio, displayName),
   };
 }
 
@@ -66,83 +72,32 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
     notFound();
   }
 
-  const profile = await fetchAuthQuery(api.users.getUserProfile, {
+  const identity = await fetchQuery(api.profiles.getPublicIdentity, {
     userId: resolved.ownerUserId,
   });
 
-  if (!profile) {
+  if (!identity) {
     notFound();
   }
 
-  const displayName = profile.displayName?.trim() || "Anonymous";
-  const postCountLabel = profile.postCount === 1 ? "post" : "posts";
-  const featured = await fetchQuery(api.profiles.getSelectedShowcase, {
-    userId: profile.userId,
+  const viewerProfile = await fetchAuthQuery(api.users.getUserProfile, {
+    userId: resolved.ownerUserId,
+  });
+  const showcase = await fetchQuery(api.profiles.getShowcase, {
+    userId: resolved.ownerUserId,
   });
 
   return (
-    <div className="py-12">
-      <ProfileHeader
-        displayName={displayName}
-        username={profile.username}
-        bio={profile.bio}
-        avatarUrl={profile.avatarUrl}
-        userId={profile.userId}
-        joinedDate={profile.joinedDate}
-        rightAction={
-          <ProfileActionButton
-            profileUserId={profile.userId}
-            authorName={displayName}
-            viewerId={profile.viewerId}
-            isFollowing={profile.isFollowing}
-          />
-        }
-        stats={
-          <ProfileStats
-            profileUserId={profile.userId}
-            initialFollowerCount={profile.followerCount ?? 0}
-            initialFollowingCount={profile.followingCount ?? 0}
-          />
-        }
+    <div className="py-10 md:py-12">
+      <AuthorProfile
+        initialIdentity={identity}
+        initialViewer={{
+          viewerId: viewerProfile?.viewerId ?? null,
+          isFollowing: viewerProfile?.isFollowing ?? false,
+        }}
+        initialShowcase={showcase}
+        initialNow={readServerClock()}
       />
-
-      {featured.length > 0 && (
-        <section
-          aria-label="Featured posts"
-          className="flex flex-col gap-6 pt-10"
-        >
-          <SectionHeading title="Featured posts" />
-          <ol className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featured.map((post) => (
-              <li key={post.postId} className="min-w-0">
-                <Link
-                  href={`/blog/${post.postId}`}
-                  className="flex cursor-pointer flex-col gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
-                >
-                  <span className="relative aspect-[3/2] overflow-hidden rounded-md bg-muted">
-                    <CoverImage
-                      src={post.imageUrl}
-                      alt=""
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                      className="object-cover"
-                    />
-                  </span>
-                  <span className="line-clamp-2 font-medium">{post.title}</span>
-                </Link>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      <section className="py-10">
-        <SectionHeading
-          title="Posts"
-          count={profile.postCount ?? undefined}
-          countLabel={postCountLabel}
-        />
-        <ProfilePostList userId={profile.userId} />
-      </section>
     </div>
   );
 }

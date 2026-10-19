@@ -90,16 +90,27 @@ resonance/
 │   │   │   └── [postId]/
 │   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
 │   │   ├── u/[username]/
-│   │   │   ├── page.tsx        # Public profile. Server Component. Resolves the requested
+│   │   │   ├── page.tsx        # Public author page. Server Component. Resolves the requested
 │   │   │   │                   # spelling via api.usernames.resolveUsername, redirects owned
 │   │   │   │                   # non-canonical spellings to the lowercase address, and calls
 │   │   │   │                   # notFound() for unknown/reserved/deleted names. fetchQuery for
-│   │   │   │                   # metadata and featured posts; fetchAuthQuery for viewer-aware rendering.
+│   │   │   │                   # the public identity and showcase, fetchAuthQuery for viewer
+│   │   │   │                   # state; the canvas and its live work render on the client.
 │   │   │   ├── not-found.tsx   # Route-scoped 404 shared with the missing-profile path.
-│   │   │   └── _components/
-│   │   │       └── ProfilePostList.tsx     # Client. usePaginatedQuery for "Load More".
-│   │   │                              # (Edit Profile + Follow live in components/web/
-│   │   │                              # ProfileActionButton.tsx since 1.4.)
+│   │   │   ├── _components/
+│   │   │   │   ├── AuthorProfile.tsx   # Client. Approved canvas: hero band with static waves,
+│   │   │   │   │                       # kicker, introduction, socials, stats, action, and the
+│   │   │   │   │                       # live identity and viewer subscriptions.
+│   │   │   │   └── AuthorShowcase.tsx  # Client. Bounded live work: three cards, three per
+│   │   │   │                           # reveal, latest-three fallback, catalogue link.
+│   │   │   └── posts/
+│   │   │       ├── page.tsx    # Public catalogue. Resolves the same address, 404s like the
+│   │   │       │               # profile, and renders a compact header over the client list.
+│   │   │       └── _components/
+│   │   │           ├── AuthorCatalogue.tsx        # Client. usePaginatedQuery of
+│   │   │           │                              # profiles.listAuthorPosts, 12 a page, live.
+│   │   │           └── CatalogueQueryBoundary.tsx # Class boundary; Retry remounts the
+│   │   │                                          # subscription from page one.
 │   │   ├── notifications/
 │   │   │   ├── page.tsx        # Notifications. Server Component shell
 │   │   │   │                   # (static metadata, noindex). Auth gate,
@@ -278,12 +289,14 @@ resonance/
 │       ├── PostTagSelector.tsx  # Controlled tag grid capped at five selections, shadcn Checkbox rows.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
 │       ├── SectionHeading.tsx   # Heading with optional count + right-side action slot
-│       ├── ProfileHeader.tsx    # Reusable profile hero (avatar, name, bio, action,
-│       │                       # optional stats slot). Pure presentational — the
-│       │                       # `stats` and `rightAction` slots are composed by the
-│       │                       # consuming page.
+│       ├── AuthorPostCard.tsx   # Reader-facing author-work card: 3:2 cover, title, like
+│       │                       # count, one anchor, and a sibling cover-recovery Retry.
+│       ├── AuthorJoinedDate.tsx # Hydration-safe `Joined {calendar|relative}` label with a
+│       │                       # visible-tab refresh timer and visibilitychange catch-up.
+│       ├── HarmonicWaves.tsx    # Static, aria-hidden hero-band artwork (accent via
+│       │                       # currentColor). No motion or interactivity.
 │       ├── ProfileStats.tsx     # Reactive `{n} Followers · {n} Following` row rendered
-│       │                       # in ProfileHeader's stats slot. Subscribes to
+│       │                       # in AuthorProfile's profile row. Subscribes to
 │       │                       # follows.getFollowCounts — bumps live when toggleFollow
 │       │                       # patches the users doc. New count-type stats must extend
 │       │                       # getFollowCounts, never subscribe to getUserProfile (see
@@ -430,7 +443,8 @@ components/
     │     creation timestamp, body text, and a right-aligned comment like button.
     │
     ├── PostCard.tsx
-    │     Reusable post card used in `/blog` and on author profile pages.
+    │     Reusable post card used on the landing and dashboard previews
+    │     and in the Feed, Liked, and Saved collections.
     │     Renders cover image (3:2), an author row (avatar + name
     │     → profile), title as an <h2>, body excerpt, and a single-row
     │     footer with comment count, date, and a "Read More" link. The
@@ -440,22 +454,29 @@ components/
     │
     ├── EmptyState.tsx
     │     Shared "no content yet" primitive. Icon + title + optional
-    │     description + optional CTA. Used on the profile page's empty
-    │     post list and reusable for future empty states (no comments,
-    │     empty search, etc.).
+    │     description + optional CTA. Used by the author catalogue's
+    │     empty state and the reader collections (no comments, empty
+    │     search, etc.).
     │
     ├── SectionHeading.tsx
     │     Shared heading primitive. Title with optional inline count +
-    │     label and a right-side action slot. Used for "Posts" on the
-    │     profile page and "Fresh from the community" on the landing
-    │     page's `RecentPostsSection`.
+    │     label and a right-side action slot. Used for "Fresh from the
+    │     community" on the landing page's `RecentPostsSection`.
     │
-    ├── ProfileHeader.tsx
-    │     Reusable profile hero: avatar + name + bio + optional right
-    │     action (e.g. "Edit Profile"). Anchored on the left on `md:`,
-    │     centered on mobile. The post count is intentionally not
-    │     rendered here, it lives in the section heading next to the
-    │     post list.
+    ├── AuthorPostCard.tsx
+    │     Reader-facing card for the author page and catalogue: a single
+    │     anchor over a 3:2 cover, title, and like count, plus a cover
+    │     recovery Retry that is a sibling of the anchor so the link
+    │     stays usable when an image fails.
+    │
+    ├── AuthorJoinedDate.tsx
+    │     Hydration-safe `Joined` label rendering the calendar or
+    │     relative format. Refreshes on mount, on a visible-tab minute
+    │     interval, and on visibilitychange; timers stop while hidden.
+    │
+    ├── HarmonicWaves.tsx
+    │     Static, aria-hidden harmonic-wave artwork drawn in the author
+    │     hero band. No motion, no interactivity.
     │
     ├── UserAvatar.tsx
     │     Avatar with DiceBear fallback. Accepts avatarUrl, name, and

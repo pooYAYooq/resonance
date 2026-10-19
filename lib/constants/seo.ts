@@ -37,10 +37,7 @@ export function truncateForDescription(
   text: string,
   maxLength: number = 155,
 ): string {
-  const cleaned = text
-    .replace(/\s+/g, " ")
-    .replace(/\n/g, " ")
-    .trim();
+  const cleaned = text.replace(/\s+/g, " ").replace(/\n/g, " ").trim();
 
   if (cleaned.length <= maxLength) {
     return cleaned;
@@ -52,4 +49,29 @@ export function truncateForDescription(
   // If there's no space, just hard-cut; otherwise cut at the last space
   // so we don't end mid-word.
   return lastSpace > 0 ? truncated.slice(0, lastSpace) + "…" : truncated + "…";
+}
+
+/**
+ * Builds a search-friendly description for a public author page.
+ *
+ * Collapses the raw bio's whitespace and trims it; an empty bio falls back to
+ * the author tagline. Otherwise the bio is bounded to `maxLength` Unicode code
+ * points, so an astral character crossing the boundary is never split into a
+ * lone surrogate.
+ *
+ * @param bio         - Raw bio text, or null when the author has none.
+ * @param displayName - Resolved display name used for the fallback tagline.
+ * @param maxLength   - Maximum code points (default 160).
+ * @returns A clean, bounded description suitable for a `description` meta field.
+ */
+export function boundProfileDescription(
+  bio: string | null,
+  displayName: string,
+  maxLength: number = 160,
+): string {
+  const collapsed = (bio ?? "").replace(/\s+/g, " ").trim();
+  if (collapsed.length > 0) {
+    return Array.from(collapsed).slice(0, maxLength).join("");
+  }
+  return `Posts by ${displayName} on Resonance.`;
 }

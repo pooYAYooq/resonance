@@ -7,8 +7,8 @@
  * the query is loading, so SSR is not blocked and first paint shows
  * the server-rendered values.
  *
- * Pure presentational shape; the caller (`ProfileHeader` `stats`
- * slot) owns placement and surrounding markup.
+ * Pure presentational shape; the caller (`AuthorProfile`'s profile row)
+ * owns placement and surrounding markup.
  */
 
 "use client";
