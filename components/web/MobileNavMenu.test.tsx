@@ -200,6 +200,28 @@ describe("MobileNavMenu", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the mobile unread count beside the Notifications link", async () => {
+    const user = userEvent.setup();
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 3
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            username: "ada",
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
+
+    render(<MobileNavMenu isAuthenticated />);
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
+
+    expect(screen.getByText("3 unread")).toBeInTheDocument();
+  });
+
   it("closes after selecting a workspace destination", async () => {
     const user = userEvent.setup();
     render(<MobileNavMenu isAuthenticated />);

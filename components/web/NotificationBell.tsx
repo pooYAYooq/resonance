@@ -43,6 +43,7 @@ export function NotificationBell() {
     <Button
       variant="ghost"
       size="icon"
+      className="relative"
       aria-label={label}
       onClick={() => {
         if (authoringExit) {

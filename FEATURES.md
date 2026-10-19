@@ -213,11 +213,23 @@
 ### Notifications
 
 - `internal.notifications.fanOutForPost` — called after `publishPost`, inserts one row per follower in batches via `.paginate(args.paginationOpts)` with scheduler continuation via the `follows.by_followingId` index
-- `users.unreadNotificationCount` denormalized counter; `getUnreadCount` is a single O(1) read for the bell badge
+- `users.unreadNotificationCount` denormalized counter; `getUnreadCount` is a single O(1) read for the bell badge and the mobile navigation count
 - `NotificationBell` in the desktop Navbar, auth-only, left of the avatar;
   mobile navigation shows a Notifications link with an unread count
-- `/notifications` page, client-gated, paginated, marks all read on visit
-- `markAllRead` resets the counter; rows remain as visual history
+- `/notifications` page, client-gated, paginated twelve at a time, renders one
+  compact row per notification with direct links to the post and the actor and
+  a visible New marker while a row is unread
+- Read state is per row and persistent: opening a notification's post calls the
+  idempotent, owner-scoped `markRead`, which clears the marker and decrements
+  the unread count once; visiting the page changes nothing
+- `Mark all read` appears while unread rows remain and reuses `markAllRead`;
+  rows stay as visual history, and focus returns to the named list region when
+  the action clears the count
+- The empty state explains what is missing and recovers to Discover
+- Deleting a post removes its notifications in the bounded post-deletion
+  cascade, decrementing each unread row's counter exactly once; there is no
+  age-based retention, as recorded in
+  [known limitations](docs/KNOWN_LIMITATIONS.md)
 
 ### Discover
 

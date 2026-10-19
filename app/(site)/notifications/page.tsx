@@ -2,8 +2,8 @@
  * Notifications page — the current user's private notification feed.
  *
  * Server Component shell: static metadata (private surface, noindex).
- * The auth gate, the live paginated list, and the mark-all-read-on-
- * mount behavior live in the client
+ * The auth gate, the live paginated list, the per-row read state, and
+ * the Mark all read action live in the client
  * `_components/NotificationsList`, which mirrors `/create`'s auth
  * gate and `ReadingListContent`'s paginated shape.
  *

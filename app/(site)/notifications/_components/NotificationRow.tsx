@@ -2,7 +2,13 @@
  * Pure-presentational row for a single notification on `/notifications`.
  * Mirrors `CommentCard`'s pure-presentational stance: no Convex hooks,
  * receives a fully-hydrated notification object and renders the
- * actor + post + timestamp.
+ * actor + post + timestamp, plus a compact New marker while `readAt`
+ * is unset.
+ *
+ * The row itself never mutates anything: opening the post reports the
+ * notification id through `onOpenPost`, and the owning list calls
+ * `api.notifications.markRead`. The actor link and post link stay the
+ * only navigation targets.
  *
  * Phase 1.1 rule #3: the post title is an `<h2>` link because the
  * page-level `<h1>` ("Notifications") is the page's only `<h1>`. The
@@ -27,6 +33,7 @@ export interface NotificationRowData {
   actorId: string;
   postId: Id<"posts">;
   createdAt: number;
+  readAt?: number;
   actorName: string | null;
   actorUsername: string | null;
   actorAvatarUrl: string | null;
@@ -35,6 +42,8 @@ export interface NotificationRowData {
 
 interface NotificationRowProps {
   notification: NotificationRowData;
+  /** Reports that this notification's post link was activated. */
+  onOpenPost?: (notificationId: Id<"notifications">) => void;
 }
 
 const RELATIVE_THRESHOLDS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
@@ -90,12 +99,16 @@ function thresholdDivisor(unit: Intl.RelativeTimeFormatUnit): number {
   }
 }
 
-export function NotificationRow({ notification }: NotificationRowProps) {
+export function NotificationRow({
+  notification,
+  onOpenPost,
+}: NotificationRowProps) {
   const displayName = notification.actorName?.trim() || "Someone";
   const postHref = `/blog/${notification.postId}`;
   const profileHref = notification.actorUsername
     ? buildProfilePath(notification.actorUsername)
     : null;
+  const isUnread = notification.readAt === undefined;
   // eslint-disable-next-line react-hooks/purity -- Server Component, single render on the server
   const now = Date.now();
   const relative = formatRelativeTime(notification.createdAt, now);
@@ -133,17 +146,36 @@ export function NotificationRow({ notification }: NotificationRowProps) {
           )}{" "}
           published a new post
         </p>
-        <Link href={postHref} className="block mt-1">
+        <Link
+          href={postHref}
+          className="block mt-1"
+          onClick={() => onOpenPost?.(notification._id)}
+          onAuxClick={(event) => {
+            // Middle-click opens the post in a background tab; primary
+            // activation is covered by onClick, and other buttons do not
+            // open the link.
+            if (event.button === 1) {
+              onOpenPost?.(notification._id);
+            }
+          }}
+        >
           <h2 className="text-lg font-semibold hover:text-primary">
             {notification.postTitle}
           </h2>
         </Link>
-        <time
-          dateTime={new Date(notification.createdAt).toISOString()}
-          className="text-xs text-muted-foreground mt-1 block"
-        >
-          {relative}
-        </time>
+        <div className="mt-1 flex items-center gap-2">
+          <time
+            dateTime={new Date(notification.createdAt).toISOString()}
+            className="text-xs text-muted-foreground"
+          >
+            {relative}
+          </time>
+          {isUnread && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              New
+            </span>
+          )}
+        </div>
       </div>
     </article>
   );

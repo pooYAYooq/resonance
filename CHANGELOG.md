@@ -109,6 +109,11 @@ work is tracked in `ROADMAP.md`.
 
 ### Changed
 
+- Notifications are compact and actionable: unread rows show a New marker,
+  opening a post marks just that notification read, Mark all read clears the
+  rest, and the empty state recovers to Discover. Visiting the page no longer
+  clears unread state, and deleting a post keeps the unread counter consistent
+  through the existing bounded cascade.
 - Upgraded the pinned Convex dependency from 1.34.0 to 1.46.0 so the installed
   CLI and runtime match the generated AI guidance, which targets 1.44.0 or
   newer. Refreshing the managed AI files restores the upstream
@@ -159,6 +164,9 @@ work is tracked in `ROADMAP.md`.
 
 ### Fixed
 
+- Anchor the desktop notification bell's unread badge to the bell button. The
+  absolutely positioned badge previously anchored to the page corner because
+  the button was not a positioned ancestor.
 - Preserve keyboard focus through profile saves, picker pagination, and country
   clearing; keep the keyboard-active country visible in its scrolling list.
 - Preserve newer profile edits when save responses and live query updates arrive

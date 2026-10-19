@@ -109,6 +109,19 @@ describe("NotificationBell", () => {
     expect(screen.getByText("99+")).toBeInTheDocument();
   });
 
+  it("anchors the unread badge to the bell button", () => {
+    useQueryState.mockReturnValue(3);
+    render(<NotificationBell />);
+    const button = screen.getByRole("button", {
+      name: "Notifications, 3 unread",
+    });
+    const badge = screen.getByText("3");
+    expect(button).toContainElement(badge);
+    // The absolutely positioned badge needs the button as its containing
+    // block; without it the badge anchors to the sticky header instead.
+    expect(button.className).toContain("relative");
+  });
+
   it("navigates to /notifications on click", async () => {
     const user = userEvent.setup();
     useQueryState.mockReturnValue(5);

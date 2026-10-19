@@ -114,16 +114,17 @@ resonance/
 │   │   ├── notifications/
 │   │   │   ├── page.tsx        # Notifications. Server Component shell
 │   │   │   │                   # (static metadata, noindex). Auth gate,
-│   │   │   │                   # pagination, and mark-all-read live in
+│   │   │   │                   # pagination, and read state live in
 │   │   │   │                   # the client _components/NotificationsList.
 │   │   │   └── _components/
 │   │   │       ├── NotificationsList.tsx  # Client. useConvexAuth gate
 │   │   │       │                          # (redirect to /auth/login) +
 │   │   │       │                          # usePaginatedQuery
-│   │   │       │                          # notifications.getNotifications,
-│   │   │       │                          # fires markAllRead once on mount.
-│   │   │       └── NotificationRow.tsx  # Pure-presentational row,
-│   │   │                                  # no Convex hooks.
+│   │   │       │                          # notifications.getNotifications;
+│   │   │       │                          # markRead on post open and
+│   │   │       │                          # Mark all read; Discover recovery.
+│   │   │       └── NotificationRow.tsx  # Pure-presentational row with a
+│   │   │                                  # New marker; no Convex hooks.
 │   │   ├── feed/
 │   │   │   ├── page.tsx        # Private reader feed shell (static metadata, noindex).
 │   │   │   └── _components/
@@ -200,9 +201,10 @@ resonance/
 │   │                           # scheduler continuation via
 │   │                           # follows.by_followingId), getUnreadCount,
 │   │                           # getNotifications (paginated, hydrated
-│   │                           # actor + published post, retry-idempotent), markAllRead (records
-│   │                           # bounded per-row readAt state and resets the
-│   │                           # denormalized users.unreadNotificationCount;
+│   │                           # actor + published post, retry-idempotent),
+│   │                           # markRead + markAllRead (record per-row
+│   │                           # readAt state and keep the denormalized
+│   │                           # users.unreadNotificationCount in step;
 │   │                           # rows remain as visual history)
 │   ├── feed.ts                 # Private getFeed query plus 30-day materialized
 │   │                           # fan-out, follow backfill, unfollow deletion,
