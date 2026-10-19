@@ -11,9 +11,9 @@ implemented and verified: per-row persistent read state through
 `notifications.markRead`, a visible New marker on unread rows, a Mark all read
 action with focus return, and Discover recovery from the empty state. Visiting
 the page no longer clears unread state, and
-[decision 3A-033](PHASE_3A_DECISIONS.md) records the semantics. The review
-rounds closed with no blockers, and the browser pass also fixed the
-bell's unread badge, which anchored to the page corner instead of the bell.
+[decision 3A-033](PHASE_3A_DECISIONS.md) records the semantics. The browser
+pass also fixed the bell's unread badge, which anchored to the page corner
+instead of the bell.
 Browser results are in
 [notifications verification](NOTIFICATIONS_EVIDENCE.md); V1-18 is Done. The
 full CI order passes on this revision.
@@ -34,9 +34,8 @@ submission, after review changes, and before merge handoff.
 
 ## Next action
 
-The notifications slice is complete and handed to the maintainer for review and
-merge. The next notification work is the planned notification-boundary change,
-which awaits its own scoped requirements before implementation. The remaining
+The next notification work is the planned notification-boundary change, which
+awaits its own scoped requirements before implementation. The remaining
 username-editor and reader-facing gaps stay with their own records rather than
 this branch.
 
