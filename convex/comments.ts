@@ -15,6 +15,7 @@ import { authComponent } from "./auth";
 import { updateDiscoverPostEngagement } from "./discoverProjection";
 import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
 import { usernamesForOwners } from "./usernameModel";
+import { recordEngagementNotification } from "./notificationEvents";
 
 function validatePaginationOptions(options: {
   numItems: number;
@@ -174,6 +175,14 @@ export const createComment = mutation({
       authorName: user.name?.trim() || "Anonymous",
       likeCount: 0,
       createdAt: Date.now(),
+    });
+
+    await recordEngagementNotification(ctx, {
+      type: "comment",
+      recipientId: post.authorId,
+      actorId: user._id,
+      postId: args.postId,
+      commentId,
     });
 
     const nextCount = post.commentCount + 1;
