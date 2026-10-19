@@ -14,7 +14,7 @@ empty state. Visiting the page no longer clears unread state, and
 pass also fixed the bell's unread badge, which anchored to the page corner
 instead of the bell. Browser results are in
 [notifications verification](NOTIFICATIONS_EVIDENCE.md); V1-18 is Done. The
-full CI order passes on this revision.
+full CI order passed on PR #117 before merge.
 
 Carry-forward from the earlier username, profile, and author-page deliveries
 stays open in [known limitations](KNOWN_LIMITATIONS.md): the username editor's

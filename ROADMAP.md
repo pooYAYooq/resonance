@@ -127,9 +127,8 @@ real-runtime stress matrix, and the deletion-cascade limitation stay visible in
 [known limitations](docs/KNOWN_LIMITATIONS.md). V1-20 context-specific post-card
 variants are untouched.
 
-Compact, actionable notifications are implemented and browser-verified on
-`feat/compact-actionable-notifications`, recorded in
-[notifications verification](docs/NOTIFICATIONS_EVIDENCE.md): persistent
+Compact, actionable notifications are integrated on main as PR #117, recorded
+in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md): persistent
 per-row read state with the owner-scoped `markRead`, a visible New marker on
 unread rows, Mark all read with focus return, and Discover recovery from the
 empty state. The pass also fixed the bell's unread badge anchor. The retention
