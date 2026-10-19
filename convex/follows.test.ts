@@ -1,25 +1,30 @@
 /**
  * Unit tests for Convex follows queries and mutations.
  *
- * Auth-path tests (self-follow rejection, missing-user, count
- * denormalization on follow/unfollow) are omitted because convex-test
- * cannot mock the Better Auth component that `safeGetAuthUser` walks
- * (`convex/users.test.ts:1-7`, `convex/likes.test.ts`). These are
- * covered by manual testing and code inspection of `follows.ts`.
- * Here we cover the unauthenticated rejection path and the no-auth
- * query behavior, matching the precedent in `likes.test.ts`.
+ * `createAuthenticatedTestUser` registers the Better Auth test component
+ * and creates a user plus session, so auth-gated mutations can run. The
+ * notification tests use it to cover:
+ *  - a follow notifying the followed user once across repeated follows;
+ *  - a self-follow rejecting without writing a notification.
+ *
+ * The rest cover the unauthenticated rejection path, no-auth query
+ * behavior, and follow counter arithmetic.
  */
 
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
 import { register } from "@convex-dev/better-auth/test";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, components } from "./_generated/api";
 import { incrementCounter, decrementCounter } from "./follows";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 async function createAuthenticatedTestUser(
   t: ReturnType<typeof convexTest>,
@@ -212,6 +217,7 @@ describe("follows functions", () => {
   });
 
   it("notifies the followed user once across repeated follows", async () => {
+    vi.useFakeTimers();
     const t = convexTest(schema, modules);
     const identity = await createAuthenticatedTestUser(
       t,
@@ -247,6 +253,8 @@ describe("follows functions", () => {
     await t
       .withIdentity(identity)
       .mutation(api.follows.toggleFollow, { followingId: "target-1" });
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
 
     const rows = await t.run((ctx) => ctx.db.query("notifications").collect());
     expect(rows).toHaveLength(1);
