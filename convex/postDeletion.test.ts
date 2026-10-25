@@ -165,7 +165,7 @@ describe("published post deletion", () => {
         userId: "recipient",
         displayName: "Recipient",
         publishedPostCount: 0,
-        unreadNotificationCount: 0,
+        unreadNotificationCount: 3,
         createdAt: 1,
       });
       await ctx.db.insert("notifications", {
@@ -176,6 +176,40 @@ describe("published post deletion", () => {
         actorId: identity.subject,
         createdAt: 1,
         readAt: 2,
+      });
+      await ctx.db.insert("notifications", {
+        type: "post_like",
+        dedupeKey: `post_like:${postId}`,
+        postId,
+        recipientId: "recipient",
+        actorId: "unread-liker",
+        createdAt: 2,
+      });
+      await ctx.db.insert("notifications", {
+        type: "comment",
+        dedupeKey: `comment:${commentId}`,
+        postId,
+        commentId,
+        recipientId: "recipient",
+        actorId: "commenter",
+        createdAt: 3,
+        readAt: 4,
+      });
+      await ctx.db.insert("notifications", {
+        type: "comment_like",
+        dedupeKey: `comment_like:${commentId}`,
+        postId,
+        commentId,
+        recipientId: "recipient",
+        actorId: "comment-liker",
+        createdAt: 4,
+      });
+      await ctx.db.insert("notifications", {
+        type: "follow",
+        dedupeKey: "follow:follower",
+        recipientId: "recipient",
+        actorId: "follower",
+        createdAt: 5,
       });
       await ctx.db.insert("feed", {
         postId,
@@ -272,7 +306,18 @@ describe("published post deletion", () => {
     expect(state.stat?.publishedCount).toBe(0);
     expect(state.stats?.totalPosts).toBe(0);
     expect(state.jobs).toEqual([]);
-    expect(state.recipient?.unreadNotificationCount).toBe(0);
+    const remaining = await t.run(
+      async (ctx) => await ctx.db.query("notifications").collect(),
+    );
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].type).toBe("follow");
+    const recipient = await t.run(async (ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", "recipient"))
+        .unique(),
+    );
+    expect(recipient?.unreadNotificationCount).toBe(1);
 
     await expect(
       t

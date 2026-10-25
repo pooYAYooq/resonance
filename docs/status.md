@@ -6,44 +6,38 @@ a session history.
 
 ## Current focus
 
-The notifications slice is integrated on main as PR #117: per-row persistent
-read state through `notifications.markRead`, a visible New marker on unread
-rows, a Mark all read action with focus return, and Discover recovery from the
-empty state. Visiting the page no longer clears unread state, and
-[decision 3A-033](PHASE_3A_DECISIONS.md) records the semantics. The browser
-pass also fixed the bell's unread badge, which anchored to the page corner
-instead of the bell. Browser results are in
-[notifications verification](NOTIFICATIONS_EVIDENCE.md); V1-18 is Done. The
-full CI order passed on PR #117 before merge.
+The current revision extends the compact notification baseline with engagement
+events, a page-preserving drawer, responsive rows, saved desktop expansion,
+focused comment destinations, follow-back actions, and scoped deletion.
+[Features](../FEATURES.md#notifications) owns behavior;
+the approved scope amendment is in [the decision log](PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
 
-Carry-forward from the earlier username, profile, and author-page deliveries
-stays open in [known limitations](KNOWN_LIMITATIONS.md): the username editor's
-owned/current and cross-tab browser states, a real screen-reader session, a
-real-runtime deletion/edit stress matrix, the deletion-cascade limitation, the
-author page's missing join-date control, and the catalogue query boundary's
-component-only coverage.
-
-The Convex dependency is pinned to `1.46.0` and the managed AI files are
-refreshed, so the earlier CLI and guidance mismatch no longer applies.
-
-The PR/documentation workflow keeps implementation, evidence, and completion
-docs in the same change. Use [PR_CHECKLIST.md](PR_CHECKLIST.md) at initial
-submission, after review changes, and before merge handoff.
+Automated verification results are recorded in
+[notifications evidence](NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
+Documentation now distinguishes current behavior from superseded UI/navigation
+experiments. The implementation extension still has acceptance work; it is not
+recorded as complete merely because the automated checks passed. The integrated
+PR #117 baseline retains its own historical evidence.
 
 ## Next action
 
-The next notification work is the planned notification-boundary change, which
-awaits its own scoped requirements before implementation. The remaining
-username-editor and reader-facing gaps stay with their own records; they are
-not part of the completed notification work.
+Review notification rows and actions with an account that has notification
+events, then confirm normal drawer exit and focus handoff on a physical phone.
+The empty-state and scroll-preservation check is in
+[notifications evidence](NOTIFICATIONS_EVIDENCE.md#drawer-visual-check). After
+relevant fixes,
+refresh affected verification and apply [the PR checklist](PR_CHECKLIST.md).
+Other username, profile, accessibility, and author-page gaps remain with their
+existing limitation records.
 
 ## Blockers and constraints
 
 - The feed loading-announcement advisory is explicitly deferred. It is not a
   reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
-- The dev deployment carries disposable fixture accounts with no published
-  posts; see [known limitations](KNOWN_LIMITATIONS.md). Browser checks use
-  disposable data and delete only what they create.
+- The dev deployment carries disposable fixture data; existing accounts and
+  retained test posts are described in [notifications evidence](NOTIFICATIONS_EVIDENCE.md).
+  Browser checks delete only what they create unless the maintainer explicitly
+  asks to retain fixtures.
 - The app is not deployed; development data is disposable. A production
   migration would need its own rollout plan.
 

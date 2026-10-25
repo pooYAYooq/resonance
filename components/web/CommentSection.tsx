@@ -7,26 +7,19 @@
 "use client";
 import { Loader2, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader } from "../ui/card";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { commentBodySchema } from "@/schemas/comment";
-import { Field, FieldError, FieldLabel } from "../ui/field";
-import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
-import {
-  useConvexAuth,
-  useMutation,
-  usePaginatedQuery,
-  useQuery,
-} from "convex/react";
+import { useConvexAuth, usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import z from "zod";
-import { toast } from "sonner";
-import { useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CommentComposer } from "./CommentComposer";
 import { CommentCard } from "./CommentCard";
-import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+
+import {
+  positionNotificationDestination,
+  finishMissingNotificationTarget,
+} from "@/lib/notification-navigation";
 
 interface CommentSectionProps {
   initialTotalCount: number;
@@ -40,13 +33,8 @@ interface CommentSectionProps {
  * @returns JSX.Element: a card containing the comment list and reply form.
  */
 export function CommentSection({ initialTotalCount }: CommentSectionProps) {
-  // Tracks whether a comment mutation is in-flight so the submit button can
-  // show a loading spinner and disable itself during the round-trip.
-  const [isPending, startTransition] = useTransition();
-
   const params = useParams<{ postId: Id<"posts"> }>();
-  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
-  const router = useRouter();
+  const { isLoading: isAuthLoading } = useConvexAuth();
   const postId = params?.postId;
   const queryArgs = isAuthLoading || !postId ? "skip" : { postId };
 
@@ -60,47 +48,68 @@ export function CommentSection({ initialTotalCount }: CommentSectionProps) {
     initialNumItems: 20,
   });
 
+  const [targetCommentId, setTargetCommentId] = useState<string | null>(null);
+  const [targetCommentLikes, setTargetCommentLikes] = useState(false);
+  const landedCommentRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const readCommentAnchor = () => {
+      landedCommentRef.current = null;
+      const match = /^#comment-([a-z0-9]+)(-likes)?$/.exec(
+        window.location.hash,
+      );
+      const postLikes = window.location.hash === "#post-likes";
+      setTargetCommentId(match?.[1] ?? (postLikes ? "post-likes" : null));
+      setTargetCommentLikes(Boolean(match?.[2]) || postLikes);
+    };
+    readCommentAnchor();
+    window.addEventListener("hashchange", readCommentAnchor);
+    window.addEventListener(
+      "notification-destination-ready",
+      readCommentAnchor,
+    );
+    return () => {
+      window.removeEventListener("hashchange", readCommentAnchor);
+      window.removeEventListener(
+        "notification-destination-ready",
+        readCommentAnchor,
+      );
+    };
+  }, [postId]);
+
+  useLayoutEffect(() => {
+    if (!targetCommentId || !postId) return;
+    const destination = `${postId}:${targetCommentId}:${targetCommentLikes}`;
+    if (landedCommentRef.current === destination) return;
+    if (positionNotificationDestination(new URL(window.location.href))) {
+      landedCommentRef.current = destination;
+    } else if (!isLoading && !isAuthLoading && status === "CanLoadMore") {
+      loadMore(20);
+    } else if (!isLoading && !isAuthLoading && status === "Exhausted") {
+      finishMissingNotificationTarget();
+      landedCommentRef.current = destination;
+    }
+  }, [
+    comments,
+    isLoading,
+    isAuthLoading,
+    loadMore,
+    postId,
+    status,
+    targetCommentId,
+    targetCommentLikes,
+  ]);
+
   // Fetch the post client-side so commentCount updates reactively when
   // new comments are added via the mutation above.
   const post = useQuery(api.posts.getPostById, queryArgs);
   const totalCount = post?.commentCount ?? initialTotalCount;
 
-  // React Hook Form with Zod validation. Only the body field is user-provided;
-  // postId comes from the URL route and is injected in the submit handler.
-  const form = useForm({
-    resolver: zodResolver(commentBodySchema),
-    defaultValues: {
-      body: "",
-    },
-  });
-
-  // Submits the comment via a Convex mutation inside a transition.
-  // postId is read from useParams() and validated before the mutation.
-  // Errors surface as Sonner toasts so the user can retry.
-  async function onSubmit(values: z.infer<typeof commentBodySchema>) {
-    if (!postId) {
-      toast.error("Missing post ID — cannot submit comment.");
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        await createComment({ ...values, postId });
-        toast.success("Comment submitted successfully");
-        form.reset();
-      } catch {
-        toast.error("Failed to submit comment");
-      }
-    });
-  }
-
-  const createComment = useMutation(api.comments.createComment);
-
   const canLoadMore = status === "CanLoadMore";
   const isLoadingMore = status === "LoadingMore";
 
   return (
-    <Card>
+    <Card id="comments">
       <CardHeader className="flex flex-row items-center gap-2 border-b border-border">
         <MessageSquare className="size-5" />
         <h2 className="text-xl font-bold">
@@ -155,61 +164,7 @@ export function CommentSection({ initialTotalCount }: CommentSectionProps) {
           </div>
         )}
 
-        {isAuthenticated ? (
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <Controller
-              name="body"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field className="gap-y-3">
-                  <FieldLabel>Reply</FieldLabel>
-                  <Textarea
-                    aria-invalid={fieldState.invalid}
-                    placeholder="Add a comment..."
-                    {...field}
-                  />
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-            <Button disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Loader2 className="animate-spin size-4" />
-                  <span className="ml-2">Loading...</span>
-                </>
-              ) : (
-                <span>Comment</span>
-              )}
-            </Button>
-          </form>
-        ) : (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Sign in to join the conversation.</span>
-            <Button
-              variant="link"
-              className="h-auto p-0"
-              onClick={() =>
-                router.push(buildAuthHref("/auth/login", getCurrentReturnTo()))
-              }
-            >
-              Sign in
-            </Button>
-            <Button
-              variant="link"
-              className="h-auto p-0"
-              onClick={() =>
-                router.push(
-                  buildAuthHref("/auth/sign-up", getCurrentReturnTo()),
-                )
-              }
-            >
-              Sign up
-            </Button>
-          </div>
-        )}
+        <CommentComposer postId={postId} />
       </CardContent>
     </Card>
   );

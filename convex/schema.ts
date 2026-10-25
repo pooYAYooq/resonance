@@ -191,7 +191,8 @@ export default defineSchema({
    * One row per engagement event against a recipient's content.
    *
    * `dedupeKey` is always present and encodes the event type and its target,
-   * so all four event types share one dedupe lookup. `postId` is set for every
+   * so all four event types share one lookup. Follow history may have multiple
+   * rows per key; its seven-day allowance lives in the rate-limiter component. `postId` is set for every
    * event raised by a post, which keeps the post-deletion cascade working.
    */
   notifications: defineTable({

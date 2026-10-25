@@ -88,7 +88,8 @@ resonance/
 │   │   │   ├── page.tsx        # Discover route. Server Component. Normalizes URL state.
 │   │   │   ├── _components/    # Search, Topics, states, summaries, and paginated results
 │   │   │   └── [postId]/
-│   │   │       └── page.tsx    # Post detail. fetchQuery + generateMetadata.
+│   │   │       ├── page.tsx    # Post detail. fetchQuery + generateMetadata.
+│   │   │       └── comments/[commentId]/ # Server-loaded focused conversation + retry boundary.
 │   │   ├── u/[username]/
 │   │   │   ├── page.tsx        # Public author page. Server Component. Resolves the requested
 │   │   │   │                   # spelling via api.usernames.resolveUsername, redirects owned
@@ -121,10 +122,12 @@ resonance/
 │   │   │       │                          # (redirect to /auth/login) +
 │   │   │       │                          # usePaginatedQuery
 │   │   │       │                          # notifications.getNotifications;
-│   │   │       │                          # markRead on post open and
-│   │   │       │                          # Mark all read; Discover recovery.
-│   │   │       └── NotificationRow.tsx  # Pure-presentational row with a
-│   │   │                                  # New marker; no Convex hooks.
+│   │   │       │                          # activation/read state, Undo deletion,
+│   │   │       │                          # shared toolbar, and Discover recovery.
+│   │   │       ├── NotificationRow.tsx  # Mobile stacked details, desktop expansion,
+│   │   │       │                          # unread dot, direct links, and follow action.
+│   │   │       ├── notificationExpansion.ts # Recipient/row-scoped localStorage state.
+│   │   │       └── DeleteAllNotificationsDialog.tsx # Counted all/read/unread scopes.
 │   │   ├── feed/
 │   │   │   ├── page.tsx        # Private reader feed shell (static metadata, noindex).
 │   │   │   └── _components/
@@ -176,7 +179,7 @@ resonance/
 │   │                           # same-post promotion, and pending-draft cleanup
  │   ├── postDeletion.ts         # Versioned, leased bounded cleanup jobs for published
  │   │                           # deletion and draft/published-edit upload reclamation
-│   ├── comments.ts             # createComment mutation, getCommentsByPostId query
+│   ├── comments.ts             # createComment, paginated comments, and bounded getCommentDestination query
 │   │                           # (paginated, enriches authorAvatarUrl, isLiked, likeCount)
 │   ├── likes.ts                # toggleLike + toggleCommentLike mutations (idempotent), plus
 │   │                           # private paginated liked-post summaries; uses
@@ -187,8 +190,7 @@ resonance/
 │   │                           # users.followingCount in sync. Two indexes:
 │   │                           # by_followerId_and_followingId (1.4) for the
 │   │                           # "is X following Y?" check, by_followingId
-│   │                           # (1.6) for the fan-out's ordered scan — see
-│   │                           # notifications.ts.
+│   │                           # for the reader-feed fan-out's ordered scan.
 │   ├── analytics.ts            # Signed-in unique post-view recording and private
 │   │                           # author summary. Owns transactional author view/
 │   │                           # like counters and UTC daily follower-growth buckets;
@@ -197,15 +199,13 @@ resonance/
 │   │                           # getBookmarkedPosts (paginated). Private reading
 │   │                           # list — no denormalized counters. Mirrors likes
 │   │                           # minus the count patches; index is userId-first.
-│   ├── notifications.ts        # fanOutForPost (internal, batched 200 +
-│   │                           # scheduler continuation via
-│   │                           # follows.by_followingId), getUnreadCount,
-│   │                           # getNotifications (paginated, hydrated
-│   │                           # actor + published post, retry-idempotent),
-│   │                           # markRead + markAllRead (record per-row
-│   │                           # readAt state and keep the denormalized
-│   │                           # users.unreadNotificationCount in step;
-│   │                           # rows remain as visual history)
+│   ├── notificationEvents.ts   # Shared transactional writer for follows, post likes,
+│   │                           # comments, and comment likes; self-action exclusion,
+│   │                           # event dedupe, follow allowance, and bounded excerpts.
+│   ├── notifications.ts        # O(1) unread count; paginated actor/post/comment
+│   │                           # hydration; owner-scoped per-row and bulk read;
+│   │                           # bounded counts and scoped deletion continuations.
+│   │                           # Writes keep users.unreadNotificationCount in step.
 │   ├── feed.ts                 # Private getFeed query plus 30-day materialized
 │   │                           # fan-out, follow backfill, unfollow deletion,
 │   │                           # and bounded expiration cleanup.
@@ -233,8 +233,8 @@ resonance/
 │   │                           # guarantees one generated username. Not registered.
 │   ├── welcome.ts              # One-time dashboard welcome state and account-persisted
 │   │                           # dismissal (getWelcomeState, dismissWelcome).
-│   ├── rateLimiter.ts          # The per-account 90-day new-name allowance: a one-token
-│   │                           # bucket consumed transactionally with the claim.
+│   ├── rateLimiter.ts          # Transactional one-token allowances for username claims
+│   │                           # and follow notifications; periods and keys are in Features.
 │   ├── convex.config.ts        # Mounts the app's Convex components (the rate-limiter).
 │
 ├── components/
@@ -248,17 +248,18 @@ resonance/
 │       ├── PostViewTracker.tsx  # Non-visual signed-in post-detail view recorder
 │       ├── Navbar.tsx           # Top nav. Dashboard actions and account dropdown.
 │       ├── MobileNavMenu.tsx    # Mobile drawer and shared AppNavigation for the workspace sidebar.
-│       ├── NotificationBell.tsx  # Self-subscribing bell with unread badge
-│       │                          # in the desktop Navbar, left of the avatar. Mirrors
-│       │                          # BookmarkButton's self-contained pattern;
-│       │                          # hidden when unauthenticated or while auth
-│       │                          # is loading. Backs onto getUnreadCount's
-│       │                          # bounded O(1) read of the denormalized
-│       │                          # users.unreadNotificationCount.
+│       ├── NotificationBell.tsx  # Auth-only self-subscribing bell with unread badge;
+│       │                          # opens a Radix Sheet containing NotificationsList.
+│       │                          # Visible beside the mobile hamburger as well.
+│       ├── NotificationLink.tsx  # Guarded Next navigation with intent prefetch.
+│       │                          # lib/notification-navigation.ts adds delayed status feedback.
 │       ├── Footer.tsx           # Site-wide footer. Links from lib/constants/footer.ts.
 │       ├── FooterCTA.tsx        # Auth-aware CTA card rendered inside Footer
 │       ├── AuthCTA.tsx          # Auth-aware CTA button ("Write a post" / "Get Started")
-│       ├── CommentSection.tsx   # Client: paginated comment list + submission form
+│       ├── CommentSection.tsx   # Client: paginated comment list + shared composer
+│       ├── CommentComposer.tsx  # Shared authenticated post-level reply form
+│       ├── CommentDestination.tsx # Server initial comment data + auth-gated live query
+│       ├── CommentTimestamp.tsx # Hydration-safe UTC first render, then reader-local time
 │       ├── CommentCard.tsx      # Display of a single comment with timestamp + comment like button
 │       ├── LikeButton.tsx       # Client: heart toggle + count, auth-gated
 │       ├── LikeToggle.tsx      # Generic like-toggle primitive (auth redirect, transition,
@@ -622,7 +623,11 @@ exit surface at a time and consumes the pure decisions in
 `lib/authoring-exit-policy.ts`; `lib/authoring-unsaved-work.ts` decides whether
 a proposal carries authored work. App-link departures for new posts and drafts
 flush the latest recovery snapshot before continuing, and a failed write is
-surfaced as a light reminder instead of a silent departure. Document switches
+surfaced as a light reminder instead of a silent departure. Navigation intents
+may carry a UI continuation, executed only after the exit policy permits the
+departure. `NotificationLink` uses this path to preserve exact-target navigation
+through confirmation, recovery, and save; its marked links skip generic click
+capture and explicitly request the same guard. Document switches
 validate the requested target through `getDraftById` /
 `getPublishedPostForEditing` before clearing the current session's recovery.
 Sign-out requires verified recovery deletion only when a dirty recoverable
@@ -785,7 +790,7 @@ states above the title.
   and only newly introduced upload claims, then patches title, body, tags,
   cover reference, and `updatedAt` in place. It never changes `publishedAt`,
   the post ID, engagement records, bookmarks, or materialized feed rows, and
-  it does not trigger notification or feed fan-out. The create route resolves
+  it does not trigger engagement notifications or feed fan-out. The create route resolves
   exactly one of `new`, `draft`, or `published-edit`; a dual-target request is
   rejected rather than falling back to a new post. URL-derived target ids are
   normalized at the query boundary, so a malformed `draftId` or `editPostId`
@@ -821,6 +826,35 @@ states above the title.
   loading and empty state local. Analytics lives separately at `/dashboard/analytics`.
   There is no public draft preview. Paragraph-inline images and general storage garbage
   collection remain future work.
+
+### Engagement Notifications and Destinations
+
+`notificationEvents.ts` is the shared write boundary used by follow, post-like,
+comment, and comment-like mutations. The action, notification insert, and
+recipient unread-counter increment share one transaction. The writer excludes
+self-actions, deduplicates live event rows, and keeps the follow allowance in
+the rate-limiter component independently of notification deletion. Publishing
+fans out to `feed`, not `notifications`.
+
+`notifications.ts` owns recipient-scoped reads, transitions, and removals. The
+list hydrates actor identity, published-post context, and a bounded excerpt
+from the current comment. Missing/unpublished posts are filtered; missing
+comments keep a history row with no excerpt. Bulk read and scoped deletion
+continue with a fixed creation watermark so later arrivals remain untouched.
+Interaction rules live in [Features](../FEATURES.md#notifications).
+
+`NotificationBell` uses the shared shadcn/Radix Sheet and renders
+`NotificationsList` inside its own scrolling region. The same list serves the
+full page. Opening or dismissing the drawer preserves the underlying page;
+destination links use normal Next routing while the drawer closes. There is
+no frozen DOM copy or custom body-scroll compensation. `NotificationLink`
+preserves native modifier clicks and authoring-exit guards, prefetches on
+intent, and delegates delayed status feedback to
+`lib/notification-navigation.ts`. The focused conversation route supplies the
+selected comment in its server render instead of opening article top and
+searching through client pagination. `CommentDestination` reconciles live data
+after auth resolution and hands off focus after drawer removal without scroll.
+The full article retains support for existing comment hashes.
 
 ### Username Ownership and the 90-Day Allowance
 
@@ -1178,6 +1212,17 @@ show up without a refresh, and pagination state stays entirely on the
 client. Comments are below the fold and not SEO-critical, so the extra
 server round-trip would buy little.
 
+The focused conversation route is an exception: the selected comment is the
+primary content, so `fetchAuthQuery(comments.getCommentDestination)` resolves
+before the route renders. The query normalizes untrusted route IDs, checks the
+post is published and the comment belongs to it, and reads at most five rows
+at/before its timestamp plus four after it. It returns the target separately
+and at most eight nearby comments, using the same enrichment as the paginated
+reader. It does not fetch the article body or walk earlier pagination batches.
+The client skips its viewer-aware subscription while auth resolves and uses
+server data until the first live result (including a deletion `null`) arrives.
+Comments remain post-level; this route does not introduce nested replies.
+
 ### 7. Why use `react.cache()` for `generateMetadata` + the page?
 
 Next.js renders a Server Component twice per request: once for `generateMetadata`
@@ -1252,9 +1297,10 @@ future agent needs to know:
   (no follower-list UI or fan-out code needed it yet). The `follows`
   table started empty in 1.4 but accumulated real rows between 1.4 and
   1.6 ship. Phase 1.6 added `by_followingId` — ordered
-  `(followingId, createdAt)` — so the notification fan-out can resume a
-  batched scan via `.eq("followingId", ...).gt("createdAt", last)`. The
-  The table was small enough to activate synchronously; a larger dataset would
+  `(followingId, createdAt)` — originally for publication-notification fan-out.
+  That writer has been replaced by direct engagement notifications; the reader
+  feed now uses this index for its ordered follower scan. The table was small
+  enough to activate synchronously; a larger dataset would
   require an operational rollout before changing the index. Any future follower-list
   route reuses the same index (prefix scan on `followingId`).
 

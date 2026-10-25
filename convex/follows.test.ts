@@ -15,6 +15,7 @@
 
 import { convexTest } from "convex-test";
 import { register } from "@convex-dev/better-auth/test";
+import { register as registerRateLimiter } from "@convex-dev/rate-limiter/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, components } from "./_generated/api";
 import { incrementCounter, decrementCounter } from "./follows";
@@ -31,6 +32,7 @@ async function createAuthenticatedTestUser(
   email: string,
 ) {
   register(t);
+  registerRateLimiter(t);
   return await t.run(async (ctx) => {
     const now = Date.now();
     const user = await ctx.runMutation(components.betterAuth.adapter.create, {

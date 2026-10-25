@@ -8,14 +8,22 @@
  *
  * Rules enforced here, so call sites cannot drift:
  *  - self-actions write nothing;
- *  - one row per (recipient, actor, dedupeKey), forever;
- *  - a repeat action never resurrects a read row or bumps the counter.
+ *  - follows notify at most once per actor/recipient pair per seven days;
+ *  - other events keep one live row per (recipient, actor, dedupeKey);
+ *  - repeated actions never resurrect an existing read row.
  */
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import {
+  rateLimiter,
+  FOLLOW_NOTIFICATION_LIMIT,
+  FOLLOW_NOTIFICATION_PERIOD_MS,
+} from "./rateLimiter";
 
-export const EXCERPT_LIMIT = 140;
+export const EXCERPT_LIMIT = 90;
+
+const EXCERPT_ELLIPSIS = "...";
 
 export type EngagementEvent =
   | { type: "follow"; recipientId: string; actorId: string }
@@ -46,7 +54,12 @@ export function commentExcerpt(body: string): string {
   if (collapsed.length <= EXCERPT_LIMIT) {
     return collapsed;
   }
-  return `${collapsed.slice(0, EXCERPT_LIMIT - 3).trimEnd()}...`;
+
+  const room = EXCERPT_LIMIT - EXCERPT_ELLIPSIS.length;
+  const sliced = collapsed.slice(0, room);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const cut = lastSpace > 0 ? sliced.slice(0, lastSpace) : sliced;
+  return `${cut}${EXCERPT_ELLIPSIS}`;
 }
 
 export function engagementDedupeKey(event: EngagementEvent): string {
@@ -71,16 +84,41 @@ export async function recordEngagementNotification(
   }
 
   const dedupeKey = engagementDedupeKey(event);
-  const existing = await ctx.db
+  const lookup = ctx.db
     .query("notifications")
     .withIndex("by_recipientId_and_actorId_and_dedupeKey", (q) =>
       q
         .eq("recipientId", event.recipientId)
         .eq("actorId", event.actorId)
         .eq("dedupeKey", dedupeKey),
-    )
-    .unique();
-  if (existing) {
+    );
+  if (event.type === "follow") {
+    const key = JSON.stringify([event.recipientId, event.actorId]);
+    const state = await rateLimiter.getValue(ctx, FOLLOW_NOTIFICATION_LIMIT, {
+      key,
+    });
+    // Initialize existing pairs from their last delivered notification. ts=0
+    // is the component's documented empty-state value; later deletion must
+    // not reset the allowance stored independently by the component.
+    if (state.ts === 0) {
+      const latest = await lookup.order("desc").first();
+      if (latest) {
+        const remaining =
+          latest.createdAt + FOLLOW_NOTIFICATION_PERIOD_MS - Date.now();
+        if (remaining > 0) {
+          await rateLimiter.limit(ctx, FOLLOW_NOTIFICATION_LIMIT, {
+            key,
+            count: Math.min(1, remaining / FOLLOW_NOTIFICATION_PERIOD_MS),
+          });
+          return false;
+        }
+      }
+    }
+    const allowance = await rateLimiter.limit(ctx, FOLLOW_NOTIFICATION_LIMIT, {
+      key,
+    });
+    if (!allowance.ok) return false;
+  } else if (await lookup.unique()) {
     return false;
   }
 

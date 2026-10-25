@@ -16,7 +16,7 @@ overrides anything you may have learned about Convex elsewhere.
 | Posts and lifecycle    | `posts.ts`, `postLifecycle.ts`, `postDeletion.ts`, `postSummary.ts`              |
 | Authoring media safety | `pendingUploads.ts`, `sessionMediaClaims.ts`, `writeAttempts.ts`                 |
 | Discover projections   | `discover.ts`, `discoverProjection.ts`                                           |
-| Engagement             | `likes.ts`, `comments.ts`, `bookmarks.ts`, `follows.ts`                          |
+| Engagement             | `likes.ts`, `comments.ts`, `bookmarks.ts`, `follows.ts`, `notificationEvents.ts` |
 | Reader/author surfaces | `feed.ts`, `notifications.ts`, `analytics.ts`, `profilePostCount.ts`, `stats.ts` |
 | Scheduled jobs         | `crons.ts`                                                                       |
 
@@ -30,9 +30,12 @@ Each non-generated module has a co-located `*.test.ts` run by `pnpm test:ci`
   canonical `blocknote@1` body plus denormalized `commentCount`/`likeCount`.
 - Engagement tables record one row per relationship and are indexed by both
   directions: `likes`, `commentLikes`, `bookmarks`, `follows`.
-- Derived read models are maintained transactionally with the published-post
-  lifecycle: `discoverPosts`, `discoverPostSearch`, `discoverPostTopics`,
-  `topicStats`, `feed`, `notifications`, and `postSummary` helpers.
+- The published-post lifecycle maintains Discover projections transactionally:
+  `discoverPosts`, `discoverPostSearch`, `discoverPostTopics`, and `topicStats`,
+  with `postSummary` helpers and scheduled reader-feed fan-out. Engagement
+  mutations create `notifications` and update unread counters in their own
+  transaction. Read actions and deletion keep those counters in step;
+  [Features](../FEATURES.md#notifications) owns the behavior.
 - Analytics uses `postViews` (one signed-in unique view per viewer key),
   `authorAnalytics`, and `followerGrowthDays`.
 - Operational tables make storage safe and bounded: `pendingUploads`,

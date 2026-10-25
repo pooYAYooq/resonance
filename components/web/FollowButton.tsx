@@ -32,6 +32,11 @@ interface FollowButtonProps {
   isFollowing: boolean;
   /** Compact byline sizing; profile actions retain the default size. */
   size?: "default" | "sm";
+  /** Label for the available follow action in context, such as notifications. */
+  followLabel?: string;
+  onActivate?: () => void;
+  /** Compact treatments for notification row actions. */
+  presentation?: "default" | "icon" | "quiet";
 }
 
 export function FollowButton({
@@ -39,6 +44,9 @@ export function FollowButton({
   authorName,
   isFollowing,
   size = "default",
+  followLabel = "Follow",
+  onActivate,
+  presentation = "default",
 }: FollowButtonProps) {
   const [isPending, startTransition] = useTransition();
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -62,12 +70,15 @@ export function FollowButton({
     setLocalFollowing(isFollowingQuery ?? isFollowing);
   }
 
+  const resolvingFollow = isAuthenticated && isFollowingQuery === undefined;
   const handleClick = () => {
+    if (isPending || isLoading || resolvingFollow) return;
     if (!isAuthenticated) {
       router.push(buildAuthHref("/auth/login", getCurrentReturnTo()));
       return;
     }
 
+    onActivate?.();
     startTransition(async () => {
       try {
         const result = await toggleFollow({ followingId: profileUserId });
@@ -83,32 +94,68 @@ export function FollowButton({
     });
   };
 
-  const label = localFollowing ? "Following" : "Follow";
+  const label = localFollowing ? "Following" : followLabel;
 
   return (
     <Button
-      variant={localFollowing ? "default" : "outline"}
-      size={size}
+      variant={
+        presentation !== "default"
+          ? "ghost"
+          : localFollowing
+            ? "default"
+            : "outline"
+      }
+      className={
+        presentation !== "default"
+          ? localFollowing
+            ? "text-follow-active hover:text-destructive focus-visible:text-destructive"
+            : "text-follow-action hover:text-follow-action"
+          : undefined
+      }
+      size={presentation === "icon" ? "icon-sm" : size}
+      title={
+        presentation !== "default"
+          ? localFollowing
+            ? "Following · click to unfollow"
+            : followLabel
+          : undefined
+      }
       onClick={handleClick}
-      disabled={isPending || isLoading}
+      disabled={isPending || isLoading || resolvingFollow}
       aria-label={
-        localFollowing ? `Unfollow ${authorName}` : `Follow ${authorName}`
+        localFollowing
+          ? `Unfollow ${authorName}`
+          : `${followLabel} ${authorName}`
       }
       aria-pressed={localFollowing}
     >
       {isPending ? (
-        <Loader2 data-icon="inline-start" className="animate-spin" />
+        <Loader2
+          data-icon={presentation === "icon" ? undefined : "inline-start"}
+          className="animate-spin"
+        />
       ) : localFollowing ? (
-        <UserCheck data-icon="inline-start" />
+        <UserCheck
+          data-icon={presentation === "icon" ? undefined : "inline-start"}
+        />
       ) : (
-        <UserPlus data-icon="inline-start" />
+        <UserPlus
+          data-icon={presentation === "icon" ? undefined : "inline-start"}
+        />
       )}
-      <span className="inline-grid">
-        <span aria-hidden="true" className="invisible col-start-1 row-start-1">
-          Following
+      {presentation !== "icon" && (
+        <span className="inline-grid">
+          <span
+            aria-hidden="true"
+            className="invisible col-start-1 row-start-1"
+          >
+            {followLabel.length > "Following".length
+              ? followLabel
+              : "Following"}
+          </span>
+          <span className="col-start-1 row-start-1">{label}</span>
         </span>
-        <span className="col-start-1 row-start-1">{label}</span>
-      </span>
+      )}
     </Button>
   );
 }

@@ -5,6 +5,18 @@ priorities belong in [ROADMAP.md](../ROADMAP.md). Remove or revise entries when
 evidence resolves them. The previous detailed delivery history remains in
 [the PR #103 revision](https://github.com/pooYAYooq/resonance/blob/d2d5fed/docs/status.md).
 
+## Notifications
+
+- The current preview account has no notifications. The 2026-10-26 browser
+  pass therefore checked the empty state and page-preserving drawer, not the
+  populated row layouts, covers/excerpts, or row actions. Repeat the visual
+  review using an account with engagement events; see
+  [drawer visual check](NOTIFICATIONS_EVIDENCE.md#drawer-visual-check).
+- Focused navigation's normal drawer exit animation, keyboard focus through
+  that animation, and current real-device layout still need acceptance. The
+  existing Chromium checks and headless animation limitation are recorded in
+  [focused comment verification](NOTIFICATIONS_EVIDENCE.md#focused-comment-destinations).
+
 ## Accessibility and responsive behavior
 
 - [Accessibility evidence](ACCESSIBILITY.md) covers the agreed keyboard scope
@@ -83,10 +95,6 @@ evidence resolves them. The previous detailed delivery history remains in
   `pnpm test:component --maxWorkers=1` for reproducible local suite evidence.
 - The title's Enter-to-body behavior depends on a dynamically imported editor
   handle and is browser-verified rather than exercised by jsdom.
-- Repository-wide `pnpm format:check` has an unrelated pre-existing baseline.
-  Check changed files without implying the baseline was repaired. Historical
-  affected paths and measurements are retained in the linked PR #103 revision;
-  rerun the command before describing a current failure list.
 
 ## Usernames
 

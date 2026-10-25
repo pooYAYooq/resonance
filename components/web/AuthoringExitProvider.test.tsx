@@ -1,5 +1,6 @@
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -11,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExitIntent, ExitSession } from "@/lib/authoring-exit-policy";
 import type { RecoveryResult } from "@/lib/draft-recovery";
 import { NotificationBell } from "./NotificationBell";
+import { NotificationLink } from "./NotificationLink";
 import {
   AuthoringExitProvider,
   useAuthoringExit,
@@ -20,13 +22,57 @@ import {
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock, replace: vi.fn() }),
+  useRouter: () => ({ push: pushMock, prefetch: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/create",
+}));
+
+// Next Link requires a mounted Next router to dispatch onNavigate. Model that
+// framework boundary while retaining document capture and React bubbling.
+vi.mock("next/link", () => ({
+  default: ({
+    onNavigate,
+    onClick,
+    prefetch,
+    ...props
+  }: React.ComponentProps<"a"> & {
+    onNavigate?: (event: { preventDefault: () => void }) => void;
+    prefetch?: boolean;
+  }) => (
+    <a
+      {...props}
+      data-prefetch={prefetch}
+      onClick={(event) => {
+        onClick?.(event);
+        if (
+          event.defaultPrevented ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey ||
+          event.altKey
+        )
+          return;
+        event.preventDefault();
+        onNavigate?.({ preventDefault: () => {} });
+      }}
+    />
+  ),
 }));
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
   useQuery: () => 0,
+}));
+
+// Exercise real drawer links without subscribing to the notification backend.
+vi.mock("@/app/(site)/notifications/_components/NotificationsList", () => ({
+  NotificationsList: ({ header }: { header?: React.ReactNode }) => (
+    <div>
+      {header}
+      <NotificationLink href="/blog/post1/comments/comment1">
+        Open comment
+      </NotificationLink>
+    </div>
+  ),
 }));
 
 const emptyBody = JSON.stringify({
@@ -146,52 +192,140 @@ function renderProvider(
   );
 }
 
-it("guards notification navigation from a published edit and preserves Cancel", async () => {
-  const user = userEvent.setup();
-  renderProvider(
-    makeRegistration(session({ mode: "published-edit" })),
-    <NotificationBell />,
-  );
+async function openNotificationDestination(
+  user: ReturnType<typeof userEvent.setup>,
+) {
   await user.click(screen.getByRole("button", { name: "Notifications" }));
+  expect(
+    screen.getByRole("dialog", { name: "Notifications" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   expect(pushMock).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("link", { name: "Open comment" }));
+}
+
+it("guards the drawer destination from a published edit and preserves Cancel", async () => {
+  const user = userEvent.setup();
+  const registration = makeRegistration(session({ mode: "published-edit" }));
+  renderProvider(registration, <NotificationBell />);
+  await openNotificationDestination(user);
   expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  expect(pushMock).not.toHaveBeenCalled();
+  expect(
+    document.querySelector("[data-notification-navigation-status]"),
+  ).toBeNull();
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   expect(pushMock).not.toHaveBeenCalled();
-  await user.click(screen.getByRole("button", { name: "Notifications" }));
+  expect(registration.getSession().proposal.body).toBe(authoredBody);
+  await openNotificationDestination(user);
   await user.click(screen.getByRole("button", { name: "Leave" }));
-  expect(pushMock).toHaveBeenCalledWith("/notifications");
+  await waitFor(() =>
+    expect(pushMock).toHaveBeenCalledWith("/blog/post1/comments/comment1", {
+      scroll: true,
+    }),
+  );
+  expect(pushMock).toHaveBeenCalledOnce();
 });
 
-it("flushes draft recovery before notification navigation", async () => {
+it("flushes draft recovery before the drawer destination navigation", async () => {
   const registration = makeRegistration();
   registration.flushRecovery.mockImplementation(() => {
     expect(pushMock).not.toHaveBeenCalled();
+    expect(
+      document.querySelector("[data-notification-navigation-status]"),
+    ).toBeNull();
     return { ok: true };
   });
   renderProvider(registration, <NotificationBell />);
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: "Notifications" }));
+  await openNotificationDestination(userEvent.setup());
   expect(registration.flushRecovery).toHaveBeenCalledOnce();
-  expect(pushMock).toHaveBeenCalledWith("/notifications");
+  await waitFor(() =>
+    expect(pushMock).toHaveBeenCalledWith("/blog/post1/comments/comment1", {
+      scroll: true,
+    }),
+  );
 });
 
-it("blocks notification navigation while a save outcome is uncertain", async () => {
+it("blocks the drawer destination while a save outcome is uncertain", async () => {
   renderProvider(
     makeRegistration(session({ uncertain: true })),
     <NotificationBell />,
   );
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: "Notifications" }));
+  await openNotificationDestination(userEvent.setup());
   expect(pushMock).not.toHaveBeenCalled();
+  expect(
+    document.querySelector("[data-notification-navigation-status]"),
+  ).toBeNull();
   expect(
     screen.getByRole("button", { name: "Check status" }),
   ).toBeInTheDocument();
 });
 
+it("continues to the notification target after Save & leave succeeds", async () => {
+  const registration = makeRegistration(session({ mode: "published-edit" }));
+  registration.saveDraft.mockImplementation(async () => {
+    registration.setSession(
+      session({
+        mode: "published-edit",
+        baseline: { title: "", body: authoredBody, tags: [] },
+      }),
+    );
+    return { kind: "saved" };
+  });
+  renderProvider(registration, <NotificationBell />);
+  const user = userEvent.setup();
+  await openNotificationDestination(user);
+  await user.click(screen.getByRole("button", { name: "Save & leave" }));
+  await waitFor(() =>
+    expect(pushMock).toHaveBeenCalledWith("/blog/post1/comments/comment1", {
+      scroll: true,
+    }),
+  );
+  expect(registration.saveDraft).toHaveBeenCalledOnce();
+});
+
+it("keeps the editor when recovery fails and the notification departure is cancelled", async () => {
+  const registration = makeRegistration();
+  registration.flushRecovery.mockReturnValue({
+    ok: false,
+    reason: "write-failed",
+  });
+  renderProvider(registration, <NotificationBell />);
+  const user = userEvent.setup();
+  await openNotificationDestination(user);
+  expect(screen.getByRole("alertdialog")).toHaveTextContent(
+    "Your changes aren’t saved",
+  );
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(pushMock).not.toHaveBeenCalled();
+  expect(
+    document.querySelector("[data-notification-navigation-status]"),
+  ).toBeNull();
+});
+
+it("opens notification destinations normally with no editor registered", async () => {
+  render(
+    <AuthoringExitProvider>
+      <NotificationBell />
+    </AuthoringExitProvider>,
+  );
+  await openNotificationDestination(userEvent.setup());
+  await waitFor(() =>
+    expect(pushMock).toHaveBeenCalledWith("/blog/post1/comments/comment1", {
+      scroll: true,
+    }),
+  );
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+});
+
 beforeEach(() => {
   pushMock.mockClear();
+  window.history.replaceState({}, "", "/create");
+});
+
+afterEach(() => {
+  cleanup();
+  window.dispatchEvent(new PopStateEvent("popstate"));
 });
 
 describe("AuthoringExitProvider", () => {

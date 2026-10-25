@@ -86,7 +86,11 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
 
   if (!post || post.publishedAt === undefined) {
     return (
-      <div data-testid="not-found-frame" className="relative w-full pt-6 pb-8">
+      <div
+        data-notification-destination={`/blog/${postId}`}
+        data-testid="not-found-frame"
+        className="relative w-full pt-6 pb-8"
+      >
         <h1 className="text-h1 font-bold tracking-tight text-foreground font-serif">
           Post not found
         </h1>
@@ -105,8 +109,9 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
 
   return (
     <div
+      data-notification-destination={`/blog/${postId}`}
       data-testid="reader-frame"
-      className="relative w-full pt-6 pb-8 animate-in fade-in duration-500"
+      className="relative w-full pt-6 pb-8"
     >
       <PostViewTracker postId={postId} />
       <PostCover
@@ -156,12 +161,14 @@ export default async function PostIdRoute({ params }: PostIdRouteProps) {
           role="group"
           className="flex flex-wrap items-center gap-2 mb-6"
         >
-          <LikeButton
-            postId={postId}
-            isLiked={post.isLiked ?? false}
-            likeCount={post.likeCount ?? 0}
-            presentation="reader"
-          />
+          <span id="post-likes" className="inline-flex scroll-mt-24">
+            <LikeButton
+              postId={postId}
+              isLiked={post.isLiked ?? false}
+              likeCount={post.likeCount ?? 0}
+              presentation="reader"
+            />
+          </span>
           <BookmarkButton
             postId={postId}
             isBookmarked={post.isBookmarked}

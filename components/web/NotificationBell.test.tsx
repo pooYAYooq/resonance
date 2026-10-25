@@ -8,12 +8,13 @@
  *  - No badge when count is 0.
  *  - Badge shows the count when > 0.
  *  - Caps at "99+" when count is 100.
- *  - Click navigates to `/notifications`.
+ *  - Click opens the drawer without navigation.
  *  - Passes `"skip"` to `useQuery` when unauthenticated/loading, `{}`
  *    when authenticated (avoids an unnecessary subscription).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NotificationBell } from "./NotificationBell";
@@ -44,6 +45,24 @@ vi.mock("@/convex/_generated/api", () => ({
       getUnreadCount: "getUnreadCount",
     },
   },
+}));
+
+vi.mock("@/app/(site)/notifications/_components/NotificationsList", () => ({
+  NotificationsList: ({ header }: { header?: ReactNode }) => (
+    <div>
+      {header}
+      <button>Expand notification</button>
+      <a
+        href="#comment-target"
+        onClick={(event) => {
+          event.preventDefault();
+          pushMock("#comment-target");
+        }}
+      >
+        Read comment
+      </a>
+    </div>
+  ),
 }));
 
 describe("NotificationBell", () => {
@@ -122,7 +141,7 @@ describe("NotificationBell", () => {
     expect(button.className).toContain("relative");
   });
 
-  it("navigates to /notifications on click", async () => {
+  it("opens without navigation and restores focus when dismissed", async () => {
     const user = userEvent.setup();
     useQueryState.mockReturnValue(5);
     render(<NotificationBell />);
@@ -130,6 +149,36 @@ describe("NotificationBell", () => {
     await user.click(
       screen.getByRole("button", { name: "Notifications, 5 unread" }),
     );
-    expect(pushMock).toHaveBeenCalledWith("/notifications");
+    expect(
+      screen.getByRole("dialog", { name: "Notifications" }),
+    ).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Notifications, 5 unread" }),
+    ).toHaveFocus();
+  });
+  it("keeps row actions open but closes for destination links", async () => {
+    const user = userEvent.setup();
+    render(<NotificationBell />);
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
+    await user.click(
+      screen.getByRole("button", { name: "Expand notification" }),
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Read comment" }));
+    expect(pushMock).toHaveBeenCalledWith("#comment-target");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("updates the unread badge without opening the drawer", () => {
+    const { rerender } = render(<NotificationBell />);
+    useQueryState.mockReturnValue(4);
+    rerender(<NotificationBell />);
+    expect(
+      screen.getByRole("button", { name: "Notifications, 4 unread" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

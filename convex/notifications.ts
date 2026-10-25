@@ -29,22 +29,73 @@ import {
 } from "convex/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
+import { commentExcerpt } from "./notificationEvents";
 
 const READ_BATCH_SIZE = 100;
+const COUNT_CAP = 1000;
+const DISMISS_BATCH_SIZE = 100;
 
-const notificationValidator = v.object({
+export type DismissScope = "all" | "read" | "unread";
+
+const dismissScopeValidator = v.union(
+  v.literal("all"),
+  v.literal("read"),
+  v.literal("unread"),
+);
+
+function matchesDismissScope(
+  row: Doc<"notifications">,
+  scope: DismissScope,
+): boolean {
+  if (scope === "all") {
+    return true;
+  }
+  return scope === "read" ? row.readAt !== undefined : row.readAt === undefined;
+}
+
+const baseNotificationFields = {
   _id: v.id("notifications"),
   _creationTime: v.number(),
   recipientId: v.string(),
   actorId: v.string(),
-  postId: v.id("posts"),
   createdAt: v.number(),
   readAt: v.optional(v.number()),
   actorName: v.union(v.string(), v.null()),
   actorUsername: v.union(v.string(), v.null()),
   actorAvatarUrl: v.union(v.string(), v.null()),
-  postTitle: v.string(),
-});
+};
+
+const notificationValidator = v.union(
+  v.object({
+    ...baseNotificationFields,
+    type: v.literal("follow"),
+  }),
+  v.object({
+    ...baseNotificationFields,
+    type: v.literal("post_like"),
+    postId: v.id("posts"),
+    postTitle: v.string(),
+    postImageUrl: v.union(v.string(), v.null()),
+  }),
+  v.object({
+    ...baseNotificationFields,
+    type: v.literal("comment"),
+    postId: v.id("posts"),
+    postTitle: v.string(),
+    postImageUrl: v.union(v.string(), v.null()),
+    commentId: v.id("comments"),
+    excerpt: v.union(v.string(), v.null()),
+  }),
+  v.object({
+    ...baseNotificationFields,
+    type: v.literal("comment_like"),
+    postId: v.id("posts"),
+    postTitle: v.string(),
+    postImageUrl: v.union(v.string(), v.null()),
+    commentId: v.id("comments"),
+    excerpt: v.union(v.string(), v.null()),
+  }),
+);
 
 /**
  * Returns the caller's denormalized unread notification count for the
@@ -79,33 +130,59 @@ export const getUnreadCount = query({
   },
 });
 
-type HydratedNotification = {
-  _id: Id<"notifications">;
-  _creationTime: number;
-  recipientId: string;
-  actorId: string;
-  postId: Id<"posts">;
-  createdAt: number;
-  readAt?: number;
-  actorName: string | null;
-  actorUsername: string | null;
-  actorAvatarUrl: string | null;
-  postTitle: string;
-};
+/**
+ * Returns the caller's notification totals for the bulk-delete dialog.
+ * The scan is capped so a very large inbox does not turn the dialog
+ * into an unbounded read; `truncated` tells the client to show a lower
+ * bound instead of a precise count.
+ *
+ * Unauthenticated callers receive zeroes (fail-soft, matching
+ * `getUnreadCount`).
+ */
+export const getNotificationCounts = query({
+  args: {},
+  returns: v.object({
+    total: v.number(),
+    read: v.number(),
+    unread: v.number(),
+    truncated: v.boolean(),
+  }),
+  handler: async (ctx) => {
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    if (!authUser) {
+      return { total: 0, read: 0, unread: 0, truncated: false };
+    }
+    const rows = await ctx.db
+      .query("notifications")
+      .withIndex("by_recipientId_and_createdAt", (q) =>
+        q.eq("recipientId", authUser._id),
+      )
+      .take(COUNT_CAP + 1);
+    const truncated = rows.length > COUNT_CAP;
+    const counted = truncated ? rows.slice(0, COUNT_CAP) : rows;
+    const read = counted.filter((row) => row.readAt !== undefined).length;
+    return {
+      total: counted.length,
+      read,
+      unread: counted.length - read,
+      truncated,
+    };
+  },
+});
 
 /**
  * Returns the caller's notifications, newest first, paginated. Each
- * row is hydrated with the actor's display name + avatar and the
- * post's title. A page may span multiple actors (a reader's
- * notifications from different followed authors), so actor lookups
- * are deduplicated per page and issued via `Promise.all` over unique
- * actor IDs — adapted from Phase 1.1 rule #2 (hoist shared lookups
- * out of paginated maps) for the case where the shared value varies
- * per row.
+ * row is hydrated with the actor's display name + avatar and, for
+ * post-backed types, the post title and comment excerpt. A page may
+ * span multiple actors (a reader's notifications from different
+ * followed authors), so actor lookups are deduplicated per page and
+ * issued via `Promise.all` over unique actor IDs — adapted from Phase
+ * 1.1 rule #2 (hoist shared lookups out of paginated maps) for the
+ * case where the shared value varies per row.
  *
- * Notifications whose `postId` points to a deleted post return
- * `postTitle: null`; the consuming client (`NotificationsList`)
- * filters those rows before rendering.
+ * Follow rows have no post. Rows whose post is missing or unpublished,
+ * and comment rows whose comment no longer exists, are dropped; the
+ * consuming client never sees a row with no destination.
  *
  * Unauthenticated callers receive an empty, done page (fail-soft
  * guard; the `/notifications` page redirects unauthenticated visitors
@@ -113,8 +190,7 @@ type HydratedNotification = {
  *
  * @param args.paginationOpts - `PaginationOptions`: Convex pagination
  *   config (typically `{ numItems, cursor }`).
- * @returns `PaginationResult<HydratedNotification>`: a page of
- *   hydrated notifications, newest first.
+ * @returns a page of hydrated notification rows, newest first.
  */
 export const getNotifications = query({
   args: {
@@ -151,7 +227,6 @@ export const getNotifications = query({
     const uniqueActorIds = Array.from(
       new Set(result.page.map((n) => n.actorId)),
     );
-
     const actorDocs = await Promise.all(
       uniqueActorIds.map(
         async (id): Promise<[string, Doc<"users"> | null]> => [
@@ -165,37 +240,65 @@ export const getNotifications = query({
     );
     const actorById = new Map<string, Doc<"users"> | null>(actorDocs);
 
-    const hydrated: (HydratedNotification | null)[] = await Promise.all(
+    const rows = await Promise.all(
       result.page.map(async (notification) => {
         const actor = actorById.get(notification.actorId) ?? null;
+        const actorFields = {
+          _id: notification._id,
+          _creationTime: notification._creationTime,
+          recipientId: notification.recipientId,
+          actorId: notification.actorId,
+          createdAt: notification.createdAt,
+          readAt: notification.readAt,
+          actorName: actor?.displayName ?? null,
+          actorUsername: actor?.username ?? null,
+          actorAvatarUrl: actor?.avatarUrl ?? null,
+        };
+
+        if (notification.type === "follow") {
+          return { ...actorFields, type: "follow" as const };
+        }
+
         const post = notification.postId
           ? await ctx.db.get(notification.postId)
           : null;
         if (!post || post.status !== "published") {
           return null;
         }
+
+        const postImageUrl = post.imageStorageId
+          ? await ctx.storage.getUrl(post.imageStorageId)
+          : null;
+
+        if (notification.type === "post_like") {
+          return {
+            ...actorFields,
+            type: "post_like" as const,
+            postId: post._id,
+            postTitle: post.title,
+            postImageUrl,
+          };
+        }
+
+        if (!notification.commentId) {
+          return null;
+        }
+        const comment = await ctx.db.get(notification.commentId);
         return {
-          _id: notification._id,
-          _creationTime: notification._creationTime,
-          recipientId: notification.recipientId,
-          actorId: notification.actorId,
+          ...actorFields,
+          type: notification.type,
           postId: post._id,
-          createdAt: notification.createdAt,
-          readAt: notification.readAt,
-          actorName: actor?.displayName ?? null,
-          actorUsername: actor?.username ?? null,
-          actorAvatarUrl: actor?.avatarUrl ?? null,
           postTitle: post.title,
+          postImageUrl,
+          commentId: notification.commentId,
+          excerpt: comment ? commentExcerpt(comment.body) : null,
         };
       }),
     );
 
     return {
       ...result,
-      page: hydrated.filter(
-        (notification): notification is HydratedNotification =>
-          notification !== null,
-      ),
+      page: rows.filter((row) => row !== null),
     };
   },
 });
@@ -343,6 +446,142 @@ export async function applyReadBatch(
 
   return { isDone: result.isDone, continueCursor: result.continueCursor };
 }
+
+export const dismiss = mutation({
+  args: { notificationId: v.id("notifications") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    if (!authUser) {
+      throw new ConvexError("Unauthorized");
+    }
+    const notification = await ctx.db.get(args.notificationId);
+    if (!notification || notification.recipientId !== authUser._id) {
+      throw new ConvexError("Notification not found.");
+    }
+    if (notification.readAt === undefined) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", authUser._id))
+        .unique();
+      if (user) {
+        if (
+          !Number.isSafeInteger(user.unreadNotificationCount) ||
+          user.unreadNotificationCount < 0
+        ) {
+          throw new ConvexError("Unread notification counter is invalid.");
+        }
+        await ctx.db.patch(user._id, {
+          unreadNotificationCount: Math.max(
+            0,
+            user.unreadNotificationCount - 1,
+          ),
+        });
+      }
+    }
+    await ctx.db.delete(args.notificationId);
+    return null;
+  },
+});
+
+/**
+ * Starts a scoped bulk delete. The snapshot watermark is captured now,
+ * and the batched sweep only touches rows created at or before it, so a
+ * notification created after this call survives with its own counter
+ * increment.
+ */
+export const dismissAll = mutation({
+  args: {
+    scope: dismissScopeValidator,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const authUser = await authComponent.safeGetAuthUser(ctx);
+    if (!authUser) {
+      throw new ConvexError("Unauthorized");
+    }
+    await ctx.scheduler.runAfter(0, internal.notifications.dismissBatch, {
+      recipientId: authUser._id,
+      scope: args.scope,
+      watermark: Date.now(),
+      cursor: null,
+    });
+    return null;
+  },
+});
+
+/**
+ * Applies one bounded page of a scoped bulk delete and self-schedules
+ * until the snapshot is exhausted. Each removed unread row decrements
+ * the recipient's badge; read rows leave it alone.
+ */
+export const dismissBatch = internalMutation({
+  args: {
+    recipientId: v.string(),
+    scope: dismissScopeValidator,
+    watermark: v.number(),
+    cursor: v.union(v.string(), v.null()),
+  },
+  returns: v.object({
+    deleted: v.number(),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("notifications")
+      .withIndex("by_recipientId_and_createdAt", (q) =>
+        q.eq("recipientId", args.recipientId).lte("createdAt", args.watermark),
+      )
+      .paginate({ numItems: DISMISS_BATCH_SIZE, cursor: args.cursor });
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", args.recipientId))
+      .unique();
+    if (
+      user &&
+      (!Number.isSafeInteger(user.unreadNotificationCount) ||
+        user.unreadNotificationCount < 0)
+    ) {
+      throw new ConvexError("Unread notification counter is invalid.");
+    }
+
+    let deleted = 0;
+    let unreadDeleted = 0;
+    for (const row of page.page) {
+      if (!matchesDismissScope(row, args.scope)) {
+        continue;
+      }
+      if (row.readAt === undefined) {
+        unreadDeleted += 1;
+      }
+      await ctx.db.delete(row._id);
+      deleted += 1;
+    }
+
+    if (user && unreadDeleted > 0) {
+      await ctx.db.patch(user._id, {
+        unreadNotificationCount: Math.max(
+          0,
+          user.unreadNotificationCount - unreadDeleted,
+        ),
+      });
+    }
+
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(0, internal.notifications.dismissBatch, {
+        ...args,
+        cursor: page.continueCursor,
+      });
+    }
+    return {
+      deleted,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
+  },
+});
 
 /**
  * Marks every notification through now as read for the caller in

@@ -4,6 +4,10 @@ Behavioral accessibility evidence for v1.0, recorded by the V1-16 pass. This is
 not a WCAG conformance claim. Method and per-surface results live here; scope
 requirements live in `ROADMAP.md`.
 
+Notification results below are historical, revision-specific checks. The current
+drawer, rows, read semantics, and focused destinations have their own
+[verification record](NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
+
 ## Required bar
 
 - Keyboard traversal reaches and operates all controls; no unintended traps;
@@ -837,7 +841,7 @@ not a new complete editor pass.
 
 **Notifications empty/populated follow-up (2026-10-10, `a970753`)**
 
-- Current implementation only: Notifications remains a placeholder subject
+- At this tested revision, Notifications remained a placeholder subject
   to redesign. These results neither finalize its layout nor constrain future
   changes. Repeat both states, link navigation, pagination, and screenshot
   inspection after changes to the rows, navigation, focus handling, or paging.
@@ -1248,7 +1252,7 @@ not a new complete editor pass.
   768 in both themes and 320 in light was run at the same checks, and the
   profile save was activated from the keyboard with the values unchanged
   (the form announced "Profile updated" and redirected to the profile).
-- The Notifications empty state offers no recovery link (J5-Notifications).
+- The earlier Notifications empty state offered no recovery link (J5-Notifications).
   The approved reader-utilities requirement says empty states recover to
   Discover. Delivered by the notifications slice: the empty state now carries a
   Discover action, and an exhausted page with no visible rows focuses it; see

@@ -17,20 +17,17 @@ import { NotificationsList } from "./_components/NotificationsList";
 
 export const metadata: Metadata = {
   title: "Notifications",
-  description: "New posts from authors you follow.",
+  description: "Likes, follows, and comments on your work.",
   robots: { index: false, follow: false },
 };
 
 export default function NotificationsRoute() {
   return (
-    <div className="py-12">
+    <div className="pt-[53px] pb-12">
       <header className="mb-8">
         <h1 className="text-3xl font-extrabold tracking-tight">
           Notifications
         </h1>
-        <p className="text-muted-foreground mt-2">
-          New posts from authors you follow.
-        </p>
       </header>
       <NotificationsList />
     </div>

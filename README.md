@@ -165,6 +165,7 @@ app/
       _components/            # Search, Topics, states, summaries, and paginated results
       [postId]/
         page.tsx              # Single post view with likes, comments, and publication timestamps
+        comments/[commentId]/ # Focused conversation, server-loaded target + live updates
     feed/
       page.tsx                # Private reader feed (client-gated + globally paginated)
       _components/            # FeedContent (fixed cutoff + bounded cursor pagination)
@@ -173,7 +174,7 @@ app/
       _components/            # LikedSection (client gate + pagination)
     notifications/
       page.tsx                # Private notifications feed (client-gated + paginated)
-      _components/            # NotificationsList (gate + pagination + read state + Discover recovery) + NotificationRow
+      _components/            # Shared page/drawer list, responsive rows, saved expansion, and scoped deletion dialog
     profile/edit/
       page.tsx                # Authenticated identity + selected-work editor
       _components/            # ProfileIdentityForm, CountryPicker, SelectedWorkEditor, edit-state helpers
@@ -206,14 +207,14 @@ convex/
   sessionMediaClaims.ts       # Session-scoped media retention claims with expiry and lifecycle transitions
   writeAttempts.ts             # Author-bound idempotent write reservations, retained outcomes, reconciliation, and cleanup
   pendingPostEdits.ts          # One pending published update per post: version checks, promotion, cleanup
-  comments.ts                 # Comment queries and mutations (paginated, hydrates isLiked/likeCount)
+  comments.ts                 # Paginated comments, bounded focused-conversation query, and authenticated writes
   likes.ts                    # toggleLike + toggleCommentLike mutations and private paginated liked-post query
                               # uses by_postId_and_userId for toggles and by_userId_and_createdAt for liked-post pagination
-  follows.ts                  # toggleFollow + isFollowing + getFollowCounts (1.4). by_followerId_and_followingId
-                               # index only — by_followingId supports notification fan-out
+  follows.ts                  # Follow toggle/state/counts; follower index supports reader-feed fan-out
   bookmarks.ts                # toggleBookmark + isBookmarked + getBookmarkedPosts (1.5).
                               # Private reading list, no denormalized counters.
-  notifications.ts            # Published-post fan-out (batched 200 + scheduler, retry-idempotent), unread count, list, per-row read, mark-all-read
+  notificationEvents.ts       # Transactional engagement notification writer, dedupe, excerpts, and follow allowance
+  notifications.ts            # Unread count, hydrated list, read actions, and scoped deletion
   feed.ts                     # Published-only 30-day materialized reader feed, fan-out/backfill/deletion/cleanup, paginated query
   postDeletion.ts             # Internal bounded deletion continuations, draft upload cleanup, and stale-job recovery
   profilePostCount.ts         # Transactional profile count adjustment helper
@@ -224,7 +225,7 @@ convex/
   usernames.ts                # Authenticated claim + public availability APIs; internal account provisioning and permanent retirement
   accountProvisioning.ts      # Shared profile create/refresh from Better Auth identity; guarantees one generated username
   welcome.ts                  # One-time dashboard welcome state and account-persisted dismissal
-  rateLimiter.ts              # Per-account 90-day new-username allowance (one-token bucket, transactional)
+  rateLimiter.ts              # Transactional allowances for username claims and follow notifications
   convex.config.ts            # Mounts the app's Convex components (the rate-limiter)
   stats.ts                    # Denormalized total post count
   auth.ts                     # Better Auth integration inside Convex (email + OAuth, user onCreate/onDelete triggers)
@@ -237,7 +238,8 @@ components/
     FooterCTA.tsx             # Auth-aware CTA card for Footer
     Navbar.tsx                # Top nav with reader/workspace links, notifications, and account hub actions
     MobileNavMenu.tsx         # Mobile drawer and shared AppNavigation for the workspace sidebar
-    NotificationBell.tsx      # Auth-only bell with unread badge; self-subscribes to getUnreadCount
+    NotificationBell.tsx      # Auth-only bell with unread badge; opens the notification drawer
+    NotificationLink.tsx      # Guarded destinations, intent prefetch, and delayed status feedback
     Footer.tsx
     PostCard.tsx              # Shared post card (landing, dashboard preview, feed, liked, saved)
     CoverImage.tsx            # Custom cover image or the blank transparent fallback surface with a subtle bottom border
@@ -253,7 +255,10 @@ components/
     LikeButton.tsx
     LikeToggle.tsx              # Generic like-toggle primitive (auth, transition, toasts)
     CommentLikeButton.tsx       # Comment like button wrapper rendered on CommentCard
-    CommentSection.tsx
+    CommentSection.tsx         # Live paginated article discussion with legacy anchor support
+    CommentComposer.tsx        # Shared authenticated reply form for article and focused conversation
+    CommentDestination.tsx     # Server-loaded selected comment with auth-aware live updates and focus handoff
+    CommentTimestamp.tsx       # Hydration-safe UTC initial timestamp, then reader-local time
     CommentCard.tsx
     AuthorPostCard.tsx          # Reader-facing author-work card (3:2 frame, cover recovery Retry)
     AuthorJoinedDate.tsx        # Hydration-safe calendar/relative join-date label with refresh

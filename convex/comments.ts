@@ -6,7 +6,8 @@
  * unauthenticated callers receive a `ConvexError("Unauthorized")`.
  */
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import {
   paginationOptsValidator,
   paginationResultValidator,
@@ -54,6 +55,43 @@ const commentResultValidator = v.object({
   isLiked: v.boolean(),
 });
 
+async function enrichComments(ctx: QueryCtx, comments: Doc<"comments">[]) {
+  const authUser = await authComponent.safeGetAuthUser(ctx);
+
+  const usernames = await usernamesForOwners(
+    ctx,
+    comments.map((comment) => comment.authorId),
+  );
+
+  return await Promise.all(
+    comments.map(async (comment) => {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", comment.authorId))
+        .unique();
+
+      let isLiked = false;
+      if (authUser) {
+        const like = await ctx.db
+          .query("commentLikes")
+          .withIndex("by_commentId_and_userId", (q) =>
+            q.eq("commentId", comment._id).eq("userId", authUser._id),
+          )
+          .unique();
+        isLiked = !!like;
+      }
+
+      return {
+        ...comment,
+        likeCount: comment.likeCount,
+        authorUsername: usernames.get(comment.authorId) ?? null,
+        authorAvatarUrl: user?.avatarUrl ?? null,
+        isLiked,
+      };
+    }),
+  );
+}
+
 function validateCommentCountForIncrement(commentCount: number) {
   if (!Number.isSafeInteger(commentCount) || commentCount < 0) {
     throw new ConvexError("Comment count is corrupted.");
@@ -97,40 +135,7 @@ export const getCommentsByPostId = query({
       .order("desc")
       .paginate(args.paginationOpts);
 
-    const authUser = await authComponent.safeGetAuthUser(ctx);
-
-    const usernames = await usernamesForOwners(
-      ctx,
-      result.page.map((comment) => comment.authorId),
-    );
-
-    const page = await Promise.all(
-      result.page.map(async (comment) => {
-        const user = await ctx.db
-          .query("users")
-          .withIndex("by_userId", (q) => q.eq("userId", comment.authorId))
-          .unique();
-
-        let isLiked = false;
-        if (authUser) {
-          const like = await ctx.db
-            .query("commentLikes")
-            .withIndex("by_commentId_and_userId", (q) =>
-              q.eq("commentId", comment._id).eq("userId", authUser._id),
-            )
-            .unique();
-          isLiked = !!like;
-        }
-
-        return {
-          ...comment,
-          likeCount: comment.likeCount,
-          authorUsername: usernames.get(comment.authorId) ?? null,
-          authorAvatarUrl: user?.avatarUrl ?? null,
-          isLiked,
-        };
-      }),
-    );
+    const page = await enrichComments(ctx, result.page);
 
     return { ...result, page };
   },
@@ -194,5 +199,70 @@ export const createComment = mutation({
     });
 
     return commentId;
+  },
+});
+
+/** A bounded, directly addressable conversation for notification deep links. */
+export const getCommentDestination = query({
+  // Route segments are untrusted strings; malformed links get the same fallback.
+  args: { postId: v.string(), commentId: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      post: v.object({
+        id: v.id("posts"),
+        title: v.string(),
+        authorName: v.string(),
+      }),
+      comment: v.union(v.null(), commentResultValidator),
+      nearby: v.array(commentResultValidator),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const postId = ctx.db.normalizeId("posts", args.postId);
+    if (!postId) return null;
+    const post = await getPublishedPost(ctx, postId);
+    if (!post) return null;
+    const author = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
+      .unique();
+    const summary = {
+      id: post._id,
+      title: post.title,
+      authorName: author?.displayName?.trim() || "Unknown",
+    };
+    const commentId = ctx.db.normalizeId("comments", args.commentId);
+    const comment = commentId ? await ctx.db.get(commentId) : null;
+    if (!comment || comment.postId !== postId)
+      return { post: summary, comment: null, nearby: [] };
+    const [older, newer] = await Promise.all([
+      ctx.db
+        .query("comments")
+        .withIndex("by_postId_and_createdAt", (q) =>
+          q.eq("postId", postId).lte("createdAt", comment.createdAt),
+        )
+        .order("desc")
+        .take(5),
+      ctx.db
+        .query("comments")
+        .withIndex("by_postId_and_createdAt", (q) =>
+          q.eq("postId", postId).gt("createdAt", comment.createdAt),
+        )
+        .order("asc")
+        .take(4),
+    ]);
+    const neighbors = [
+      ...older
+        .filter((c) => c._id !== comment._id)
+        .slice(0, 4)
+        .reverse(),
+      ...newer,
+    ];
+    const [selected, ...nearby] = await enrichComments(ctx, [
+      comment,
+      ...neighbors,
+    ]);
+    return { post: summary, comment: selected, nearby };
   },
 });

@@ -1,11 +1,11 @@
 # Resonance Features
 
-> The shipped capability catalog: what Resonance does today, surface by
+> The capability catalog for this revision: what Resonance does, surface by
 > surface. Scope, remaining work, and delivery status live in
 > [`ROADMAP.md`](ROADMAP.md). Release history lives in
 > [`CHANGELOG.md`](CHANGELOG.md).
 >
-> **Update rule:** when a capability ships, add or update its entry here. When
+> **Update rule:** when a capability changes, add or update its entry here. When
 > scope or status changes, update `ROADMAP.md` in the same change (see the
 > "Documentation" section in `AGENTS.md`). Detailed designs and implementation
 > plans live in `docs/superpowers/` while their task is active (ignored,
@@ -76,7 +76,7 @@
 - Resuming a draft opens `/create?draftId=<id>` with its content, tags, and
   images hydrated into the editor
 - Publishing validates the stored draft, transitions it to `published`, and
-  triggers published-only feed and notification fan-out
+  triggers published-only reader-feed fan-out
 - Authors can edit published posts in place through `/create?editPostId=<id>`;
   edits preserve the post ID, publication time, engagement records, bookmarks,
   and feed position while advancing `updatedAt`
@@ -120,7 +120,9 @@
   switches validate the destination before clearing the current session's
   recovery; sign-out confirms strongly with save or discard choices; and the
   native beforeunload warning attaches only while unsaved work or an
-  unresolved operation exists
+  unresolved operation exists. Notification drawer destinations follow the same
+  guard and preserve the exact target after Leave or a successful Save & leave;
+  opening the drawer alone is not a departure.
 - Start fresh (new posts and drafts) and Cancel update (published edits)
   confirm before discarding, clear only the current session's recovery after
   verified deletion, and never touch saved drafts, posts, or their media
@@ -196,7 +198,8 @@
   login to the post. Both labels reserve the same width to avoid layout shifts.
 - Denormalized `followerCount` and `followingCount` on `users`; `ProfileStats` row on profile headers subscribes to `getFollowCounts` and bumps live
 - `isFollowing` query drives the initial button state; `getFollowCounts` drives the reactive stats row
-- Two indexes: `by_followerId_and_followingId` (1.4) for the "is X following Y?" check, `by_followingId` (1.6) for the notification fan-out's ordered scan
+- `by_followerId_and_followingId` supports the "is X following Y?" check;
+  `by_followingId` supports the reader feed's ordered follower scan.
 
 ### Bookmarks
 
@@ -212,24 +215,111 @@
 
 ### Notifications
 
-- `internal.notifications.fanOutForPost` — called after `publishPost`, inserts one row per follower in batches via `.paginate(args.paginationOpts)` with scheduler continuation via the `follows.by_followingId` index
+- Notifications cover follows, post likes, comments on a post, and comment
+  likes. Each notifies the followed user, post author, or comment author as
+  appropriate. Self-actions are excluded. The engagement action, notification,
+  and unread-counter increment commit in the same transaction through
+  `recordEngagementNotification`; publishing updates the reader feed without
+  sending publication notifications.
+- Post likes, comments, and comment likes keep one live notification per
+  recipient, actor, and event key. Repeating an action leaves existing read
+  history intact. Undoing a like or follow does not remove its history row.
 - `users.unreadNotificationCount` denormalized counter; `getUnreadCount` is a single O(1) read for the bell badge and the mobile navigation count
-- `NotificationBell` in the desktop Navbar, auth-only, left of the avatar;
-  mobile navigation shows a Notifications link with an unread count
+- At 767px and below, the navbar keeps the notification bell and unread badge
+  visible immediately before the hamburger menu.
+- Auth-only `NotificationBell` in the Navbar opens a right-side drawer on
+  desktop and mobile, preserving the current page and reading position. New
+  notifications update its badge without opening the drawer. Closing resumes
+  reading; selecting a destination link closes the drawer and navigates there.
+  The drawer reuses the full page’s rows, read state, and saved expansion state;
+  opening it alone does not mark notifications read. The dashboard and mobile
+  menu retain their links to the full `/notifications` page.
+- Comment and comment-like notification links open the shareable
+  `/blog/[postId]/comments/[commentId]` conversation view. The selected comment
+  appears below a compact post title and author, with the shared reply form,
+  up to eight nearby comments, and links to the full article and all comments.
+  A direct bounded query supplies the initial server render; live updates follow
+  after authentication resolves. The selected comment receives focus without
+  scrolling after the notification drawer disappears; missing targets focus a
+  heading. User interaction or a one-second timeout cancels a pending handoff.
+  Old article comment anchors remain supported.
+- Notification row links prefetch on mouse hover or keyboard-visible focus,
+  once per destination per mounted link. They do not prefetch on viewport entry
+  or touch; explicit prefetch opt-out is respected. Links keep the source
+  visible until the server response is ready. Slow requests show a small status
+  indicator after 150ms; no full-screen overlay or comment-anchor scrolling runs.
+  Missing comments keep the published post context; unavailable posts show a
+  Discover link, and conversation request failures offer retry. Actor names and
+  avatars open the profile at the top; post titles/covers and post-like events
+  open the full article at the top. Comment actions and excerpts open the focused
+  conversation on desktop and mobile. Opening the already-visible destination
+  also resets to the top.
 - `/notifications` page, client-gated, paginated twelve at a time, renders one
   compact row per notification with direct links to the post and the actor and
-  a visible New marker while a row is unread
-- Read state is per row and persistent: opening a notification's post calls the
+  a small unread dot beside the timestamp with an accessible “Unread” label.
+  The dot has a permanent 16px slot and becomes invisible when read, keeping
+  text widths and action positions stable in both mobile and desktop layouts.
+  Desktop actor names truncate individually, leaving the event text, timestamp,
+  and unread dot visible. The timestamp follows the event text directly
+- Below 640px, rows show details directly in four stacked areas: a 42px linked
+  avatar beside the actor and event text, a linked 88 × 49.5px cover and post
+  title, a linked comment excerpt when available, and a compact time/actions
+  line. Actor/event text, titles, and excerpts each occupy at most two lines;
+  long actor names truncate individually. Mobile rows use flat, full-width
+  unread backgrounds and dividers. Unread backgrounds match My Posts' hover
+  surface in both layouts. Times use short forms such as `5m` and `2h`, with
+  fuller wording available to assistive technology and on hover.
+- At 640px and above, rows have a small corner radius and expand independently
+  by clicking or keyboard-activating the header's empty area. Actor and event
+  links remain usable while collapsed. Expansion is saved per recipient and
+  notification in browser storage across reloads and navigation; when storage
+  is unavailable, an in-memory fallback lasts until reload. Follow rows have no
+  expandable details.
+- Follow rows offer Follow back using the shared live follow control, changing
+  to Following when active. Using it marks the notification read.
+- The toolbar aligns with the row width: one button toggles between Expand all
+  and Collapse all based on whether all loaded expandable rows are open. It is
+  hidden below 640px and affects only loaded expandable rows, preserving their
+  saved state. Both bulk expansion actions change presentation without marking
+  notifications read.
+  Mark all as read lives in the three-dot menu on all screen sizes, with a
+  double-check icon. Delete all shares that menu and retains its confirmation
+  dialog, offering All, Read only, and Unread only when those groups have rows.
+  Its displayed counts cover at most 1,000 rows, with one extra row read to
+  detect truncation and show a `+`. This is a display bound, not a notification
+  retention cap. Confirmed deletion processes
+  the selected scope in bounded batches through a captured creation watermark,
+  preserving newer arrivals.
+- Individual deletion uses a trash icon on desktop, visible on row hover or
+  keyboard focus and always available on devices without hover. Mobile rows
+  use an overflow menu with Delete notification and, while unread, Mark as read.
+  Deleting a row hides it immediately and offers Undo for five seconds before
+  the server deletion is committed. Undo restores the row, but does not undo
+  the read action caused by deletion. Bulk deletion has confirmation and no Undo.
+- Follow notifications are limited to one per follower–recipient pair every
+  seven elapsed days, measured from the last delivered notification. Repeated
+  attempts do not extend the wait, and deleting the notification does not reset
+  the rate limiter. A later eligible follow creates a new unread history row;
+  existing rows retain their read state. Following itself is not rate-limited.
+- Any click or keyboard activation within a notification marks it read,
+  including row space, profile/event links, follow actions, and selecting a
+  menu action. Opening a row menu leaves it unread and offers Mark as read
+  explicitly. Hovering, scrolling, and opening the drawer alone do not.
+- Read state is per row and persistent: explicitly expanding a row, opening
+  any of its links, or clicking a desktop follow row's unread dot calls the
   idempotent, owner-scoped `markRead`, which clears the marker and decrements
   the unread count once; visiting the page changes nothing
-- `Mark all read` appears while unread rows remain and reuses `markAllRead`;
-  rows stay as visual history, and focus returns to the named list region when
-  the action clears the count
+- `Mark all as read` stays in the toolbar's overflow menu, disabled when there
+  are no unread rows or while pending, and reuses `markAllRead`. It marks rows
+  through the request's creation watermark in batches, preserving newer arrivals.
+  Rows stay as visual history, and focus returns to the named list region
+  after the request succeeds.
 - The empty state explains what is missing and recovers to Discover
 - Deleting a post removes its notifications in the bounded post-deletion
-  cascade, decrementing each unread row's counter exactly once; there is no
-  age-based retention, as recorded in
-  [known limitations](docs/KNOWN_LIMITATIONS.md)
+  cascade, decrementing each unread row's counter exactly once.
+- Missing or unpublished posts are filtered out of the list. A missing comment
+  removes its excerpt while retaining the history row and its missing-target
+  conversation state; comment deletion semantics are unchanged.
 
 ### Discover
 

@@ -51,10 +51,15 @@ export type ExitRegistration = {
 
 type SignOutAction = () => Promise<{ ok: boolean; message?: string }>;
 
+/** UI continuations run only after the existing exit policy allows departure. */
+type AuthoringExitIntent =
+  | Exclude<ExitIntent, { kind: "navigate" }>
+  | { kind: "navigate"; href: string; onContinue?: () => void };
+
 type AuthoringExitContextValue = {
   isSigningOut: boolean;
   register: (registration: ExitRegistration) => () => void;
-  request: (intent: ExitIntent) => void;
+  request: (intent: AuthoringExitIntent) => void;
   requestSignOut: (
     action: SignOutAction,
     returnFocus?: HTMLElement | null,
@@ -83,7 +88,7 @@ export function useOptionalAuthoringExit() {
 type PendingDecision = Extract<ExitDecision, { kind: "confirm" | "block" }>;
 
 type PendingSurface = {
-  intent: ExitIntent;
+  intent: AuthoringExitIntent;
   decision: PendingDecision;
   error: string | null;
   busy: boolean;
@@ -160,10 +165,11 @@ export function AuthoringExitProvider({
   }, []);
 
   const continueIntent = useCallback(
-    (intent: ExitIntent, quiet = false) => {
+    (intent: AuthoringExitIntent, quiet = false) => {
       switch (intent.kind) {
         case "navigate":
-          routerRef.current.push(intent.href);
+          if (intent.onContinue) intent.onContinue();
+          else routerRef.current.push(intent.href);
           return;
         case "history": {
           const replayed = historyGuardRef.current?.replay(intent.key) ?? false;
@@ -320,7 +326,7 @@ export function AuthoringExitProvider({
   }, [continueIntent]);
 
   const openSurface = useCallback(
-    (intent: ExitIntent, decision: PendingDecision) => {
+    (intent: AuthoringExitIntent, decision: PendingDecision) => {
       restoreFocusRef.current =
         document.activeElement instanceof HTMLElement
           ? document.activeElement
@@ -334,36 +340,39 @@ export function AuthoringExitProvider({
     openSurfaceRef.current = openSurface;
   }, [openSurface]);
 
-  const proceed = useCallback((intent: ExitIntent, decision: ExitDecision) => {
-    if (decision.kind === "allow") {
-      continueIntentRef.current(intent, true);
-      return;
-    }
-    if (decision.kind === "recover") {
-      const result = registrationRef.current?.flushRecovery();
-      if (result?.ok) {
-        continueIntentRef.current(intent);
+  const proceed = useCallback(
+    (intent: AuthoringExitIntent, decision: ExitDecision) => {
+      if (decision.kind === "allow") {
+        continueIntentRef.current(intent, true);
         return;
       }
-      // A recovery write that cannot be verified is never silent.
-      openSurfaceRef.current(intent, {
-        kind: "confirm",
-        level: "light",
-        risk: "storage",
-        canSaveDraft: true,
-      });
-      return;
-    }
-    openSurfaceRef.current(intent, decision);
-  }, []);
+      if (decision.kind === "recover") {
+        const result = registrationRef.current?.flushRecovery();
+        if (result?.ok) {
+          continueIntentRef.current(intent);
+          return;
+        }
+        // A recovery write that cannot be verified is never silent.
+        openSurfaceRef.current(intent, {
+          kind: "confirm",
+          level: "light",
+          risk: "storage",
+          canSaveDraft: true,
+        });
+        return;
+      }
+      openSurfaceRef.current(intent, decision);
+    },
+    [],
+  );
 
   const request = useCallback(
-    (intent: ExitIntent) => {
+    (intent: AuthoringExitIntent) => {
       // One destination at a time: repeated requests never stack.
       if (surfaceRef.current) return;
       const registration = registrationRef.current;
       if (!registration) {
-        if (intent.kind === "navigate") routerRef.current.push(intent.href);
+        if (intent.kind === "navigate") continueIntentRef.current(intent);
         else if (intent.kind === "sign-out") continueIntentRef.current(intent);
         return;
       }
@@ -594,6 +603,8 @@ export function AuthoringExitProvider({
       if (!(target instanceof Element)) return;
       const anchor = target.closest("a");
       if (!anchor) return;
+      // These links explicitly request the guard with their own continuation.
+      if (anchor.hasAttribute("data-authoring-exit-managed")) return;
       if (anchor.target && anchor.target.toLowerCase() !== "_self") return;
       if (anchor.hasAttribute("download")) return;
       const rawHref = anchor.getAttribute("href");

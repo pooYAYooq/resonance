@@ -127,12 +127,17 @@ real-runtime stress matrix, and the deletion-cascade limitation stay visible in
 [known limitations](docs/KNOWN_LIMITATIONS.md). V1-20 context-specific post-card
 variants are untouched.
 
-Compact, actionable notifications are integrated on main as PR #117, recorded
-in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md): persistent
-per-row read state with the owner-scoped `markRead`, a visible New marker on
-unread rows, Mark all read with focus return, and Discover recovery from the
-empty state. The pass also fixed the bell's unread badge anchor. The retention
-gap stays recorded in [known limitations](docs/KNOWN_LIMITATIONS.md).
+The compact-notification baseline was integrated as PR #117; its dated
+results remain in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md#earlier-compact-notification-verification).
+The current revision extends that baseline with transactional engagement
+events, a page-preserving drawer, responsive actionable rows, saved expansion,
+focused comment destinations, and scoped deletion. The approved
+scope amendment is recorded in
+[the decision log](docs/PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
+Automated results are recorded in [current verification](docs/NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
+The notification extension remains In progress and is not ready for final
+acceptance: normal-animation/device checks remain visible in
+[known limitations](docs/KNOWN_LIMITATIONS.md#notifications).
 
 ### Visual system and responsive polish
 

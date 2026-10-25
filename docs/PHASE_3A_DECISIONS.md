@@ -27,6 +27,24 @@ removal lifecycle of 3A-028 unchanged. The earlier choice relied on manual
 staging review alone; the extra checks reduce accidental inclusion without
 adding dependencies or a paid service.
 
+## Engagement notification amendment (2026-10-26)
+
+This records the maintainer-approved notification iterations after the compact
+baseline. It supersedes the publication-notification preservation requirement
+and notification-expansion deferral in [the product direction](PHASE_3A.md).
+The current scope covers follows, post likes, comments, and comment likes;
+publication discovery continues through the reader feed. It adds a drawer that
+preserves the source page, direct focused conversation destinations, always
+detailed mobile rows, saved desktop expansion, follow-back actions, and
+individual/scoped deletion. [Features](../FEATURES.md#notifications) owns the
+behavior; [verification](NOTIFICATIONS_EVIDENCE.md#current-revision-summary)
+records results and remaining acceptance.
+
+This extends 3A-033's per-row read model: individual row activity marks the row
+read, while visiting the list, opening the drawer or row menu, and bulk
+expansion do not. Email, push delivery, follower directories, and social
+activity feeds remain deferred.
+
 ## Decisions
 
 Dated entries retain their original rationale; amendments above take precedence.

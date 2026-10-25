@@ -6,6 +6,7 @@
 "use client";
 
 import Link from "next/link";
+import { CommentTimestamp } from "./CommentTimestamp";
 import { UserAvatar } from "./UserAvatar";
 import { CommentLikeButton } from "./CommentLikeButton";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -35,7 +36,11 @@ export function CommentCard({
   likeCount,
 }: CommentCardProps) {
   return (
-    <div className="border rounded-lg p-4 bg-card">
+    <div
+      id={`comment-${commentId}`}
+      tabIndex={-1}
+      className="scroll-mt-24 border rounded-lg p-4 bg-card"
+    >
       <div className="flex items-center gap-2 mb-2">
         <UserAvatar
           userId={authorId}
@@ -53,21 +58,10 @@ export function CommentCard({
         ) : (
           <span className="font-semibold text-sm">{authorName}</span>
         )}
-        <span className="text-xs text-muted-foreground ml-auto">
-          {new Date(createdAt).toLocaleDateString("en-US", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })}{" "}
-          at{" "}
-          {new Date(createdAt).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
+        <CommentTimestamp createdAt={createdAt} />
       </div>
       <p className="text-sm text-foreground/90 whitespace-pre-wrap">{body}</p>
-      <div className="flex justify-end mt-2">
+      <div data-comment-likes className="flex justify-end mt-2">
         <CommentLikeButton
           commentId={commentId}
           isLiked={isLiked}
