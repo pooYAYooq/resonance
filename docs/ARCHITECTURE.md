@@ -206,11 +206,15 @@ resonance/
 │   │                           # hydration; owner-scoped per-row and bulk read;
 │   │                           # bounded counts and scoped deletion continuations.
 │   │                           # Writes keep users.unreadNotificationCount in step.
+│   │                           # Daily read/unread cleanup uses by_readAt and
+│   │                           # by_readAt_and_createdAt in fixed-cutoff batches;
+│   │                           # unread deletions patch recipient counters atomically.
 │   ├── feed.ts                 # Private getFeed query plus 30-day materialized
 │   │                           # fan-out, follow backfill, unfollow deletion,
 │   │                           # and bounded expiration cleanup.
 │   ├── profilePostCount.ts     # Transactional profile count adjustment helper.
-│   ├── crons.ts                # Daily feed expiration, upload cleanup, and deletion recovery.
+│   ├── crons.ts                # Daily notification/feed expiration; media/write cleanup
+│   │                           # and stale deletion recovery at their own intervals.
 │   ├── stats.ts                # getStats query + incrementPostCount internal
 │   │                           # mutation (single-row denormalized counter)
 │   ├── users.ts                # syncUser (converges accounts through
@@ -841,7 +845,9 @@ list hydrates actor identity, published-post context, and a bounded excerpt
 from the current comment. Missing/unpublished posts are filtered; missing
 comments keep a history row with no excerpt. Bulk read and scoped deletion
 continue with a fixed creation watermark so later arrivals remain untouched.
-Interaction rules live in [Features](../FEATURES.md#notifications).
+The two daily retention mutations use indexed, fixed-cutoff batches and update
+unread counters in the deletion transaction. The actual retention windows and
+interaction rules live in [Features](../FEATURES.md#notifications).
 
 `NotificationBell` uses the shared shadcn/Radix Sheet and renders
 `NotificationsList` inside its own scrolling region. The same list serves the

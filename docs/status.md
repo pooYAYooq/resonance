@@ -8,12 +8,12 @@ a session history.
 
 The current revision extends the compact notification baseline with engagement
 events, a page-preserving drawer, responsive rows, saved desktop expansion,
-focused comment destinations, follow-back actions, and scoped deletion.
-[Features](../FEATURES.md#notifications) owns behavior;
+focused comment destinations, follow-back actions, scoped deletion, and
+age-based retention. [Features](../FEATURES.md#notifications) owns behavior;
 the approved scope amendment is in [the decision log](PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
 
-Automated verification results are recorded in
-[notifications evidence](NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
+The latest full automated verification and development retention deployment
+checks are recorded in [notifications evidence](NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
 Documentation now distinguishes current behavior from superseded UI/navigation
 experiments. The implementation extension still has acceptance work; it is not
 recorded as complete merely because the automated checks passed. The integrated

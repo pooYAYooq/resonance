@@ -23,7 +23,11 @@ import { register } from "@convex-dev/better-auth/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, components, internal } from "./_generated/api";
 import schema from "./schema";
-import { applyMarkRead, applyReadBatch } from "./notifications";
+import {
+  applyMarkRead,
+  applyReadBatch,
+  READ_RETENTION_MS,
+} from "./notifications";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -1212,6 +1216,44 @@ describe("notifications functions", () => {
         notificationId,
       }),
     ).rejects.toThrow("Notification not found.");
+  });
+
+  it("prunes only read rows older than the retention window", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const { oldRead, recentRead, unread } = await t.run(async (ctx) => ({
+      oldRead: await ctx.db.insert("notifications", {
+        recipientId: "reader",
+        actorId: "a",
+        type: "follow",
+        dedupeKey: "follow:a",
+        createdAt: 1,
+        readAt: now - READ_RETENTION_MS - 1,
+      }),
+      recentRead: await ctx.db.insert("notifications", {
+        recipientId: "reader",
+        actorId: "b",
+        type: "follow",
+        dedupeKey: "follow:b",
+        createdAt: 2,
+        readAt: now - READ_RETENTION_MS + 60_000,
+      }),
+      unread: await ctx.db.insert("notifications", {
+        recipientId: "reader",
+        actorId: "c",
+        type: "follow",
+        dedupeKey: "follow:c",
+        createdAt: 3,
+      }),
+    }));
+
+    await t.mutation(internal.notifications.pruneReadNotifications, {
+      cursor: null,
+    });
+
+    expect(await t.run((ctx) => ctx.db.get(oldRead))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(recentRead))).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(unread))).not.toBeNull();
   });
 
   it("counts notification rows for the recipient only", async () => {

@@ -117,6 +117,8 @@ work is tracked in `ROADMAP.md`.
 
 ### Changed
 
+- Keep read notifications for 90 days after reading and unread notifications
+  for two years, with daily cleanup that keeps unread badges accurate.
 - Follow notifications allow one delivery per follower and recipient every
   seven days. A later follow can create a fresh unread notification while
   preserving earlier history; repeated attempts do not delay eligibility.

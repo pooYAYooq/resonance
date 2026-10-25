@@ -131,7 +131,8 @@ The compact-notification baseline was integrated as PR #117; its dated
 results remain in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md#earlier-compact-notification-verification).
 The current revision extends that baseline with transactional engagement
 events, a page-preserving drawer, responsive actionable rows, saved expansion,
-focused comment destinations, and scoped deletion. The approved
+focused comment destinations, scoped deletion, and
+[notification retention](FEATURES.md#notification-retention). The approved
 scope amendment is recorded in
 [the decision log](docs/PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
 Automated results are recorded in [current verification](docs/NOTIFICATIONS_EVIDENCE.md#current-revision-summary).

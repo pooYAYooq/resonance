@@ -34,8 +34,8 @@ Each non-generated module has a co-located `*.test.ts` run by `pnpm test:ci`
   `discoverPosts`, `discoverPostSearch`, `discoverPostTopics`, and `topicStats`,
   with `postSummary` helpers and scheduled reader-feed fan-out. Engagement
   mutations create `notifications` and update unread counters in their own
-  transaction. Read actions and deletion keep those counters in step;
-  [Features](../FEATURES.md#notifications) owns the behavior.
+  transaction. Read actions, deletion, and daily retention cleanup keep those
+  counters in step; [Features](../FEATURES.md#notifications) owns the policy.
 - Analytics uses `postViews` (one signed-in unique view per viewer key),
   `authorAnalytics`, and `followerGrowthDays`.
 - Operational tables make storage safe and bounded: `pendingUploads`,

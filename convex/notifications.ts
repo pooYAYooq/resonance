@@ -32,6 +32,9 @@ import { Doc, Id } from "./_generated/dataModel";
 import { commentExcerpt } from "./notificationEvents";
 
 const READ_BATCH_SIZE = 100;
+export const READ_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+export const UNREAD_RETENTION_MS = 730 * 24 * 60 * 60 * 1000;
+const PRUNE_BATCH_SIZE = 100;
 const COUNT_CAP = 1000;
 const DISMISS_BATCH_SIZE = 100;
 
@@ -591,7 +594,7 @@ export const dismissBatch = internalMutation({
  * exactly the rows it transitions, so the badge drops to 0 as the
  * batches complete without ever under-counting a notification that
  * arrives mid-run. The rows in the `notifications` table are NOT
- * deleted — they remain as visual history for the paginated list.
+ * deleted by this operation — retention cleanup removes them later.
  *
  * @returns `{ ok: true }` on success.
  * @throws `ConvexError("Unauthorized")` if the caller has no session.
@@ -669,5 +672,121 @@ export const markReadBatch = internalMutation({
       });
     }
     return null;
+  },
+});
+
+/**
+ * Deletes read notifications older than the retention window in
+ * bounded pages, self-scheduling the next page until the sweep is
+ * exhausted. Unread rows have no `readAt` and never match the index
+ * range.
+ */
+export const pruneReadNotifications = internalMutation({
+  args: {
+    cursor: v.union(v.string(), v.null()),
+    cutoffAt: v.optional(v.number()),
+  },
+  returns: v.object({
+    deleted: v.number(),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const cutoffAt = args.cutoffAt ?? Date.now() - READ_RETENTION_MS;
+    const page = await ctx.db
+      .query("notifications")
+      .withIndex("by_readAt", (q) => q.gte("readAt", 0).lt("readAt", cutoffAt))
+      .paginate({
+        numItems: PRUNE_BATCH_SIZE,
+        maximumRowsRead: PRUNE_BATCH_SIZE,
+        cursor: args.cursor,
+      });
+
+    for (const row of page.page) {
+      await ctx.db.delete(row._id);
+    }
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.notifications.pruneReadNotifications,
+        { cursor: page.continueCursor, cutoffAt },
+      );
+    }
+    return {
+      deleted: page.page.length,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
+  },
+});
+
+/**
+ * Expire unread notifications by creation time. Deletion and per-recipient
+ * counter updates commit together; a row read before its batch no longer
+ * matches this index range and keeps its full read-retention window.
+ */
+export const pruneUnreadNotifications = internalMutation({
+  args: {
+    cursor: v.union(v.string(), v.null()),
+    cutoffAt: v.optional(v.number()),
+  },
+  returns: v.object({
+    deleted: v.number(),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const cutoffAt = args.cutoffAt ?? Date.now() - UNREAD_RETENTION_MS;
+    const page = await ctx.db
+      .query("notifications")
+      .withIndex("by_readAt_and_createdAt", (q) =>
+        q.eq("readAt", undefined).lt("createdAt", cutoffAt),
+      )
+      .paginate({
+        numItems: PRUNE_BATCH_SIZE,
+        maximumRowsRead: PRUNE_BATCH_SIZE,
+        cursor: args.cursor,
+      });
+
+    const removedByRecipient = new Map<string, number>();
+    for (const row of page.page) {
+      removedByRecipient.set(
+        row.recipientId,
+        (removedByRecipient.get(row.recipientId) ?? 0) + 1,
+      );
+      await ctx.db.delete(row._id);
+    }
+    for (const [recipientId, removed] of removedByRecipient) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", recipientId))
+        .unique();
+      // Missing profiles do not make their orphan notifications immortal.
+      if (!user) continue;
+      if (
+        !Number.isSafeInteger(user.unreadNotificationCount) ||
+        user.unreadNotificationCount < 0
+      ) {
+        throw new ConvexError("Unread notification counter is invalid.");
+      }
+      await ctx.db.patch(user._id, {
+        unreadNotificationCount: Math.max(
+          0,
+          user.unreadNotificationCount - removed,
+        ),
+      });
+    }
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.notifications.pruneUnreadNotifications,
+        { cursor: page.continueCursor, cutoffAt },
+      );
+    }
+    return {
+      deleted: page.page.length,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
   },
 });

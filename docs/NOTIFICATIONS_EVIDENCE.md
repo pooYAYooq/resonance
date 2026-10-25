@@ -11,7 +11,8 @@ requirement source is 3A.4 in [PHASE_3A.md](PHASE_3A.md).
 The uncommitted `feat/engagement-notifications` revision is based on `f4e48fb`.
 The authoritative behavior is in [Features](../FEATURES.md#notifications), with
 the scope amendment in [the decision log](PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
-The sections below retain the revisions, test counts, and outcomes they measured.
+The latest full automated run is recorded in the retention section below;
+earlier sections retain the revisions, test counts, and outcomes they measured.
 Automated results do not establish current visual acceptance.
 
 Current behavior supersedes the early iterations recorded below: publication
@@ -50,8 +51,52 @@ phone. Those checks remain open in
 Documentation validation passed repository-wide `pnpm format:check`, local
 file/heading-link checks, `git diff --check`, and `pnpm check:artifacts`. The old
 repository-formatting limitation is resolved for this working revision; earlier
-failure records remain historical. Dated runtime results appear below. The dev
-servers remained running and dashboard deployment settings were left unchanged.
+failure records remain historical. The current runtime and build results follow
+in the retention section. The dev servers remained running and dashboard
+deployment settings were left unchanged.
+
+## Notification retention
+
+Verified on 2026-10-26 in the uncommitted `feat/engagement-notifications`
+worktree based on `f4e48fb`, targeting personal development deployment
+`woozy-spaniel-283`. The authoritative policy is in
+[Features](../FEATURES.md#notification-retention); decision 3A-034 supersedes
+only the retention deferral in 3A-033.
+
+- The new fixed-time suite first failed against the previous implementation:
+  read history within the approved window was removed, unread expiry was
+  absent, and continuation boundaries were not stable. These are historical
+  failures; the implementation now passes all 10 retention cases and all 29
+  existing notification tests (39 focused tests total).
+- Coverage includes strict cutoff boundaries, first-read clock preservation,
+  independent recipient counters, bounded scheduled continuations, and a
+  clock advance between batches. A candidate read or manually deleted between
+  batches is not decremented twice; a new arrival retains its badge count.
+  Invalid counters roll back the complete batch, zero counters stay nonnegative,
+  and missing profiles do not prevent orphan cleanup. All four notification
+  types expire without deleting source content or relationships.
+- Final verification after the review adjustments passed: `pnpm lint`,
+  `pnpm exec tsc --noEmit`, `pnpm test:ci` (54 files, 897 tests),
+  `pnpm test:component --maxWorkers=1` (102 files, 1,037 tests), and `pnpm build`.
+  `pnpm exec convex codegen --typecheck enable` also completed successfully.
+  The default parallel component run first hit two authoring-test failures
+  (one timeout and one extra typed character); the documented single-worker
+  rerun passed, consistent with the existing worker-contention limitation.
+  Expected diagnostics from intentionally failed authoring paths and jsdom
+  navigation did not fail the successful suites.
+- Read-only deployment queries confirmed both indexes are queryable. The first
+  probe caught `by_readAt_and_createdAt` still backfilling; a subsequent probe
+  succeeded, resolving that temporary deployment state. Function metadata
+  confirms both cleanup functions are internal, including their optional
+  `cutoffAt` continuation argument.
+- A bounded, read-only system-query subscription confirmed both daily cron
+  registrations, each with an 86,400-second interval and a pending next run.
+  The new unread job's first execution succeeded with zero deletions. The
+  existing read job also has a successful prior run; that older execution is
+  not evidence for the newly extended read window, which is covered by tests.
+- No UI changes, document-field backfill, manual cleanup sweep, Git actions,
+  or server restarts were performed. Scheduler execution at future daily
+  intervals was verified through registration metadata, not by waiting a day.
 
 ## Notification toolbar and follow-back iteration
 

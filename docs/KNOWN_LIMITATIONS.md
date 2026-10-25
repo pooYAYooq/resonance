@@ -43,10 +43,6 @@ evidence resolves them. The previous detailed delivery history remains in
   coverage because there were insufficient drafts during its acceptance pass.
   Later keyboard matrices in `ACCESSIBILITY.md` supplement that original scope.
 - Follow colors and the light-theme contrast observations remain under V1-21.
-- Notifications have no age-based retention: a row persists until its post is
-  deleted, and the post-deletion cascade decrements each unread row's counter
-  exactly once. A future purge must reconcile `unreadNotificationCount` for
-  purged unread rows, or the bell overcounts.
 
 ## Authoring and recovery
 
@@ -78,8 +74,11 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Engineering and verification
 
-- No stored-data migration/backfill exists for this undeployed app. A large
-  existing deployment would need a staged migration before new indexed callers.
+- No general stored-data migration process exists for this undeployed app.
+  A large existing deployment would need a staged rollout before new indexed
+  callers. The notification retention index was backfilled by Convex and
+  verified queryable on development; it requires no document-field backfill.
+  See [retention evidence](NOTIFICATIONS_EVIDENCE.md#notification-retention).
 - Search-index pagination cannot be bounded by read budgets: the installed
   Convex 1.46 API still documents that `maximumRowsRead` and `maximumBytesRead`
   are not enforced for search queries, and the upstream backend reports no split

@@ -214,7 +214,8 @@ convex/
   bookmarks.ts                # toggleBookmark + isBookmarked + getBookmarkedPosts (1.5).
                               # Private reading list, no denormalized counters.
   notificationEvents.ts       # Transactional engagement notification writer, dedupe, excerpts, and follow allowance
-  notifications.ts            # Unread count, hydrated list, read actions, and scoped deletion
+  notifications.ts            # Unread count, hydrated list, read actions, scoped deletion, and indexed retention cleanup
+  crons.ts                    # Recurring notification/feed expiry, media cleanup, and deletion recovery
   feed.ts                     # Published-only 30-day materialized reader feed, fan-out/backfill/deletion/cleanup, paginated query
   postDeletion.ts             # Internal bounded deletion continuations, draft upload cleanup, and stale-job recovery
   profilePostCount.ts         # Transactional profile count adjustment helper

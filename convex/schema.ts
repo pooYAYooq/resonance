@@ -216,7 +216,9 @@ export default defineSchema({
       "actorId",
       "dedupeKey",
     ])
-    .index("by_postId", ["postId"]),
+    .index("by_postId", ["postId"])
+    .index("by_readAt", ["readAt"])
+    .index("by_readAt_and_createdAt", ["readAt", "createdAt"]),
 
   /**
    * Bounded, denormalized reader feed rows. These rows cover only the most

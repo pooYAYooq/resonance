@@ -250,8 +250,8 @@ tracked in [`../ROADMAP.md`](../ROADMAP.md).
   visible read/unread state, and Discover recovery when empty. The approved
   [engagement amendment](PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26)
   replaces the original publication-notification requirement and expansion
-  deferral. [Features](../FEATURES.md#notifications) owns current event types and
-  drawer/row behavior. Email and push systems remain deferred.
+  deferral. [Features](../FEATURES.md#notifications) owns current event types,
+  drawer/row behavior, and retention. Email and push systems remain deferred.
 
 ### Discover and Feed
 

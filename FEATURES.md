@@ -312,14 +312,30 @@
 - `Mark all as read` stays in the toolbar's overflow menu, disabled when there
   are no unread rows or while pending, and reuses `markAllRead`. It marks rows
   through the request's creation watermark in batches, preserving newer arrivals.
-  Rows stay as visual history, and focus returns to the named list region
-  after the request succeeds.
+  Rows stay as visual history within the retention policy below, and focus
+  returns to the named list region after the request succeeds.
 - The empty state explains what is missing and recovers to Discover
 - Deleting a post removes its notifications in the bounded post-deletion
   cascade, decrementing each unread row's counter exactly once.
 - Missing or unpublished posts are filtered out of the list. A missing comment
   removes its excerpt while retaining the history row and its missing-target
   conversation state; comment deletion semantics are unchanged.
+
+#### Notification retention
+
+- Read notifications expire 90 elapsed days after their first `readAt`;
+  unread notifications expire 730 elapsed days (two years) after `createdAt`.
+  Reading an old notification starts its full read-retention period. Repeated
+  read actions do not restart that clock.
+- Daily cleanup processes at most 100 rows per transaction and continues until
+  its fixed cutoff is exhausted. Removal normally happens within roughly a day
+  of expiry; scheduler delays or failed batches can take longer.
+- Expiring unread notifications decrements each recipient's badge in the same
+  transaction. Posts, comments, likes, and follows are preserved. No count limit
+  or user-facing retention notice is added.
+- Existing rows follow the policy on the next cleanup sweep; extending retention
+  cannot restore notifications already removed. Verification is recorded in
+  [notification retention evidence](docs/NOTIFICATIONS_EVIDENCE.md#notification-retention).
 
 ### Discover
 
