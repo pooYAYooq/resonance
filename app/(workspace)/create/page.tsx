@@ -1696,7 +1696,11 @@ function CreateEditor() {
             ? (sessionState.targetId as Id<"posts">)
             : draftId;
         const reservation = await reserveAttempt({
-          clientRequestId: crypto.randomUUID(),
+          // getRandomValues also works on HTTP LAN addresses used for phone previews.
+          clientRequestId: Array.from(
+            crypto.getRandomValues(new Uint8Array(16)),
+            (byte) => byte.toString(16).padStart(2, "0"),
+          ).join(""),
           operationKind,
           ...(operationTarget && { postId: operationTarget }),
           ...(sessionState.expectedUpdatedAt !== undefined && {

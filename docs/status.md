@@ -24,8 +24,9 @@ PR #117 baseline retains its own historical evidence.
 Review notification rows and actions with an account that has notification
 events, then confirm normal drawer exit and focus handoff on a physical phone.
 The empty-state and scroll-preservation check is in
-[notifications evidence](NOTIFICATIONS_EVIDENCE.md#drawer-visual-check). After
-relevant fixes,
+[notifications evidence](NOTIFICATIONS_EVIDENCE.md#drawer-visual-check). The
+phone-preview publishing retest remains open in
+[known limitations](KNOWN_LIMITATIONS.md#notifications). After relevant fixes,
 refresh affected verification and apply [the PR checklist](PR_CHECKLIST.md).
 Other username, profile, accessibility, and author-page gaps remain with their
 existing limitation records.

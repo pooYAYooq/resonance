@@ -76,6 +76,11 @@ Copy `.env.local.example` to `.env.local` and fill in:
 
 > **Note:** Also set `SITE_URL` and `BETTER_AUTH_SECRET` (32+ high-entropy characters) in the **Convex dashboard** environment variables (not `.env.local`) — `convex/auth.ts` and Better Auth read them from there.
 
+For phone testing over the local network, the optional Convex-side
+`AUTH_TRUSTED_ORIGINS` accepts additional exact origins, separated by commas.
+Keep `SITE_URL` unchanged and use email/password for that LAN preview; OAuth
+callbacks still use `SITE_URL`. See the example in [.env.local.example](.env.local.example).
+
 ### 3. Run the development server
 
 ```bash

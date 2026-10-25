@@ -293,6 +293,12 @@ likes on those owner comments. The final notification-count query returned
 48 unread notifications, zero read, and `truncated: false`. Test actors include
 both short and long display names. Later manual testing may change read state.
 
+The Wi-Fi HTTP preview exposed an authoring issue: `crypto.randomUUID` is
+undefined in that non-secure browser context, while `crypto.getRandomValues`
+is available. Publishing request IDs now use 128 random bits encoded as hex;
+the existing server contract requires a nonempty unique string, not UUID
+syntax. Phone UI publishing still needs a manual retest.
+
 ## Notification destinations from the editor
 
 Checked on 2026-10-23 in the uncommitted notification worktree. The earlier

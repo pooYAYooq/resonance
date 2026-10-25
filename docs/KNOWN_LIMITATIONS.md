@@ -16,6 +16,10 @@ evidence resolves them. The previous detailed delivery history remains in
   that animation, and current real-device layout still need acceptance. The
   existing Chromium checks and headless animation limitation are recorded in
   [focused comment verification](NOTIFICATIONS_EVIDENCE.md#focused-comment-destinations).
+- Creating a post from the phone's non-secure Wi-Fi preview still needs a manual
+  retest after the random request-ID repair. Fixture content and that narrow
+  environment issue are recorded in
+  [Phone Preview evidence](NOTIFICATIONS_EVIDENCE.md#phone-preview-fixture-account).
 
 ## Accessibility and responsive behavior
 

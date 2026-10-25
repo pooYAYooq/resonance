@@ -1393,13 +1393,14 @@ data because the existing server `fetchQuery` path is unauthenticated.
 
 ## Environment Variables
 
-| Variable                      | Where it lives            | Used by                                    |
-| ----------------------------- | ------------------------- | ------------------------------------------ |
-| `NEXT_PUBLIC_CONVEX_URL`      | Next.js `.env.local`      | `ConvexClientProvider`: WebSocket URL      |
-| `NEXT_PUBLIC_CONVEX_SITE_URL` | Next.js `.env.local`      | Points browser auth calls at Convex HTTP   |
-| `BETTER_AUTH_SECRET`          | Convex dashboard env vars | Better Auth session encryption (32+ chars) |
-| `NEXT_PUBLIC_SITE_URL`        | Next.js `.env.local`      | `metadataBase` / absolute OG image URLs    |
-| `SITE_URL`                    | Convex dashboard env vars | `convex/auth.ts`: Better Auth base URL     |
+| Variable                      | Where it lives            | Used by                                                                                   |
+| ----------------------------- | ------------------------- | ----------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_CONVEX_URL`      | Next.js `.env.local`      | `ConvexClientProvider`: WebSocket URL                                                     |
+| `NEXT_PUBLIC_CONVEX_SITE_URL` | Next.js `.env.local`      | Points browser auth calls at Convex HTTP                                                  |
+| `BETTER_AUTH_SECRET`          | Convex dashboard env vars | Better Auth session encryption (32+ chars)                                                |
+| `NEXT_PUBLIC_SITE_URL`        | Next.js `.env.local`      | `metadataBase` / absolute OG image URLs                                                   |
+| `SITE_URL`                    | Convex dashboard env vars | `convex/auth.ts`: Better Auth base URL                                                    |
+| `AUTH_TRUSTED_ORIGINS`        | Convex dashboard env vars | Optional comma-separated additional exact auth origins, such as a development LAN address |
 
 `NEXT_PUBLIC_*` variables are exposed to the browser bundle. `SITE_URL` and
 `BETTER_AUTH_SECRET` stay server-side inside Convex.
