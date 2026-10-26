@@ -105,12 +105,12 @@ Source: Track 4 in `FEATURES.md` at `46d26a3`, 3A.3 requirements, and decision
 
 Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 
-| ID    | Item                                             | Status | Estimate |
-| ----- | ------------------------------------------------ | ------ | -------- |
-| V1-17 | Stronger public profile identity and author work | Done   | M        |
-| V1-18 | Compact, actionable Notifications                | Done   | M        |
-| V1-19 | Saved and Liked collection presentation          | Todo   | S        |
-| V1-20 | Context-specific post-card variants              | Todo   | M        |
+| ID    | Item                                             | Status      | Estimate |
+| ----- | ------------------------------------------------ | ----------- | -------- |
+| V1-17 | Stronger public profile identity and author work | Done        | M        |
+| V1-18 | Compact, actionable Notifications                | In progress | M        |
+| V1-19 | Saved and Liked collection presentation          | Todo        | S        |
+| V1-20 | Context-specific post-card variants              | Todo        | M        |
 
 The approved public author page and its paged post catalogue are implemented and
 browser-verified on `feat/public-author-showcase`, recorded in
