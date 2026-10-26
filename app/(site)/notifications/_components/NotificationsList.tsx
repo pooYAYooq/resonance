@@ -189,8 +189,8 @@ export function NotificationsList({
 
   const handleDismissAll = (scope: DismissScope) => {
     void dismissAll({ scope }).catch(() => {
-      // Fire-and-forget: a failed sweep leaves the rows in place, and
-      // the reader can retry.
+      // A failed sweep leaves the rows in place; tell the reader to retry.
+      toast.error("Couldn't delete notifications. Please try again.");
     });
   };
 

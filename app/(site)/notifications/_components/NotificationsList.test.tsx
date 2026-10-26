@@ -1113,6 +1113,33 @@ describe("NotificationsList", () => {
       );
     });
 
+    it("shows an error toast when bulk deletion fails", async () => {
+      const user = userEvent.setup();
+      authenticated();
+      notificationCountsState.mockReturnValue({
+        total: 42,
+        read: 36,
+        unread: 6,
+        truncated: false,
+      });
+      useMutationMocks.dismissAll.mockRejectedValueOnce(new Error("failed"));
+      render(<NotificationsList />);
+
+      const menu = await openActionsMenu(user);
+      await user.click(
+        within(menu).getByRole("menuitem", { name: "Delete all" }),
+      );
+      const dialog = await screen.findByRole("alertdialog");
+
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+      await waitFor(() =>
+        expect(toastMock.error).toHaveBeenCalledWith(
+          "Couldn't delete notifications. Please try again.",
+        ),
+      );
+    });
+
     it("deletes the unread scope when selected", async () => {
       const user = userEvent.setup();
       authenticated();
