@@ -441,9 +441,13 @@ components/
     │
     ├── CommentSection.tsx
     │     Client component. Displays the paginated comment thread for a single
-    │     post and hosts the reply form. Uses usePaginatedQuery for "Load More"
-    │     support and useMutation to submit new ones. Form validation via
-    │     React Hook Form + Zod.
+    │     post and mounts the shared CommentComposer for replies. Uses
+    │     usePaginatedQuery for "Load More" support.
+    │
+    ├── CommentComposer.tsx
+    │     Shared post-level reply form used by CommentSection and
+    │     CommentDestination. Owns useMutation(api.comments.createComment),
+    │     React Hook Form + Zod validation, auth gating, and Sonner feedback.
     │
     ├── CommentCard.tsx
     │     Stateless display of a single comment. Shows author name,
@@ -1131,6 +1135,7 @@ Two distinct rendering patterns are used depending on what the page needs.
 │      │     .getCommentsByPostId) ─────────>│── reads comments     │
 │      │<── PaginationResult ─────────────── │   table (paged)      │
 │      │                                    │                      │
+│      │  CommentComposer submits replies   │                      │
 │      │── useMutation(api.comments         │                      │
 │      │     .createComment) ─────────────>│── writes to comments │
 │      │<── new comment ID ─────────────────│   (auth required)    │
@@ -1215,8 +1220,9 @@ deliberately does **not** fetch comments on the server. The page only passes
 the denormalized `post.commentCount` to `<CommentSection>` as
 `initialTotalCount`, and the client component takes it from there:
 `usePaginatedQuery(api.comments.getCommentsByPostId)` for the "Load More"
-list and `useMutation(api.comments.createComment)` for the submission form
-(React Hook Form + Zod validation). Trade-off: comments appear a beat after
+list. Replies are submitted by the shared `<CommentComposer>`, which owns
+`useMutation(api.comments.createComment)` and React Hook Form + Zod
+validation. Trade-off: comments appear a beat after
 the post content, but the list is live — new comments from other readers
 show up without a refresh, and pagination state stays entirely on the
 client. Comments are below the fold and not SEO-critical, so the extra
