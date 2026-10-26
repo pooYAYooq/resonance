@@ -319,7 +319,7 @@
   through the request's creation watermark in batches, preserving newer arrivals.
   Rows stay as visual history within the retention policy below, and focus
   returns to the named list region after the request succeeds.
-- The empty state explains what is missing and recovers to Discover
+- The empty state names the missing list and recovers to Discover
 - Deleting a post removes its notifications in the bounded post-deletion
   cascade, decrementing each unread row's counter exactly once.
 - Missing or unpublished posts are filtered out of the list. A missing comment

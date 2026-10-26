@@ -255,9 +255,6 @@ describe("NotificationsList", () => {
     render(<NotificationsList />);
 
     expect(screen.getByText("No notifications yet")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Likes, follows, and comments on your work/),
-    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute(
       "href",
       "/blog",
@@ -1049,7 +1046,7 @@ describe("NotificationsList", () => {
     });
   });
 
-  it("describes engagement in the empty state", () => {
+  it("omits redundant supporting copy in the empty state", () => {
     useConvexAuthState.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
@@ -1057,8 +1054,8 @@ describe("NotificationsList", () => {
 
     render(<NotificationsList />);
     expect(
-      screen.getByText(/Likes, follows, and comments on your work/),
-    ).toBeInTheDocument();
+      screen.queryByText(/Likes, follows, and comments on your work/),
+    ).not.toBeInTheDocument();
   });
 
   describe("delete all", () => {

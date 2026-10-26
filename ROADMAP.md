@@ -105,12 +105,12 @@ Source: Track 4 in `FEATURES.md` at `46d26a3`, 3A.3 requirements, and decision
 
 Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 
-| ID    | Item                                             | Status      | Estimate |
-| ----- | ------------------------------------------------ | ----------- | -------- |
-| V1-17 | Stronger public profile identity and author work | Done        | M        |
-| V1-18 | Compact, actionable Notifications                | In progress | M        |
-| V1-19 | Saved and Liked collection presentation          | Todo        | S        |
-| V1-20 | Context-specific post-card variants              | Todo        | M        |
+| ID    | Item                                             | Status | Estimate |
+| ----- | ------------------------------------------------ | ------ | -------- |
+| V1-17 | Stronger public profile identity and author work | Done   | M        |
+| V1-18 | Compact, actionable Notifications                | Done   | M        |
+| V1-19 | Saved and Liked collection presentation          | Todo   | S        |
+| V1-20 | Context-specific post-card variants              | Todo   | M        |
 
 The approved public author page and its paged post catalogue are implemented and
 browser-verified on `feat/public-author-showcase`, recorded in
@@ -136,9 +136,9 @@ focused comment destinations, scoped deletion, and
 scope amendment is recorded in
 [the decision log](docs/PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
 Maintainer-reported physical-phone acceptance closed the original three gaps at
-`aadb9c1`. The notification extension remains In progress for the review
-follow-up's targeted phone deletion/Undo retest; automated and browser-fixture
-results are in [current verification](docs/NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
+`aadb9c1`. The review follow-up's targeted phone deletion/Undo retest passed at
+merged main `96e200e`; automated and browser-fixture results are in
+[current verification](docs/NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
 
 ### Visual system and responsive polish
 

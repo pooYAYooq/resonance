@@ -5,14 +5,6 @@ priorities belong in [ROADMAP.md](../ROADMAP.md). Remove or revise entries when
 evidence resolves them. The previous detailed delivery history remains in
 [the PR #103 revision](https://github.com/pooYAYooq/resonance/blob/d2d5fed/docs/status.md).
 
-## Notifications
-
-- The review follow-up adds an in-drawer Undo recovery row. Its keyboard and
-  expiry behavior passed component and real-UI browser-fixture checks, but the
-  changed deletion/Undo flow still needs a targeted physical-phone retest.
-  The maintainer's earlier three-check acceptance at `aadb9c1` remains valid
-  for that revision; see [notification evidence](NOTIFICATIONS_EVIDENCE.md#review-regression-checks).
-
 ## Accessibility and responsive behavior
 
 - [Accessibility evidence](ACCESSIBILITY.md) covers the agreed keyboard scope

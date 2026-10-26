@@ -15,20 +15,19 @@ the approved scope amendment is in [the decision log](PHASE_3A_DECISIONS.md#enga
 The original three acceptance gaps were closed by the maintainer's
 physical-phone results at `aadb9c1`. Review follow-up repairs truncated deletion
 scopes, failed storage writes, modal Undo, hidden focus targets, bulk-delete
-feedback, and the bulk-delete scope refresh. Verification and the targeted
-retest for the changed deletion/Undo flow are recorded in
+feedback, and the bulk-delete scope refresh. The targeted phone deletion/Undo
+retest passed at merged main `96e200e`; verification is recorded in
 [notifications evidence](NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
 Earlier UI/navigation experiments and the integrated PR #117 baseline retain
 their own historical evidence.
 
 ## Next action
 
-Retest the drawer's changed deletion/Undo flow on a physical phone; see
-[known limitations](KNOWN_LIMITATIONS.md#notifications). After closing that gap,
-choose the next substantive delivery item from [the roadmap](../ROADMAP.md).
-Existing username, profile, accessibility, and author-page gaps remain with
-their [limitation records](KNOWN_LIMITATIONS.md). Changes affecting notifications
-reopen the relevant checks under the evidence document's retest triggers.
+Start V1-19, Saved and Liked collection presentation, from
+[the roadmap](../ROADMAP.md). Existing username, profile, accessibility, and
+author-page gaps remain with their [limitation records](KNOWN_LIMITATIONS.md).
+Changes affecting notifications reopen the relevant checks under the evidence
+document's retest triggers.
 
 ## Blockers and constraints
 
