@@ -57,6 +57,112 @@ behavioral failure.
 
 ## Results
 
+### Saved and Liked initial presentation (2026-10-26)
+
+Initial checks on `feat/saved-liked-collection-presentation`, based on `59c4f17`
+with uncommitted collection changes, using the T3 collaborative Chromium browser
+and the worktree's Next.js server on port 3001 against dev `woozy-spaniel-283`.
+This records an initial version, superseded by the final time-group presentation
+below.
+
+Current separate-page dashboard routing checks:
+
+- `/dashboard/saved` and `/dashboard/liked` rendered separate pages inside the
+  workspace shell, with their own titles, active navigation entries, and
+  inherited `noindex, nofollow` metadata. Neither rendered collection tabs.
+- Both pages passed the 375, 768, and 1280px light/dark browser matrix without
+  horizontal document overflow. Each showed three existing collection posts;
+  the posts and their saved/liked state were not changed.
+- `/saved` and `/liked` returned HTTP 307 redirects to their corresponding
+  dashboard pages. Fresh incognito visits reached login with the corresponding
+  dashboard path preserved in `returnTo`, without private post links rendering.
+- All 71 affected existing navigation, route-redirect, and section tests passed.
+  Lint, typecheck, and production build passed. At that time, new
+  presentation-specific UI tests were postponed. Browser mutation, empty
+  collections, and more-than-12-row pagination were not exercised in this pass.
+
+Earlier combined-dashboard checks (superseded by separate dashboard pages):
+
+- `/dashboard/collections` rendered inside the workspace shell. Both tabs were
+  inspected at 375, 768, and 1280px in light and dark, without horizontal
+  overflow. Only the active tab had mounted collection rows.
+- Clicking Liked selected it and added `?tab=liked`; switching back to Saved
+  removed that parameter. Browser Back restored Liked. Arrow keys moved tab
+  focus without selection; Enter activated the focused tab.
+- Direct `/saved` and `/liked` visits redirected to the corresponding dashboard
+  tab. A fresh incognito `/liked` visit reached login with
+  `/dashboard/collections?tab=liked` preserved in `returnTo`.
+- The combined navigation entry remained active in both contexts. The dashboard
+  metadata exposed `noindex, nofollow`. The existing navigation/collection tests
+  (69), redirect tests (2), and full component suite (1,052) passed. Lint,
+  typecheck, production build, changed-file formatting, and artifact checks also
+  passed for the dashboard revision. No new presentation-specific UI test
+  files were added.
+- Collection mutations, empty results, and more-than-12-row pagination were not
+  exercised in this browser pass. Their existing automated coverage remains;
+  visual acceptance is still open.
+
+Earlier separate-page checks, before the dashboard routing amendment:
+
+- Both populated collections were inspected at 375, 768, and 1280px in light
+  and dark. No horizontal document overflow occurred. The first two widths
+  use one column; 1280px uses two columns. Three existing posts were read;
+  their saves/likes were not changed.
+- The page titles and `noindex, nofollow` metadata matched each collection.
+  Toggle names included the post title and exposed `aria-pressed` state.
+  Title links, author links, comments, Like, and Save remain separate controls.
+  Keyboard traversal of a Saved row followed that order; links showed outlines
+  and toggles showed the application's solid focus border.
+- The real shared-toggle/list-hook component regressions and both collection
+  section suites passed in the targeted 177-test run, including removal and
+  pagination focus handoffs. Browser mutation/removal, empty collections, and
+  pagination with more than 12 rows were not exercised in this initial pass.
+- Fresh verification passed: `pnpm lint`, `pnpm exec tsc --noEmit`,
+  `pnpm test:ci` (898 tests), `pnpm test:component --maxWorkers=2` (1,052 tests),
+  `pnpm build`, formatting of changed files, and `pnpm check:artifacts`.
+  The earlier concurrent component run failed on outdated bookmark labels and
+  two authoring timeouts; label assertions were updated, and the bounded-worker
+  full rerun passed. Stale malformed Next.js dev type output was regenerated
+  before the passing typecheck/build; these are resolved setup failures.
+- At that time, new presentation-specific UI tests were postponed while the
+  design evolved; the final time-group presentation below adds them. Physical
+  touch, screen readers, and other browsers remain unverified. Repeat affected
+  checks after layout/action changes.
+
+### Saved and Liked time-group presentation (2026-10-27)
+
+Final collection checks on `feat/saved-liked-collection-presentation`, based on
+`59c4f17` with uncommitted changes, using the T3 collaborative Chromium browser
+and the worktree's Next.js server on port 3001 against dev `woozy-spaniel-283`.
+The maintainer approved the browser and keyboard-focus results.
+
+- At 320 and 341px, Saved and Liked use flat rows with no card chrome: a 3:2
+  cover (96 x 64), the byline after the title, one page-specific action, and a
+  divider between rows. Tags are hidden. No horizontal document overflow
+  occurred.
+- At 667 and 1079px the card surface uses one column; at 1280px it uses two
+  columns. Cards keep the 3:2 cover (112 x 74.66), tags under the cover,
+  the byline after the title, page-specific actions, and equal row heights.
+  Hover and focus-within use the same muted background as Notifications and My
+  Posts.
+- Relationship-time groups render in order: Today, Yesterday, Previous 7 days,
+  Previous 30 days, and Earlier. Headers use a left chevron, label, and 14px
+  loaded count. Expanded headers keep the muted background; collapsed groups
+  sit 16px apart. The preview showed Today 1 and Yesterday 2.
+- Collapsing Today set the header to `aria-expanded="false"`, hid its panel, and
+  left the two Yesterday cards visible. Expanding restored it. The header is a
+  native button with `aria-controls`; group headings are excluded from the list
+  focus fallback, so Load more and last-card restoration remain intact.
+- No saved/liked timestamp appears on a card. The time group is the only
+  visible time context. Collection search, filters, and exact timestamps remain
+  deferred.
+- Automated verification: time-group helper 4 tests; collection group-list and
+  card tests 9; Saved/Liked section suites 44; full component suite 1,061; edge
+  suite 902; lint, typecheck, build, formatting, and artifact checks passed.
+- Physical touch, real screen-reader sessions, and browsers other than Chromium
+  were not exercised in this pass. The grouping uses local time and loaded counts;
+  see [known limitations](KNOWN_LIMITATIONS.md).
+
 ### Required publication covers (2026-10-12)
 
 Incremental evidence on `feat/required-publication-covers`, based on `7decfa9`
@@ -245,7 +351,7 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
 - J2-Collections: after liking and saving two posts, removing an item moves
   focus to the same toggle action on the card that takes its place, or to the
   previous card when the removed one was last; removing the last item moves
-  focus to the empty state's Browse the Blog recovery link. A Load more page
+  focus to the empty state's Explore Discover recovery link. A Load more page
   that appends no visible posts keeps focus on the replacement pagination
   control, or moves it to the final card or the empty state when the list
   exhausts. Refilled pages and disabled successor controls are covered by
@@ -255,9 +361,11 @@ reason. Rows marked `Blocked - Not executed` are placeholders, not evidence.
   the focused Load more control's item count after reactive list changes.
   Component regression tests cover insertion and removal ahead of the same
   connected control in both collections; this is automated evidence, not a
-  new browser pass. This behavior applies to the current Liked/Saved design
-  and may need revisiting as those pages and their controls evolve; it does
-  not establish accessibility completion for their future designs.
+  new browser pass. The final time-group presentation retains this behavior,
+  uses one page-specific action per card, and excludes group headings from
+  fallback selection. Maintainer browser and keyboard acceptance is recorded
+  in the 2026-10-27 section above; physical touch and real screen readers remain
+  unverified.
 - Dark theme: post actions at 1280 and 375, the Feed empty state at 1280 and
   375, and the empty Liked and Saved states were re-verified with visible
   focus.
