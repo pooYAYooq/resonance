@@ -45,6 +45,30 @@ read, while visiting the list, opening the drawer or row menu, and bulk
 expansion do not. The retention amendment in 3A-034 remains unchanged. Email,
 push delivery, follower directories, and social activity feeds remain deferred.
 
+## Saved and Liked dashboard amendment (2026-10-26)
+
+The maintainer explicitly moved Saved and Liked into the dashboard while
+keeping separate pages and navigation destinations. Saved needs its own page
+for future collection organization; that feature is not implemented by this
+routing change. This supersedes 3A-008 and the reader-placement part of 3A-018.
+Existing Saved/Liked addresses redirect to the corresponding dashboard pages;
+they no longer render in the reader shell. [Features](../FEATURES.md#private-collections)
+owns current behavior. This does not reopen the deferred Dashboard Overview
+redesign or move other reader utilities.
+
+## Saved and Liked time-group presentation amendment (2026-10-27)
+
+The maintainer approved the final collection presentation on top of the separate
+dashboard pages. Saved and Liked group posts by relationship time into
+collapsible Today, Yesterday, Previous 7 days, Previous 30 days, and Earlier
+sections. Groups start expanded and show their currently loaded count; collapse
+state is per visit. Collection cards omit a per-post saved/liked timestamp.
+Tablet and desktop use 3:2 cards with tags under the cover; phones use flat rows
+without tags. Saved exposes only the bookmark action and Liked only the heart
+action. Collection search, filters, and exact timestamps remain deferred. This
+refines the 2026-10-26 routing amendment and does not change dashboard placement
+or reopen the deferred Dashboard Overview redesign.
+
 ## Decisions
 
 Dated entries retain their original rationale; amendments above take precedence.

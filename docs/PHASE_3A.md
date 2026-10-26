@@ -89,8 +89,9 @@ The remaining redesign is constrained by these repository facts:
 - `PostCard` currently combines a reusable hydrated post shape with one visual
   presentation. The data shape is a reusable seam; the universal visual card is
   not the target.
-- Liked and Saved both have authenticated, paginated reader collection access
-  paths. Collection presentation refinement remains part of Slice 4.
+- Liked and Saved both have authenticated, paginated dashboard collection access
+  paths. Their grouped, collapsible presentation is implemented; collection
+  search, filters, and exact timestamps remain deferred.
 - Post bodies are BlockNote JSON and tags are arrays. Search and topic browsing
   use dedicated bounded read models: `discoverPosts` for published-post search
   and Latest, `discoverPostTopics` for topic listings, and `topicStats` for
@@ -106,12 +107,12 @@ The remaining redesign is constrained by these repository facts:
 
 ### Route and Shell Model
 
-| Route group   | URLs                                                                                                  | Shell responsibility                                                                                                              |
-| ------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `(marketing)` | `/`                                                                                                   | Anonymous marketing Home, fuller marketing footer, auth-aware navbar. Authenticated `/` resolves directly to Dashboard.           |
-| `(site)`      | `/blog`, posts, profiles, `/profile/edit`, `/settings`, `/feed`, `/saved`, `/liked`, `/notifications` | Public and authenticated reader/site surfaces, global navbar, compact product footer.                                             |
-| `(workspace)` | `/dashboard/*`, `/create`                                                                             | Authenticated workspace shell, collapsible desktop sidebar, mobile drawer, workspace utility cluster, no global Navbar or Footer. |
-| `auth`        | `/auth/*`                                                                                             | Existing isolated authentication shell.                                                                                           |
+| Route group   | URLs                                                                              | Shell responsibility                                                                                                              |
+| ------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `(marketing)` | `/`                                                                               | Anonymous marketing Home, fuller marketing footer, auth-aware navbar. Authenticated `/` resolves directly to Dashboard.           |
+| `(site)`      | `/blog`, posts, profiles, `/profile/edit`, `/settings`, `/feed`, `/notifications` | Public and authenticated reader/site surfaces, global navbar, compact product footer.                                             |
+| `(workspace)` | `/dashboard/*`, `/create`                                                         | Authenticated workspace shell, collapsible desktop sidebar, mobile drawer, workspace utility cluster, no global Navbar or Footer. |
+| `auth`        | `/auth/*`                                                                         | Existing isolated authentication shell.                                                                                           |
 
 Route groups do not change the approved URLs. `/profile/edit` and `/settings`
 are authenticated site-shell surfaces, not workspace-mode pages.
@@ -226,6 +227,11 @@ tracked in [`../ROADMAP.md`](../ROADMAP.md).
 - Use **Saved** for intentionally bookmarked posts and **Liked** for posts the
   user has liked. Do not alternate among Reading List, Library, Bookmarks, and
   Saved for the same user-facing concept.
+- Saved and Liked group posts by when the reader saved or liked them, using
+  collapsible Today, Yesterday, Previous 7 days, Previous 30 days, and Earlier
+  sections. Groups start expanded and show their currently loaded count. Cards
+  do not show a per-post save/like timestamp; exact timestamps and collection
+  search or filters remain deferred.
 - Every empty state explains what is missing and offers one clear recovery
   action when an obvious next step exists. Feed and Notifications recover to
   Discover; this work belongs to their respective approved slices.
@@ -347,8 +353,9 @@ Slice 1 is complete only when all of these are observable:
   not an approved Dashboard Overview.
 - `/settings` contains Appearance and Account only. `/profile/edit` supports
   display name and bio, with provider avatar as context only.
-- `/saved` is the sole Saved route. `/liked` is an authenticated paginated
-  reader collection.
+- Saved and Liked have separate authenticated `/dashboard/saved` and
+  `/dashboard/liked` pages; `/saved` and `/liked` redirect to those pages. This supersedes the
+  original reader placement under the [dashboard collection amendment](PHASE_3A_DECISIONS.md#saved-and-liked-dashboard-amendment-2026-10-26).
 - Workspace navigation exposes Analytics at `/dashboard/analytics`, preserving
   its honest signed-in-unique-reader language.
 - Shared account actions and bell behavior are reusable across site/workspace

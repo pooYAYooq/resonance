@@ -72,6 +72,12 @@ resonance/
 │   │   │   ├── drafts/page.tsx # Full owner-scoped draft list.
 │   │   │   ├── published/page.tsx # Full current-author published list.
 │   │   │   ├── analytics/page.tsx # Private author analytics: summary cards and follower chart.
+│   │   │   ├── saved/
+│   │   │   │   ├── page.tsx    # Private Saved page under WorkspaceShell.
+│   │   │   │   └── _components/ # Paginated SavedSection, time grouping, and focus restoration.
+│   │   │   ├── liked/
+│   │   │   │   ├── page.tsx    # Private Liked page under WorkspaceShell.
+│   │   │   │   └── _components/ # Paginated LikedSection, time grouping, and focus restoration.
 │   │   │   └── _components/    # Dashboard overview previews and management sections.
 │   │   │       ├── DraftManagementRow.tsx # Responsive draft rows with cover and Resume/Delete.
 │   │   │       ├── PublishedRow.tsx     # Responsive published management presentation.
@@ -133,14 +139,8 @@ resonance/
 │   │   │   └── _components/
 │   │   │       └── FeedContent.tsx       # Client auth gate, fixed cutoff,
 │   │   │                                  # bounded cursor pagination + PostCard grid.
-│   │   ├── saved/
-│   │   │   ├── page.tsx        # Private reader collection of bookmarked posts.
-│   │   │   └── _components/
-│   │   │       └── SavedSection.tsx      # Client auth gate + pagination.
-│   │   ├── liked/
-│   │   │   ├── page.tsx        # Private reader collection of liked posts.
-│   │   │   └── _components/
-│   │   │       └── LikedSection.tsx      # Client auth gate + pagination.
+│   │   ├── saved/page.tsx    # Redirect to /dashboard/saved.
+│   │   ├── liked/page.tsx    # Redirect to /dashboard/liked.
 │   │   ├── profile/edit/
 │   │   │   ├── page.tsx          # Authenticated identity + selected-work editor.
 │   │   │   └── _components/      # Identity, country, username, and selected-work forms
@@ -195,6 +195,8 @@ resonance/
 │   │                           # author summary. Owns transactional author view/
 │   │                           # like counters and UTC daily follower-growth buckets;
 │   │                           # getSummary returns a dense trailing 30-day series.
+│   ├── postSummary.ts          # Shared post hydration and collection summary validator;
+│   │                           # addedAt comes from each bookmark/like record, not the post.
 │   ├── bookmarks.ts            # toggleBookmark (idempotent) + isBookmarked +
 │   │                           # getBookmarkedPosts (paginated). Private reading
 │   │                           # list — no denormalized counters. Mirrors likes
@@ -273,6 +275,11 @@ resonance/
 │       ├── PostCard.tsx         # Reusable post card with optional linked tags. Title is an <h2> so the
 │       │                        # page-level <h1> remains unique per page. Derives excerpts from
 │       │                        # stored bodies via lib/post-content so serialized JSON never leaks.
+│       ├── CollectionPostCard.tsx # Saved/Liked presentation: 3:2 cover, byline after
+│       │                         # title, tags under the cover, page-specific action,
+│       │                         # and a flat mobile row.
+│       ├── CollectionGroupList.tsx # Collapsible Today/Yesterday/rolling-window groups;
+│       │                         # left chevron, label, loaded count, and expanded surface.
 │       ├── CoverImage.tsx       # Shared cover: renders the resolved custom URL or a
 │       │                        # blank transparent fallback surface with a subtle
 │       │                        # bottom border. Cards, the reader, and Review agree;
@@ -345,6 +352,8 @@ resonance/
     ├── code-languages.ts       # Canonical code-block IDs, labels, aliases, and Shiki grammars.
     ├── safe-link.ts            # Shared http/https/mailto author-link validator.
     ├── cover.ts                # Shared cover URL resolver; null renders the blank fallback.
+    ├── collection-time-groups.ts # Rolling local-time buckets and labels for Saved/Liked.
+    ├── use-list-focus-restore.ts # Shared list focus restoration after removal or pagination.
     ├── profile-identity.ts     # Profile identity types, code-point limits, and normalizer.
     ├── profile-socials.ts      # Social platform allowlists and URL validation/canonicalization.
     ├── profile-joined-date.ts  # UTC calendar and relative join-date formatting.
@@ -514,12 +523,12 @@ app/
 ├── (site)/
 │   └── layout.tsx      Uses SiteShell with Navbar and the compact footer.
 │                       Owns public and authenticated reader routes: Blog,
-│                       Feed, Notifications, Profile, Saved, and Liked.
+│                       Feed, Notifications, and Profile; Saved/Liked aliases redirect.
 │
 ├── (workspace)/
 │   └── layout.tsx      WorkspaceShell owns the auth boundary and renders
 │                       the sidebar at md+ and the site Navbar below md around
-│                       /dashboard/* and /create, without a site Footer.
+│                       /dashboard/* (including collections) and /create, without a site Footer.
 │                       Review temporarily replaces both navigation surfaces.
 │
 └── auth/
@@ -827,9 +836,15 @@ states above the title.
   `deletePublishedPost` lifecycle through its parent. Deleting a pending update
   goes through `discardPendingPostEdit` and removes only the pending draft;
   deleting a published post also removes its pending draft when one exists.
-  `/saved` is the client-gated, paginated private reader
-  collection for bookmarks, and `/liked` is the equivalent collection for the
-  current user's liked posts. The deferred `/dashboard` root composes
+  `/dashboard/saved` and `/dashboard/liked` are separate client-gated,
+  paginated pages. Saved contains bookmarks, and Liked contains the current
+  user's liked posts. Each list groups relationship timestamps into collapsible
+  Today, Yesterday, Previous 7 days, Previous 30 days, and Earlier sections.
+  Group headings show a left chevron, label, and loaded count; collapse state is
+  local to the visit. Cards use a 3:2 cover, byline after the title, and tags
+  under the cover at `sm` and above; phones use flat rows without tags. Each
+  collection exposes only its own action (bookmark for Saved, heart for Liked).
+  The deferred `/dashboard` root composes
   independent, small previews of drafts and published posts and keeps each collection's
   loading and empty state local. Analytics lives separately at `/dashboard/analytics`.
   There is no public draft preview. Paragraph-inline images and general storage garbage
@@ -860,6 +875,9 @@ shared pending-deletion state owns each Undo callback so the toast and an
 in-drawer recovery row use the same lifecycle across list remounts. The global
 Sonner toast retains the deletion timer when the drawer closes. The shared
 list-focus hook excludes controls hidden by responsive layouts or ancestors.
+Collection group headings are also excluded from fallback and replacement
+selection, so pagination and removal keep focus on the Load more control or the
+last surviving card rather than jumping to a group heading.
 Destination links use normal Next routing while the drawer closes. There is
 no frozen DOM copy or custom body-scroll compensation. `NotificationLink`
 preserves native modifier clicks and authoring-exit guards, prefetches on
@@ -1261,8 +1279,9 @@ because each `imageStorageId` is unique — that one stays in the map.
 
 Discover uses `DiscoverPostSummary` because its editorial result presentation
 has a different density and metadata hierarchy from the universal `PostCard`.
-Feed, profile, saved, liked, and marketing consumers retain `PostCard` until
-their own context-specific work is scheduled. Shared data contracts and
+Feed, profile, and marketing consumers retain `PostCard` until their own
+context-specific work is scheduled. Saved and Liked use the collection-specific
+`CollectionPostCard` and collapsible time groups. Shared data contracts and
 primitives provide consistency without forcing every surface into one visual
 card.
 
@@ -1355,10 +1374,13 @@ server reads, which supplies `BookmarkButton` with the correct initial
 `isBookmarked` state. The client-side subscription remains necessary to
 reconcile private bookmark changes after browser authentication resolves.
 
-`/saved` is separately client-gated with `useConvexAuth` because its paginated
-bookmark query is private and reactive. The gate skips that browser query while
-authentication resolves or is anonymous, then redirects anonymous visitors; it
+`/dashboard/saved` and `/dashboard/liked` use the authenticated `WorkspaceShell`;
+each list gates its paginated query while authentication resolves, then
+redirects anonymous visitors. The bookmark query is private and reactive. The
+gate skips the browser query while authentication resolves or is anonymous; it
 does not replace the server-side `fetchAuthQuery` used for initial page data.
+Collection relationship timestamps are grouped on the client into rolling local
+time buckets. The card display does not include a per-post timestamp.
 
 This decision does not introduce a `bookmarksCount` counter on `users` or
 `posts` (bookmarks are private), and it does not add a `by_postId` index
