@@ -600,4 +600,95 @@ describe("comments functions", () => {
     expect(result.page[0].likeCount).toBe(3);
     expect(result.page[0].isLiked).toBe(false);
   });
+
+  it("notifies the post author with one row per comment", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "commenter@example.com",
+    );
+    const postId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "author-1",
+        displayName: "Author",
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      return await ctx.db.insert("posts", {
+        title: "Target",
+        body: "Body.",
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.comments.createComment, { postId, body: "First" });
+    await t
+      .withIdentity(identity)
+      .mutation(api.comments.createComment, { postId, body: "Second" });
+
+    const rows = await t.run((ctx) => ctx.db.query("notifications").collect());
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row).toMatchObject({
+        recipientId: "author-1",
+        actorId: identity.subject,
+        type: "comment",
+        postId,
+      });
+    }
+  });
+
+  it("does not notify an author who comments on their own post", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "self-commenter@example.com",
+    );
+    const postId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Self",
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      return await ctx.db.insert("posts", {
+        title: "Own",
+        body: "Body.",
+        tags: [],
+        authorId: identity.subject,
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.comments.createComment, { postId, body: "Mine" });
+
+    expect(
+      await t.run((ctx) => ctx.db.query("notifications").collect()),
+    ).toHaveLength(0);
+    const author = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+    );
+    expect(author?.unreadNotificationCount).toBe(0);
+  });
 });

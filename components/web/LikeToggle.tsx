@@ -95,6 +95,7 @@ export function LikeToggle({
       size={presentation === "reader" ? "lg" : size}
       onClick={handleClick}
       disabled={isLoading}
+      className="disabled:opacity-100"
       aria-disabled={isPending || isLoading}
       aria-label={
         presentation === "reader"

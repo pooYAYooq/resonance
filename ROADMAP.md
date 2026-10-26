@@ -105,12 +105,12 @@ Source: Track 4 in `FEATURES.md` at `46d26a3`, 3A.3 requirements, and decision
 
 Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 
-| ID    | Item                                             | Status | Estimate |
-| ----- | ------------------------------------------------ | ------ | -------- |
-| V1-17 | Stronger public profile identity and author work | Done   | M        |
-| V1-18 | Compact, actionable Notifications                | Done   | M        |
-| V1-19 | Saved and Liked collection presentation          | Todo   | S        |
-| V1-20 | Context-specific post-card variants              | Todo   | M        |
+| ID    | Item                                             | Status      | Estimate |
+| ----- | ------------------------------------------------ | ----------- | -------- |
+| V1-17 | Stronger public profile identity and author work | Done        | M        |
+| V1-18 | Compact, actionable Notifications                | In progress | M        |
+| V1-19 | Saved and Liked collection presentation          | Todo        | S        |
+| V1-20 | Context-specific post-card variants              | Todo        | M        |
 
 The approved public author page and its paged post catalogue are implemented and
 browser-verified on `feat/public-author-showcase`, recorded in
@@ -127,12 +127,18 @@ real-runtime stress matrix, and the deletion-cascade limitation stay visible in
 [known limitations](docs/KNOWN_LIMITATIONS.md). V1-20 context-specific post-card
 variants are untouched.
 
-Compact, actionable notifications are integrated on main as PR #117, recorded
-in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md): persistent
-per-row read state with the owner-scoped `markRead`, a visible New marker on
-unread rows, Mark all read with focus return, and Discover recovery from the
-empty state. The pass also fixed the bell's unread badge anchor. The retention
-gap stays recorded in [known limitations](docs/KNOWN_LIMITATIONS.md).
+The compact-notification baseline was integrated as PR #117; its dated
+results remain in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md#earlier-compact-notification-verification).
+The current revision extends that baseline with transactional engagement
+events, a page-preserving drawer, responsive actionable rows, saved expansion,
+focused comment destinations, scoped deletion, and
+[notification retention](FEATURES.md#notification-retention). The approved
+scope amendment is recorded in
+[the decision log](docs/PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
+Maintainer-reported physical-phone acceptance closed the original three gaps at
+`aadb9c1`. The notification extension remains In progress for the review
+follow-up's targeted phone deletion/Undo retest; automated and browser-fixture
+results are in [current verification](docs/NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
 
 ### Visual system and responsive polish
 

@@ -6,6 +6,28 @@ import type { RefObject } from "react";
 const FOCUSABLE_SELECTOR = "button:not([disabled]), a[href]";
 const TOGGLE_SELECTOR = "button[aria-pressed]";
 
+function isVisible(control: HTMLElement): boolean {
+  if (["hidden", "collapse"].includes(getComputedStyle(control).visibility)) {
+    return false;
+  }
+  for (
+    let node: HTMLElement | null = control;
+    node;
+    node = node.parentElement
+  ) {
+    if (node.hidden || getComputedStyle(node).display === "none") return false;
+  }
+  return true;
+}
+
+function firstVisibleControl(root: HTMLElement): HTMLElement | null {
+  return (
+    Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
+      isVisible,
+    ) ?? null
+  );
+}
+
 /**
  * Restores keyboard focus after a list item is removed.
  *
@@ -124,6 +146,13 @@ export function useListFocusRestore(
     };
     root.addEventListener("focusout", onFocusOut);
 
+    // React autofocus can run before this effect subscribes, including an
+    // Undo control restored when the drawer remounts during its Undo window.
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && root.contains(active)) {
+      trackControl(active);
+    }
+
     const focused = focusedRef.current;
     if (focused && focused.isConnected && root.contains(focused)) {
       // Keyed cards can move without another focusin event. Keep their latest
@@ -155,22 +184,23 @@ export function useListFocusRestore(
               const recordedToggle = Array.from(
                 item.querySelectorAll<HTMLElement>(TOGGLE_SELECTOR),
               )[toggleIndex];
-              if (recordedToggle && !recordedToggle.hasAttribute("disabled")) {
+              if (
+                recordedToggle &&
+                !recordedToggle.hasAttribute("disabled") &&
+                isVisible(recordedToggle)
+              ) {
                 target = recordedToggle;
               }
             }
-            target ??= item.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+            target ??= firstVisibleControl(item);
           } else {
-            target =
-              root.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? root;
+            target = firstVisibleControl(root) ?? root;
           }
 
           target?.focus();
         } else if (outsideItemCount !== null) {
           if (items.length > outsideItemCount) {
-            items[outsideItemCount]
-              .querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
-              ?.focus();
+            firstVisibleControl(items[outsideItemCount])?.focus();
           } else if (!pending) {
             // The request settled without appending a visible item, such as
             // a page containing only deleted or unpublished posts. Focus the
@@ -179,13 +209,13 @@ export function useListFocusRestore(
             // exhausted list has no trailing control left.
             const replacement = Array.from(
               root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-            ).find((control) => !control.closest(itemSelector));
+            ).find(
+              (control) => !control.closest(itemSelector) && isVisible(control),
+            );
             if (replacement) {
               replacement.focus();
             } else if (items.length > 0) {
-              items[items.length - 1]
-                .querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
-                ?.focus();
+              firstVisibleControl(items[items.length - 1])?.focus();
             } else {
               // An empty list may have no recovery action. Consumers can make
               // its named context focusable without adding a new tab stop.

@@ -27,6 +27,20 @@ crons.interval(
 );
 
 crons.interval(
+  "daily notification read cleanup",
+  { hours: 24 },
+  internal.notifications.pruneReadNotifications,
+  { cursor: null },
+);
+
+crons.interval(
+  "daily notification unread cleanup",
+  { hours: 24 },
+  internal.notifications.pruneUnreadNotifications,
+  { cursor: null },
+);
+
+crons.interval(
   "pending inline upload cleanup",
   { minutes: 15 },
   internal.pendingUploads.cleanupExpired,

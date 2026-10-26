@@ -246,10 +246,12 @@ tracked in [`../ROADMAP.md`](../ROADMAP.md).
 - Settings owns product/account configuration. V1 provides only Appearance
   (Light, Dark, System through existing `next-themes`) and Account context with
   Sign Out.
-- Notifications remain compact and actionable. Preserve publication/follow
-  notifications, direct links to the relevant content, visible read/unread
-  state, and Discover recovery when empty. Do not add taxonomy, email, or push
-  systems.
+- Notifications remain compact and actionable, with direct content links,
+  visible read/unread state, and Discover recovery when empty. The approved
+  [engagement amendment](PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26)
+  replaces the original publication-notification requirement and expansion
+  deferral. [Features](../FEATURES.md#notifications) owns current event types,
+  drawer/row behavior, and retention. Email and push systems remain deferred.
 
 ### Discover and Feed
 
@@ -309,7 +311,7 @@ tracked in [`../ROADMAP.md`](../ROADMAP.md).
 | 1. Product Structure                   | Coherent shells/navigation, reader utilities, Settings/Profile split, and analytics relocation. | 3A.1 plus Saved/Liked data foundations needed for navigation. | A sidebar cannot expose working reader utilities until their routes/access paths exist. The shell boundary must be established once. | Dashboard Overview redesign, final card variants, Discover, writing redesign.                                                            |
 | 2. Discover Foundations                | Real Search, Latest, Topics, and Feed recovery to Discover.                                     | 3A.2 with editorial post presentation foundations.            | Search, topic browsing, result pagination, cards, and empty states form one honest discovery loop.                                   | Hot implementation until its formula/time window is defined.                                                                             |
 | 3. Writing and Content Management      | Writing environment, review/publish completion, management rows, and deletion UI.               | 3A.3 plus My Posts dependencies.                              | Create/Edit, Drafts, My Posts, publishing, and deletion confirmation are one author lifecycle.                                       | Server autosave, revision history, unpublish, and detailed editor-layout decisions. Track 1 baseline shipped in PR #72; follow-ups open. |
-| 4. Identity and Engagement Surfaces    | Stronger profiles, actionable Notifications, and compact collection presentations.              | 3A.4 with shared page-state work from 3A.5.                   | These surfaces support the reader-to-author loop and must use consistent recovery, loading, and collection behavior.                 | Follower directories, activity feeds, notification expansion.                                                                            |
+| 4. Identity and Engagement Surfaces    | Stronger profiles, actionable Notifications, and compact collection presentations.              | 3A.4 with shared page-state work from 3A.5.                   | These surfaces support the reader-to-author loop and must use consistent recovery, loading, and collection behavior.                 | Follower directories and activity feeds; notification expansion is approved by the engagement amendment.                                 |
 | 5. Visual System and Responsive Polish | Deliberate Resonance visual system and final interaction polish.                                | 3A.5 across shipped surfaces.                                 | A durable visual system depends on settled page responsibilities and component families.                                             | New product infrastructure.                                                                                                              |
 
 ## Sequencing Rules

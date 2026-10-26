@@ -88,7 +88,10 @@ export default async function ProfileRoute({ params }: ProfileRouteProps) {
   });
 
   return (
-    <div className="py-10 md:py-12">
+    <div
+      data-notification-destination={`/u/${username}`}
+      className="py-10 md:py-12"
+    >
       <AuthorProfile
         initialIdentity={identity}
         initialViewer={{

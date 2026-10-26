@@ -12,6 +12,14 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Focused comment destinations from notifications show the selected comment
+  directly, with nearby context, shared reply controls, and a full-article link.
+- Engagement notifications for follows, post likes, comments, and comment likes,
+  with direct actor/content links, follow-back actions, per-row Undo deletion,
+  and confirmed bulk deletion by read state.
+- The navbar bell opens a notification drawer without leaving the current page.
+  Mobile rows show details directly; larger screens retain independently saved
+  expansion and one Expand all/Collapse all toggle.
 - Username ownership at `/profile/edit`: a dedicated editor claims a username
   through its own Save username action, separate from the page-header Save.
   Claimed lowercase names are owned permanently, including after a rename, and a
@@ -109,11 +117,19 @@ work is tracked in `ROADMAP.md`.
 
 ### Changed
 
-- Notifications are compact and actionable: unread rows show a New marker,
-  opening a post marks just that notification read, Mark all read clears the
-  rest, and the empty state recovers to Discover. Visiting the page no longer
-  clears unread state, and deleting a post keeps the unread counter consistent
-  through the existing bounded cascade.
+- Keep read notifications for 90 days after reading and unread notifications
+  for two years, with daily cleanup that keeps unread badges accurate.
+- Follow notifications allow one delivery per follower and recipient every
+  seven days. A later follow can create a fresh unread notification while
+  preserving earlier history; repeated attempts do not delay eligibility.
+- Notifications now represent engagement rather than new-post publication
+  fan-out; publishing still updates followers' reader feeds.
+- Unread notifications use a subtle row background and a dot beside the time.
+  Row interaction marks that notification read; visiting the list or opening
+  its drawer, row menu, or bulk expansion controls leaves read state unchanged.
+  Mark all as read lives in the toolbar overflow menu. The empty state recovers
+  to Discover, and post deletion keeps unread counters consistent through the
+  existing bounded cascade.
 - Upgraded the pinned Convex dependency from 1.34.0 to 1.46.0 so the installed
   CLI and runtime match the generated AI guidance, which targets 1.44.0 or
   newer. Refreshing the managed AI files restores the upstream

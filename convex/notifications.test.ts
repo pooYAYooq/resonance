@@ -1,40 +1,73 @@
 /**
  * Unit tests for Convex notifications queries and mutations.
  *
- * Auth-path tests (fan-out row inserts, getNotifications auth-then-
- * paginate, markAllRead reset) are limited because convex-test cannot
- * mock the Better Auth component that `safeGetAuthUser` walks
- * (`convex/users.test.ts:1-7`, `convex/follows.test.ts:1-11`). These
- * are covered by manual testing and code inspection of
- * `notifications.ts`. Here we cover:
+ * Auth-path tests use the local Better Auth fixture from
+ * `likes.test.ts`: `register(t)` wires the component, then the helper
+ * creates a user and session that `safeGetAuthUser` can resolve. Here
+ * we cover:
  *
  *  - The unauthenticated rejection path for `markAllRead`.
  *  - The no-auth query short-circuits for `getUnreadCount` and
  *    `getNotifications` (return 0 / empty page, do NOT throw).
- *  - The `fanOutForPost` internal mutation: inserts one
- *    `notifications` row per follower, bumps the denormalized
- *    counter on each recipient's `users` doc, and self-schedules a
- *    continuation when a batch is full (verified via
- *    convex-test's `finishAllScheduledFunctions(vi.runAllTimers)`).
+ *  - The bounded read transition helpers (`applyMarkRead`,
+ *    `applyReadBatch`) and `markReadBatch` continuations.
+ *  - The authenticated `getNotifications` hydration path.
  *
- * The `getNotifications` auth-paginated hydration path is covered by
- * manual testing; the no-auth empty-page behavior is the
- * client-mount-safety contract.
+ * The no-auth empty-page behavior is the client-mount-safety contract.
  */
 
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
+import { register } from "@convex-dev/better-auth/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, internal } from "./_generated/api";
+import { api, components, internal } from "./_generated/api";
 import schema from "./schema";
 import {
   applyMarkRead,
   applyReadBatch,
-  FANOUT_BATCH_SIZE,
+  READ_RETENTION_MS,
 } from "./notifications";
 
 const modules = import.meta.glob("./**/*.ts");
+
+async function createAuthenticatedTestUser(
+  t: ReturnType<typeof convexTest>,
+  email: string,
+) {
+  register(t);
+  return await t.run(async (ctx) => {
+    const now = Date.now();
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Viewer",
+          email,
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: `session-${email}`,
+            expiresAt: now + 60_000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+}
 
 describe("notifications functions", () => {
   beforeEach(() => {
@@ -75,6 +108,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -121,12 +156,16 @@ describe("notifications functions", () => {
         await ctx.db.insert("notifications", {
           recipientId: "other",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
         const notificationId = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 2,
         });
@@ -197,6 +236,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -241,6 +282,8 @@ describe("notifications functions", () => {
         const id = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -271,6 +314,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader-without-profile",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -315,6 +360,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -366,6 +413,8 @@ describe("notifications functions", () => {
         return ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
@@ -412,291 +461,6 @@ describe("notifications functions", () => {
     });
   });
 
-  describe("fanOutForPost (internal)", () => {
-    it("inserts one notification per follower and bumps each recipient's counter", async () => {
-      const t = convexTest(schema, modules);
-
-      const { postId, authorId } = await t.run(async (ctx) => {
-        const postId = await ctx.db.insert("posts", {
-          title: "New post",
-          body: "Body.",
-          tags: [],
-          authorId: "author-1",
-          status: "published",
-          commentCount: 0,
-          likeCount: 0,
-          uniqueViewCount: 0,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-        for (const followerId of ["follower-1", "follower-2", "follower-3"]) {
-          await ctx.db.insert("users", {
-            userId: followerId,
-            displayName: followerId,
-            followerCount: 0,
-            followingCount: 0,
-            publishedPostCount: 0,
-            unreadNotificationCount: 0,
-            createdAt: Date.now(),
-          });
-          await ctx.db.insert("follows", {
-            followerId,
-            followingId: "author-1",
-            createdAt: Date.now(),
-          });
-        }
-        return { postId, authorId: "author-1" };
-      });
-
-      const result = await t.mutation(internal.notifications.fanOutForPost, {
-        postId,
-        authorId,
-        paginationOpts: { numItems: 200, cursor: null },
-      });
-      expect(result).toEqual({ done: true, processed: 3 });
-
-      const notifications = await t.run(async (ctx) =>
-        ctx.db.query("notifications").collect(),
-      );
-      expect(notifications).toHaveLength(3);
-      expect(
-        notifications.every(
-          (n) => n.postId === postId && n.actorId === "author-1",
-        ),
-      ).toBe(true);
-      const recipientIds = notifications.map((n) => n.recipientId).sort();
-      expect(recipientIds).toEqual(["follower-1", "follower-2", "follower-3"]);
-
-      const counters = await t.run(async (ctx) => {
-        const out: Record<string, number> = {};
-        for (const id of ["follower-1", "follower-2", "follower-3"]) {
-          const u = await ctx.db
-            .query("users")
-            .withIndex("by_userId", (q) => q.eq("userId", id))
-            .unique();
-          out[id] = u?.unreadNotificationCount ?? 0;
-        }
-        return out;
-      });
-      expect(counters).toEqual({
-        "follower-1": 1,
-        "follower-2": 1,
-        "follower-3": 1,
-      });
-    });
-
-    it("does not duplicate notifications or unread counts when retried", async () => {
-      const t = convexTest(schema, modules);
-
-      const { postId } = await t.run(async (ctx) => {
-        const postId = await ctx.db.insert("posts", {
-          title: "Retried post",
-          body: "Body.",
-          tags: [],
-          authorId: "author-1",
-          status: "published",
-          publishedAt: Date.now(),
-          commentCount: 0,
-          likeCount: 0,
-          uniqueViewCount: 0,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-        await ctx.db.insert("users", {
-          userId: "follower-1",
-          displayName: "Follower",
-          followerCount: 0,
-          followingCount: 0,
-          publishedPostCount: 0,
-          unreadNotificationCount: 0,
-          createdAt: Date.now(),
-        });
-        await ctx.db.insert("follows", {
-          followerId: "follower-1",
-          followingId: "author-1",
-          createdAt: Date.now(),
-        });
-        return { postId };
-      });
-
-      const args = {
-        postId,
-        authorId: "author-1",
-        paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
-      };
-      await t.mutation(internal.notifications.fanOutForPost, args);
-      await t.mutation(internal.notifications.fanOutForPost, args);
-
-      const state = await t.run(async (ctx) => {
-        const notifications = await ctx.db.query("notifications").collect();
-        const user = await ctx.db
-          .query("users")
-          .withIndex("by_userId", (q) => q.eq("userId", "follower-1"))
-          .unique();
-        return {
-          notifications,
-          unreadNotificationCount: user?.unreadNotificationCount,
-        };
-      });
-
-      expect(state.notifications).toHaveLength(1);
-      expect(state.unreadNotificationCount).toBe(1);
-    });
-
-    it("does not fan out a draft post", async () => {
-      const t = convexTest(schema, modules);
-
-      const postId = await t.run(async (ctx) => {
-        const postId = await ctx.db.insert("posts", {
-          title: "Draft post",
-          body: "Body.",
-          tags: [],
-          authorId: "author-1",
-          status: "draft",
-          commentCount: 0,
-          likeCount: 0,
-          uniqueViewCount: 0,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-        await ctx.db.insert("follows", {
-          followerId: "follower-1",
-          followingId: "author-1",
-          createdAt: Date.now(),
-        });
-        return postId;
-      });
-
-      const result = await t.mutation(internal.notifications.fanOutForPost, {
-        postId,
-        authorId: "author-1",
-        paginationOpts: { numItems: FANOUT_BATCH_SIZE, cursor: null },
-      });
-
-      expect(result).toEqual({ done: true, processed: 0 });
-      await expect(
-        t.run(async (ctx) => ctx.db.query("notifications").collect()),
-      ).resolves.toEqual([]);
-    });
-
-    it("inserts a notification even when the recipient's users doc is missing (AuthSync race)", async () => {
-      const t = convexTest(schema, modules);
-
-      const { postId, authorId } = await t.run(async (ctx) => {
-        const postId = await ctx.db.insert("posts", {
-          title: "New post",
-          body: "Body.",
-          tags: [],
-          authorId: "author-1",
-          status: "published",
-          commentCount: 0,
-          likeCount: 0,
-          uniqueViewCount: 0,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-        await ctx.db.insert("follows", {
-          followerId: "follower-racy",
-          followingId: "author-1",
-          createdAt: Date.now(),
-        });
-        return { postId, authorId: "author-1" };
-      });
-
-      const result = await t.mutation(internal.notifications.fanOutForPost, {
-        postId,
-        authorId,
-        paginationOpts: { numItems: 200, cursor: null },
-      });
-      expect(result).toEqual({ done: true, processed: 1 });
-
-      const notifications = await t.run(async (ctx) =>
-        ctx.db.query("notifications").collect(),
-      );
-      expect(notifications).toHaveLength(1);
-      expect(notifications[0].recipientId).toBe("follower-racy");
-    });
-
-    it("schedules a continuation when the batch is full, processing the remaining rows on resume", async () => {
-      const t = convexTest(schema, modules);
-
-      const { postId, authorId } = await t.run(async (ctx) => {
-        const postId = await ctx.db.insert("posts", {
-          title: "Big-fanout post",
-          body: "Body.",
-          tags: [],
-          authorId: "popular-author",
-          status: "published",
-          commentCount: 0,
-          likeCount: 0,
-          uniqueViewCount: 0,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-
-        const lastTs = Date.now();
-        for (let i = 0; i < 201; i++) {
-          await ctx.db.insert("follows", {
-            followerId: `follower-${i}`,
-            followingId: "popular-author",
-            createdAt: lastTs + i,
-          });
-        }
-        return { postId, authorId: "popular-author" };
-      });
-
-      const first = await t.mutation(internal.notifications.fanOutForPost, {
-        postId,
-        authorId,
-        paginationOpts: { numItems: 200, cursor: null },
-      });
-      expect(first).toEqual({ done: false, processed: 200 });
-
-      await t.finishAllScheduledFunctions(vi.runAllTimers);
-
-      const notifications = await t.run(async (ctx) =>
-        ctx.db.query("notifications").collect(),
-      );
-      expect(notifications).toHaveLength(201);
-      const recipientIds = new Set(notifications.map((n) => n.recipientId));
-      expect(recipientIds.size).toBe(201);
-    });
-
-    it("returns done: true and processes all rows in a single batch when followers fit", async () => {
-      const t = convexTest(schema, modules);
-
-      const { postId, authorId } = await t.run(async (ctx) => {
-        const postId = await ctx.db.insert("posts", {
-          title: "Small-fanout post",
-          body: "Body.",
-          tags: [],
-          authorId: "small-author",
-          status: "published",
-          commentCount: 0,
-          likeCount: 0,
-          uniqueViewCount: 0,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-        for (let i = 0; i < 5; i++) {
-          await ctx.db.insert("follows", {
-            followerId: `follower-${i}`,
-            followingId: "small-author",
-            createdAt: Date.now() + i,
-          });
-        }
-        return { postId, authorId: "small-author" };
-      });
-
-      const result = await t.mutation(internal.notifications.fanOutForPost, {
-        postId,
-        authorId,
-        paginationOpts: { numItems: 200, cursor: null },
-      });
-      expect(result).toEqual({ done: true, processed: 5 });
-    });
-  });
-
   describe("markReadBatch (internal)", () => {
     it("marks a bounded read snapshot idempotently without touching unrelated notifications", async () => {
       const t = convexTest(schema, modules);
@@ -731,6 +495,8 @@ describe("notifications functions", () => {
           await ctx.db.insert("notifications", {
             recipientId: "reader",
             actorId: "author-1",
+            type: "post_like",
+            dedupeKey: `post_like:${targetPostId}`,
             postId: targetPostId,
             createdAt: i + 1,
           });
@@ -738,6 +504,8 @@ describe("notifications functions", () => {
         const unrelatedId = await ctx.db.insert("notifications", {
           recipientId: "other-reader",
           actorId: "author-2",
+          type: "post_like",
+          dedupeKey: `post_like:${unrelatedPostId}`,
           postId: unrelatedPostId,
           createdAt: 1,
         });
@@ -801,12 +569,16 @@ describe("notifications functions", () => {
         await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
         await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 2,
           readAt: 1,
@@ -814,6 +586,8 @@ describe("notifications functions", () => {
         await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 3,
         });
@@ -874,6 +648,8 @@ describe("notifications functions", () => {
         await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 10,
         });
@@ -962,12 +738,16 @@ describe("notifications functions", () => {
         const old1 = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 1,
         });
         const old2 = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
           postId,
           createdAt: 2,
         });
@@ -989,6 +769,8 @@ describe("notifications functions", () => {
         const newId = await ctx.db.insert("notifications", {
           recipientId: "reader",
           actorId: "author-1",
+          type: "post_like",
+          dedupeKey: `post_like:${seed.postId}`,
           postId: seed.postId,
           createdAt: 10,
         });
@@ -1034,5 +816,714 @@ describe("notifications functions", () => {
       expect(state.old1ReadAt).toBe(5);
       expect(state.old2ReadAt).toBe(6);
     });
+  });
+
+  it("returns mixed row types newest first and keeps follow rows", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "reader@example.com");
+    const { postId, commentId } = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      await ctx.db.insert("users", {
+        userId: "actor-1",
+        displayName: "Actor",
+        username: "actor",
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      const postId = await ctx.db.insert("posts", {
+        title: "A post",
+        body: "Body.",
+        tags: [],
+        authorId: identity.subject,
+        status: "published",
+        commentCount: 1,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const commentId = await ctx.db.insert("comments", {
+        postId,
+        authorId: identity.subject,
+        authorName: "Reader",
+        body: "  a   long   comment  ",
+        likeCount: 0,
+        createdAt: 1,
+      });
+      await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-1",
+        type: "follow",
+        dedupeKey: "follow:actor-1",
+        createdAt: 1,
+      });
+      await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-1",
+        type: "post_like",
+        dedupeKey: `post_like:${postId}`,
+        postId,
+        createdAt: 2,
+      });
+      await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-1",
+        type: "comment",
+        dedupeKey: `comment:${commentId}`,
+        postId,
+        commentId,
+        createdAt: 3,
+      });
+      return { postId, commentId };
+    });
+
+    const result = await t
+      .withIdentity(identity)
+      .query(api.notifications.getNotifications, {
+        paginationOpts: { numItems: 10, cursor: null },
+      });
+
+    expect(result.page.map((row) => row.type)).toEqual([
+      "comment",
+      "post_like",
+      "follow",
+    ]);
+    expect(result.page[0]).toMatchObject({
+      type: "comment",
+      postId,
+      commentId,
+      postTitle: "A post",
+      excerpt: "a long comment",
+      actorName: "Actor",
+    });
+    expect(result.page[2]).toMatchObject({ type: "follow" });
+    expect(result.page[2]).not.toHaveProperty("postTitle");
+  });
+
+  it("hydrates both actors when two people act on the same post", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "two-actors@example.com",
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      for (const [userId, displayName] of [
+        ["actor-1", "First Actor"],
+        ["actor-2", "Second Actor"],
+      ] as const) {
+        await ctx.db.insert("users", {
+          userId,
+          displayName,
+          publishedPostCount: 0,
+          unreadNotificationCount: 0,
+          createdAt: 1,
+        });
+      }
+      const postId = await ctx.db.insert("posts", {
+        title: "A post",
+        body: "Body.",
+        tags: [],
+        authorId: identity.subject,
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      for (const [i, actorId] of ["actor-1", "actor-2"].entries()) {
+        await ctx.db.insert("notifications", {
+          recipientId: identity.subject,
+          actorId,
+          type: "post_like",
+          dedupeKey: `post_like:${postId}`,
+          postId,
+          createdAt: i + 1,
+        });
+      }
+    });
+
+    const result = await t
+      .withIdentity(identity)
+      .query(api.notifications.getNotifications, {
+        paginationOpts: { numItems: 10, cursor: null },
+      });
+
+    expect(result.page).toHaveLength(2);
+    expect(result.page.map((row) => row.actorName)).toEqual([
+      "Second Actor",
+      "First Actor",
+    ]);
+  });
+
+  it("paginates mixed types across cursors without dropping rows", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "pager@example.com");
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 1,
+        unreadNotificationCount: 3,
+        createdAt: 1,
+      });
+      const postId = await ctx.db.insert("posts", {
+        title: "A post",
+        body: "Body.",
+        tags: [],
+        authorId: identity.subject,
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-follow",
+        type: "follow",
+        dedupeKey: "follow:actor-follow",
+        createdAt: 1,
+      });
+      await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-like",
+        type: "post_like",
+        dedupeKey: `post_like:${postId}`,
+        postId,
+        createdAt: 2,
+      });
+      await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-comment",
+        type: "post_like",
+        dedupeKey: `post_like:${postId}`,
+        postId,
+        createdAt: 3,
+      });
+    });
+
+    const first = await t
+      .withIdentity(identity)
+      .query(api.notifications.getNotifications, {
+        paginationOpts: { numItems: 2, cursor: null },
+      });
+    const second = await t
+      .withIdentity(identity)
+      .query(api.notifications.getNotifications, {
+        paginationOpts: { numItems: 2, cursor: first.continueCursor },
+      });
+
+    expect(first.page.map((row) => row.type)).toEqual([
+      "post_like",
+      "post_like",
+    ]);
+    expect(second.page.map((row) => row.type)).toEqual(["follow"]);
+  });
+
+  it("drops notification rows whose post is no longer published", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "draft-reader@example.com",
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      const postId = await ctx.db.insert("posts", {
+        title: "Draft now",
+        body: "Body.",
+        tags: [],
+        authorId: identity.subject,
+        status: "draft",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-1",
+        type: "post_like",
+        dedupeKey: `post_like:${postId}`,
+        postId,
+        createdAt: 1,
+      });
+    });
+
+    const result = await t
+      .withIdentity(identity)
+      .query(api.notifications.getNotifications, {
+        paginationOpts: { numItems: 10, cursor: null },
+      });
+
+    expect(result.page).toHaveLength(0);
+    expect(result.isDone).toBe(true);
+  });
+
+  it("renders a row whose actor no longer exists", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "ghost-reader@example.com",
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 0,
+        unreadNotificationCount: 1,
+        createdAt: 1,
+      });
+      await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "ghost",
+        type: "follow",
+        dedupeKey: "follow:ghost",
+        createdAt: 1,
+      });
+    });
+
+    const result = await t
+      .withIdentity(identity)
+      .query(api.notifications.getNotifications, {
+        paginationOpts: { numItems: 10, cursor: null },
+      });
+
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0]).toMatchObject({
+      type: "follow",
+      actorName: null,
+      actorUsername: null,
+      actorAvatarUrl: null,
+    });
+  });
+
+  it("deletes an unread notification and decrements the badge", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "dismisser@example.com",
+    );
+    const notificationId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 0,
+        unreadNotificationCount: 1,
+        createdAt: 1,
+      });
+      return await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor",
+        type: "follow",
+        dedupeKey: "follow:actor",
+        createdAt: 1,
+      });
+    });
+
+    await t.withIdentity(identity).mutation(api.notifications.dismiss, {
+      notificationId,
+    });
+
+    expect(await t.run((ctx) => ctx.db.get(notificationId))).toBeNull();
+    const user = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+    );
+    expect(user?.unreadNotificationCount).toBe(0);
+  });
+
+  it("deletes a read notification without touching the badge", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "dismiss-read@example.com",
+    );
+    const notificationId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      return await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor",
+        type: "follow",
+        dedupeKey: "follow:actor",
+        createdAt: 1,
+        readAt: 2,
+      });
+    });
+
+    await t.withIdentity(identity).mutation(api.notifications.dismiss, {
+      notificationId,
+    });
+
+    expect(await t.run((ctx) => ctx.db.get(notificationId))).toBeNull();
+    const user = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+    );
+    expect(user?.unreadNotificationCount).toBe(0);
+  });
+
+  it("refuses to delete someone else's notification", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "intruder@example.com",
+    );
+    const notificationId = await t.run((ctx) =>
+      ctx.db.insert("notifications", {
+        recipientId: "someone-else",
+        actorId: "actor",
+        type: "follow",
+        dedupeKey: "follow:actor",
+        createdAt: 1,
+      }),
+    );
+
+    await expect(
+      t.withIdentity(identity).mutation(api.notifications.dismiss, {
+        notificationId,
+      }),
+    ).rejects.toThrow("Notification not found.");
+  });
+
+  it("prunes only read rows older than the retention window", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const { oldRead, recentRead, unread } = await t.run(async (ctx) => ({
+      oldRead: await ctx.db.insert("notifications", {
+        recipientId: "reader",
+        actorId: "a",
+        type: "follow",
+        dedupeKey: "follow:a",
+        createdAt: 1,
+        readAt: now - READ_RETENTION_MS - 1,
+      }),
+      recentRead: await ctx.db.insert("notifications", {
+        recipientId: "reader",
+        actorId: "b",
+        type: "follow",
+        dedupeKey: "follow:b",
+        createdAt: 2,
+        readAt: now - READ_RETENTION_MS + 60_000,
+      }),
+      unread: await ctx.db.insert("notifications", {
+        recipientId: "reader",
+        actorId: "c",
+        type: "follow",
+        dedupeKey: "follow:c",
+        createdAt: 3,
+      }),
+    }));
+
+    await t.mutation(internal.notifications.pruneReadNotifications, {
+      cursor: null,
+    });
+
+    expect(await t.run((ctx) => ctx.db.get(oldRead))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(recentRead))).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(unread))).not.toBeNull();
+  });
+
+  it("counts notification rows for the recipient only", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "counter@example.com",
+    );
+    await t.run(async (ctx) => {
+      const rows = [
+        { recipientId: identity.subject, readAt: undefined },
+        { recipientId: identity.subject, readAt: 2 },
+        { recipientId: identity.subject, readAt: undefined },
+        { recipientId: "someone-else", readAt: undefined },
+      ];
+      for (const [index, row] of rows.entries()) {
+        await ctx.db.insert("notifications", {
+          recipientId: row.recipientId,
+          actorId: `actor-${index}`,
+          type: "follow",
+          dedupeKey: `follow:actor-${index}`,
+          createdAt: index + 1,
+          readAt: row.readAt,
+        });
+      }
+    });
+
+    const counts = await t
+      .withIdentity(identity)
+      .query(api.notifications.getNotificationCounts, {});
+
+    expect(counts).toEqual({
+      total: 3,
+      read: 1,
+      unread: 2,
+      truncated: false,
+    });
+  });
+
+  it("dismisses read rows without changing the unread badge", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "read-scope@example.com",
+    );
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 0,
+        unreadNotificationCount: 2,
+        createdAt: 1,
+      });
+      const readA = await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-a",
+        type: "follow",
+        dedupeKey: "follow:actor-a",
+        createdAt: 1,
+        readAt: 2,
+      });
+      const readB = await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-b",
+        type: "follow",
+        dedupeKey: "follow:actor-b",
+        createdAt: 2,
+        readAt: 3,
+      });
+      const unreadA = await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-c",
+        type: "follow",
+        dedupeKey: "follow:actor-c",
+        createdAt: 3,
+      });
+      const unreadB = await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-d",
+        type: "follow",
+        dedupeKey: "follow:actor-d",
+        createdAt: 4,
+      });
+      return { readA, readB, unreadA, unreadB };
+    });
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.notifications.dismissAll, { scope: "read" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(await t.run((ctx) => ctx.db.get(ids.readA))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(ids.readB))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(ids.unreadA))).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(ids.unreadB))).not.toBeNull();
+    const user = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+    );
+    expect(user?.unreadNotificationCount).toBe(2);
+  });
+
+  it("dismisses unread rows and drops the badge by the deleted count", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "unread-scope@example.com",
+    );
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 0,
+        unreadNotificationCount: 3,
+        createdAt: 1,
+      });
+      const read = await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-a",
+        type: "follow",
+        dedupeKey: "follow:actor-a",
+        createdAt: 1,
+        readAt: 2,
+      });
+      const unreadA = await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-b",
+        type: "follow",
+        dedupeKey: "follow:actor-b",
+        createdAt: 2,
+      });
+      const unreadB = await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-c",
+        type: "follow",
+        dedupeKey: "follow:actor-c",
+        createdAt: 3,
+      });
+      const unreadC = await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-d",
+        type: "follow",
+        dedupeKey: "follow:actor-d",
+        createdAt: 4,
+      });
+      return { read, unreadA, unreadB, unreadC };
+    });
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.notifications.dismissAll, { scope: "unread" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(await t.run((ctx) => ctx.db.get(ids.read))).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(ids.unreadA))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(ids.unreadB))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(ids.unreadC))).toBeNull();
+    const user = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+    );
+    expect(user?.unreadNotificationCount).toBe(0);
+  });
+
+  it("dismisses all rows and zeroes the badge", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "all-scope@example.com",
+    );
+    const ids = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 0,
+        unreadNotificationCount: 1,
+        createdAt: 1,
+      });
+      return {
+        read: await ctx.db.insert("notifications", {
+          recipientId: identity.subject,
+          actorId: "actor-a",
+          type: "follow",
+          dedupeKey: "follow:actor-a",
+          createdAt: 1,
+          readAt: 2,
+        }),
+        unread: await ctx.db.insert("notifications", {
+          recipientId: identity.subject,
+          actorId: "actor-b",
+          type: "follow",
+          dedupeKey: "follow:actor-b",
+          createdAt: 2,
+        }),
+      };
+    });
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.notifications.dismissAll, { scope: "all" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(await t.run((ctx) => ctx.db.get(ids.read))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(ids.unread))).toBeNull();
+    const user = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+    );
+    expect(user?.unreadNotificationCount).toBe(0);
+  });
+
+  it("keeps a notification inserted after the sweep starts", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "sweep-race@example.com",
+    );
+    const watermark = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Reader",
+        publishedPostCount: 0,
+        unreadNotificationCount: 1,
+        createdAt: 1,
+      });
+      await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-before",
+        type: "follow",
+        dedupeKey: "follow:actor-before",
+        createdAt: 1,
+      });
+    });
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.notifications.dismissAll, { scope: "all" });
+
+    const survivorId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("notifications", {
+        recipientId: identity.subject,
+        actorId: "actor-after",
+        type: "follow",
+        dedupeKey: "follow:actor-after",
+        createdAt: watermark + 1,
+      });
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique();
+      await ctx.db.patch(user!._id, { unreadNotificationCount: 2 });
+      return id;
+    });
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(await t.run((ctx) => ctx.db.get(survivorId))).not.toBeNull();
+    const user = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+    );
+    expect(user?.unreadNotificationCount).toBe(1);
   });
 });

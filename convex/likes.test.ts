@@ -822,4 +822,204 @@ describe("likes functions", () => {
       expect(post.isLiked).toBe(false);
     }
   });
+
+  it("notifies the post author once when someone likes their post", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "liker@example.com");
+    const postId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "author-1",
+        displayName: "Author",
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      return await ctx.db.insert("posts", {
+        title: "Target",
+        body: "Body.",
+        tags: [],
+        authorId: "author-1",
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+
+    await t.withIdentity(identity).mutation(api.likes.toggleLike, { postId });
+    const first = await t.run((ctx) => ctx.db.query("notifications").collect());
+    expect(first).toHaveLength(1);
+
+    await t.run((ctx) => ctx.db.patch(first[0]._id, { readAt: 5 }));
+    await t.withIdentity(identity).mutation(api.likes.toggleLike, { postId });
+    await t.withIdentity(identity).mutation(api.likes.toggleLike, { postId });
+
+    const rows = await t.run((ctx) => ctx.db.query("notifications").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      recipientId: "author-1",
+      actorId: identity.subject,
+      type: "post_like",
+      postId,
+      createdAt: first[0].createdAt,
+      readAt: 5,
+    });
+  });
+
+  it("does not notify an author who likes their own post", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(t, "self@example.com");
+    const postId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Self",
+        publishedPostCount: 1,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      return await ctx.db.insert("posts", {
+        title: "Own",
+        body: "Body.",
+        tags: [],
+        authorId: identity.subject,
+        status: "published",
+        commentCount: 0,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+
+    await t.withIdentity(identity).mutation(api.likes.toggleLike, { postId });
+
+    expect(
+      await t.run((ctx) => ctx.db.query("notifications").collect()),
+    ).toHaveLength(0);
+    const author = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+    );
+    expect(author?.unreadNotificationCount).toBe(0);
+  });
+
+  it("notifies the comment author rather than the post author when a comment is liked", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "comment-liker@example.com",
+    );
+    const commentId = await t.run(async (ctx) => {
+      for (const userId of ["post-author", "comment-author"]) {
+        await ctx.db.insert("users", {
+          userId,
+          displayName: userId,
+          publishedPostCount: 0,
+          unreadNotificationCount: 0,
+          createdAt: 1,
+        });
+      }
+      const postId = await ctx.db.insert("posts", {
+        title: "Target",
+        body: "Body.",
+        tags: [],
+        authorId: "post-author",
+        status: "published",
+        commentCount: 1,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      return await ctx.db.insert("comments", {
+        postId,
+        authorId: "comment-author",
+        authorName: "Commenter",
+        body: "A comment",
+        likeCount: 0,
+        createdAt: 1,
+      });
+    });
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.likes.toggleCommentLike, { commentId });
+    const first = await t.run((ctx) => ctx.db.query("notifications").collect());
+    expect(first).toHaveLength(1);
+    await t.run((ctx) => ctx.db.patch(first[0]._id, { readAt: 5 }));
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.likes.toggleCommentLike, { commentId });
+    await t
+      .withIdentity(identity)
+      .mutation(api.likes.toggleCommentLike, { commentId });
+
+    const rows = await t.run((ctx) => ctx.db.query("notifications").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      recipientId: "comment-author",
+      actorId: identity.subject,
+      type: "comment_like",
+      commentId,
+      createdAt: first[0].createdAt,
+      readAt: 5,
+    });
+  });
+
+  it("does not notify a comment author who likes their own comment", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "self-comment@example.com",
+    );
+    const commentId = await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Self",
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      const postId = await ctx.db.insert("posts", {
+        title: "Target",
+        body: "Body.",
+        tags: [],
+        authorId: "someone-else",
+        status: "published",
+        commentCount: 1,
+        likeCount: 0,
+        uniqueViewCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      return await ctx.db.insert("comments", {
+        postId,
+        authorId: identity.subject,
+        authorName: "Self",
+        body: "Own comment",
+        likeCount: 0,
+        createdAt: 1,
+      });
+    });
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.likes.toggleCommentLike, { commentId });
+
+    expect(
+      await t.run((ctx) => ctx.db.query("notifications").collect()),
+    ).toHaveLength(0);
+    const author = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique(),
+    );
+    expect(author?.unreadNotificationCount).toBe(0);
+  });
 });

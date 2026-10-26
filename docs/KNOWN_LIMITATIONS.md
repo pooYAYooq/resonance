@@ -5,6 +5,14 @@ priorities belong in [ROADMAP.md](../ROADMAP.md). Remove or revise entries when
 evidence resolves them. The previous detailed delivery history remains in
 [the PR #103 revision](https://github.com/pooYAYooq/resonance/blob/d2d5fed/docs/status.md).
 
+## Notifications
+
+- The review follow-up adds an in-drawer Undo recovery row. Its keyboard and
+  expiry behavior passed component and real-UI browser-fixture checks, but the
+  changed deletion/Undo flow still needs a targeted physical-phone retest.
+  The maintainer's earlier three-check acceptance at `aadb9c1` remains valid
+  for that revision; see [notification evidence](NOTIFICATIONS_EVIDENCE.md#review-regression-checks).
+
 ## Accessibility and responsive behavior
 
 - [Accessibility evidence](ACCESSIBILITY.md) covers the agreed keyboard scope
@@ -31,10 +39,6 @@ evidence resolves them. The previous detailed delivery history remains in
   coverage because there were insufficient drafts during its acceptance pass.
   Later keyboard matrices in `ACCESSIBILITY.md` supplement that original scope.
 - Follow colors and the light-theme contrast observations remain under V1-21.
-- Notifications have no age-based retention: a row persists until its post is
-  deleted, and the post-deletion cascade decrements each unread row's counter
-  exactly once. A future purge must reconcile `unreadNotificationCount` for
-  purged unread rows, or the bell overcounts.
 
 ## Authoring and recovery
 
@@ -66,8 +70,15 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Engineering and verification
 
-- No stored-data migration/backfill exists for this undeployed app. A large
-  existing deployment would need a staged migration before new indexed callers.
+- No general stored-data migration process exists for this undeployed app.
+  A large existing deployment would need a staged rollout before new indexed
+  callers. The notification retention index was backfilled by Convex and
+  verified queryable on development; it requires no document-field backfill.
+  Pre-engagement notification rows from the earlier publication fan-out lack
+  `type` and `dedupeKey`; clear or migrate them before pushing this schema to a
+  deployment that still holds them. The development deployment was checked and
+  has none. See
+  [retention evidence](NOTIFICATIONS_EVIDENCE.md#notification-retention).
 - Search-index pagination cannot be bounded by read budgets: the installed
   Convex 1.46 API still documents that `maximumRowsRead` and `maximumBytesRead`
   are not enforced for search queries, and the upstream backend reports no split
@@ -83,10 +94,6 @@ evidence resolves them. The previous detailed delivery history remains in
   `pnpm test:component --maxWorkers=1` for reproducible local suite evidence.
 - The title's Enter-to-body behavior depends on a dynamically imported editor
   handle and is browser-verified rather than exercised by jsdom.
-- Repository-wide `pnpm format:check` has an unrelated pre-existing baseline.
-  Check changed files without implying the baseline was repaired. Historical
-  affected paths and measurements are retained in the linked PR #103 revision;
-  rerun the command before describing a current failure list.
 
 ## Usernames
 

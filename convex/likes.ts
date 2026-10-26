@@ -25,6 +25,7 @@ import {
   type PostSummary,
 } from "./postSummary";
 import { usernamesForOwners } from "./usernameModel";
+import { recordEngagementNotification } from "./notificationEvents";
 
 function validatePageSize(options: {
   numItems: number;
@@ -178,6 +179,12 @@ export const toggleLike = mutation({
       userId: user._id,
       createdAt: Date.now(),
     });
+    await recordEngagementNotification(ctx, {
+      type: "post_like",
+      recipientId: post.authorId,
+      actorId: user._id,
+      postId: args.postId,
+    });
     const nextCount = post.likeCount + 1;
     await ctx.db.patch(args.postId, {
       likeCount: nextCount,
@@ -248,6 +255,13 @@ export const toggleCommentLike = mutation({
       commentId: args.commentId,
       userId: user._id,
       createdAt: Date.now(),
+    });
+    await recordEngagementNotification(ctx, {
+      type: "comment_like",
+      recipientId: comment.authorId,
+      actorId: user._id,
+      postId: comment.postId,
+      commentId: args.commentId,
     });
     const nextCount = comment.likeCount + 1;
     await ctx.db.patch(args.commentId, {

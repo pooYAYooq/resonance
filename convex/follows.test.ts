@@ -1,24 +1,70 @@
 /**
  * Unit tests for Convex follows queries and mutations.
  *
- * Auth-path tests (self-follow rejection, missing-user, count
- * denormalization on follow/unfollow) are omitted because convex-test
- * cannot mock the Better Auth component that `safeGetAuthUser` walks
- * (`convex/users.test.ts:1-7`, `convex/likes.test.ts`). These are
- * covered by manual testing and code inspection of `follows.ts`.
- * Here we cover the unauthenticated rejection path and the no-auth
- * query behavior, matching the precedent in `likes.test.ts`.
+ * `createAuthenticatedTestUser` registers the Better Auth test component
+ * and creates a user plus session, so auth-gated mutations can run. The
+ * notification tests use it to cover:
+ *  - a follow notifying the followed user once across repeated follows;
+ *  - a self-follow rejecting without writing a notification.
+ *
+ * The rest cover the unauthenticated rejection path, no-auth query
+ * behavior, and follow counter arithmetic.
  */
 
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { register } from "@convex-dev/better-auth/test";
+import { register as registerRateLimiter } from "@convex-dev/rate-limiter/test";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { api, components } from "./_generated/api";
 import { incrementCounter, decrementCounter } from "./follows";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+async function createAuthenticatedTestUser(
+  t: ReturnType<typeof convexTest>,
+  email: string,
+) {
+  register(t);
+  registerRateLimiter(t);
+  return await t.run(async (ctx) => {
+    const now = Date.now();
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Viewer",
+          email,
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+    const session = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "session",
+          data: {
+            userId: user._id,
+            token: `session-${email}`,
+            expiresAt: now + 60_000,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      },
+    );
+    return { subject: user._id, sessionId: session._id };
+  });
+}
 
 describe("follows functions", () => {
   it("validates follow counter arithmetic", () => {
@@ -170,5 +216,83 @@ describe("follows functions", () => {
       userId: "no-such-user",
     });
     expect(result).toEqual({ followerCount: 0, followingCount: 0 });
+  });
+
+  it("notifies the followed user once across repeated follows", async () => {
+    vi.useFakeTimers();
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "follower@example.com",
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Follower",
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+      await ctx.db.insert("users", {
+        userId: "target-1",
+        displayName: "Target",
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      });
+    });
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.follows.toggleFollow, { followingId: "target-1" });
+    const first = await t.run((ctx) => ctx.db.query("notifications").collect());
+    expect(first).toHaveLength(1);
+    await t.run((ctx) => ctx.db.patch(first[0]._id, { readAt: 5 }));
+
+    await t
+      .withIdentity(identity)
+      .mutation(api.follows.toggleFollow, { followingId: "target-1" });
+    await t
+      .withIdentity(identity)
+      .mutation(api.follows.toggleFollow, { followingId: "target-1" });
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const rows = await t.run((ctx) => ctx.db.query("notifications").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      recipientId: "target-1",
+      actorId: identity.subject,
+      type: "follow",
+      createdAt: first[0].createdAt,
+      readAt: 5,
+    });
+  });
+
+  it("rejects a self-follow without writing a notification", async () => {
+    const t = convexTest(schema, modules);
+    const identity = await createAuthenticatedTestUser(
+      t,
+      "self-follow@example.com",
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("users", {
+        userId: identity.subject,
+        displayName: "Self",
+        publishedPostCount: 0,
+        unreadNotificationCount: 0,
+        createdAt: 1,
+      }),
+    );
+
+    await expect(
+      t
+        .withIdentity(identity)
+        .mutation(api.follows.toggleFollow, { followingId: identity.subject }),
+    ).rejects.toThrow("You can't follow yourself.");
+
+    expect(
+      await t.run((ctx) => ctx.db.query("notifications").collect()),
+    ).toHaveLength(0);
   });
 });

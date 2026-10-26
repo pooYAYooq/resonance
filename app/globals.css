@@ -109,6 +109,9 @@
   --destructive-foreground: oklch(0.9851 0 0);
   /* Theme-aware Edit text accent for the published management action group. */
   --management-edit: oklch(0.5 0.13 155);
+  /* Follow icons distinguish the available action from an active connection. */
+  --follow-action: oklch(0.5 0.16 250);
+  --follow-active: oklch(0.5 0.13 155);
   /* Confirmation hover stays white in both themes without changing primitives. */
   --management-delete-foreground: oklch(1 0 0);
   --border: oklch(0.9276 0.0058 264.5313);
@@ -172,6 +175,8 @@
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.1797 0.0043 308.1928);
   --management-edit: oklch(0.78 0.16 155);
+  --follow-action: oklch(0.75 0.13 250);
+  --follow-active: oklch(0.78 0.16 155);
   --border: oklch(0.252 0 0);
   --input: oklch(0.252 0 0);
   --ring: oklch(0.7214 0.1337 49.9802);
@@ -284,6 +289,8 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-management-edit: var(--management-edit);
+  --color-follow-action: var(--follow-action);
+  --color-follow-active: var(--follow-active);
   --color-management-delete-foreground: var(--management-delete-foreground);
   --color-border: var(--border);
   --color-input: var(--input);

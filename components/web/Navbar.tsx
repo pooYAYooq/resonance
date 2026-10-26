@@ -76,11 +76,11 @@ export function Navbar() {
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-2">
+          {!isLoading && isAuthenticated && <NotificationBell />}
           {!isLoading && <MobileNavMenu isAuthenticated={isAuthenticated} />}
           <div className="hidden items-center gap-2 md:flex">
             {isLoading ? null : isAuthenticated ? (
               <>
-                <NotificationBell />
                 <AccountMenu presentation="navbar" />
               </>
             ) : (

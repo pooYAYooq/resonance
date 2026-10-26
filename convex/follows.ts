@@ -18,6 +18,7 @@ import { authComponent } from "./auth";
 import { incrementFollowerGrowthInTransaction } from "./analytics";
 import { internal } from "./_generated/api";
 import { FEED_BATCH_SIZE, FEED_WINDOW_MS } from "./feed";
+import { recordEngagementNotification } from "./notificationEvents";
 
 function validateCounter(value: number, name: string): void {
   if (!Number.isSafeInteger(value) || value < 0) {
@@ -139,6 +140,11 @@ export const toggleFollow = mutation({
       followerId: authUser._id,
       followingId: args.followingId,
       createdAt,
+    });
+    await recordEngagementNotification(ctx, {
+      type: "follow",
+      recipientId: args.followingId,
+      actorId: authUser._id,
     });
     await incrementFollowerGrowthInTransaction(
       ctx,
