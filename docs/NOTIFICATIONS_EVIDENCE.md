@@ -48,6 +48,15 @@ establish a named browser/device matrix or screen-reader acceptance. Retest
 affected checks after changes to notification rows/actions, drawer lifecycle
 or focus handling, and HTTP preview authentication or publishing request IDs.
 
+### Targeted phone retest
+
+On 2026-10-26, the maintainer reported the targeted in-drawer deletion/Undo
+retest passed on a physical phone against merged main `96e200e`. The check
+covered deleting a populated notification, the in-drawer Undo recovery,
+expiry removing the row and Undo, the unread-count update, and preserving the
+page and scroll position. The phone model and browser were not specified.
+This is maintainer-reported, not an agent-driven browser run.
+
 ### Review regression checks
 
 The working revision based on `aadb9c1` addresses the four findings in
@@ -117,9 +126,9 @@ lived outside Git, and existing Next/Convex dev servers were preserved.
 
 These browser results validate real UI behavior with controlled data, not a
 new authenticated app or physical-phone pass. The original phone publishing
-and drawer-exit acceptance remains recorded above. The new in-drawer deletion
-and Undo row still needs the targeted physical-phone retest recorded in
-[known limitations](KNOWN_LIMITATIONS.md#notifications).
+and drawer-exit acceptance remains recorded above. The later targeted phone
+retest closed the review follow-up's deletion/Undo gap; see
+[targeted phone retest](#targeted-phone-retest).
 
 A read-only inspection of deployment `woozy-spaniel-283` on 2026-10-26 found
 32 notification rows. All carry `type` and `dedupeKey`; 9 omit the optional

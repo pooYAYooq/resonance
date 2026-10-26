@@ -356,7 +356,6 @@ export function NotificationsList({
           <EmptyState
             icon={Bell}
             title="No notifications yet"
-            description="Likes, follows, and comments on your work will show up here."
             action={
               <Button asChild variant="outline">
                 <Link href="/blog">Discover</Link>
