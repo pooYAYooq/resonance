@@ -101,13 +101,13 @@ export function AccountMenu({
           </DropdownMenuItem>
         )}
         <DropdownMenuItem asChild>
-          <Link href="/saved" onClick={onNavigateAction}>
+          <Link href="/dashboard/saved" onClick={onNavigateAction}>
             <Bookmark />
             <span>Saved</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/liked" onClick={onNavigateAction}>
+          <Link href="/dashboard/liked" onClick={onNavigateAction}>
             <Heart />
             <span>Liked</span>
           </Link>

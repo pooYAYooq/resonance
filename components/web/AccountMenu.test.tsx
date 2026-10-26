@@ -138,11 +138,11 @@ describe("AccountMenu", () => {
     );
     expect(screen.getByRole("menuitem", { name: "Saved" })).toHaveAttribute(
       "href",
-      "/saved",
+      "/dashboard/saved",
     );
     expect(screen.getByRole("menuitem", { name: "Liked" })).toHaveAttribute(
       "href",
-      "/liked",
+      "/dashboard/liked",
     );
     expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveAttribute(
       "href",

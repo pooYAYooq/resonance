@@ -36,6 +36,14 @@ export const postSummaryValidator = v.object({
   isBookmarked: v.boolean(),
 });
 
+/** Private collection metadata comes from the save/like relationship. */
+export type CollectionPostSummary = PostSummary & { addedAt: number };
+
+export const collectionPostSummaryValidator = v.object({
+  ...postSummaryValidator.fields,
+  addedAt: v.number(),
+});
+
 export async function hydratePostSummary(
   ctx: QueryCtx,
   post: Doc<"posts">,

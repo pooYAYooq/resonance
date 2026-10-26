@@ -20,10 +20,24 @@ function isVisible(control: HTMLElement): boolean {
   return true;
 }
 
-function firstVisibleControl(root: HTMLElement): HTMLElement | null {
+function isIgnoredControl(
+  control: HTMLElement,
+  ignoredControlSelector?: string,
+): boolean {
+  return Boolean(
+    ignoredControlSelector && control.closest(ignoredControlSelector),
+  );
+}
+
+function firstVisibleControl(
+  root: HTMLElement,
+  ignoredControlSelector?: string,
+): HTMLElement | null {
   return (
     Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
-      isVisible,
+      (control) =>
+        isVisible(control) &&
+        !isIgnoredControl(control, ignoredControlSelector),
     ) ?? null
   );
 }
@@ -66,11 +80,15 @@ function firstVisibleControl(root: HTMLElement): HTMLElement | null {
  * @param itemSelector - Selector for the removable items within the root.
  * @param pending - Whether the next page request is still in flight; a
  *   disconnected outside-item control waits for the settled render.
+ * @param ignoredControlSelector - Selector for focusable controls that should
+ *   not be chosen as fallback or replacement targets, such as collapsible
+ *   group headings outside the removable items.
  */
 export function useListFocusRestore(
   rootRef: RefObject<HTMLElement | null>,
   itemSelector: string,
   pending: boolean,
+  ignoredControlSelector?: string,
 ) {
   const focusedRef = useRef<HTMLElement | null>(null);
   const itemIndexRef = useRef<number | null>(null);
@@ -192,15 +210,18 @@ export function useListFocusRestore(
                 target = recordedToggle;
               }
             }
-            target ??= firstVisibleControl(item);
+            target ??= firstVisibleControl(item, ignoredControlSelector);
           } else {
-            target = firstVisibleControl(root) ?? root;
+            target = firstVisibleControl(root, ignoredControlSelector) ?? root;
           }
 
           target?.focus();
         } else if (outsideItemCount !== null) {
           if (items.length > outsideItemCount) {
-            firstVisibleControl(items[outsideItemCount])?.focus();
+            firstVisibleControl(
+              items[outsideItemCount],
+              ignoredControlSelector,
+            )?.focus();
           } else if (!pending) {
             // The request settled without appending a visible item, such as
             // a page containing only deleted or unpublished posts. Focus the
@@ -210,12 +231,18 @@ export function useListFocusRestore(
             const replacement = Array.from(
               root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
             ).find(
-              (control) => !control.closest(itemSelector) && isVisible(control),
+              (control) =>
+                !control.closest(itemSelector) &&
+                isVisible(control) &&
+                !isIgnoredControl(control, ignoredControlSelector),
             );
             if (replacement) {
               replacement.focus();
             } else if (items.length > 0) {
-              firstVisibleControl(items[items.length - 1])?.focus();
+              firstVisibleControl(
+                items[items.length - 1],
+                ignoredControlSelector,
+              )?.focus();
             } else {
               // An empty list may have no recovery action. Consumers can make
               // its named context focusable without adding a new tab stop.

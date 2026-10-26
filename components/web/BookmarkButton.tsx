@@ -32,7 +32,8 @@ interface BookmarkButtonProps {
   size?: "sm" | "default";
   /** Server-derived bookmark state used before the live query resolves. */
   isBookmarked: boolean;
-  presentation?: "compact" | "reader";
+  presentation?: "compact" | "reader" | "collection" | "icon";
+  postTitle?: string;
 }
 
 export function BookmarkButton({
@@ -40,6 +41,7 @@ export function BookmarkButton({
   size = "sm",
   isBookmarked,
   presentation = "compact",
+  postTitle,
 }: BookmarkButtonProps) {
   const [isPending, startTransition] = useTransition();
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -72,11 +74,7 @@ export function BookmarkButton({
       try {
         const result = await toggleBookmark({ postId });
         setLocalSaved(result.bookmarked);
-        toast.success(
-          result.bookmarked
-            ? "Saved to reading list"
-            : "Removed from reading list",
-        );
+        toast.success(result.bookmarked ? "Post saved" : "Removed from Saved");
       } catch {
         toast.error("Something went wrong");
       }
@@ -86,29 +84,52 @@ export function BookmarkButton({
   return (
     <Button
       variant={presentation === "reader" ? "outline" : "ghost"}
-      size={presentation === "reader" ? "lg" : size}
-      className={presentation === "reader" ? "min-w-24" : undefined}
+      size={
+        presentation === "reader"
+          ? "lg"
+          : presentation === "icon"
+            ? "icon-sm"
+            : size
+      }
+      className={cn(
+        presentation === "reader" && "min-w-24",
+        presentation === "collection" && "min-h-10",
+      )}
       onClick={handleClick}
       disabled={isLoading}
       aria-disabled={isPending || isLoading}
       aria-label={
-        localSaved ? "Remove from reading list" : "Save to reading list"
+        postTitle
+          ? localSaved
+            ? `Remove “${postTitle}” from Saved`
+            : `Save “${postTitle}”`
+          : localSaved
+            ? "Remove from Saved"
+            : "Save post"
       }
       aria-pressed={localSaved}
     >
       {isPending ? (
         <Loader2
-          data-icon={presentation === "reader" ? "inline-start" : undefined}
+          data-icon={
+            presentation === "reader" || presentation === "collection"
+              ? "inline-start"
+              : undefined
+          }
           className="animate-spin"
         />
       ) : (
         <Bookmark
-          data-icon={presentation === "reader" ? "inline-start" : undefined}
+          data-icon={
+            presentation === "reader" || presentation === "collection"
+              ? "inline-start"
+              : undefined
+          }
           className={cn(localSaved && "text-primary")}
           fill={localSaved ? "currentColor" : "none"}
         />
       )}
-      {presentation === "reader" && (
+      {(presentation === "reader" || presentation === "collection") && (
         <span>{localSaved ? "Saved" : "Save"}</span>
       )}
     </Button>

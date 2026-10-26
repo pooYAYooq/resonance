@@ -74,7 +74,7 @@ describe("BookmarkButton", () => {
   it("renders the unsaved affordance when isBookmarked is false", () => {
     render(<BookmarkButton {...baseProps} />);
     expect(
-      screen.getByRole("button", { name: /save to reading list/i }),
+      screen.getByRole("button", { name: /save post/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false");
   });
@@ -98,33 +98,31 @@ describe("BookmarkButton", () => {
     useQueryMock.mockReturnValue(undefined);
     render(<BookmarkButton {...baseProps} isBookmarked={true} />);
     expect(
-      screen.getByRole("button", { name: /remove from reading list/i }),
+      screen.getByRole("button", { name: /remove from saved/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("calls toggleBookmark with the correct postId on click and toasts 'Saved to reading list'", async () => {
+  it("calls toggleBookmark with the correct postId on click and toasts 'Post saved'", async () => {
     const user = userEvent.setup();
     useMutationMock.mockResolvedValue({ bookmarked: true });
     render(<BookmarkButton {...baseProps} />);
 
-    await user.click(
-      screen.getByRole("button", { name: /save to reading list/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /save post/i }));
     expect(useMutationMock).toHaveBeenCalledWith({ postId: "post-1" });
-    expect(toastSuccessMock).toHaveBeenCalledWith("Saved to reading list");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post saved");
   });
 
-  it("toasts 'Removed from reading list' when toggling from saved to unsaved", async () => {
+  it("toasts 'Removed from Saved' when toggling from saved to unsaved", async () => {
     const user = userEvent.setup();
     useQueryMock.mockReturnValue(true);
     useMutationMock.mockResolvedValue({ bookmarked: false });
     render(<BookmarkButton {...baseProps} />);
 
     await user.click(
-      screen.getByRole("button", { name: /remove from reading list/i }),
+      screen.getByRole("button", { name: /remove from saved/i }),
     );
-    expect(toastSuccessMock).toHaveBeenCalledWith("Removed from reading list");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Removed from Saved");
   });
 
   it("toasts an error when the mutation throws", async () => {
@@ -132,9 +130,7 @@ describe("BookmarkButton", () => {
     useMutationMock.mockRejectedValue(new Error("boom"));
     render(<BookmarkButton {...baseProps} />);
 
-    await user.click(
-      screen.getByRole("button", { name: /save to reading list/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /save post/i }));
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith("Something went wrong"),
@@ -150,9 +146,7 @@ describe("BookmarkButton", () => {
     window.history.replaceState({}, "", "/blog/post-1?tag=design#save");
     render(<BookmarkButton {...baseProps} />);
 
-    await user.click(
-      screen.getByRole("button", { name: /save to reading list/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /save post/i }));
     expect(pushMock).toHaveBeenCalledWith(
       "/auth/login?returnTo=%2Fblog%2Fpost-1%3Ftag%3Ddesign%23save",
     );
@@ -163,7 +157,7 @@ describe("BookmarkButton", () => {
     useQueryMock.mockReturnValue(undefined);
     render(<BookmarkButton {...baseProps} />);
     expect(
-      screen.getByRole("button", { name: /save to reading list/i }),
+      screen.getByRole("button", { name: /save post/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false");
   });
@@ -230,9 +224,7 @@ describe("BookmarkButton", () => {
             outcome === "success" ? "true" : "false",
           );
           expect(button).toHaveAccessibleName(
-            outcome === "success"
-              ? "Remove from reading list"
-              : "Save to reading list",
+            outcome === "success" ? "Remove from Saved" : "Save post",
           );
         },
       );
@@ -252,7 +244,7 @@ describe("BookmarkButton", () => {
             <button>Other control</button>
           </>,
         );
-        screen.getByRole("button", { name: "Save to reading list" }).focus();
+        screen.getByRole("button", { name: "Save post" }).focus();
         await user.keyboard("{Enter}{Tab}");
         const outside = screen.getByRole("button", { name: "Other control" });
         expect(outside).toHaveFocus();

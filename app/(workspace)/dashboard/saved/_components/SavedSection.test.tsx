@@ -31,10 +31,10 @@ vi.mock("@/convex/_generated/api", () => ({
   },
 }));
 
-vi.mock("@/components/web/PostCard", async () => {
+vi.mock("@/components/web/CollectionPostCard", async () => {
   const Link = (await import("next/link")).default;
   return {
-    PostCard: ({
+    CollectionPostCard: ({
       title,
       tags,
       authorName,
@@ -90,6 +90,7 @@ const post = {
   likeCount: 1,
   isLiked: false,
   createdAt: 1_700_000_000_000,
+  addedAt: 1_700_000_000_000,
   authorId: "author-1",
   authorName: "Author",
   authorAvatarUrl: null,
@@ -118,12 +119,14 @@ describe("SavedSection", () => {
 
   it("redirects unauthenticated users and skips the saved query", async () => {
     authState.mockReturnValue({ isAuthenticated: false, isLoading: false });
-    window.history.replaceState({}, "", "/saved");
+    window.history.replaceState({}, "", "/dashboard/saved");
 
     render(<SavedSection />);
 
     await waitFor(() =>
-      expect(pushMock).toHaveBeenCalledWith("/auth/login?returnTo=%2Fsaved"),
+      expect(pushMock).toHaveBeenCalledWith(
+        "/auth/login?returnTo=%2Fdashboard%2Fsaved",
+      ),
     );
     expect(paginatedArgs).toHaveBeenCalledWith("skip");
   });
@@ -156,9 +159,9 @@ describe("SavedSection", () => {
   it("offers the Blog when there are no saved posts", () => {
     render(<SavedSection />);
 
-    expect(screen.getByText("No saved posts")).toBeInTheDocument();
+    expect(screen.getByText("No saved posts yet")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Browse the Blog" }),
+      screen.getByRole("link", { name: "Explore Discover" }),
     ).toHaveAttribute("href", "/blog");
     expect(paginatedArgs).toHaveBeenCalledWith({});
   });
@@ -175,7 +178,7 @@ describe("SavedSection", () => {
 
     render(<SavedSection />);
 
-    expect(screen.queryByText("No saved posts")).not.toBeInTheDocument();
+    expect(screen.queryByText("No saved posts yet")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Load more" }));
     expect(loadMore).toHaveBeenCalledWith(12);
   });
@@ -333,7 +336,7 @@ describe("SavedSection", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("link", { name: "Browse the Blog" }),
+        screen.getByRole("link", { name: "Explore Discover" }),
       ).toHaveFocus(),
     );
   });
@@ -627,7 +630,7 @@ describe("SavedSection", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("link", { name: "Browse the Blog" }),
+        screen.getByRole("link", { name: "Explore Discover" }),
       ).toHaveFocus(),
     );
   });

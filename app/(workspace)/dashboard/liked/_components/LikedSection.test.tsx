@@ -31,10 +31,10 @@ vi.mock("@/convex/_generated/api", () => ({
   },
 }));
 
-vi.mock("@/components/web/PostCard", async () => {
+vi.mock("@/components/web/CollectionPostCard", async () => {
   const Link = (await import("next/link")).default;
   return {
-    PostCard: ({
+    CollectionPostCard: ({
       title,
       tags,
       authorName,
@@ -91,6 +91,7 @@ const post = {
   isLiked: true,
   isBookmarked: false,
   createdAt: 1_700_000_000_000,
+  addedAt: 1_700_000_000_000,
   authorId: "author-1",
   authorName: "Author",
   authorAvatarUrl: null,
@@ -143,9 +144,9 @@ describe("LikedSection", () => {
   it("renders a Liked-specific empty state linking to the Blog", () => {
     render(<LikedSection />);
 
-    expect(screen.getByText("No liked posts")).toBeInTheDocument();
+    expect(screen.getByText("No liked posts yet")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Browse the Blog" }),
+      screen.getByRole("link", { name: "Explore Discover" }),
     ).toHaveAttribute("href", "/blog");
     expect(paginatedArgs).toHaveBeenCalledWith({});
   });
@@ -162,7 +163,7 @@ describe("LikedSection", () => {
 
     render(<LikedSection />);
 
-    expect(screen.queryByText("No liked posts")).not.toBeInTheDocument();
+    expect(screen.queryByText("No liked posts yet")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Load more" }));
     expect(loadMore).toHaveBeenCalledWith(12);
   });
@@ -313,7 +314,7 @@ describe("LikedSection", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("link", { name: "Browse the Blog" }),
+        screen.getByRole("link", { name: "Explore Discover" }),
       ).toHaveFocus(),
     );
   });
@@ -607,7 +608,7 @@ describe("LikedSection", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("link", { name: "Browse the Blog" }),
+        screen.getByRole("link", { name: "Explore Discover" }),
       ).toHaveFocus(),
     );
   });

@@ -137,6 +137,7 @@ describe("likes functions", () => {
       "Newer liked post",
       "Older liked post",
     ]);
+    expect(result.page.map((post) => post.addedAt)).toEqual([200, 100]);
   });
 
   it("preserves the source cursor when the newest like points to a draft", async () => {
