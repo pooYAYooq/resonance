@@ -74,7 +74,7 @@ already focused inside its root. Both component and browser retests passed.
 The subsequent independent recheck could not run because its provider hit a
 usage limit; no clean follow-up review verdict is claimed.
 
-The final source/test fingerprint is
+The completed Codex-repair snapshot fingerprint is
 `b966a1ddb18c1750e6672a2a73fd8ee31826622c3fbb1506e254f9b4868b969b`
 (SHA-256 over sorted path/content pairs, each NUL-delimited, for the four
 changed source files and their four regression-test files).
@@ -127,6 +127,25 @@ A read-only inspection of deployment `woozy-spaniel-283` on 2026-10-26 found
 block the current deployment. A reused deployment that still holds those rows
 must clear or migrate them first, as recorded in
 [known limitations](KNOWN_LIMITATIONS.md#engineering-and-verification).
+
+### CodeRabbit review follow-up
+
+CodeRabbit's review at `3f9ad79` raised one bulk-deletion feedback gap, one
+roadmap status mismatch, one stale architecture ownership description, and one
+conditional legacy-row schema risk. The bulk action now shows an error toast
+with a regression; the roadmap marks V1-18 In progress; the architecture
+inventory, Pattern C diagram, and rationale assign the reply form to
+CommentComposer; and the schema stays strict with the legacy-row rollout
+requirement documented. The counts-query nitpick was deferred because moving
+the query into the dialog changes the trigger and loading design. The docstring
+coverage threshold and ESLint timeout were CodeRabbit tooling results, not code
+findings.
+
+Final verification at `6dac7c7` passed `pnpm lint`,
+`pnpm exec tsc --noEmit`, `pnpm test:ci` (54 files, 897 tests),
+`pnpm test:component --maxWorkers=1` (104 files, 1,051 tests), `pnpm build`,
+`pnpm format:check`, and `pnpm check:artifacts`. The full component suite was
+rerun after the code fix; the docs commits changed no runtime behavior.
 
 ### Drawer visual check
 
