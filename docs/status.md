@@ -14,8 +14,9 @@ the approved scope amendment is in [the decision log](PHASE_3A_DECISIONS.md#enga
 
 The original three acceptance gaps were closed by the maintainer's
 physical-phone results at `aadb9c1`. Review follow-up repairs truncated deletion
-scopes, failed storage writes, modal Undo, and hidden focus targets. Verification
-and the targeted retest for the changed deletion/Undo flow are recorded in
+scopes, failed storage writes, modal Undo, hidden focus targets, bulk-delete
+feedback, and the bulk-delete scope refresh. Verification and the targeted
+retest for the changed deletion/Undo flow are recorded in
 [notifications evidence](NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
 Earlier UI/navigation experiments and the integrated PR #117 baseline retain
 their own historical evidence.

@@ -141,11 +141,17 @@ the query into the dialog changes the trigger and loading design. The docstring
 coverage threshold and ESLint timeout were CodeRabbit tooling results, not code
 findings.
 
-Final verification at `6dac7c7` passed `pnpm lint`,
+Codex's final review at `a212944` found a bulk-delete safety issue: a reactive
+count refresh could silently switch the selected scope. The dialog now keeps
+the chosen scope and disables confirmation when it becomes empty. A regression
+covers the refresh case, including recovery by selecting another scope.
+
+Final verification at `8cf62d7` passed `pnpm lint`,
 `pnpm exec tsc --noEmit`, `pnpm test:ci` (54 files, 897 tests),
-`pnpm test:component --maxWorkers=1` (104 files, 1,051 tests), `pnpm build`,
+`pnpm test:component --maxWorkers=1` (104 files, 1,052 tests), `pnpm build`,
 `pnpm format:check`, and `pnpm check:artifacts`. The full component suite was
-rerun after the code fix; the docs commits changed no runtime behavior.
+rerun after the scope fix; the backend suite is unchanged and its earlier
+result was reused.
 
 ### Drawer visual check
 
