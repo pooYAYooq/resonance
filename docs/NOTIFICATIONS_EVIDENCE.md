@@ -121,6 +121,13 @@ and drawer-exit acceptance remains recorded above. The new in-drawer deletion
 and Undo row still needs the targeted physical-phone retest recorded in
 [known limitations](KNOWN_LIMITATIONS.md#notifications).
 
+A read-only inspection of deployment `woozy-spaniel-283` on 2026-10-26 found
+32 notification rows. All carry `type` and `dedupeKey`; 9 omit the optional
+`postId`. No pre-engagement rows remain, so the required legacy fields do not
+block the current deployment. A reused deployment that still holds those rows
+must clear or migrate them first, as recorded in
+[known limitations](KNOWN_LIMITATIONS.md#engineering-and-verification).
+
 ### Drawer visual check
 
 Checked on 2026-10-26 in the T3 preview, signed in as Phone Preview. At 1280px

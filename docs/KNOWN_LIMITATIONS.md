@@ -74,7 +74,11 @@ evidence resolves them. The previous detailed delivery history remains in
   A large existing deployment would need a staged rollout before new indexed
   callers. The notification retention index was backfilled by Convex and
   verified queryable on development; it requires no document-field backfill.
-  See [retention evidence](NOTIFICATIONS_EVIDENCE.md#notification-retention).
+  Pre-engagement notification rows from the earlier publication fan-out lack
+  `type` and `dedupeKey`; clear or migrate them before pushing this schema to a
+  deployment that still holds them. The development deployment was checked and
+  has none. See
+  [retention evidence](NOTIFICATIONS_EVIDENCE.md#notification-retention).
 - Search-index pagination cannot be bounded by read budgets: the installed
   Convex 1.46 API still documents that `maximumRowsRead` and `maximumBytesRead`
   are not enforced for search queries, and the upstream backend reports no split
