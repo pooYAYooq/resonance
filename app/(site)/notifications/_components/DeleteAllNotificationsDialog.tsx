@@ -37,6 +37,28 @@ function formatCount(count: number, truncated: boolean): string {
   return truncated ? `${count}+` : String(count);
 }
 
+function countForScope(
+  counts: NotificationCounts,
+  scope: DismissScope,
+): number {
+  return scope === "all"
+    ? counts.total
+    : scope === "read"
+      ? counts.read
+      : counts.unread;
+}
+
+function initialScope(counts: NotificationCounts): DismissScope {
+  const offered = SCOPES.filter(
+    (option) => counts.truncated || countForScope(counts, option.value) > 0,
+  );
+  return (
+    (["read", "unread", "all"] as const).find((value) =>
+      offered.some((option) => option.value === value),
+    ) ?? "all"
+  );
+}
+
 export function DeleteAllNotificationsDialog(
   props: DeleteAllNotificationsDialogProps,
 ) {
@@ -54,25 +76,17 @@ function DeleteAllNotificationsDialogBody({
   counts,
   onConfirm,
 }: DeleteAllNotificationsDialogProps) {
-  const [selectedScope, setSelectedScope] = useState<DismissScope | null>(null);
-  const countFor = (value: DismissScope) =>
-    value === "all"
-      ? counts.total
-      : value === "read"
-        ? counts.read
-        : counts.unread;
-  const offeredScopes = SCOPES.filter(
-    (option) => counts.truncated || countFor(option.value) > 0,
+  const [selectedScope, setSelectedScope] = useState<DismissScope>(() =>
+    initialScope(counts),
   );
-  const defaultScope =
-    (["read", "unread", "all"] as const).find((value) =>
-      offeredScopes.some((option) => option.value === value),
-    ) ?? "all";
-  const scope =
-    selectedScope &&
-    offeredScopes.some((option) => option.value === selectedScope)
-      ? selectedScope
-      : defaultScope;
+  const offeredScopes = SCOPES.filter(
+    (option) =>
+      counts.truncated ||
+      countForScope(counts, option.value) > 0 ||
+      option.value === selectedScope,
+  );
+  const selectedEmpty =
+    !counts.truncated && countForScope(counts, selectedScope) === 0;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -94,24 +108,33 @@ function DeleteAllNotificationsDialogBody({
                   type="radio"
                   name="delete-scope"
                   value={option.value}
-                  checked={scope === option.value}
-                  tabIndex={scope === option.value ? 0 : -1}
+                  checked={selectedScope === option.value}
+                  tabIndex={selectedScope === option.value ? 0 : -1}
                   onChange={() => setSelectedScope(option.value)}
                   className="size-4 accent-foreground"
                 />
                 <span>{option.label}</span>
               </span>
               <span className="text-muted-foreground">
-                {formatCount(countFor(option.value), counts.truncated)}
+                {formatCount(
+                  countForScope(counts, option.value),
+                  counts.truncated,
+                )}
               </span>
             </label>
           ))}
         </div>
+        {selectedEmpty && (
+          <p role="status" className="text-sm text-muted-foreground">
+            That group is empty. Choose another scope.
+          </p>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            onClick={() => onConfirm(scope)}
+            disabled={selectedEmpty}
+            onClick={() => onConfirm(selectedScope)}
           >
             Delete
           </AlertDialogAction>

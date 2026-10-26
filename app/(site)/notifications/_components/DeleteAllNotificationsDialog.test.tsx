@@ -94,6 +94,34 @@ describe("DeleteAllNotificationsDialog", () => {
     expect(onConfirm).toHaveBeenCalledWith("unread");
   });
 
+  it("keeps the selected scope when its count drops to zero", async () => {
+    const user = userEvent.setup();
+    const { onConfirm, rerender } = renderDialog();
+
+    await user.click(screen.getByRole("radio", { name: /Read only/ }));
+
+    rerender(
+      <DeleteAllNotificationsDialog
+        open
+        counts={{ total: 6, read: 0, unread: 6, truncated: false }}
+        onOpenChange={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    expect(screen.getByRole("radio", { name: /Read only/ })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "That group is empty. Choose another scope.",
+    );
+
+    await user.click(screen.getByRole("radio", { name: /Unread only/ }));
+    const confirm = screen.getByRole("button", { name: "Delete" });
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+    expect(onConfirm).toHaveBeenCalledWith("unread");
+  });
+
   it("shows 1000+ when the counts are truncated", () => {
     renderDialog({
       counts: {
