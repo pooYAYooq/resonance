@@ -12,24 +12,22 @@ focused comment destinations, follow-back actions, scoped deletion, and
 age-based retention. [Features](../FEATURES.md#notifications) owns behavior;
 the approved scope amendment is in [the decision log](PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
 
-The latest full automated verification and development retention deployment
-checks are recorded in [notifications evidence](NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
-Documentation now distinguishes current behavior from superseded UI/navigation
-experiments. The implementation extension still has acceptance work; it is not
-recorded as complete merely because the automated checks passed. The integrated
-PR #117 baseline retains its own historical evidence.
+The original three acceptance gaps were closed by the maintainer's
+physical-phone results at `aadb9c1`. Review follow-up repairs truncated deletion
+scopes, failed storage writes, modal Undo, and hidden focus targets. Verification
+and the targeted retest for the changed deletion/Undo flow are recorded in
+[notifications evidence](NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
+Earlier UI/navigation experiments and the integrated PR #117 baseline retain
+their own historical evidence.
 
 ## Next action
 
-Review notification rows and actions with an account that has notification
-events, then confirm normal drawer exit and focus handoff on a physical phone.
-The empty-state and scroll-preservation check is in
-[notifications evidence](NOTIFICATIONS_EVIDENCE.md#drawer-visual-check). The
-phone-preview publishing retest remains open in
-[known limitations](KNOWN_LIMITATIONS.md#notifications). After relevant fixes,
-refresh affected verification and apply [the PR checklist](PR_CHECKLIST.md).
-Other username, profile, accessibility, and author-page gaps remain with their
-existing limitation records.
+Retest the drawer's changed deletion/Undo flow on a physical phone; see
+[known limitations](KNOWN_LIMITATIONS.md#notifications). After closing that gap,
+choose the next substantive delivery item from [the roadmap](../ROADMAP.md).
+Existing username, profile, accessibility, and author-page gaps remain with
+their [limitation records](KNOWN_LIMITATIONS.md). Changes affecting notifications
+reopen the relevant checks under the evidence document's retest triggers.
 
 ## Blockers and constraints
 

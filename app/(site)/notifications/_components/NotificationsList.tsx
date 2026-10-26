@@ -73,9 +73,10 @@ import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 import { useListFocusRestore } from "@/lib/use-list-focus-restore";
 
 // Keep pending removals hidden when navigating away and back during Undo.
-let pendingDismissals = new Set<Id<"notifications">>();
+// A null value keeps a row hidden while its server deletion is committing.
+let pendingDismissals = new Map<Id<"notifications">, (() => void) | null>();
 const dismissalListeners = new Set<() => void>();
-const emptyDismissals = new Set<Id<"notifications">>();
+const emptyDismissals = new Map<Id<"notifications">, (() => void) | null>();
 const getPendingDismissals = () => pendingDismissals;
 const getServerDismissals = () => emptyDismissals;
 function subscribeToDismissals(listener: () => void) {
@@ -84,10 +85,13 @@ function subscribeToDismissals(listener: () => void) {
     dismissalListeners.delete(listener);
   };
 }
-function setPendingDismissal(id: Id<"notifications">, pending: boolean) {
-  pendingDismissals = new Set(pendingDismissals);
-  if (pending) pendingDismissals.add(id);
-  else pendingDismissals.delete(id);
+function setPendingDismissal(
+  id: Id<"notifications">,
+  undo: (() => void) | null | undefined,
+) {
+  pendingDismissals = new Map(pendingDismissals);
+  if (undo === undefined) pendingDismissals.delete(id);
+  else pendingDismissals.set(id, undo);
   dismissalListeners.forEach((listener) => listener());
 }
 
@@ -153,26 +157,29 @@ export function NotificationsList({
 
   const handleDismiss = (notificationId: Id<"notifications">) => {
     if (pendingDismissals.has(notificationId)) return;
-    setPendingDismissal(notificationId, true);
     let settled = false;
+    const undo = () => {
+      if (settled) return;
+      settled = true;
+      setPendingDismissal(notificationId, undefined);
+      toast.dismiss(toastId);
+    };
     const commit = () => {
       if (settled) return;
       settled = true;
+      setPendingDismissal(notificationId, null);
       void dismiss({ notificationId })
         .catch(() => {
           toast.error("Couldn't delete notification. Please try again.");
         })
-        .finally(() => setPendingDismissal(notificationId, false));
+        .finally(() => setPendingDismissal(notificationId, undefined));
     };
-    toast("Notification deleted", {
+    setPendingDismissal(notificationId, undo);
+    const toastId = toast("Notification deleted", {
       duration: 5000,
       action: {
         label: "Undo",
-        onClick: () => {
-          if (settled) return;
-          settled = true;
-          setPendingDismissal(notificationId, false);
-        },
+        onClick: undo,
       },
       // Wait until Undo is no longer available before deleting on the server.
       onAutoClose: commit,
@@ -206,11 +213,14 @@ export function NotificationsList({
 
   const visible = results.filter(
     (n) =>
-      !hiddenDismissals.has(n._id) &&
+      (!hiddenDismissals.has(n._id) ||
+        (header && hiddenDismissals.get(n._id))) &&
       (n.type === "follow" || n.postTitle !== null),
   );
 
-  const expandable = visible.filter((n) => n.type !== "follow");
+  const expandable = visible.filter(
+    (n) => !hiddenDismissals.has(n._id) && n.type !== "follow",
+  );
   const allExpanded = useSyncExternalStore(
     subscribeToExpansion,
     () =>
@@ -388,14 +398,30 @@ export function NotificationsList({
         tabIndex={-1}
         className="space-y-2 max-sm:space-y-0 focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-ring"
       >
-        {visible.map((notification) => (
-          <NotificationRow
-            key={notification._id}
-            notification={notification}
-            onActivate={handleActivate}
-            onDelete={handleDismiss}
-          />
-        ))}
+        {visible.map((notification) => {
+          const undo = header
+            ? hiddenDismissals.get(notification._id)
+            : undefined;
+          return undo ? (
+            <article
+              key={notification._id}
+              aria-label="Deleted notification"
+              className="flex w-[44rem] max-w-full items-center justify-between gap-3 rounded-sm border border-border px-3 py-2 text-sm"
+            >
+              <p role="status">Notification deleted</p>
+              <Button autoFocus variant="outline" size="sm" onClick={undo}>
+                Undo
+              </Button>
+            </article>
+          ) : (
+            <NotificationRow
+              key={notification._id}
+              notification={notification}
+              onActivate={handleActivate}
+              onDelete={handleDismiss}
+            />
+          );
+        })}
 
         {status === "CanLoadMore" && (
           <div className="flex justify-center py-4">

@@ -7,19 +7,11 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Notifications
 
-- The current preview account has no notifications. The 2026-10-26 browser
-  pass therefore checked the empty state and page-preserving drawer, not the
-  populated row layouts, covers/excerpts, or row actions. Repeat the visual
-  review using an account with engagement events; see
-  [drawer visual check](NOTIFICATIONS_EVIDENCE.md#drawer-visual-check).
-- Focused navigation's normal drawer exit animation, keyboard focus through
-  that animation, and current real-device layout still need acceptance. The
-  existing Chromium checks and headless animation limitation are recorded in
-  [focused comment verification](NOTIFICATIONS_EVIDENCE.md#focused-comment-destinations).
-- Creating a post from the phone's non-secure Wi-Fi preview still needs a manual
-  retest after the random request-ID repair. Fixture content and that narrow
-  environment issue are recorded in
-  [Phone Preview evidence](NOTIFICATIONS_EVIDENCE.md#phone-preview-fixture-account).
+- The review follow-up adds an in-drawer Undo recovery row. Its keyboard and
+  expiry behavior passed component and real-UI browser-fixture checks, but the
+  changed deletion/Undo flow still needs a targeted physical-phone retest.
+  The maintainer's earlier three-check acceptance at `aadb9c1` remains valid
+  for that revision; see [notification evidence](NOTIFICATIONS_EVIDENCE.md#review-regression-checks).
 
 ## Accessibility and responsive behavior
 

@@ -61,7 +61,9 @@ function DeleteAllNotificationsDialogBody({
       : value === "read"
         ? counts.read
         : counts.unread;
-  const offeredScopes = SCOPES.filter((option) => countFor(option.value) > 0);
+  const offeredScopes = SCOPES.filter(
+    (option) => counts.truncated || countFor(option.value) > 0,
+  );
   const defaultScope =
     (["read", "unread", "all"] as const).find((value) =>
       offeredScopes.some((option) => option.value === value),

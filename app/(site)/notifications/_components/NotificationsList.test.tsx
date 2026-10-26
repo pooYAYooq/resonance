@@ -24,6 +24,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Id } from "@/convex/_generated/dataModel";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 const {
   useConvexAuthState,
@@ -51,7 +52,11 @@ const {
 }));
 
 const { toastMock } = vi.hoisted(() => ({
-  toastMock: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }),
+  toastMock: Object.assign(vi.fn(), {
+    error: vi.fn(),
+    success: vi.fn(),
+    dismiss: vi.fn(),
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -448,6 +453,179 @@ describe("NotificationsList", () => {
         notificationId: "notif-42",
       }),
     );
+  });
+
+  it("lets a keyboard user undo deletion without leaving the modal drawer", async () => {
+    const user = userEvent.setup();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    usePaginatedState.mockReturnValue({
+      results: [baseNotification({ _id: "drawer-undo" })],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    render(
+      <Sheet open>
+        <SheetContent aria-describedby={undefined}>
+          <NotificationsList header={<SheetTitle>Notifications</SheetTitle>} />
+        </SheetContent>
+      </Sheet>,
+    );
+    const dialog = screen.getByRole("dialog");
+    within(screen.getByTestId("notification-desktop"))
+      .getByRole("button", { name: "Delete notification" })
+      .focus();
+    await user.keyboard("{Enter}");
+
+    const undo = within(dialog).getByRole("button", { name: "Undo" });
+    expect(undo).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByTestId("notification-desktop")).toBeInTheDocument();
+    expect(useMutationMocks.dismiss).not.toHaveBeenCalled();
+    const options = toastMock.mock.calls.at(-1)?.[1] as {
+      onAutoClose: () => void;
+    };
+    act(() => options.onAutoClose());
+    expect(useMutationMocks.dismiss).not.toHaveBeenCalled();
+  });
+
+  it("keeps pending Undo usable after the drawer list remounts", async () => {
+    const user = userEvent.setup();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    usePaginatedState.mockReturnValue({
+      results: [baseNotification({ _id: "reopened-drawer-undo" })],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    const content = <NotificationsList header={<h2>Notifications</h2>} />;
+    const first = render(content);
+    await user.click(
+      screen.getByRole("button", { name: "Delete notification" }),
+    );
+    first.unmount();
+    render(content);
+
+    expect(screen.getByRole("button", { name: "Undo" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByTestId("notification-desktop")).toBeInTheDocument();
+    expect(hasFocus("Open Ada's profile")).toBe(true);
+    expect(useMutationMocks.dismiss).not.toHaveBeenCalled();
+  });
+
+  it("restores recovery focus when a remounted drawer Undo expires", async () => {
+    const user = userEvent.setup();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    const page = {
+      results: [baseNotification({ _id: "reopened-expiring-undo" })],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    };
+    usePaginatedState.mockReturnValue(page);
+    useMutationMocks.dismiss.mockImplementation(async () => {
+      usePaginatedState.mockReturnValue({ ...page, results: [] });
+    });
+    const content = <NotificationsList header={<h2>Notifications</h2>} />;
+    const first = render(content);
+    await user.click(
+      screen.getByRole("button", { name: "Delete notification" }),
+    );
+    first.unmount();
+    render(content);
+    expect(screen.getByRole("button", { name: "Undo" })).toHaveFocus();
+    const options = toastMock.mock.calls.at(-1)?.[1] as {
+      onAutoClose: () => void;
+    };
+
+    await act(async () => options.onAutoClose());
+
+    expect(screen.getByRole("link", { name: "Discover" })).toHaveFocus();
+  });
+
+  it("commits an expired drawer deletion once and removes its Undo action", async () => {
+    const user = userEvent.setup();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    const page = {
+      results: [baseNotification({ _id: "expired-drawer-undo" })],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    };
+    usePaginatedState.mockReturnValue(page);
+    useMutationMocks.dismiss.mockImplementation(async () => {
+      usePaginatedState.mockReturnValue({ ...page, results: [] });
+    });
+    render(<NotificationsList header={<h2>Notifications</h2>} />);
+    await user.click(
+      screen.getByRole("button", { name: "Delete notification" }),
+    );
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    const options = toastMock.mock.calls.at(-1)?.[1] as {
+      onAutoClose: () => void;
+      onDismiss: () => void;
+    };
+
+    await act(async () => {
+      options.onAutoClose();
+      options.onDismiss();
+    });
+
+    expect(useMutationMocks.dismiss).toHaveBeenCalledExactlyOnceWith({
+      notificationId: "expired-drawer-undo",
+    });
+    expect(
+      screen.queryByRole("button", { name: "Undo" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("No notifications yet")).toBeInTheDocument();
+  });
+
+  it("removes Undo when its window expires while the server deletion is pending", async () => {
+    const user = userEvent.setup();
+    useConvexAuthState.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    usePaginatedState.mockReturnValue({
+      results: [baseNotification({ _id: "pending-drawer-deletion" })],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    let finish!: () => void;
+    useMutationMocks.dismiss.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    render(<NotificationsList header={<h2>Notifications</h2>} />);
+    await user.click(
+      screen.getByRole("button", { name: "Delete notification" }),
+    );
+    const options = toastMock.mock.calls.at(-1)?.[1] as {
+      onAutoClose: () => void;
+    };
+
+    act(() => options.onAutoClose());
+
+    expect(
+      screen.queryByRole("button", { name: "Undo" }),
+    ).not.toBeInTheDocument();
+    await act(async () => finish());
   });
 
   it("keeps Load more (not EmptyState) when all loaded rows are deleted-post and more pages remain", async () => {

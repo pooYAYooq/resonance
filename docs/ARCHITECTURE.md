@@ -852,7 +852,11 @@ interaction rules live in [Features](../FEATURES.md#notifications).
 `NotificationBell` uses the shared shadcn/Radix Sheet and renders
 `NotificationsList` inside its own scrolling region. The same list serves the
 full page. Opening or dismissing the drawer preserves the underlying page;
-destination links use normal Next routing while the drawer closes. There is
+shared pending-deletion state owns each Undo callback so the toast and an
+in-drawer recovery row use the same lifecycle across list remounts. The global
+Sonner toast retains the deletion timer when the drawer closes. The shared
+list-focus hook excludes controls hidden by responsive layouts or ancestors.
+Destination links use normal Next routing while the drawer closes. There is
 no frozen DOM copy or custom body-scroll compensation. `NotificationLink`
 preserves native modifier clicks and authoring-exit guards, prefetches on
 intent, and delegates delayed status feedback to

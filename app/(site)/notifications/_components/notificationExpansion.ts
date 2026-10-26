@@ -2,6 +2,7 @@
 
 const EXPANSION_CHANGED = "notification-expansion-changed";
 const expansionFallback = new Map<string, boolean>();
+const failedWrites = new Set<string>();
 
 export function subscribeToExpansion(onChange: () => void) {
   window.addEventListener("storage", onChange);
@@ -13,6 +14,7 @@ export function subscribeToExpansion(onChange: () => void) {
 }
 
 export function readExpansion(key: string): boolean {
+  if (failedWrites.has(key)) return expansionFallback.get(key) ?? false;
   try {
     return window.localStorage.getItem(key) === "expanded";
   } catch {
@@ -26,8 +28,10 @@ function writeExpansion(key: string, expanded: boolean) {
   try {
     if (expanded) window.localStorage.setItem(key, "expanded");
     else window.localStorage.removeItem(key);
+    failedWrites.delete(key);
   } catch {
     // The in-memory fallback lasts until this page is reloaded.
+    failedWrites.add(key);
   }
 }
 

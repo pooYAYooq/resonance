@@ -135,10 +135,10 @@ focused comment destinations, scoped deletion, and
 [notification retention](FEATURES.md#notification-retention). The approved
 scope amendment is recorded in
 [the decision log](docs/PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
-Automated results are recorded in [current verification](docs/NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
-The notification extension remains In progress and is not ready for final
-acceptance: normal-animation/device checks remain visible in
-[known limitations](docs/KNOWN_LIMITATIONS.md#notifications).
+Maintainer-reported physical-phone acceptance closed the original three gaps at
+`aadb9c1`. The notification extension remains In progress for the review
+follow-up's targeted phone deletion/Undo retest; automated and browser-fixture
+results are in [current verification](docs/NOTIFICATIONS_EVIDENCE.md#current-revision-summary).
 
 ### Visual system and responsive polish
 

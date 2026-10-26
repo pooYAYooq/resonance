@@ -273,7 +273,8 @@
   by clicking or keyboard-activating the header's empty area. Actor and event
   links remain usable while collapsed. Expansion is saved per recipient and
   notification in browser storage across reloads and navigation; when storage
-  is unavailable, an in-memory fallback lasts until reload. Follow rows have no
+  cannot be read or written, an in-memory fallback lasts until reload. A failed
+  write takes precedence over stale stored state for that row. Follow rows have no
   expandable details.
 - Follow rows offer Follow back using the shared live follow control, changing
   to Following when active. Using it marks the notification read.
@@ -286,16 +287,20 @@
   double-check icon. Delete all shares that menu and retains its confirmation
   dialog, offering All, Read only, and Unread only when those groups have rows.
   Its displayed counts cover at most 1,000 rows, with one extra row read to
-  detect truncation and show a `+`. This is a display bound, not a notification
-  retention cap. Confirmed deletion processes
+  detect truncation and show a `+`. When truncated, all scopes remain available:
+  a sampled zero does not prove the group is empty. This is a display bound, not
+  a notification retention cap. Confirmed deletion processes
   the selected scope in bounded batches through a captured creation watermark,
   preserving newer arrivals.
 - Individual deletion uses a trash icon on desktop, visible on row hover or
   keyboard focus and always available on devices without hover. Mobile rows
   use an overflow menu with Delete notification and, while unread, Mark as read.
   Deleting a row hides it immediately and offers Undo for five seconds before
-  the server deletion is committed. Undo restores the row, but does not undo
-  the read action caused by deletion. Bulk deletion has confirmation and no Undo.
+  the server deletion is committed. The drawer replaces the hidden row with a
+  focused Undo control inside the modal, sharing the toast's five-second window.
+  That control remains available if the drawer is reopened before expiry and
+  disappears once server deletion starts. Undo restores the row, but does not
+  undo the read action caused by deletion. Bulk deletion has confirmation and no Undo.
 - Follow notifications are limited to one per follower–recipient pair every
   seven elapsed days, measured from the last delivered notification. Repeated
   attempts do not extend the wait, and deleting the notification does not reset

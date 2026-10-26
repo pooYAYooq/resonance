@@ -108,4 +108,29 @@ describe("DeleteAllNotificationsDialog", () => {
     expect(screen.getByText("900+")).toBeInTheDocument();
     expect(screen.getByText("100+")).toBeInTheDocument();
   });
+
+  it.each([
+    { read: 0, unread: 1000, label: "Read only", scope: "read" },
+    { read: 1000, unread: 0, label: "Unread only", scope: "unread" },
+  ])(
+    "keeps $label selectable when its sampled count is zero",
+    async (sample) => {
+      const user = userEvent.setup();
+      const { onConfirm } = renderDialog({
+        counts: {
+          total: 1000,
+          read: sample.read,
+          unread: sample.unread,
+          truncated: true,
+        },
+      });
+
+      await user.click(
+        screen.getByRole("radio", { name: new RegExp(sample.label) }),
+      );
+      await user.click(screen.getByRole("button", { name: "Delete" }));
+
+      expect(onConfirm).toHaveBeenCalledWith(sample.scope);
+    },
+  );
 });

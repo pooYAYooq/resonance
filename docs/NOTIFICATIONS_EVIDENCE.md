@@ -8,12 +8,13 @@ requirement source is 3A.4 in [PHASE_3A.md](PHASE_3A.md).
 
 ## Current revision summary
 
-The uncommitted `feat/engagement-notifications` revision is based on `f4e48fb`.
+This revision includes the [review repairs](#review-regression-checks) following
+verification of `aadb9c1` on `feat/engagement-notifications`.
 The authoritative behavior is in [Features](../FEATURES.md#notifications), with
 the scope amendment in [the decision log](PHASE_3A_DECISIONS.md#engagement-notification-amendment-2026-10-26).
-The latest full automated run is recorded in the retention section below;
-earlier sections retain the revisions, test counts, and outcomes they measured.
-Automated results do not establish current visual acceptance.
+The latest affected verification is recorded in the review section below;
+the retention section and earlier runs retain their tested revisions and outcomes.
+Manual acceptance is recorded separately in [maintainer phone acceptance](#maintainer-phone-acceptance).
 
 Current behavior supersedes the early iterations recorded below: publication
 fan-out has been replaced by direct engagement events; both layouts use unread
@@ -27,9 +28,98 @@ highlights are no longer part of notification-link navigation.
 A source/documentation comparison on 2026-10-26 identified that the empty list
 still shows the toolbar. The maintainer confirmed this is acceptable, so it is
 closed as a product concern. The initial browser check below found no
-notification rows on the preview account. Populated-row and physical-device
-acceptance remain open; [known limitations](KNOWN_LIMITATIONS.md#notifications)
-owns these gaps. This does not replace the recorded automated suite results.
+notification rows on the preview account. The later maintainer phone acceptance
+closes the populated-row, physical-device, and phone-publishing checks without
+changing the scope or results of the earlier automated and browser runs.
+The later review repairs have their own verification and affected retest scope.
+
+### Maintainer phone acceptance
+
+On 2026-10-26, the maintainer reported that all three outstanding acceptance
+checks passed on a physical phone for the implementation at `aadb9c1`:
+
+- Populated notification rows and actions, including covers and excerpts.
+- Normal drawer exit animation and focus handoff.
+- Publishing from the phone's HTTP LAN preview after the request-ID repair.
+
+These are maintainer-reported results, not a new agent-driven browser run.
+The phone model and browser were not specified, so this evidence does not
+establish a named browser/device matrix or screen-reader acceptance. Retest
+affected checks after changes to notification rows/actions, drawer lifecycle
+or focus handling, and HTTP preview authentication or publishing request IDs.
+
+### Review regression checks
+
+The working revision based on `aadb9c1` addresses the four findings in
+[PR #120's Codex review](https://github.com/pooYAYooq/resonance/pull/120#pullrequestreview-5644536780).
+All four were confirmed against the implementation before fixes:
+
+- Truncated counts could hide a nonempty read/unread deletion scope. Both
+  zero-sample cases failed before keeping all scopes available when truncated.
+- Readable storage with failed writes returned stale expansion state. Expansion
+  and collapse regressions failed before failed writes used the per-key memory
+  fallback; successful persistence resumes reading storage normally.
+- The global toast's Undo was outside the modal drawer. A real-Sheet component
+  regression failed before an in-drawer recovery row offered the same Undo
+  callback. Coverage also checks remounting, one commit on expiry, cancellation
+  after Undo, and removal of Undo while server deletion is still pending.
+- Focus restoration selected controls in hidden responsive layouts. Four cases
+  failed before visibility filtering: deleting the first/last item, appending
+  pagination, and settling pagination without another visible item.
+
+An independent review found that remount autofocus preceded the hook's focus
+listener. Two additional regressions reproduced lost focus after keyboard Undo
+and after expiry on reopening. The hook now seeds tracking from the control
+already focused inside its root. Both component and browser retests passed.
+The subsequent independent recheck could not run because its provider hit a
+usage limit; no clean follow-up review verdict is claimed.
+
+The final source/test fingerprint is
+`b966a1ddb18c1750e6672a2a73fd8ee31826622c3fbb1506e254f9b4868b969b`
+(SHA-256 over sorted path/content pairs, each NUL-delimited, for the four
+changed source files and their four regression-test files).
+The initial repair snapshot used the same paths and hashing method:
+`f6bc8ba954a13c841cefdb81888bf9f3669f1cf3b4b47ffbc6ab10ce0617c57f`.
+
+- The full component run passed 104 files and 1,049 tests on the initial
+  repairs. After the final remount-focus change, all 125 affected tests across
+  seven files passed, including every shared-hook list consumer. Unchanged
+  results were reused under the PR checklist rather than claiming another full
+  run of the final revision.
+- Final `pnpm lint`, `pnpm exec tsc --noEmit`, and `pnpm build` passed. The
+  unchanged backend retains its earlier 54-file, 897-test result. No backend,
+  schema, dependency, or deployment changes were needed.
+- Changed-file Prettier, 75 local file/heading links, diff whitespace, and the
+  artifact index check passed.
+
+On 2026-10-26, a temporary browser fixture mounted the actual NotificationBell,
+NotificationsList, rows, shared focus/expansion modules, Radix Sheet, Sonner,
+and application CSS. Only auth/query/mutation and Next routing boundaries were
+controlled; it did not create or change Convex data. The fixture and raw output
+lived outside Git, and existing Next/Convex dev servers were preserved.
+
+- At 1280px, keyboard deletion on the full list restored focus to the next
+  visible desktop control. Inside the open drawer, deletion focused its own
+  Undo button; Enter restored the row without closing the drawer or issuing a
+  server deletion. Letting a second deletion expire issued exactly one deletion,
+  removed Undo, and returned focus to a surviving row.
+- At 375px, keyboard activation through the mobile row menu focused Undo inside
+  the drawer. Enter restored both rows without a deletion; document width and
+  scroll width remained 375px.
+- Reopening during the Undo window preserved keyboard Undo focus. Enter then
+  restored focus to the restored row at 1280px. Expiry after reopening focused
+  a surviving row at 1280px and the Discover recovery link for an emptied list
+  at 375px. Each expired row issued one deletion, and the drawer stayed open.
+- With storage reads succeeding and writes throwing QuotaExceededError,
+  Expand all opened both rows and Collapse all closed both rows.
+- With a truncated sample of 1,000 unread and zero read rows, the dialog offered
+  All, Read only (`0+`), and Unread only without invoking deletion.
+
+These browser results validate real UI behavior with controlled data, not a
+new authenticated app or physical-phone pass. The original phone publishing
+and drawer-exit acceptance remains recorded above. The new in-drawer deletion
+and Undo row still needs the targeted physical-phone retest recorded in
+[known limitations](KNOWN_LIMITATIONS.md#notifications).
 
 ### Drawer visual check
 
@@ -42,11 +132,11 @@ restored focus to the bell and returned to the same URL and scroll position;
 `scrollWidth` and `clientWidth` both remained 375px. No console errors appeared
 in the mobile checks.
 
-This account currently has no notification rows, so this pass could not inspect
+This account had no notification rows during this pass, so it could not inspect
 cover/excerpt layout, row actions, or a notification destination. It also does
 not establish visual acceptance of the drawer exit animation or a physical
-phone. Those checks remain open in
-[known limitations](KNOWN_LIMITATIONS.md#notifications).
+phone. The subsequent [maintainer phone acceptance](#maintainer-phone-acceptance)
+closes those gaps separately.
 
 Documentation validation passed repository-wide `pnpm format:check`, local
 file/heading-link checks, `git diff --check`, and `pnpm check:artifacts`. The old
@@ -297,7 +387,8 @@ The Wi-Fi HTTP preview exposed an authoring issue: `crypto.randomUUID` is
 undefined in that non-secure browser context, while `crypto.getRandomValues`
 is available. Publishing request IDs now use 128 random bits encoded as hex;
 the existing server contract requires a nonempty unique string, not UUID
-syntax. Phone UI publishing still needs a manual retest.
+syntax. The subsequent [maintainer phone acceptance](#maintainer-phone-acceptance)
+records the successful phone UI publishing retest.
 
 ## Notification destinations from the editor
 
@@ -460,12 +551,13 @@ complete suite rerun successfully. Independent review found no actionable
 issues in the focus or prefetch changes. The production build, repository-wide
 format check, artifact index check, and `git diff --check` also passed.
 
-Visual acceptance remains open: the installed headless Chromium rendering clock
+Visual acceptance was left open by this pass: the installed headless Chromium rendering clock
 stalled at zero even for a standalone CSS animation. Pointer actions bypassed
 stability waits and drawer CSS animations were disabled only in the harness.
-These are DOM/navigation checks, not proof of painted animation frames. Retest
-normal drawer motion in the maintainer's browser and on a real device; Firefox,
-Safari, and a real screen-reader session remain outside this pass. Retest after
+These are DOM/navigation checks, not proof of painted animation frames. The
+subsequent [maintainer phone acceptance](#maintainer-phone-acceptance) closes
+normal drawer motion and focus acceptance on a real device. Firefox, Safari,
+and a real screen-reader session remain outside this earlier pass. Retest after
 changes to row links, routing, auth hydration, drawer lifecycle, or comment data.
 
 ### Earlier loading-state trial (superseded)
