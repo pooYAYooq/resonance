@@ -141,6 +141,28 @@ describe("MobileNavMenu", () => {
     );
   });
 
+  it("keeps the mobile drawer expanded when the desktop rail is preferred", async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem("resonance:workspace-sidebar", "collapsed");
+
+    try {
+      render(<MobileNavMenu isAuthenticated />);
+      await user.click(
+        screen.getByRole("button", { name: "Open navigation menu" }),
+      );
+
+      expect(screen.getByText("Writing")).not.toHaveClass("sr-only");
+      expect(screen.getByText("Drafts")).not.toHaveClass("sr-only");
+      expect(screen.getByText("Appearance")).not.toHaveClass("sr-only");
+      expect(screen.getByRole("button", { name: "Light" })).toBeEnabled();
+      expect(
+        screen.queryByRole("button", { name: "Expand sidebar" }),
+      ).not.toBeInTheDocument();
+    } finally {
+      window.localStorage.removeItem("resonance:workspace-sidebar");
+    }
+  });
+
   it("opens an accessible drawer with every destination and account link", async () => {
     const user = userEvent.setup();
     useQueryState.mockImplementation((query: unknown) =>

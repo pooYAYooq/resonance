@@ -36,6 +36,11 @@
   share navigation content: Writing, Reading, Account, and Appearance, with
   profile context and unread notifications for authenticated users; anonymous
   users get Home, Discover, Log In, Sign Up, and theme controls.
+- The desktop workspace sidebar collapses to an 80px icon rail with hover and
+  keyboard-focus labels, active destination styling, and an unread notification
+  dot. It starts expanded and remembers the choice in browser-local storage
+  across reloads. The toggle still works in memory when storage is unavailable;
+  the mobile drawer retains its full labels.
 
 ### Blog Posts
 

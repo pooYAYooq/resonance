@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type RefObject } from "react";
+import { useRef, useState, type ReactElement, type RefObject } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { useTheme } from "next-themes";
@@ -36,6 +36,7 @@ import {
   SheetTrigger,
 } from "../ui/sheet";
 import { Separator } from "../ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { signOutUser } from "./account-actions";
 import { useOptionalAuthoringExit } from "./AuthoringExitProvider";
 import { UserAvatar } from "./UserAvatar";
@@ -100,9 +101,12 @@ export function AppNavigation({
   isAuthenticated,
   onNavigateAction,
   returnFocusRef,
+  collapsed = false,
 }: {
   isAuthenticated: boolean;
   onNavigateAction?: () => void;
+  /** Icon-only presentation for the desktop workspace sidebar. */
+  collapsed?: boolean;
   /**
    * Focus target that survives the owner's close. Owners whose trigger stays
    * mounted pass it here; otherwise focus returns to the clicked control.
@@ -122,10 +126,14 @@ export function AppNavigation({
     isAuthenticated ? {} : "skip",
   );
   const close = () => onNavigateAction?.();
-  const linkClass =
-    "flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted";
-  const sectionClass =
-    "px-3 text-xs font-medium tracking-wide text-muted-foreground";
+  const linkClass = cn(
+    "relative flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+    collapsed && "justify-center px-0",
+  );
+  const sectionClass = cn(
+    "px-3 text-xs font-medium tracking-wide text-muted-foreground",
+    collapsed && "sr-only",
+  );
   function navLink({
     href,
     label,
@@ -137,30 +145,70 @@ export function AppNavigation({
   }) {
     const active = pathname === href;
     return (
-      <Link
-        key={href}
-        className={cn(linkClass, active && "bg-muted text-foreground")}
-        href={href}
-        onClick={close}
-        aria-current={active ? "page" : undefined}
-      >
-        <Icon
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-        {label}
-      </Link>
+      <NavigationTooltip key={href} collapsed={collapsed} label={label}>
+        <Link
+          className={cn(linkClass, active && "bg-muted text-foreground")}
+          href={href}
+          onClick={close}
+          aria-current={active ? "page" : undefined}
+        >
+          <Icon
+            className="size-4 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <span className={cn(collapsed && "sr-only")}>{label}</span>
+        </Link>
+      </NavigationTooltip>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-6">
+    <div
+      className={cn(
+        "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-6",
+        collapsed && "px-3",
+      )}
+    >
       {isAuthenticated && user?.username && (
-        <Link
-          href={buildProfilePath(user.username)}
-          onClick={close}
-          className="flex min-w-0 items-center gap-3 rounded-lg bg-muted/50 p-3"
-          aria-label={`View profile for ${user.displayName}`}
+        <NavigationTooltip
+          collapsed={collapsed}
+          label={`View profile for ${user.displayName}`}
+        >
+          <Link
+            href={buildProfilePath(user.username)}
+            onClick={close}
+            className={cn(
+              "flex min-w-0 items-center gap-3 rounded-lg bg-muted/50 p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              collapsed && "justify-center bg-transparent p-0",
+            )}
+            aria-label={`View profile for ${user.displayName}`}
+          >
+            <UserAvatar
+              userId={user.userId}
+              name={user.displayName}
+              avatarUrl={user.avatarUrl}
+              className="size-11 shrink-0"
+            />
+            <div className={cn("min-w-0", collapsed && "sr-only")}>
+              <p className="truncate text-sm font-semibold capitalize">
+                {user.displayName}
+              </p>
+              {user.email && (
+                <p className="truncate text-xs text-muted-foreground">
+                  {user.email}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">View profile</p>
+            </div>
+          </Link>
+        </NavigationTooltip>
+      )}
+      {isAuthenticated && user && !user.username && (
+        <div
+          className={cn(
+            "flex min-w-0 items-center gap-3 rounded-lg bg-muted/50 p-3",
+            collapsed && "justify-center bg-transparent p-0",
+          )}
         >
           <UserAvatar
             userId={user.userId}
@@ -168,28 +216,7 @@ export function AppNavigation({
             avatarUrl={user.avatarUrl}
             className="size-11 shrink-0"
           />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold capitalize">
-              {user.displayName}
-            </p>
-            {user.email && (
-              <p className="truncate text-xs text-muted-foreground">
-                {user.email}
-              </p>
-            )}
-            <p className="mt-1 text-xs text-muted-foreground">View profile</p>
-          </div>
-        </Link>
-      )}
-      {isAuthenticated && user && !user.username && (
-        <div className="flex min-w-0 items-center gap-3 rounded-lg bg-muted/50 p-3">
-          <UserAvatar
-            userId={user.userId}
-            name={user.displayName}
-            avatarUrl={user.avatarUrl}
-            className="size-11 shrink-0"
-          />
-          <div className="min-w-0">
+          <div className={cn("min-w-0", collapsed && "sr-only")}>
             <p className="truncate text-sm font-semibold capitalize">
               {user.displayName}
             </p>
@@ -219,18 +246,51 @@ export function AppNavigation({
         <p className={sectionClass}>Account</p>
         {isAuthenticated ? (
           <>
-            <Link className={linkClass} href="/notifications" onClick={close}>
-              <Bell
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <span className="flex-1">Notifications</span>
-              {(unread ?? 0) > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {unread} unread
+            <NavigationTooltip
+              collapsed={collapsed}
+              label={
+                (unread ?? 0) > 0
+                  ? `Notifications (${unread} unread)`
+                  : "Notifications"
+              }
+            >
+              <Link
+                className={linkClass}
+                href="/notifications"
+                onClick={close}
+                aria-label={
+                  (unread ?? 0) > 0
+                    ? `Notifications ${unread} unread`
+                    : "Notifications"
+                }
+              >
+                <Bell
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <span className={cn("flex-1", collapsed && "sr-only")}>
+                  Notifications
                 </span>
-              )}
-            </Link>
+                {(unread ?? 0) > 0 && (
+                  <>
+                    <span
+                      className={cn(
+                        "text-xs text-muted-foreground",
+                        collapsed && "sr-only",
+                      )}
+                    >
+                      {unread} unread
+                    </span>
+                    {collapsed && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute top-2 right-2 size-2 rounded-full bg-primary"
+                      />
+                    )}
+                  </>
+                )}
+              </Link>
+            </NavigationTooltip>
             {user?.username &&
               navLink({
                 href: buildProfilePath(user.username),
@@ -238,21 +298,26 @@ export function AppNavigation({
                 icon: User,
               })}
             {navLink({ href: "/settings", label: "Settings", icon: Settings })}
-            <Button
-              variant="ghost"
-              className="min-h-11 justify-start gap-3 px-3"
-              onClick={(event) => {
-                const returnFocus =
-                  returnFocusRef?.current ?? event.currentTarget;
-                close();
-                if (exit)
-                  exit.requestSignOut(() => signOutUser(router), returnFocus);
-                else void signOutUser(router);
-              }}
-            >
-              <LogOut className="size-4" aria-hidden="true" />
-              Sign Out
-            </Button>
+            <NavigationTooltip collapsed={collapsed} label="Sign Out">
+              <Button
+                variant="ghost"
+                className={cn(
+                  "min-h-11 justify-start gap-3 px-3",
+                  collapsed && "justify-center px-0",
+                )}
+                onClick={(event) => {
+                  const returnFocus =
+                    returnFocusRef?.current ?? event.currentTarget;
+                  close();
+                  if (exit)
+                    exit.requestSignOut(() => signOutUser(router), returnFocus);
+                  else void signOutUser(router);
+                }}
+              >
+                <LogOut className="size-4" aria-hidden="true" />
+                <span className={cn(collapsed && "sr-only")}>Sign Out</span>
+              </Button>
+            </NavigationTooltip>
           </>
         ) : (
           <>
@@ -268,7 +333,9 @@ export function AppNavigation({
       <Separator />
       <div role="group" aria-label="Theme" className="flex flex-col gap-3">
         <p className={sectionClass}>Appearance</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div
+          className={cn("grid grid-cols-3 gap-2", collapsed && "grid-cols-1")}
+        >
           {(
             [
               { value: "light", label: "Light", icon: Sun },
@@ -276,19 +343,45 @@ export function AppNavigation({
               { value: "system", label: "System", icon: Monitor },
             ] as const
           ).map(({ value, label, icon: Icon }) => (
-            <Button
+            <NavigationTooltip
               key={value}
-              variant={theme === value ? "default" : "outline"}
-              aria-pressed={theme === value}
-              className="min-h-11 gap-1.5 px-2"
-              onClick={() => setTheme(value)}
+              collapsed={collapsed}
+              label={`${label} theme`}
             >
-              <Icon className="size-4" aria-hidden="true" />
-              {label}
-            </Button>
+              <Button
+                variant={theme === value ? "default" : "outline"}
+                aria-pressed={theme === value}
+                className="min-h-11 gap-1.5 px-2"
+                onClick={() => setTheme(value)}
+              >
+                <Icon className="size-4" aria-hidden="true" />
+                <span className={cn(collapsed && "sr-only")}>{label}</span>
+              </Button>
+            </NavigationTooltip>
           ))}
         </div>
       </div>
     </div>
+  );
+}
+
+function NavigationTooltip({
+  collapsed,
+  label,
+  children,
+}: {
+  collapsed: boolean;
+  label: string;
+  children: ReactElement;
+}) {
+  if (!collapsed) return children;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }

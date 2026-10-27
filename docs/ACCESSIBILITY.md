@@ -57,6 +57,31 @@ behavioral failure.
 
 ## Results
 
+### Collapsible workspace sidebar (2026-10-28)
+
+Checkpoint on `codex/dashboard-sidebar-improvements`, based on `11bccf4` plus
+the sidebar implementation and tests in this revision. The maintainer approved
+the desktop collapse and persistence behavior during the interactive session.
+[Features](../FEATURES.md#authentication) owns the behavior description.
+
+- The targeted `WorkspaceSidebar`, `MobileNavMenu`, and `WorkspaceShell`
+  component run passed all 24 tests with one worker.
+- Coverage includes expanded defaults, both persisted choices after remount,
+  invalid and unavailable storage, hydration without mismatch reports, keyboard
+  activation with focus retained, current-route naming, hover/focus tooltips,
+  unread notification labels, and the mobile drawer's full-label presentation
+  when the browser stores a collapsed desktop preference.
+- The first test run found that the notification label and count concatenated
+  in the accessible name. An explicit accessible label fixes this; the final
+  targeted run passed. Existing drawer sign-out confirmation and focus-return
+  tests also passed.
+- This is component-level evidence. It does not establish real screen-reader
+  acceptance or repeat the full browser width/theme matrix. That matrix remains
+  to be rerun during the broader sidebar work before its final handoff.
+- Repeat these checks after changes to sidebar state, storage, tooltip wrappers,
+  accessible names, or shared mobile navigation. Repeat relevant browser checks
+  when changing width, overflow, icon placement, or focus styling.
+
 ### Saved and Liked initial presentation (2026-10-26)
 
 Initial checks on `feat/saved-liked-collection-presentation`, based on `59c4f17`
