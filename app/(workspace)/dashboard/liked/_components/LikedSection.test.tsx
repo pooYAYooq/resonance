@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => authState(),
+  useQuery: () => ({ userId: "user-1" }),
   usePaginatedQuery: (_query: unknown, args: unknown) => {
     paginatedArgs(args);
     return paginatedState();
@@ -25,16 +26,19 @@ vi.mock("convex/react", () => ({
 
 vi.mock("@/convex/_generated/api", () => ({
   api: {
-    bookmarks: {
-      getBookmarkedPosts: "getBookmarkedPosts",
+    likes: {
+      getLikedPosts: "getLikedPosts",
+    },
+    users: {
+      getCurrentUser: "getCurrentUser",
     },
   },
 }));
 
-vi.mock("@/components/web/PostCard", async () => {
+vi.mock("@/components/web/CollectionPostCard", async () => {
   const Link = (await import("next/link")).default;
   return {
-    PostCard: ({
+    CollectionPostCard: ({
       title,
       tags,
       authorName,
@@ -79,31 +83,33 @@ vi.mock("@/components/web/PostCard", async () => {
   };
 });
 
-import { SavedSection } from "./SavedSection";
+import { LikedSection } from "./LikedSection";
 
 const post = {
   _id: "post-1",
-  title: "A saved post",
+  title: "A liked post",
   body: "Post body",
   imageUrl: null,
   commentCount: 0,
   likeCount: 1,
-  isLiked: false,
+  isLiked: true,
+  isBookmarked: false,
   createdAt: 1_700_000_000_000,
+  addedAt: 1_700_000_000_000,
   authorId: "author-1",
   authorName: "Author",
   authorAvatarUrl: null,
   tags: [],
 };
 
-const nextPost = {
+const secondPost = {
   ...post,
   _id: "post-2",
-  title: "Another saved post",
+  title: "Another liked post",
   authorName: "Second Author",
 };
 
-describe("SavedSection", () => {
+describe("LikedSection", () => {
   beforeEach(() => {
     authState.mockReturnValue({ isAuthenticated: true, isLoading: false });
     paginatedState.mockReturnValue({
@@ -116,49 +122,35 @@ describe("SavedSection", () => {
     pushMock.mockReset();
   });
 
-  it("redirects unauthenticated users and skips the saved query", async () => {
+  it("redirects anonymous visitors with the current safe return path", async () => {
     authState.mockReturnValue({ isAuthenticated: false, isLoading: false });
-    window.history.replaceState({}, "", "/saved");
+    window.history.replaceState({}, "", "/liked?sort=recent#collection");
 
-    render(<SavedSection />);
+    render(<LikedSection />);
 
     await waitFor(() =>
-      expect(pushMock).toHaveBeenCalledWith("/auth/login?returnTo=%2Fsaved"),
+      expect(pushMock).toHaveBeenCalledWith(
+        "/auth/login?returnTo=%2Fliked%3Fsort%3Drecent%23collection",
+      ),
     );
     expect(paginatedArgs).toHaveBeenCalledWith("skip");
   });
 
-  it("announces authentication loading status", () => {
+  it("skips the private liked query while authentication is loading", () => {
     authState.mockReturnValue({ isAuthenticated: false, isLoading: true });
 
-    render(<SavedSection />);
+    render(<LikedSection />);
 
-    expect(
-      screen.getByRole("status", { name: "Loading saved posts" }),
-    ).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(paginatedArgs).toHaveBeenCalledWith("skip");
   });
 
-  it("announces saved post loading status", () => {
-    paginatedState.mockReturnValue({
-      results: [],
-      status: "LoadingFirstPage",
-      loadMore: vi.fn(),
-      isLoading: true,
-    });
+  it("renders a Liked-specific empty state linking to the Blog", () => {
+    render(<LikedSection />);
 
-    render(<SavedSection />);
-
+    expect(screen.getByText("No liked posts yet")).toBeInTheDocument();
     expect(
-      screen.getByRole("status", { name: "Loading saved posts" }),
-    ).toBeInTheDocument();
-  });
-
-  it("offers the Blog when there are no saved posts", () => {
-    render(<SavedSection />);
-
-    expect(screen.getByText("No saved posts")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Browse the Blog" }),
+      screen.getByRole("link", { name: "Explore Discover" }),
     ).toHaveAttribute("href", "/blog");
     expect(paginatedArgs).toHaveBeenCalledWith({});
   });
@@ -173,59 +165,52 @@ describe("SavedSection", () => {
       isLoading: false,
     });
 
-    render(<SavedSection />);
+    render(<LikedSection />);
 
-    expect(screen.queryByText("No saved posts")).not.toBeInTheDocument();
+    expect(screen.queryByText("No liked posts yet")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Load more" }));
     expect(loadMore).toHaveBeenCalledWith(12);
   });
 
-  it("requests and renders a subsequent page of saved posts", async () => {
-    let page = 1;
-    const loadMore = vi.fn(() => {
-      page = 2;
-    });
+  it("renders liked summaries and loads more", async () => {
+    const loadMore = vi.fn();
     const user = userEvent.setup();
-    paginatedState.mockImplementation(() => ({
-      results: page === 1 ? [post] : [post, nextPost],
+    paginatedState.mockReturnValue({
+      results: [post],
       status: "CanLoadMore",
       loadMore,
       isLoading: false,
-    }));
+    });
 
-    const { rerender } = render(<SavedSection />);
+    render(<LikedSection />);
 
-    expect(screen.getByText("A saved post")).toBeInTheDocument();
+    expect(screen.getByText("A liked post")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Load more" }));
     expect(loadMore).toHaveBeenCalledWith(12);
-
-    rerender(<SavedSection />);
-
-    expect(screen.getByText("Another saved post")).toBeInTheDocument();
   });
 
-  it("moves focus to the nearest surviving item when a saved post is removed", async () => {
+  it("moves focus to the nearest surviving item when a liked post is removed", async () => {
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
-    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
 
     paginatedState.mockReturnValue({
-      results: [nextPost],
+      results: [secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Remove Another saved post" }),
+        screen.getByRole("button", { name: "Unlike Another liked post" }),
       ).toHaveFocus(),
     );
   });
@@ -249,23 +234,23 @@ describe("SavedSection", () => {
         });
       setResults(
         change === "insertion"
-          ? [post, nextPost, successorPost, lastPost]
-          : [earlierPost, post, nextPost, successorPost, lastPost],
+          ? [post, secondPost, successorPost, lastPost]
+          : [earlierPost, post, secondPost, successorPost, lastPost],
       );
-      const { rerender } = render(<SavedSection />);
+      const { rerender } = render(<LikedSection />);
       const focused = screen.getByRole("button", {
-        name: "Remove Another saved post",
+        name: "Unlike Another liked post",
       });
       focused.focus();
 
       setResults(
         change === "insertion"
-          ? [earlierPost, post, nextPost, successorPost, lastPost]
-          : [post, nextPost, successorPost, lastPost],
+          ? [earlierPost, post, secondPost, successorPost, lastPost]
+          : [post, secondPost, successorPost, lastPost],
       );
-      rerender(<SavedSection />);
+      rerender(<LikedSection />);
       expect(
-        screen.getByRole("button", { name: "Remove Another saved post" }),
+        screen.getByRole("button", { name: "Unlike Another liked post" }),
       ).toBe(focused);
       expect(focused).toHaveFocus();
 
@@ -274,9 +259,9 @@ describe("SavedSection", () => {
           ? [earlierPost, post, successorPost, lastPost]
           : [post, successorPost, lastPost],
       );
-      rerender(<SavedSection />);
+      rerender(<LikedSection />);
       expect(
-        screen.getByRole("button", { name: "Remove Successor post" }),
+        screen.getByRole("button", { name: "Unlike Successor post" }),
       ).toHaveFocus();
     },
   );
@@ -293,26 +278,26 @@ describe("SavedSection", () => {
           isLoading: status === "LoadingMore",
         });
       setPage(change === "insertion" ? [post] : [earlierPost, post]);
-      const { rerender } = render(<SavedSection />);
+      const { rerender } = render(<LikedSection />);
       const focused = screen.getByRole("button", { name: "Load more" });
       focused.focus();
 
       const currentPosts =
         change === "insertion" ? [earlierPost, post] : [post];
       setPage(currentPosts);
-      rerender(<SavedSection />);
+      rerender(<LikedSection />);
       expect(screen.getByRole("button", { name: "Load more" })).toBe(focused);
       expect(focused).toHaveFocus();
 
       setPage(currentPosts, "LoadingMore");
-      rerender(<SavedSection />);
-      setPage([...currentPosts, nextPost]);
-      rerender(<SavedSection />);
+      rerender(<LikedSection />);
+      setPage([...currentPosts, secondPost]);
+      rerender(<LikedSection />);
       expect(screen.getByRole("link", { name: "Second Author" })).toHaveFocus();
     },
   );
 
-  it("moves focus to the recovery link when the last saved post is removed", async () => {
+  it("moves focus to the recovery link when the last liked post is removed", async () => {
     paginatedState.mockReturnValue({
       results: [post],
       status: "CanLoadMore",
@@ -320,8 +305,8 @@ describe("SavedSection", () => {
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
-    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
 
     paginatedState.mockReturnValue({
       results: [],
@@ -329,39 +314,39 @@ describe("SavedSection", () => {
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(
-        screen.getByRole("link", { name: "Browse the Blog" }),
+        screen.getByRole("link", { name: "Explore Discover" }),
       ).toHaveFocus(),
     );
   });
 
-  it("restores focus when a paginated refill replaces a removed saved post", async () => {
-    const thirdPost = { ...post, _id: "post-3", title: "A third saved post" };
+  it("restores focus when a paginated refill replaces a removed liked post", async () => {
+    const thirdPost = { ...post, _id: "post-3", title: "A third liked post" };
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
-    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
 
     // The refilled page keeps two items, replacing the removed one.
     paginatedState.mockReturnValue({
-      results: [nextPost, thirdPost],
+      results: [secondPost, thirdPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Remove Another saved post" }),
+        screen.getByRole("button", { name: "Unlike Another liked post" }),
       ).toHaveFocus(),
     );
   });
@@ -370,7 +355,7 @@ describe("SavedSection", () => {
     const taggedPost = {
       ...post,
       _id: "post-2",
-      title: "A tagged saved post",
+      title: "A tagged liked post",
       tags: ["alpha", "beta"],
     };
     paginatedState.mockReturnValue({
@@ -380,8 +365,8 @@ describe("SavedSection", () => {
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
-    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
 
     paginatedState.mockReturnValue({
       results: [taggedPost],
@@ -389,11 +374,11 @@ describe("SavedSection", () => {
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Remove A tagged saved post" }),
+        screen.getByRole("button", { name: "Unlike A tagged liked post" }),
       ).toHaveFocus(),
     );
   });
@@ -402,7 +387,7 @@ describe("SavedSection", () => {
     const lockedPost = {
       ...post,
       _id: "post-2",
-      title: "A locked bookmark post",
+      title: "A locked like post",
     };
     paginatedState.mockReturnValue({
       results: [post, lockedPost],
@@ -411,8 +396,8 @@ describe("SavedSection", () => {
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
-    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
 
     paginatedState.mockReturnValue({
       results: [lockedPost],
@@ -420,7 +405,7 @@ describe("SavedSection", () => {
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "Author" })).toHaveFocus(),
@@ -436,7 +421,7 @@ describe("SavedSection", () => {
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
+    const { rerender } = render(<LikedSection />);
     screen.getByRole("button", { name: "Load more" }).focus();
     await user.keyboard("{Enter}");
 
@@ -447,16 +432,16 @@ describe("SavedSection", () => {
       loadMore: vi.fn(),
       isLoading: true,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     // The next page arrives and appends after the existing item.
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "Second Author" })).toHaveFocus(),
@@ -466,34 +451,34 @@ describe("SavedSection", () => {
   it("keeps focus on the replacement Load more when the next page appends nothing", async () => {
     const user = userEvent.setup();
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
+    const { rerender } = render(<LikedSection />);
     screen.getByRole("button", { name: "Load more" }).focus();
     await user.keyboard("{Enter}");
 
     // The pagination control unmounts while the next page loads.
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "LoadingMore",
       loadMore: vi.fn(),
       isLoading: true,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     // The page contained only unavailable posts: nothing was appended and
     // more pages remain, so the replacement control keeps focus.
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Load more" })).toHaveFocus(),
@@ -503,33 +488,33 @@ describe("SavedSection", () => {
   it("moves focus to the last item when the final page appends nothing", async () => {
     const user = userEvent.setup();
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
+    const { rerender } = render(<LikedSection />);
     screen.getByRole("button", { name: "Load more" }).focus();
     await user.keyboard("{Enter}");
 
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "LoadingMore",
       loadMore: vi.fn(),
       isLoading: true,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     // The unavailable page was the last one, so the pagination control
     // disappears and focus returns to the final item.
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "Exhausted",
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "Second Author" })).toHaveFocus(),
@@ -539,31 +524,31 @@ describe("SavedSection", () => {
   it("keeps tracking a repeated Load more after a page appends nothing", async () => {
     const user = userEvent.setup();
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
+    const { rerender } = render(<LikedSection />);
     screen.getByRole("button", { name: "Load more" }).focus();
     await user.keyboard("{Enter}");
 
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "LoadingMore",
       loadMore: vi.fn(),
       isLoading: true,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Load more" })).toHaveFocus(),
     );
@@ -572,20 +557,20 @@ describe("SavedSection", () => {
     // the list, so focus returns to the final item.
     await user.keyboard("{Enter}");
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "LoadingMore",
       loadMore: vi.fn(),
       isLoading: true,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "Exhausted",
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "Second Author" })).toHaveFocus(),
@@ -594,25 +579,25 @@ describe("SavedSection", () => {
 
   it("restores focus again when the control it restored is later removed", async () => {
     paginatedState.mockReturnValue({
-      results: [post, nextPost],
+      results: [post, secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
-    screen.getByRole("button", { name: "Remove A saved post" }).focus();
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
 
     paginatedState.mockReturnValue({
-      results: [nextPost],
+      results: [secondPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Remove Another saved post" }),
+        screen.getByRole("button", { name: "Unlike Another liked post" }),
       ).toHaveFocus(),
     );
 
@@ -623,38 +608,31 @@ describe("SavedSection", () => {
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(
-        screen.getByRole("link", { name: "Browse the Blog" }),
+        screen.getByRole("link", { name: "Explore Discover" }),
       ).toHaveFocus(),
     );
   });
 
   it("does not substitute a different toggle when the recorded one is disabled", async () => {
-    const likedSavedPost = {
-      ...post,
-      _id: "post-1",
-      title: "A liked saved post",
-      isLiked: true,
-    };
     const lockedPost = {
       ...post,
       _id: "post-2",
       title: "A locked like post",
-      isLiked: true,
       isBookmarked: true,
     };
     paginatedState.mockReturnValue({
-      results: [likedSavedPost, lockedPost],
+      results: [post, lockedPost],
       status: "CanLoadMore",
       loadMore: vi.fn(),
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
-    screen.getByRole("button", { name: "Remove A liked saved post" }).focus();
+    const { rerender } = render(<LikedSection />);
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
 
     paginatedState.mockReturnValue({
       results: [lockedPost],
@@ -662,12 +640,10 @@ describe("SavedSection", () => {
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Remove A locked like post" }),
-      ).toHaveFocus(),
+      expect(screen.getByRole("link", { name: "Author" })).toHaveFocus(),
     );
   });
 
@@ -680,7 +656,7 @@ describe("SavedSection", () => {
       isLoading: false,
     });
 
-    const { rerender } = render(<SavedSection />);
+    const { rerender } = render(<LikedSection />);
     screen.getByRole("button", { name: "Load more" }).focus();
     await user.keyboard("{Enter}");
 
@@ -691,7 +667,7 @@ describe("SavedSection", () => {
       loadMore: vi.fn(),
       isLoading: true,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     // The next page arrives and renders the first card.
     paginatedState.mockReturnValue({
@@ -700,10 +676,41 @@ describe("SavedSection", () => {
       loadMore: vi.fn(),
       isLoading: false,
     });
-    rerender(<SavedSection />);
+    rerender(<LikedSection />);
 
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "Author" })).toHaveFocus(),
     );
+  });
+
+  it("does not restore focus after the user leaves the list", async () => {
+    paginatedState.mockReturnValue({
+      results: [post, secondPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    const view = () => (
+      <>
+        <button type="button">Outside target</button>
+        <LikedSection />
+      </>
+    );
+    const { rerender } = render(view());
+    screen.getByRole("button", { name: "Unlike A liked post" }).focus();
+    screen.getByRole("button", { name: "Outside target" }).focus();
+    (document.activeElement as HTMLElement).blur();
+
+    // The stale control is removed while focus rests on the document body.
+    paginatedState.mockReturnValue({
+      results: [secondPost],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+    rerender(view());
+
+    await waitFor(() => expect(document.body).toHaveFocus());
   });
 });

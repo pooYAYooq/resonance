@@ -109,8 +109,17 @@ Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 | ----- | ------------------------------------------------ | ------ | -------- |
 | V1-17 | Stronger public profile identity and author work | Done   | M        |
 | V1-18 | Compact, actionable Notifications                | Done   | M        |
-| V1-19 | Saved and Liked collection presentation          | Todo   | S        |
+| V1-19 | Saved and Liked collection presentation          | Done   | S        |
 | V1-20 | Context-specific post-card variants              | Todo   | M        |
+
+Saved and Liked are separate dashboard collection pages. Cards use a 3:2 cover
+and tags under the cover at tablet/desktop widths; phones use flat rows without
+tags. Results are grouped into collapsible Today, Yesterday, Previous 7 days,
+Previous 30 days, and Earlier sections, with a page-specific bookmark or heart
+action and no per-card saved/liked timestamp. Collapse state is session-scoped
+per signed-in user and collection, and group counts reflect loaded posts.
+Collection search, filters, and exact timestamps remain deferred. See
+[accessibility evidence](docs/ACCESSIBILITY.md#saved-and-liked-time-group-presentation-2026-10-27).
 
 The approved public author page and its paged post catalogue are implemented and
 browser-verified on `feat/public-author-showcase`, recorded in

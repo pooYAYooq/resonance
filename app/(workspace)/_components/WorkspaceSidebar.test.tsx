@@ -56,8 +56,8 @@ describe("WorkspaceSidebar", () => {
       ["Analytics", "/dashboard/analytics"],
       ["Discover", "/blog"],
       ["Feed", "/feed"],
-      ["Saved", "/saved"],
-      ["Liked", "/liked"],
+      ["Saved", "/dashboard/saved"],
+      ["Liked", "/dashboard/liked"],
     ]) {
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
     }

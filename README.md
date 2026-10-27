@@ -146,6 +146,12 @@ app/
       layout.tsx              # Metadata-only child layout
       page.tsx                # Dashboard root with drafts and published-post previews
       analytics/page.tsx      # Private author analytics: summary cards and follower-growth chart
+      saved/
+        page.tsx              # Private Saved posts page within the dashboard shell
+        _components/          # SavedSection (client gate, pagination, time grouping)
+      liked/
+        page.tsx              # Private Liked posts page within the dashboard shell
+        _components/          # LikedSection (client gate, pagination, time grouping)
       drafts/page.tsx         # Full owner-scoped draft list
       published/page.tsx      # Current-author published management rows
       _components/            # Dashboard overview previews and management sections
@@ -174,18 +180,14 @@ app/
     feed/
       page.tsx                # Private reader feed (client-gated + globally paginated)
       _components/            # FeedContent (fixed cutoff + bounded cursor pagination)
-    liked/
-      page.tsx                # Private reader collection of liked posts
-      _components/            # LikedSection (client gate + pagination)
+    liked/page.tsx            # Redirect to /dashboard/liked
     notifications/
       page.tsx                # Private notifications feed (client-gated + paginated)
       _components/            # Shared page/drawer list, responsive rows, saved expansion, and scoped deletion dialog
     profile/edit/
       page.tsx                # Authenticated identity + selected-work editor
       _components/            # ProfileIdentityForm, CountryPicker, SelectedWorkEditor, edit-state helpers
-    saved/
-      page.tsx                # Private reader collection of bookmarked posts
-      _components/            # SavedSection (client gate + pagination)
+    saved/page.tsx            # Redirect to /dashboard/saved
     settings/
       page.tsx                # Appearance and account configuration
     u/[username]/
@@ -247,7 +249,10 @@ components/
     NotificationBell.tsx      # Auth-only bell with unread badge; opens the notification drawer
     NotificationLink.tsx      # Guarded destinations, intent prefetch, and delayed status feedback
     Footer.tsx
-    PostCard.tsx              # Shared post card (landing, dashboard preview, feed, liked, saved)
+    PostCard.tsx              # Shared post card (landing, dashboard preview, feed)
+    CollectionPostCard.tsx    # Saved/Liked card: 3:2 cover, byline after title, tags under cover,
+                              # page-specific action, flat mobile row
+    CollectionGroupList.tsx   # Session-scoped collapsible collection time groups with chevron, label, and count
     CoverImage.tsx            # Custom cover image or the blank transparent fallback surface with a subtle bottom border
     PostCover.tsx             # Uncapped published 16:9 cover frame: shared ratio and single crop seam
     PostArticleHeader.tsx     # Shared reader and noninteractive Review title, attribution, and topics
@@ -297,6 +302,9 @@ lib/
   code-languages.ts           # Canonical code-block IDs, labels, aliases, and Shiki grammars
   safe-link.ts                # Shared http/https/mailto author-link validator
   cover.ts                    # Shared cover URL resolver; null renders the blank fallback
+  collection-time-groups.ts   # Rolling local-time buckets for Saved/Liked collection groups
+  collection-group-storage.ts # Session-scoped collapsed group keys per user and collection
+  use-list-focus-restore.ts   # Shared keyboard focus restoration after list removal and pagination
   profile-identity.ts         # Profile identity types, code-point limits, and normalizer
   profile-socials.ts          # Social platform allowlists and URL validation/canonicalization
   profile-joined-date.ts      # UTC calendar and relative join-date formatting

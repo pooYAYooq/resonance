@@ -179,7 +179,7 @@
   tabular counts grow naturally rather than reserving maximum-count space.
   Large counts use whole-number lowercase k/m/b/t suffixes, with the exact count
   in the accessible name. Cards and comment reactions retain compact controls.
-- `/liked` is a private, client-gated reader collection of the current user's liked posts
+- Liked posts appear in `/dashboard/liked`, grouped by liked time with a heart-only collection action
 - `toggleCommentLike` — idempotent, one like per user per comment, records in a separate `commentLikes` table
 - `CommentLikeButton` on each `CommentCard`; `likeCount` denormalized on comments; shared `LikeToggle` primitive powers both post and comment like buttons
 
@@ -210,8 +210,42 @@
 - Server-rendered post reads hydrate initial bookmark state with
   `fetchAuthQuery`; bookmark controls continue to reconcile with their private
   live query after auth resolution
-- `/saved` is a private, client-gated reader collection with a paginated grid
-  of saved posts; unbookmarking from the list removes the card immediately
+- Saved posts appear in `/dashboard/saved`, grouped by saved time with a bookmark-only collection action
+
+### Private collections
+
+- `/dashboard/saved` and `/dashboard/liked` are separate authenticated pages
+  inside the dashboard shell, with independent Saved and Liked navigation links.
+- `/saved` and `/liked` redirect to their corresponding dashboard pages; they
+  no longer render collection pages in the reader shell.
+- Results are grouped by when the current user saved or liked a post, using the
+  relationship timestamp: Today, Yesterday, Previous 7 days, Previous 30 days,
+  and Earlier. Groups use local time and remain newest first.
+- Each group header is collapsible, starts expanded, and shows its currently
+  loaded post count. The header uses a left chevron, label, and count; expanded
+  headers keep a subtle muted background. Collapse state is session-scoped per
+  signed-in user and collection: it survives route changes and reloads in the
+  browser tab, while a new tab or browser restart starts expanded. Group counts
+  reflect loaded posts; additional pages extend the groups.
+- Tablet and desktop use cards with a 3:2 cover, the title, an avatar/author
+  byline directly below the title, author-selected tags in a full-width row under
+  the cover, and one collection action. Phones use flat list rows with no card
+  chrome, a 3:2 cover, no tags, the byline, one action, and a divider between
+  rows. Cards return at `sm`; the desktop grid uses two columns with equal row
+  heights.
+- Saved exposes only the bookmark action, and Liked exposes only the heart
+  action. Removing that action removes the row reactively. Toggle names include
+  the post title, and focus restoration retains the page-specific action across
+  rows while ignoring group headings when choosing fallback targets. Empty
+  collections link to Discover.
+- Collection cards do not show a saved/liked timestamp or the post publication
+  date. The time group is the only visible time context; exact timestamps and
+  collection search or filters remain deferred. Excerpts and Read More are also
+  omitted.
+- Results use 12-item cursor pagination; deleted and unpublished posts are
+  skipped. Each page has a private header and inherits dashboard
+  `noindex, nofollow` metadata. Save labels and feedback use Saved terminology
+  across shared controls.
 
 ### Notifications
 

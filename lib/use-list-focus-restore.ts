@@ -20,10 +20,24 @@ function isVisible(control: HTMLElement): boolean {
   return true;
 }
 
-function firstVisibleControl(root: HTMLElement): HTMLElement | null {
+function isIgnoredControl(
+  control: HTMLElement,
+  ignoredControlSelector?: string,
+): boolean {
+  return Boolean(
+    ignoredControlSelector && control.closest(ignoredControlSelector),
+  );
+}
+
+function firstVisibleControl(
+  root: HTMLElement,
+  ignoredControlSelector?: string,
+): HTMLElement | null {
   return (
     Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
-      isVisible,
+      (control) =>
+        isVisible(control) &&
+        !isIgnoredControl(control, ignoredControlSelector),
     ) ?? null
   );
 }
@@ -36,10 +50,12 @@ function firstVisibleControl(root: HTMLElement): HTMLElement | null {
  * the item that contains it. When the control disconnects, focus moves to the
  * same toggle action in the item now occupying the removed item's position
  * (or the last item when the removed one was last), or to that item's first
- * enabled control when the recorded toggle is missing or disabled. An emptied
- * list falls back to the first enabled control in the root (the recovery
- * action), or to the root itself if it is programmatically focusable and has
- * no enabled controls.
+ * enabled control when the recorded toggle is missing or disabled. Positions
+ * are resolved among visible items only, so a card inside a collapsed group is
+ * never chosen as the successor. When no visible item remains, focus moves to
+ * the first visible control in the root (a recovery or pagination action, then
+ * a collapsible group heading), or to the root itself if it is programmatically
+ * focusable.
  *
  * Appending pagination is handled as well: when the disconnected control was
  * outside the items, such as the Load more button, focus moves to the first
@@ -47,7 +63,8 @@ function firstVisibleControl(root: HTMLElement): HTMLElement | null {
  * top of the list while the page is still loading. While `pending` reports
  * the request as in flight, that disconnect keeps waiting; when the request
  * settles without appending a visible item, focus moves to the replacement
- * control outside the items, or to the last item when none remains.
+ * control outside the items, or to the last visible item, a visible group
+ * heading, or a focusable root when none remains.
  *
  * Restoration keeps tracking through the focus event, which records the
  * restored control, so a later removal of that control restores focus in
@@ -57,20 +74,26 @@ function firstVisibleControl(root: HTMLElement): HTMLElement | null {
  *
  * Tracking the control's identity rather than a count keeps the restore
  * working when a paginated query refills a removed row without changing the
- * item count. Tracking the item and toggle action rather than a global
+ * item count. Tracking the visible item and toggle action rather than a global
  * control index keeps the target stable across items with different control
- * counts, such as cards with different numbers of tag links.
+ * counts, such as cards with different numbers of tag links, and across hidden
+ * items in collapsed groups.
  *
  * @param rootRef - Ref to the list container; focus events inside it are
  *   tracked, and it is the last-resort scope for a restore target.
  * @param itemSelector - Selector for the removable items within the root.
  * @param pending - Whether the next page request is still in flight; a
  *   disconnected outside-item control waits for the settled render.
+ * @param ignoredControlSelector - Selector for focusable controls excluded
+ *   from preferred fallback and replacement targets, such as collapsible
+ *   group headings outside the removable items. A visible ignored control is
+ *   still used after the visible non-ignored controls are exhausted.
  */
 export function useListFocusRestore(
   rootRef: RefObject<HTMLElement | null>,
   itemSelector: string,
   pending: boolean,
+  ignoredControlSelector?: string,
 ) {
   const focusedRef = useRef<HTMLElement | null>(null);
   const itemIndexRef = useRef<number | null>(null);
@@ -98,20 +121,24 @@ export function useListFocusRestore(
     const trackControl = (target: HTMLElement) => {
       focusedRef.current = target;
 
+      // Collapsed groups keep their cards mounted inside hidden panels.
+      // Record the position among visible items only so the successor stays
+      // correct when the restore runs after a removal.
+      const items = Array.from(
+        root.querySelectorAll<HTMLElement>(itemSelector),
+      ).filter(isVisible);
       const item = target.closest<HTMLElement>(itemSelector);
       if (!item) {
         // A control outside the removable items, such as Load more. Record
-        // how many items existed so an append can move focus to the new page.
+        // how many visible items existed so an append can move focus to the
+        // new page.
         itemIndexRef.current = null;
         toggleIndexRef.current = null;
-        outsideItemCountRef.current =
-          root.querySelectorAll(itemSelector).length;
+        outsideItemCountRef.current = items.length;
         return;
       }
 
-      itemIndexRef.current = Array.from(
-        root.querySelectorAll<HTMLElement>(itemSelector),
-      ).indexOf(item);
+      itemIndexRef.current = items.indexOf(item);
       toggleIndexRef.current = target.matches(TOGGLE_SELECTOR)
         ? Array.from(
             item.querySelectorAll<HTMLElement>(TOGGLE_SELECTOR),
@@ -167,12 +194,12 @@ export function useListFocusRestore(
         const outsideItemCount = outsideItemCountRef.current;
         const items = Array.from(
           root.querySelectorAll<HTMLElement>(itemSelector),
-        );
+        ).filter(isVisible);
 
         if (itemIndex !== null) {
           const item =
             items.length > 0
-              ? items[Math.min(itemIndex, items.length - 1)]
+              ? items[Math.min(Math.max(itemIndex, 0), items.length - 1)]
               : null;
 
           let target: HTMLElement | null = null;
@@ -192,15 +219,25 @@ export function useListFocusRestore(
                 target = recordedToggle;
               }
             }
-            target ??= firstVisibleControl(item);
-          } else {
-            target = firstVisibleControl(root) ?? root;
+            target ??= firstVisibleControl(item, ignoredControlSelector);
           }
+
+          // A removed card can leave no visible successor when the next
+          // group is collapsed. Fall back to a visible action or recovery
+          // control, then to a visible group heading, and finally to a root
+          // the consumer made programmatically focusable.
+          target ??=
+            firstVisibleControl(root, ignoredControlSelector) ??
+            firstVisibleControl(root) ??
+            root;
 
           target?.focus();
         } else if (outsideItemCount !== null) {
           if (items.length > outsideItemCount) {
-            firstVisibleControl(items[outsideItemCount])?.focus();
+            firstVisibleControl(
+              items[outsideItemCount],
+              ignoredControlSelector,
+            )?.focus();
           } else if (!pending) {
             // The request settled without appending a visible item, such as
             // a page containing only deleted or unpublished posts. Focus the
@@ -210,16 +247,23 @@ export function useListFocusRestore(
             const replacement = Array.from(
               root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
             ).find(
-              (control) => !control.closest(itemSelector) && isVisible(control),
+              (control) =>
+                !control.closest(itemSelector) &&
+                isVisible(control) &&
+                !isIgnoredControl(control, ignoredControlSelector),
             );
             if (replacement) {
               replacement.focus();
             } else if (items.length > 0) {
-              firstVisibleControl(items[items.length - 1])?.focus();
+              firstVisibleControl(
+                items[items.length - 1],
+                ignoredControlSelector,
+              )?.focus();
             } else {
-              // An empty list may have no recovery action. Consumers can make
-              // its named context focusable without adding a new tab stop.
-              root.focus();
+              // No visible item or replacement remains, such as a page whose
+              // only group is collapsed. Prefer a visible group heading, then
+              // a root the consumer made programmatically focusable.
+              (firstVisibleControl(root) ?? root).focus();
             }
           }
         }

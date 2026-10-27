@@ -53,8 +53,8 @@ const writingLinks = [
 const readingLinks = [
   { href: "/blog", label: "Discover", icon: Compass },
   { href: "/feed", label: "Feed", icon: Rss },
-  { href: "/saved", label: "Saved", icon: Bookmark },
-  { href: "/liked", label: "Liked", icon: Heart },
+  { href: "/dashboard/saved", label: "Saved", icon: Bookmark },
+  { href: "/dashboard/liked", label: "Liked", icon: Heart },
 ];
 
 export function MobileNavMenu({

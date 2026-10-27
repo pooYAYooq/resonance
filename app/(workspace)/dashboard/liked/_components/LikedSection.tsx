@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useConvexAuth, usePaginatedQuery } from "convex/react";
+import { useConvexAuth, usePaginatedQuery, useQuery } from "convex/react";
 import { Heart, Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/web/EmptyState";
-import { PostCard } from "@/components/web/PostCard";
+import { CollectionGroupList } from "@/components/web/CollectionGroupList";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+import { collectionGroupStorageKey } from "@/lib/collection-group-storage";
+import { groupCollectionPostsByTime } from "@/lib/collection-time-groups";
 import { useListFocusRestore } from "@/lib/use-list-focus-restore";
 
 export function LikedSection() {
@@ -33,10 +35,30 @@ export function LikedSection() {
     { initialNumItems: 12 },
   );
 
-  const rootRef = useRef<HTMLDivElement>(null);
-  useListFocusRestore(rootRef, '[data-slot="card"]', listLoading);
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    !isLoading && isAuthenticated ? {} : "skip",
+  );
+  const userLoading = isAuthenticated && currentUser === undefined;
+  const groupStorageKey = currentUser?.userId
+    ? collectionGroupStorageKey(currentUser.userId, "liked")
+    : undefined;
 
-  if (isLoading || !isAuthenticated || (listLoading && results.length === 0)) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [now] = useState(() => Date.now());
+  useListFocusRestore(
+    rootRef,
+    '[data-slot="card"]',
+    listLoading,
+    "[data-list-header]",
+  );
+
+  if (
+    isLoading ||
+    !isAuthenticated ||
+    userLoading ||
+    (listLoading && results.length === 0)
+  ) {
     return (
       <div className="flex justify-center py-12">
         <div role="status" aria-label="Loading liked posts">
@@ -51,11 +73,11 @@ export function LikedSection() {
       <div ref={rootRef}>
         <EmptyState
           icon={Heart}
-          title="No liked posts"
+          title="No liked posts yet"
           description="Like posts that resonate with you and they'll appear here."
           action={
             <Button asChild variant="outline">
-              <Link href="/blog">Browse the Blog</Link>
+              <Link href="/blog">Explore Discover</Link>
             </Button>
           }
         />
@@ -63,29 +85,15 @@ export function LikedSection() {
     );
   }
 
+  const groups = groupCollectionPostsByTime(results, now);
+
   return (
-    <div ref={rootRef} className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {results.map((post) => (
-          <PostCard
-            key={post._id}
-            postId={post._id}
-            title={post.title}
-            body={post.body}
-            imageUrl={post.imageUrl}
-            commentCount={post.commentCount}
-            likeCount={post.likeCount ?? 0}
-            isLiked={post.isLiked}
-            isBookmarked={post.isBookmarked}
-            createdAt={post.createdAt}
-            authorId={post.authorId}
-            authorName={post.authorName}
-            authorUsername={post.authorUsername}
-            authorAvatarUrl={post.authorAvatarUrl}
-            tags={post.tags}
-          />
-        ))}
-      </div>
+    <div ref={rootRef} className="flex flex-col gap-6">
+      <CollectionGroupList
+        groups={groups}
+        collection="liked"
+        persistenceKey={groupStorageKey}
+      />
 
       {status === "CanLoadMore" && (
         <div className="flex justify-center">

@@ -21,8 +21,8 @@ import { updateDiscoverPostEngagement } from "./discoverProjection";
 import { requirePublishedPost } from "./postLifecycle";
 import {
   hydratePostSummary,
-  postSummaryValidator,
-  type PostSummary,
+  collectionPostSummaryValidator,
+  type CollectionPostSummary,
 } from "./postSummary";
 import { usernamesForOwners } from "./usernameModel";
 import { recordEngagementNotification } from "./notificationEvents";
@@ -80,22 +80,27 @@ export async function getLikedPostsForUser(
   );
 
   const hydrated = await Promise.all(
-    posts.map(async (post): Promise<PostSummary | null> => {
+    posts.map(async (post, index): Promise<CollectionPostSummary | null> => {
       if (!post) {
         return null;
       }
-      return await hydratePostSummary(
-        ctx,
-        post,
-        args.viewerId,
-        usernames.get(post.authorId) ?? null,
-      );
+      return {
+        ...(await hydratePostSummary(
+          ctx,
+          post,
+          args.viewerId,
+          usernames.get(post.authorId) ?? null,
+        )),
+        addedAt: result.page[index].createdAt,
+      };
     }),
   );
 
   return {
     ...result,
-    page: hydrated.filter((post): post is PostSummary => post !== null),
+    page: hydrated.filter(
+      (post): post is CollectionPostSummary => post !== null,
+    ),
   };
 }
 
@@ -103,7 +108,7 @@ export const getLikedPosts = query({
   args: {
     paginationOpts: paginationOptsValidator,
   },
-  returns: paginationResultValidator(postSummaryValidator),
+  returns: paginationResultValidator(collectionPostSummaryValidator),
   handler: async (ctx, args) => {
     validatePageSize(args.paginationOpts);
 

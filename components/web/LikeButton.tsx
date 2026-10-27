@@ -17,7 +17,8 @@ interface LikeButtonProps {
   postId: Id<"posts">;
   isLiked: boolean;
   likeCount: number;
-  presentation?: "compact" | "reader";
+  presentation?: "compact" | "reader" | "collection" | "icon";
+  postTitle?: string;
 }
 
 export function LikeButton({
@@ -25,6 +26,7 @@ export function LikeButton({
   isLiked,
   likeCount,
   presentation,
+  postTitle,
 }: LikeButtonProps) {
   const toggleLike = useMutation(api.likes.toggleLike);
   return (
@@ -33,8 +35,8 @@ export function LikeButton({
       isLiked={isLiked}
       count={likeCount}
       onToggle={() => toggleLike({ postId })}
-      ariaLabelLiked="Unlike this post"
-      ariaLabelNotLiked="Like this post"
+      ariaLabelLiked={postTitle ? `Unlike “${postTitle}”` : "Unlike this post"}
+      ariaLabelNotLiked={postTitle ? `Like “${postTitle}”` : "Like this post"}
       toastLiked="Post liked"
       toastUnliked="Post unliked"
     />

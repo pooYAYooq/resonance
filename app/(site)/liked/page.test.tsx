@@ -1,19 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-
-vi.mock("./_components/LikedSection", () => ({
-  LikedSection: () => <div>Liked section</div>,
-}));
-
+import { describe, expect, it } from "vitest";
 import LikedRoute from "./page";
 
 describe("Liked route", () => {
-  it("renders a page-level heading for liked posts", () => {
-    render(<LikedRoute />);
-
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Liked posts" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Liked section")).toBeInTheDocument();
+  it("redirects to the liked page in the dashboard", () => {
+    expect(LikedRoute).toThrowError(
+      expect.objectContaining({
+        digest: "NEXT_REDIRECT;replace;/dashboard/liked;307;",
+      }),
+    );
   });
 });

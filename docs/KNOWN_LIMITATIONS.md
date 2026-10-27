@@ -32,6 +32,23 @@ evidence resolves them. The previous detailed delivery history remains in
   Later keyboard matrices in `ACCESSIBILITY.md` supplement that original scope.
 - Follow colors and the light-theme contrast observations remain under V1-21.
 
+## Saved and Liked collections
+
+- Time-group counts reflect only the posts loaded so far. Loading another page
+  extends the groups and updates the counts.
+- Collapse state is session-scoped per signed-in user and collection. It
+  survives route changes and reloads in the browser tab; new tabs and browser
+  restarts reset it.
+- Grouping uses the viewer's local time, captured when the page mounts. Crossing
+  midnight without remounting can leave the previous day boundaries in place
+  until the page reloads.
+- Per-card saved/liked timestamps and collection search or filters are deferred.
+  The group heading is the only visible time context.
+- Phones intentionally hide author-selected tags; tags return at `sm` and above.
+- Browser and keyboard acceptance were approved for the current presentation.
+  Physical touch, real screen-reader sessions, and non-Chromium browsers remain
+  unverified; see [accessibility evidence](ACCESSIBILITY.md).
+
 ## Authoring and recovery
 
 - Pasted Table-of-Contents anchors (`#heading`) become plain text because the

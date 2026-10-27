@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useConvexAuth, usePaginatedQuery } from "convex/react";
+import { useConvexAuth, usePaginatedQuery, useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
-import { PostCard } from "@/components/web/PostCard";
+import { CollectionGroupList } from "@/components/web/CollectionGroupList";
 import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Loader2, Bookmark } from "lucide-react";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+import { collectionGroupStorageKey } from "@/lib/collection-group-storage";
+import { groupCollectionPostsByTime } from "@/lib/collection-time-groups";
 import { useListFocusRestore } from "@/lib/use-list-focus-restore";
 
 export function SavedSection() {
@@ -22,7 +24,7 @@ export function SavedSection() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  const queryArgs = isAuthenticated ? {} : "skip";
+  const queryArgs = !isLoading && isAuthenticated ? {} : "skip";
 
   const {
     results,
@@ -33,10 +35,25 @@ export function SavedSection() {
     initialNumItems: 12,
   });
 
-  const rootRef = useRef<HTMLDivElement>(null);
-  useListFocusRestore(rootRef, '[data-slot="card"]', listLoading);
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    !isLoading && isAuthenticated ? {} : "skip",
+  );
+  const userLoading = isAuthenticated && currentUser === undefined;
+  const groupStorageKey = currentUser?.userId
+    ? collectionGroupStorageKey(currentUser.userId, "saved")
+    : undefined;
 
-  if (isLoading || !isAuthenticated) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [now] = useState(() => Date.now());
+  useListFocusRestore(
+    rootRef,
+    '[data-slot="card"]',
+    listLoading,
+    "[data-list-header]",
+  );
+
+  if (isLoading || !isAuthenticated || userLoading) {
     return (
       <div className="flex justify-center py-12">
         <div role="status" aria-label="Loading saved posts">
@@ -61,11 +78,11 @@ export function SavedSection() {
       <div ref={rootRef}>
         <EmptyState
           icon={Bookmark}
-          title="No saved posts"
-          description="Bookmark posts to read later and they'll appear here."
+          title="No saved posts yet"
+          description="Save posts to revisit later and they'll appear here."
           action={
             <Button asChild variant="outline">
-              <Link href="/blog">Browse the Blog</Link>
+              <Link href="/blog">Explore Discover</Link>
             </Button>
           }
         />
@@ -73,29 +90,15 @@ export function SavedSection() {
     );
   }
 
+  const groups = groupCollectionPostsByTime(results, now);
+
   return (
-    <div ref={rootRef} className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {results.map((post) => (
-          <PostCard
-            key={post._id}
-            postId={post._id}
-            title={post.title}
-            body={post.body}
-            imageUrl={post.imageUrl}
-            commentCount={post.commentCount}
-            likeCount={post.likeCount ?? 0}
-            isLiked={post.isLiked ?? false}
-            isBookmarked={true}
-            createdAt={post.createdAt}
-            authorId={post.authorId}
-            authorName={post.authorName}
-            authorUsername={post.authorUsername}
-            authorAvatarUrl={post.authorAvatarUrl}
-            tags={post.tags}
-          />
-        ))}
-      </div>
+    <div ref={rootRef} className="flex flex-col gap-6">
+      <CollectionGroupList
+        groups={groups}
+        collection="saved"
+        persistenceKey={groupStorageKey}
+      />
 
       {status === "CanLoadMore" && (
         <div className="flex justify-center">

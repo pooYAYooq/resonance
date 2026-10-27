@@ -39,8 +39,8 @@ function validateBookmarkPagination(options: {
 import { getPublishedPost, requirePublishedPost } from "./postLifecycle";
 import {
   hydratePostSummary,
-  postSummaryValidator,
-  type PostSummary,
+  collectionPostSummaryValidator,
+  type CollectionPostSummary,
 } from "./postSummary";
 import { usernamesForOwners } from "./usernameModel";
 
@@ -129,7 +129,7 @@ export const isBookmarked = query({
  * Returns the current user's bookmarked posts, most-recently-saved first.
  *
  * Paginates the `bookmarks` table by the authenticated user ID, then hydrates
- * each post with the same data `PostCard` expects: `imageUrl`, `authorName`,
+ * each post with collection data including its save time: `imageUrl`, `authorName`,
  * `authorAvatarUrl`, and `isLiked`. Bookmarks pointing to deleted posts are
  * skipped defensively.
  *
@@ -143,7 +143,7 @@ export const getBookmarkedPosts = query({
   args: {
     paginationOpts: paginationOptsValidator,
   },
-  returns: paginationResultValidator(postSummaryValidator),
+  returns: paginationResultValidator(collectionPostSummaryValidator),
   handler: async (ctx, args) => {
     validateBookmarkPagination(args.paginationOpts);
     const authUser = await authComponent.safeGetAuthUser(ctx);
@@ -172,23 +172,28 @@ export const getBookmarkedPosts = query({
     );
 
     const hydrated = await Promise.all(
-      posts.map(async (post): Promise<PostSummary | null> => {
+      posts.map(async (post, index): Promise<CollectionPostSummary | null> => {
         if (!post) {
           // Dangling bookmark — post deleted. Skip it.
           return null;
         }
-        return await hydratePostSummary(
-          ctx,
-          post,
-          authUser._id,
-          usernames.get(post.authorId) ?? null,
-        );
+        return {
+          ...(await hydratePostSummary(
+            ctx,
+            post,
+            authUser._id,
+            usernames.get(post.authorId) ?? null,
+          )),
+          addedAt: result.page[index].createdAt,
+        };
       }),
     );
 
     return {
       ...result,
-      page: hydrated.filter((post): post is PostSummary => post !== null),
+      page: hydrated.filter(
+        (post): post is CollectionPostSummary => post !== null,
+      ),
     };
   },
 });

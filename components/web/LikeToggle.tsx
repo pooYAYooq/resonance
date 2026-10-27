@@ -40,7 +40,7 @@ interface LikeToggleProps {
   toastLiked: string;
   toastUnliked: string;
   size?: "sm" | "default";
-  presentation?: "compact" | "reader";
+  presentation?: "compact" | "reader" | "collection" | "icon";
 }
 
 export function LikeToggle({
@@ -92,10 +92,19 @@ export function LikeToggle({
   return (
     <Button
       variant={presentation === "reader" ? "outline" : "ghost"}
-      size={presentation === "reader" ? "lg" : size}
+      size={
+        presentation === "reader"
+          ? "lg"
+          : presentation === "icon"
+            ? "icon-sm"
+            : size
+      }
       onClick={handleClick}
       disabled={isLoading}
-      className="disabled:opacity-100"
+      className={cn(
+        "disabled:opacity-100",
+        presentation === "collection" && "min-h-10",
+      )}
       aria-disabled={isPending || isLoading}
       aria-label={
         presentation === "reader"
@@ -108,20 +117,30 @@ export function LikeToggle({
     >
       {isPending ? (
         <Loader2
-          data-icon={presentation === "reader" ? "inline-start" : undefined}
+          data-icon={
+            presentation !== "compact" && presentation !== "icon"
+              ? "inline-start"
+              : undefined
+          }
           className="animate-spin"
         />
       ) : (
         <Heart
-          data-icon={presentation === "reader" ? "inline-start" : undefined}
+          data-icon={
+            presentation !== "compact" && presentation !== "icon"
+              ? "inline-start"
+              : undefined
+          }
           className={cn(
             localLiked &&
-              (presentation === "reader" ? "text-destructive" : "text-red-500"),
+              (presentation === "compact" || presentation === "icon"
+                ? "text-red-500"
+                : "text-destructive"),
           )}
           fill={localLiked ? "currentColor" : "none"}
         />
       )}
-      {presentation === "reader" && (
+      {(presentation === "reader" || presentation === "collection") && (
         <span aria-hidden="true" className="inline-grid text-left">
           <span className="invisible col-start-1 row-start-1">Liked</span>
           <span className="col-start-1 row-start-1">
@@ -129,14 +148,16 @@ export function LikeToggle({
           </span>
         </span>
       )}
-      <span
-        aria-hidden={presentation === "reader" ? true : undefined}
-        className={cn("tabular-nums", presentation === "compact" && "ml-1")}
-      >
-        {presentation === "reader"
-          ? formatReaderLikeCount(localCount)
-          : localCount}
-      </span>
+      {(presentation === "compact" || presentation === "reader") && (
+        <span
+          aria-hidden={presentation === "reader" ? true : undefined}
+          className={cn("tabular-nums", presentation === "compact" && "ml-1")}
+        >
+          {presentation === "reader"
+            ? formatReaderLikeCount(localCount)
+            : localCount}
+        </span>
+      )}
     </Button>
   );
 }

@@ -1,19 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-
-vi.mock("./_components/SavedSection", () => ({
-  SavedSection: () => <div>Saved section</div>,
-}));
-
+import { describe, expect, it } from "vitest";
 import SavedRoute from "./page";
 
 describe("Saved route", () => {
-  it("renders a page-level heading for saved posts", () => {
-    render(<SavedRoute />);
-
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Saved posts" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Saved section")).toBeInTheDocument();
+  it("redirects to the saved page in the dashboard", () => {
+    expect(SavedRoute).toThrowError(
+      expect.objectContaining({
+        digest: "NEXT_REDIRECT;replace;/dashboard/saved;307;",
+      }),
+    );
   });
 });

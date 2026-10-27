@@ -92,7 +92,7 @@ describe("pending shared toggles with collection removal", () => {
         kind === "like"
           ? screen.getByRole("button", { name: "Unlike first" })
           : screen.getAllByRole("button", {
-              name: "Remove from reading list",
+              name: "Remove from Saved",
             })[0];
       button.focus();
       await user.keyboard("{Enter}");
@@ -106,7 +106,7 @@ describe("pending shared toggles with collection removal", () => {
         ? screen.getByRole("link", { name: "Browse the Blog" })
         : kind === "like"
           ? screen.getByRole("button", { name: "Unlike second" })
-          : screen.getByRole("button", { name: "Remove from reading list" });
+          : screen.getByRole("button", { name: "Remove from Saved" });
       expect(target).toHaveFocus();
       await act(async () => {
         if (kind === "like") resolveLike({ liked: false, likeCount: 0 });
