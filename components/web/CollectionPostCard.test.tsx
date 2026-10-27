@@ -84,7 +84,7 @@ describe("CollectionPostCard", () => {
     const cover = card.children[0] as HTMLElement;
     const content = card.children[1] as HTMLElement;
     const title = within(content).getByRole("heading", {
-      level: 2,
+      level: 3,
       name: "Echoes in the Static",
     });
     const author = within(content).getByRole("link", {

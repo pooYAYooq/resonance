@@ -46,14 +46,14 @@ export function CollectionPostCard({
         />
       </div>
       <div className="col-start-2 row-start-1 flex min-w-0 flex-col gap-2 self-stretch">
-        <h2 className="text-[15px] font-semibold leading-snug sm:text-base">
+        <h3 className="text-[15px] font-semibold leading-snug sm:text-base">
           <Link
             href={postHref}
             className="line-clamp-2 break-words hover:text-primary hover:underline"
           >
             {title}
           </Link>
-        </h2>
+        </h3>
         <div className="flex min-w-0 items-center justify-between gap-1.5 sm:gap-3">
           <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground sm:text-sm">
             <UserAvatar

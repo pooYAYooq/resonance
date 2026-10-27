@@ -159,15 +159,31 @@ The maintainer approved the browser and keyboard-focus results.
   also kept it collapsed. Saved and Liked used independent keys.
 - Collapsing Today set the header to `aria-expanded="false"`, hid its panel, and
   left the two Yesterday cards visible. Expanding restored it. The header is a
-  native button with `aria-controls`; group headings are excluded from the list
-  focus fallback, so Load more and last-card restoration remain intact.
+  native button with `aria-controls` inside a group `h2`; card titles are `h3`
+  beneath it, so heading navigation groups each post under its time heading.
+- Removing the last visible card while another group was collapsed used to
+  leave focus on the document body because the hidden successor failed every
+  visibility check. The shared list-focus hook now records and resolves item
+  positions among visible cards only, then falls back to the first visible
+  recovery or pagination control, a visible group heading, or a programmatically
+  focusable root. Four regressions cover a hidden successor, the no-card
+  recovery fallback, the all-collapsed heading fallback, and visible-position
+  recording; the first three failed against the previous hook.
 - No saved/liked timestamp appears on a card. The time group is the only
   visible time context. Collection search, filters, and exact timestamps remain
   deferred.
-- Automated verification: time-group helper 4 tests; collection group-list,
-  storage, and card tests 13; Saved/Liked section suites 44; full component
-  suite 1,065; edge suite 902; lint, typecheck, build, formatting, and artifact
-  checks passed.
+- Automated verification after the review fixes: time-group helper 4 tests;
+  collection group-list, storage, and card tests 13; Saved/Liked section suites
+  44; shared list-focus hook 8 tests, including four collapsed-group
+  regressions; full component suite 1,069; edge suite 902; lint, typecheck,
+  build, formatting, and artifact checks passed.
+- The review-fix browser pass at 1280px confirmed card titles render as `h3`
+  inside the collection DOM. The deployed Convex functions at that time did not
+  return the branch's `addedAt` field, so every saved post grouped into
+  Earlier and the two-group collapsed-focus scenario could not be repeated in
+  the browser. The three focus regressions failed against the previous hook
+  and pass with the fix; rerun the browser scenario after the collection
+  queries are deployed.
 - Physical touch, real screen-reader sessions, and browsers other than Chromium
   were not exercised in this pass. The grouping uses local time and loaded counts;
   see [known limitations](KNOWN_LIMITATIONS.md).
