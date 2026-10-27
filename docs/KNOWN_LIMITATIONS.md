@@ -36,7 +36,9 @@ evidence resolves them. The previous detailed delivery history remains in
 
 - Time-group counts reflect only the posts loaded so far. Loading another page
   extends the groups and updates the counts.
-- Collapse state is per visit and is not persisted across navigation or reload.
+- Collapse state is session-scoped per signed-in user and collection. It
+  survives route changes and reloads in the browser tab; new tabs and browser
+  restarts reset it.
 - Grouping uses the viewer's local time, captured when the page mounts. Crossing
   midnight without remounting can leave the previous day boundaries in place
   until the page reloads.

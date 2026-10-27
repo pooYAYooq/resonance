@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useConvexAuth, usePaginatedQuery } from "convex/react";
+import { useConvexAuth, usePaginatedQuery, useQuery } from "convex/react";
 import { Heart, Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/web/EmptyState";
 import { CollectionGroupList } from "@/components/web/CollectionGroupList";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+import { collectionGroupStorageKey } from "@/lib/collection-group-storage";
 import { groupCollectionPostsByTime } from "@/lib/collection-time-groups";
 import { useListFocusRestore } from "@/lib/use-list-focus-restore";
 
@@ -34,6 +35,15 @@ export function LikedSection() {
     { initialNumItems: 12 },
   );
 
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    !isLoading && isAuthenticated ? {} : "skip",
+  );
+  const userLoading = isAuthenticated && currentUser === undefined;
+  const groupStorageKey = currentUser?.userId
+    ? collectionGroupStorageKey(currentUser.userId, "liked")
+    : undefined;
+
   const rootRef = useRef<HTMLDivElement>(null);
   const [now] = useState(() => Date.now());
   useListFocusRestore(
@@ -43,7 +53,12 @@ export function LikedSection() {
     "[data-list-header]",
   );
 
-  if (isLoading || !isAuthenticated || (listLoading && results.length === 0)) {
+  if (
+    isLoading ||
+    !isAuthenticated ||
+    userLoading ||
+    (listLoading && results.length === 0)
+  ) {
     return (
       <div className="flex justify-center py-12">
         <div role="status" aria-label="Loading liked posts">
@@ -74,7 +89,11 @@ export function LikedSection() {
 
   return (
     <div ref={rootRef} className="flex flex-col gap-6">
-      <CollectionGroupList groups={groups} collection="liked" />
+      <CollectionGroupList
+        groups={groups}
+        collection="liked"
+        persistenceKey={groupStorageKey}
+      />
 
       {status === "CanLoadMore" && (
         <div className="flex justify-center">

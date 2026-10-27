@@ -149,6 +149,14 @@ The maintainer approved the browser and keyboard-focus results.
   Previous 30 days, and Earlier. Headers use a left chevron, label, and 14px
   loaded count. Expanded headers keep the muted background; collapsed groups
   sit 16px apart. The preview showed Today 1 and Yesterday 2.
+- Collapse state is stored in `sessionStorage`, keyed by signed-in user and
+  collection. A group-list remount with the same key restored the collapsed
+  group; a clean key started expanded. This is covered by a group-list test.
+  New tabs and browser restarts start expanded.
+- Browser check in T3 Chromium at 1280px: Today was collapsed, its session key
+  stored `["today"]`, and two cards remained visible. Navigating to Liked and
+  back with browser history left Today collapsed; reloading `/dashboard/saved`
+  also kept it collapsed. Saved and Liked used independent keys.
 - Collapsing Today set the header to `aria-expanded="false"`, hid its panel, and
   left the two Yesterday cards visible. Expanding restored it. The header is a
   native button with `aria-controls`; group headings are excluded from the list
@@ -156,9 +164,10 @@ The maintainer approved the browser and keyboard-focus results.
 - No saved/liked timestamp appears on a card. The time group is the only
   visible time context. Collection search, filters, and exact timestamps remain
   deferred.
-- Automated verification: time-group helper 4 tests; collection group-list and
-  card tests 9; Saved/Liked section suites 44; full component suite 1,061; edge
-  suite 902; lint, typecheck, build, formatting, and artifact checks passed.
+- Automated verification: time-group helper 4 tests; collection group-list,
+  storage, and card tests 13; Saved/Liked section suites 44; full component
+  suite 1,065; edge suite 902; lint, typecheck, build, formatting, and artifact
+  checks passed.
 - Physical touch, real screen-reader sessions, and browsers other than Chromium
   were not exercised in this pass. The grouping uses local time and loaded counts;
   see [known limitations](KNOWN_LIMITATIONS.md).

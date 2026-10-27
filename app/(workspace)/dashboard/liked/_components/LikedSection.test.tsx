@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => authState(),
+  useQuery: () => ({ userId: "user-1" }),
   usePaginatedQuery: (_query: unknown, args: unknown) => {
     paginatedArgs(args);
     return paginatedState();
@@ -27,6 +28,9 @@ vi.mock("@/convex/_generated/api", () => ({
   api: {
     likes: {
       getLikedPosts: "getLikedPosts",
+    },
+    users: {
+      getCurrentUser: "getCurrentUser",
     },
   },
 }));

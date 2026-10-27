@@ -62,7 +62,8 @@ The maintainer approved the final collection presentation on top of the separate
 dashboard pages. Saved and Liked group posts by relationship time into
 collapsible Today, Yesterday, Previous 7 days, Previous 30 days, and Earlier
 sections. Groups start expanded and show their currently loaded count; collapse
-state is per visit. Collection cards omit a per-post saved/liked timestamp.
+state is session-scoped per signed-in user and collection. Collection cards omit
+a per-post saved/liked timestamp.
 Tablet and desktop use 3:2 cards with tags under the cover; phones use flat rows
 without tags. Saved exposes only the bookmark action and Liked only the heart
 action. Collection search, filters, and exact timestamps remain deferred. This

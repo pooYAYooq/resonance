@@ -19,8 +19,9 @@ keyboard acceptance were approved by the maintainer; results are recorded in
 
 Start V1-20, context-specific post-card variants, from
 [the roadmap](../ROADMAP.md). V1-19 collection search, filters, and exact
-timestamps remain deferred; collapse state is per visit and group counts reflect
-loaded posts. Existing username, profile, accessibility, and author-page gaps
+timestamps remain deferred; collapse state is session-scoped per signed-in user
+and collection, and group counts reflect loaded posts. Existing username,
+profile, accessibility, and author-page gaps
 remain with their [limitation records](KNOWN_LIMITATIONS.md). Changes affecting
 notifications reopen the relevant checks under the evidence document's retest
 triggers.

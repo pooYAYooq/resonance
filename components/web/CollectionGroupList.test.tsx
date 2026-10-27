@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -52,7 +52,11 @@ const groups = [
 ] satisfies CollectionTimeGroup<CollectionPostSummary>[];
 
 describe("CollectionGroupList", () => {
-  it("starts expanded and toggles each group with the clock heading", async () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("starts expanded and toggles each group with the chevron heading", async () => {
     const user = userEvent.setup();
     render(<CollectionGroupList groups={groups} collection="saved" />);
 
@@ -93,5 +97,43 @@ describe("CollectionGroupList", () => {
     expect(
       document.getElementById("collection-liked-today-panel"),
     ).not.toHaveAttribute("hidden");
+  });
+
+  it("restores collapsed groups from session storage when remounted", async () => {
+    const user = userEvent.setup();
+    const persistenceKey = "collection-groups:user-1:saved";
+    const first = render(
+      <CollectionGroupList
+        groups={groups}
+        collection="saved"
+        persistenceKey={persistenceKey}
+      />,
+    );
+    const today = screen.getByRole("button", { name: /Today/ });
+
+    await user.click(today);
+
+    expect(today).toHaveAttribute("aria-expanded", "false");
+    expect(JSON.parse(sessionStorage.getItem(persistenceKey) ?? "[]")).toEqual([
+      "today",
+    ]);
+
+    first.unmount();
+
+    render(
+      <CollectionGroupList
+        groups={groups}
+        collection="saved"
+        persistenceKey={persistenceKey}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Today/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(
+      document.getElementById("collection-saved-today-panel"),
+    ).toHaveAttribute("hidden");
   });
 });

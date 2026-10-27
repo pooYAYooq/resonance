@@ -223,9 +223,10 @@
   and Earlier. Groups use local time and remain newest first.
 - Each group header is collapsible, starts expanded, and shows its currently
   loaded post count. The header uses a left chevron, label, and count; expanded
-  headers keep a subtle muted background. Collapse state is per visit and is not
-  persisted. Group counts reflect loaded posts; additional pages extend the
-  groups.
+  headers keep a subtle muted background. Collapse state is session-scoped per
+  signed-in user and collection: it survives route changes and reloads in the
+  browser tab, while a new tab or browser restart starts expanded. Group counts
+  reflect loaded posts; additional pages extend the groups.
 - Tablet and desktop use cards with a 3:2 cover, the title, an avatar/author
   byline directly below the title, author-selected tags in a full-width row under
   the cover, and one collection action. Phones use flat list rows with no card

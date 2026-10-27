@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { CollectionPostSummary } from "@/convex/postSummary";
 import type { CollectionTimeGroup } from "@/lib/collection-time-groups";
+import {
+  readCollapsedGroups,
+  writeCollapsedGroups,
+} from "@/lib/collection-group-storage";
 import { cn } from "@/lib/utils";
 import { CollectionPostCard } from "./CollectionPostCard";
 
@@ -12,16 +16,23 @@ type CollectionName = "saved" | "liked";
 type CollectionGroupListProps = {
   groups: CollectionTimeGroup<CollectionPostSummary>[];
   collection: CollectionName;
+  /** Session-scoped storage key; omitted when the signed-in user is unknown. */
+  persistenceKey?: string;
 };
 
 /** Renders a collection as collapsible time groups. */
 export function CollectionGroupList({
   groups,
   collection,
+  persistenceKey,
 }: CollectionGroupListProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(
-    () => new Set(),
+    () => readCollapsedGroups(persistenceKey),
   );
+
+  useEffect(() => {
+    setCollapsedGroups(readCollapsedGroups(persistenceKey));
+  }, [persistenceKey]);
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups((current) => {
@@ -31,6 +42,7 @@ export function CollectionGroupList({
       } else {
         next.add(key);
       }
+      writeCollapsedGroups(persistenceKey, next);
       return next;
     });
   };

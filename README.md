@@ -252,7 +252,7 @@ components/
     PostCard.tsx              # Shared post card (landing, dashboard preview, feed)
     CollectionPostCard.tsx    # Saved/Liked card: 3:2 cover, byline after title, tags under cover,
                               # page-specific action, flat mobile row
-    CollectionGroupList.tsx   # Collapsible collection time groups with chevron, label, and loaded count
+    CollectionGroupList.tsx   # Session-scoped collapsible collection time groups with chevron, label, and count
     CoverImage.tsx            # Custom cover image or the blank transparent fallback surface with a subtle bottom border
     PostCover.tsx             # Uncapped published 16:9 cover frame: shared ratio and single crop seam
     PostArticleHeader.tsx     # Shared reader and noninteractive Review title, attribution, and topics
@@ -303,6 +303,7 @@ lib/
   safe-link.ts                # Shared http/https/mailto author-link validator
   cover.ts                    # Shared cover URL resolver; null renders the blank fallback
   collection-time-groups.ts   # Rolling local-time buckets for Saved/Liked collection groups
+  collection-group-storage.ts # Session-scoped collapsed group keys per user and collection
   use-list-focus-restore.ts   # Shared keyboard focus restoration after list removal and pagination
   profile-identity.ts         # Profile identity types, code-point limits, and normalizer
   profile-socials.ts          # Social platform allowlists and URL validation/canonicalization

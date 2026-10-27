@@ -116,9 +116,9 @@ Saved and Liked are separate dashboard collection pages. Cards use a 3:2 cover
 and tags under the cover at tablet/desktop widths; phones use flat rows without
 tags. Results are grouped into collapsible Today, Yesterday, Previous 7 days,
 Previous 30 days, and Earlier sections, with a page-specific bookmark or heart
-action and no per-card saved/liked timestamp. Collapse state is per visit, and
-group counts reflect loaded posts. Collection search, filters, and exact
-timestamps remain deferred. See
+action and no per-card saved/liked timestamp. Collapse state is session-scoped
+per signed-in user and collection, and group counts reflect loaded posts.
+Collection search, filters, and exact timestamps remain deferred. See
 [accessibility evidence](docs/ACCESSIBILITY.md#saved-and-liked-time-group-presentation-2026-10-27).
 
 The approved public author page and its paged post catalogue are implemented and

@@ -278,7 +278,7 @@ resonance/
 │       ├── CollectionPostCard.tsx # Saved/Liked presentation: 3:2 cover, byline after
 │       │                         # title, tags under the cover, page-specific action,
 │       │                         # and a flat mobile row.
-│       ├── CollectionGroupList.tsx # Collapsible Today/Yesterday/rolling-window groups;
+│       ├── CollectionGroupList.tsx # Session-scoped collapsible Today/Yesterday/rolling-window groups;
 │       │                         # left chevron, label, loaded count, and expanded surface.
 │       ├── CoverImage.tsx       # Shared cover: renders the resolved custom URL or a
 │       │                        # blank transparent fallback surface with a subtle
@@ -353,6 +353,7 @@ resonance/
     ├── safe-link.ts            # Shared http/https/mailto author-link validator.
     ├── cover.ts                # Shared cover URL resolver; null renders the blank fallback.
     ├── collection-time-groups.ts # Rolling local-time buckets and labels for Saved/Liked.
+    ├── collection-group-storage.ts # Session-scoped collapsed group keys per user and collection.
     ├── use-list-focus-restore.ts # Shared list focus restoration after removal or pagination.
     ├── profile-identity.ts     # Profile identity types, code-point limits, and normalizer.
     ├── profile-socials.ts      # Social platform allowlists and URL validation/canonicalization.
@@ -841,7 +842,8 @@ states above the title.
   user's liked posts. Each list groups relationship timestamps into collapsible
   Today, Yesterday, Previous 7 days, Previous 30 days, and Earlier sections.
   Group headings show a left chevron, label, and loaded count; collapse state is
-  local to the visit. Cards use a 3:2 cover, byline after the title, and tags
+  session-scoped per signed-in user and collection. Cards use a 3:2 cover,
+  byline after the title, and tags
   under the cover at `sm` and above; phones use flat rows without tags. Each
   collection exposes only its own action (bookmark for Saved, heart for Liked).
   The deferred `/dashboard` root composes

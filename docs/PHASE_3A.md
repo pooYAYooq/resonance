@@ -229,7 +229,8 @@ tracked in [`../ROADMAP.md`](../ROADMAP.md).
   Saved for the same user-facing concept.
 - Saved and Liked group posts by when the reader saved or liked them, using
   collapsible Today, Yesterday, Previous 7 days, Previous 30 days, and Earlier
-  sections. Groups start expanded and show their currently loaded count. Cards
+  sections. Groups start expanded and show their currently loaded count.
+  Collapse state is session-scoped per signed-in user and collection. Cards
   do not show a per-post save/like timestamp; exact timestamps and collection
   search or filters remain deferred.
 - Every empty state explains what is missing and offers one clear recovery

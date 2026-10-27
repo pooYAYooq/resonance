@@ -15,8 +15,8 @@ work is tracked in `ROADMAP.md`.
 - Separate Saved and Liked dashboard pages with collapsible relationship-time
   groups, flat mobile rows, cards with 3:2 covers and tags under the cover at
   tablet/desktop widths, page-specific bookmark/heart actions, and no per-card
-  saved/liked timestamp. Collection search, filters, and exact timestamps remain
-  deferred.
+  saved/liked timestamp. Collapse state is session-scoped per signed-in user and
+  collection. Collection search, filters, and exact timestamps remain deferred.
 
 - Focused comment destinations from notifications show the selected comment
   directly, with nearby context, shared reply controls, and a full-article link.

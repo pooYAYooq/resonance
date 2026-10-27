@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useConvexAuth, usePaginatedQuery } from "convex/react";
+import { useConvexAuth, usePaginatedQuery, useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { CollectionGroupList } from "@/components/web/CollectionGroupList";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/web/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Loader2, Bookmark } from "lucide-react";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
+import { collectionGroupStorageKey } from "@/lib/collection-group-storage";
 import { groupCollectionPostsByTime } from "@/lib/collection-time-groups";
 import { useListFocusRestore } from "@/lib/use-list-focus-restore";
 
@@ -34,6 +35,15 @@ export function SavedSection() {
     initialNumItems: 12,
   });
 
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    !isLoading && isAuthenticated ? {} : "skip",
+  );
+  const userLoading = isAuthenticated && currentUser === undefined;
+  const groupStorageKey = currentUser?.userId
+    ? collectionGroupStorageKey(currentUser.userId, "saved")
+    : undefined;
+
   const rootRef = useRef<HTMLDivElement>(null);
   const [now] = useState(() => Date.now());
   useListFocusRestore(
@@ -43,7 +53,7 @@ export function SavedSection() {
     "[data-list-header]",
   );
 
-  if (isLoading || !isAuthenticated) {
+  if (isLoading || !isAuthenticated || userLoading) {
     return (
       <div className="flex justify-center py-12">
         <div role="status" aria-label="Loading saved posts">
@@ -84,7 +94,11 @@ export function SavedSection() {
 
   return (
     <div ref={rootRef} className="flex flex-col gap-6">
-      <CollectionGroupList groups={groups} collection="saved" />
+      <CollectionGroupList
+        groups={groups}
+        collection="saved"
+        persistenceKey={groupStorageKey}
+      />
 
       {status === "CanLoadMore" && (
         <div className="flex justify-center">
