@@ -7,6 +7,7 @@ import {
 } from "./AuthoringExitProvider";
 import userEvent from "@testing-library/user-event";
 import { AccountMenu } from "./AccountMenu";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const {
   useConvexAuthState,
@@ -14,12 +15,18 @@ const {
   signOutUserMock,
   pushMock,
   navigateMock,
+  setThemeMock,
 } = vi.hoisted(() => ({
   useConvexAuthState: vi.fn(),
   useQueryState: vi.fn(),
   signOutUserMock: vi.fn(),
   pushMock: vi.fn(),
   navigateMock: vi.fn(),
+  setThemeMock: vi.fn(),
+}));
+
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ theme: "light", setTheme: setThemeMock }),
 }));
 
 vi.mock("convex/react", () => ({
@@ -153,7 +160,9 @@ describe("AccountMenu", () => {
   it("uses workspace presentation and notifies the drawer on actions", async () => {
     const user = userEvent.setup();
     render(
-      <AccountMenu presentation="workspace" onNavigateAction={navigateMock} />,
+      <TooltipProvider>
+        <AccountMenu presentation="workspace" onNavigateAction={navigateMock} />
+      </TooltipProvider>,
     );
 
     expect(
@@ -165,5 +174,24 @@ describe("AccountMenu", () => {
     await user.click(screen.getByRole("menuitem", { name: /profile/i }));
 
     expect(navigateMock).toHaveBeenCalled();
+  });
+
+  it("keeps the workspace menu open when changing theme", async () => {
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <AccountMenu presentation="workspace" />
+      </TooltipProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Open workspace account menu" }),
+    );
+    expect(
+      screen.getByRole("menuitemradio", { name: "Light" }),
+    ).toHaveAttribute("aria-checked", "true");
+    await user.click(screen.getByRole("menuitemradio", { name: "Dark" }));
+    expect(setThemeMock).toHaveBeenCalledWith("dark");
+    expect(screen.getByRole("menu")).toBeVisible();
   });
 });

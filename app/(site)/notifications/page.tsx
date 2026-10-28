@@ -1,35 +1,5 @@
-/**
- * Notifications page — the current user's private notification feed.
- *
- * Server Component shell: static metadata (private surface, noindex).
- * The auth gate, the live paginated list, the per-row read state, and
- * the Mark all read action live in the client
- * `_components/NotificationsList`, which mirrors `/create`'s auth
- * gate and `ReadingListContent`'s paginated shape.
- *
- * Bare server-side `fetchQuery` in this repo runs unauthenticated
- * (see the FEATURES.md "Known issue" note), so the page cannot
- * server-gate via `getCurrentUser`; the client gate is authoritative.
- */
+import { redirect } from "next/navigation";
 
-import type { Metadata } from "next";
-import { NotificationsList } from "./_components/NotificationsList";
-
-export const metadata: Metadata = {
-  title: "Notifications",
-  description: "Likes, follows, and comments on your work.",
-  robots: { index: false, follow: false },
-};
-
-export default function NotificationsRoute() {
-  return (
-    <div className="pt-[53px] pb-12">
-      <header className="mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight">
-          Notifications
-        </h1>
-      </header>
-      <NotificationsList />
-    </div>
-  );
+export default function LegacyNotificationsRoute() {
+  redirect("/dashboard/notifications");
 }

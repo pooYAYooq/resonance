@@ -44,7 +44,7 @@ export function Navbar() {
                   </Link>
                   <Link
                     className={buttonVariants({ variant: "ghost" })}
-                    href="/feed"
+                    href="/dashboard/feed"
                   >
                     Feed
                   </Link>

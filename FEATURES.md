@@ -31,11 +31,17 @@
   sessions and browser contexts
 - `AuthSync` bridges Better Auth identity into the app-level `users` table on sign-in
 - Navbar avatar dropdown (profile / settings / logout); `/create` is auth-gated
-- Below 768px, the site and workspace use a logo plus hamburger drawer instead
-  of inline account controls. The mobile drawer and desktop workspace sidebar
-  share navigation content: Writing, Reading, Account, and Appearance, with
-  profile context and unread notifications for authenticated users; anonymous
-  users get Home, Discover, Log In, Sign Up, and theme controls.
+- Below 768px, the site and workspace use a full-width hamburger drawer. Signed-in
+  users get the same Writing and Reading destinations as the desktop sidebar,
+  with a profile link at the top, a shared Settings and Theme row, and Sign Out
+  below the navigation. Accounts without a username link to profile setup. The
+  navbar bell provides access to notifications. Anonymous users get Home,
+  Discover, Log In, Sign Up, and theme controls.
+- The desktop workspace sidebar collapses from 312px to a 54px icon rail with
+  hover and keyboard-focus labels, active destination styling, and an unread
+  notification dot. Its expand control is visible on devices that cannot hover.
+  It starts expanded and remembers the choice in browser-local storage across
+  reloads. The toggle still works in memory when storage is unavailable.
 
 ### Blog Posts
 
@@ -258,7 +264,7 @@
 - Post likes, comments, and comment likes keep one live notification per
   recipient, actor, and event key. Repeating an action leaves existing read
   history intact. Undoing a like or follow does not remove its history row.
-- `users.unreadNotificationCount` denormalized counter; `getUnreadCount` is a single O(1) read for the bell badge and the mobile navigation count
+- `users.unreadNotificationCount` denormalized counter; `getUnreadCount` is a single O(1) read for the bell badge and workspace sidebar count
 - At 767px and below, the navbar keeps the notification bell and unread badge
   visible immediately before the hamburger menu.
 - Auth-only `NotificationBell` in the Navbar opens a right-side drawer on
@@ -266,8 +272,9 @@
   notifications update its badge without opening the drawer. Closing resumes
   reading; selecting a destination link closes the drawer and navigates there.
   The drawer reuses the full page’s rows, read state, and saved expansion state;
-  opening it alone does not mark notifications read. The dashboard and mobile
-  menu retain their links to the full `/notifications` page.
+  opening it alone does not mark notifications read. The desktop workspace sidebar
+  links to the full `/dashboard/notifications` page;
+  `/notifications` redirects there.
 - Comment and comment-like notification links open the shareable
   `/blog/[postId]/comments/[commentId]` conversation view. The selected comment
   appears below a compact post title and author, with the shared reply form,
@@ -288,7 +295,8 @@
   open the full article at the top. Comment actions and excerpts open the focused
   conversation on desktop and mobile. Opening the already-visible destination
   also resets to the top.
-- `/notifications` page, client-gated, paginated twelve at a time, renders one
+- `/dashboard/notifications` page inside the authenticated workspace,
+  client-gated, paginated twelve at a time, renders one
   compact row per notification with direct links to the post and the actor and
   a small unread dot beside the timestamp with an accessible “Unread” label.
   The dot has a permanent 16px slot and becomes invisible when read, keeping
@@ -389,7 +397,8 @@
 
 ### Reader Feed
 
-- `/feed` is a private, client-gated route showing posts from the reader's current follows
+- `/dashboard/feed` is a private, client-gated route inside the authenticated
+  workspace, showing posts from the reader's current follows; `/feed` redirects there
 - A 30-day materialized `feed` table provides one globally ordered stream across authors
 - Pages contain at most 20 posts and use a fixed `asOf` cutoff for stable cursor pagination
 - Post fan-out, follow backfill, unfollow deletion, and daily expiration cleanup run in bounded scheduled batches

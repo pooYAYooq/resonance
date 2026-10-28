@@ -47,23 +47,26 @@ vi.mock("@/convex/_generated/api", () => ({
   },
 }));
 
-vi.mock("@/app/(site)/notifications/_components/NotificationsList", () => ({
-  NotificationsList: ({ header }: { header?: ReactNode }) => (
-    <div>
-      {header}
-      <button>Expand notification</button>
-      <a
-        href="#comment-target"
-        onClick={(event) => {
-          event.preventDefault();
-          pushMock("#comment-target");
-        }}
-      >
-        Read comment
-      </a>
-    </div>
-  ),
-}));
+vi.mock(
+  "@/app/(workspace)/dashboard/notifications/_components/NotificationsList",
+  () => ({
+    NotificationsList: ({ header }: { header?: ReactNode }) => (
+      <div>
+        {header}
+        <button>Expand notification</button>
+        <a
+          href="#comment-target"
+          onClick={(event) => {
+            event.preventDefault();
+            pushMock("#comment-target");
+          }}
+        >
+          Read comment
+        </a>
+      </div>
+    ),
+  }),
+);
 
 describe("NotificationBell", () => {
   beforeEach(() => {

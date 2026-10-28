@@ -90,12 +90,16 @@ describe("FeedContent", () => {
       isAuthenticated: false,
       isLoading: false,
     });
-    window.history.replaceState({}, "", "/feed?filter=following#latest");
+    window.history.replaceState(
+      {},
+      "",
+      "/dashboard/feed?filter=following#latest",
+    );
     render(<FeedContent />);
 
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith(
-        "/auth/login?returnTo=%2Ffeed%3Ffilter%3Dfollowing%23latest",
+        "/auth/login?returnTo=%2Fdashboard%2Ffeed%3Ffilter%3Dfollowing%23latest",
       ),
     );
     expect(queryArgsMock).toHaveBeenCalledWith("getFeed", "skip");

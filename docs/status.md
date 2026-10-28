@@ -6,25 +6,26 @@ a session history.
 
 ## Current focus
 
-V1-19, Saved and Liked collection presentation, is implemented on
-`feat/saved-liked-collection-presentation`. Saved and Liked are separate
-dashboard pages with collapsible relationship-time groups, flat rows on phones,
-cards with 3:2 covers and tags under the cover at tablet/desktop widths, one
-page-specific action per collection, and no per-card saved/liked timestamp.
-[Features](../FEATURES.md#private-collections) owns current behavior. Browser and
-keyboard acceptance were approved by the maintainer; results are recorded in
-[accessibility evidence](ACCESSIBILITY.md#saved-and-liked-time-group-presentation-2026-10-27).
+Dashboard sidebar improvements on `codex/dashboard-sidebar-improvements`,
+through small iterations outside the roadmap sequence. [Features](../FEATURES.md#authentication)
+owns the navigation behavior; [sidebar evidence](ACCESSIBILITY.md#sidebar-and-mobile-drawer-iterations-2026-10-28)
+records the latest verification and remaining browser coverage.
 
 ## Next action
 
-Start V1-20, context-specific post-card variants, from
-[the roadmap](../ROADMAP.md). V1-19 collection search, filters, and exact
-timestamps remain deferred; collapse state is session-scoped per signed-in user
-and collection, and group counts reflect loaded posts. Existing username,
-profile, accessibility, and author-page gaps
-remain with their [limitation records](KNOWN_LIMITATIONS.md). Changes affecting
-notifications reopen the relevant checks under the evidence document's retest
-triggers.
+Review the approved sidebar, mobile drawer, and workspace route changes for
+staging. Remaining verification gaps are recorded in
+[known limitations](KNOWN_LIMITATIONS.md#accessibility-and-responsive-behavior).
+The next roadmap item remains V1-20, context-specific post-card variants, when
+roadmap delivery resumes.
+
+Saved and Liked behavior remains documented in
+[Features](../FEATURES.md#private-collections), with its acceptance in
+[accessibility evidence](ACCESSIBILITY.md#saved-and-liked-time-group-presentation-2026-10-27).
+Collection deferrals remain in [the roadmap](../ROADMAP.md). Existing username,
+profile, accessibility, and author-page gaps remain with their
+[limitation records](KNOWN_LIMITATIONS.md). Changes affecting notifications
+reopen the relevant checks under the evidence document's retest triggers.
 
 ## Blockers and constraints
 

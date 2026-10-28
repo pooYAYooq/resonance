@@ -107,24 +107,26 @@ The remaining redesign is constrained by these repository facts:
 
 ### Route and Shell Model
 
-| Route group   | URLs                                                                              | Shell responsibility                                                                                                              |
-| ------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `(marketing)` | `/`                                                                               | Anonymous marketing Home, fuller marketing footer, auth-aware navbar. Authenticated `/` resolves directly to Dashboard.           |
-| `(site)`      | `/blog`, posts, profiles, `/profile/edit`, `/settings`, `/feed`, `/notifications` | Public and authenticated reader/site surfaces, global navbar, compact product footer.                                             |
-| `(workspace)` | `/dashboard/*`, `/create`                                                         | Authenticated workspace shell, collapsible desktop sidebar, mobile drawer, workspace utility cluster, no global Navbar or Footer. |
-| `auth`        | `/auth/*`                                                                         | Existing isolated authentication shell.                                                                                           |
+| Route group   | URLs                                                                     | Shell responsibility                                                                                                    |
+| ------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `(marketing)` | `/`                                                                      | Anonymous marketing Home, fuller marketing footer, auth-aware navbar. Authenticated `/` resolves directly to Dashboard. |
+| `(site)`      | `/blog`, posts, profiles, `/profile/edit`, `/settings`                   | Public and authenticated reader/site surfaces, global navbar, compact product footer.                                   |
+| `(workspace)` | `/dashboard/*`, `/dashboard/feed`, `/dashboard/notifications`, `/create` | Authenticated workspace shell, collapsible desktop sidebar, mobile drawer, no global Navbar or Footer.                  |
+| `auth`        | `/auth/*`                                                                | Existing isolated authentication shell.                                                                                 |
 
-Route groups do not change the approved URLs. `/profile/edit` and `/settings`
-are authenticated site-shell surfaces, not workspace-mode pages.
+Route groups do not change the approved URLs. `/feed` and
+`/notifications` redirect to their workspace destinations.
+`/profile/edit` and `/settings` remain authenticated
+site-shell surfaces, not workspace-mode pages.
 
 ### Navigation Responsibilities
 
-| Context                  | Primary destinations                                                                              | Utility behavior                                                                                              |
-| ------------------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Anonymous marketing/site | Home, Discover, Log In, Sign Up                                                                   | No private data queries before auth resolves.                                                                 |
-| Authenticated site       | Discover, Feed, New Post                                                                          | Logo -> Dashboard; bell/unread badge; account hub for Profile, Saved, Liked, Settings, and Sign Out.          |
-| Workspace sidebar        | Dashboard, New Post, Drafts, My Posts, Analytics, Discover, Feed, Saved, Liked, Profile, Settings | Reader links may leave the workspace shell. Dashboard access is approved; Overview redesign remains deferred. |
-| Workspace utilities      | Notification bell and account actions                                                             | Desktop sidebar footer; mobile workspace header; shared behavior may use different presentation.              |
+| Context                  | Primary destinations                                                                          | Utility behavior                                                                                          |
+| ------------------------ | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Anonymous marketing/site | Home, Discover, Log In, Sign Up                                                               | No private data queries before auth resolves.                                                             |
+| Authenticated site       | Discover, Feed, New Post                                                                      | Logo -> Dashboard; bell/unread badge; account hub for Profile, Saved, Liked, Settings, and Sign Out.      |
+| Workspace sidebar        | Dashboard, New Post, Drafts, My Posts, Analytics, Discover, Feed, Saved, Liked, Notifications | Discover may leave the workspace shell. Dashboard access is approved; Overview redesign remains deferred. |
+| Workspace utilities      | Notification bell and account actions                                                         | Desktop sidebar footer; mobile workspace header; shared behavior may use different presentation.          |
 
 `Profile` always means public identity at `/u/<username>`. Its owner action opens
 `/profile/edit`. Settings is not an identity-editing form.

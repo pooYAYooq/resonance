@@ -8,6 +8,13 @@ requirement source is 3A.4 in [PHASE_3A.md](PHASE_3A.md).
 
 ## Current revision summary
 
+The full Notifications page now opens at `/dashboard/notifications` in
+the workspace. The prior address returned HTTP 307 to that route in the latest
+local check. Signed-in touch-emulated Chromium navigation to the workspace page
+passed at 820px; broader browser coverage remains in
+[sidebar evidence](ACCESSIBILITY.md#sidebar-and-mobile-drawer-iterations-2026-10-28).
+The earlier results below retain their tested routes and revisions.
+
 This revision includes the [review repairs](#review-regression-checks) following
 verification of `aadb9c1` on `feat/engagement-notifications`.
 The authoritative behavior is in [Features](../FEATURES.md#notifications), with
@@ -360,6 +367,8 @@ positive unread count.
 
 ### Retest triggers
 
+- Recheck sidebar, mobile-menu, and legacy-route redirects after changes to the
+  Feed or Notifications route group or shell placement.
 - Re-run the browser journeys after changes to the read mutations, the
   notifications list or row, the empty state, the bell, or the mobile unread
   count.

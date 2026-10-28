@@ -57,6 +57,65 @@ behavioral failure.
 
 ## Results
 
+### Sidebar and mobile drawer iterations (2026-10-28)
+
+Working tree on `codex/dashboard-sidebar-improvements`, based on
+`c3f8fee` plus the sidebar and Feed/Notifications route iterations:
+
+- The earlier account-popup iteration passed 1,081 component tests. After the
+  inline drawer changes, a parallel run had four timeouts and one missing-dialog
+  failure; all five passed in the subsequent one-worker run, which passed all
+  1,085 component tests across 107 files. The edge suite passed 904 tests across
+  56 files, including the legacy-route redirects. The focused sidebar, mobile
+  drawer, and account-menu run passed 29 tests.
+- Isolated Chromium at 375px and 700px showed the signed-out drawer at the full
+  viewport width with its RESONANCE header. An isolated touch-only fixture using
+  the compiled sidebar CSS showed the expand control visible and tappable at
+  820px; this was not a test of the authenticated sidebar itself.
+- The running development server returned HTTP 307 from `/feed` and
+  `/notifications` to their corresponding workspace routes.
+- An earlier account-popup iteration was checked in signed-in Chromium at 375px
+  and 700px. The mobile account actions have since moved into the drawer itself.
+- The current signed-in drawer passed touch-emulated Chromium checks at 320px,
+  375px, and 700px with a 700px viewport height. The drawer filled the viewport;
+  the identity link opened Profile, Settings and Theme occupied equal halves,
+  and Settings, theme buttons, and Sign Out had at least 48px tap targets.
+  Theme selection kept the drawer open without a tooltip, Sign Out could be
+  reached by scrolling, Escape restored focus to the drawer trigger, and the
+  document had no horizontal overflow. Sign Out was not activated in the browser.
+- At 820px with touch and no-hover emulation, the sidebar toggle worked by tap,
+  Enter, and Space; keyboard focus stayed on the toggle, and navigation icon
+  centers differed by less than 1.5px between expanded and collapsed states.
+  Feed and Notifications opened in the workspace and exposed the current route.
+- These checks do not establish a full keyboard and theme matrix, physical
+  device, screen-reader, or non-Chromium acceptance. Repeat the affected
+  checks after drawer alignment or interaction changes.
+
+### Collapsible workspace sidebar (2026-10-28)
+
+Checkpoint on `codex/dashboard-sidebar-improvements`, based on `11bccf4` plus
+the initial sidebar implementation and tests. The maintainer approved
+the desktop collapse and persistence behavior during the interactive session.
+[Features](../FEATURES.md#authentication) owns the behavior description.
+
+- The targeted `WorkspaceSidebar`, `MobileNavMenu`, and `WorkspaceShell`
+  component run passed all 24 tests with one worker.
+- Coverage includes expanded defaults, both persisted choices after remount,
+  invalid and unavailable storage, hydration without mismatch reports, keyboard
+  activation with focus retained, current-route naming, hover/focus tooltips,
+  unread notification labels, and the mobile drawer's full-label presentation
+  when the browser stores a collapsed desktop preference.
+- The first test run found that the notification label and count concatenated
+  in the accessible name. An explicit accessible label fixes this; the final
+  targeted run passed. Existing drawer sign-out confirmation and focus-return
+  tests also passed.
+- This is component-level evidence. It does not establish real screen-reader
+  acceptance or repeat the full browser width/theme matrix. That matrix remains
+  to be rerun during the broader sidebar work before its final handoff.
+- Repeat these checks after changes to sidebar state, storage, tooltip wrappers,
+  accessible names, or shared mobile navigation. Repeat relevant browser checks
+  when changing width, overflow, icon placement, or focus styling.
+
 ### Saved and Liked initial presentation (2026-10-26)
 
 Initial checks on `feat/saved-liked-collection-presentation`, based on `59c4f17`

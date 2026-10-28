@@ -7,6 +7,10 @@ evidence resolves them. The previous detailed delivery history remains in
 
 ## Accessibility and responsive behavior
 
+- The signed-in mobile drawer and sidebar toggle passed focused touch-emulated
+  Chromium checks, but a full keyboard and theme matrix and physical-device
+  acceptance remain unverified. Browser and component checks are recorded in
+  [sidebar evidence](ACCESSIBILITY.md#sidebar-and-mobile-drawer-iterations-2026-10-28).
 - [Accessibility evidence](ACCESSIBILITY.md) covers the agreed keyboard scope
   in Chrome. It is not WCAG conformance, real screen-reader acceptance, touch
   acceptance, or a final design sign-off. Firefox and Safari were not manually

@@ -151,7 +151,7 @@ describe("Navbar", () => {
 
     expect(screen.getByRole("link", { name: "Feed" })).toHaveAttribute(
       "href",
-      "/feed",
+      "/dashboard/feed",
     );
   });
 

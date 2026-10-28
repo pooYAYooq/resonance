@@ -12,6 +12,9 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Collapsible desktop workspace navigation with an icon rail, accessible
+  tooltip labels, and a browser-local preference that survives refreshes.
+
 - Separate Saved and Liked dashboard pages with collapsible relationship-time
   groups, flat mobile rows, cards with 3:2 covers and tags under the cover at
   tablet/desktop widths, page-specific bookmark/heart actions, and no per-card
