@@ -81,6 +81,20 @@ evidence resolves them. The previous detailed delivery history remains in
 - A newly saved draft keeps `/create`; New Post points to the same URL and
   does nothing in that session. Use Start fresh to open another new post.
 
+## Authentication and sessions
+
+- The 30-day cap is declarative Better Auth configuration. There is no
+  time-travel test that waits for expiry; verification is type checking plus the
+  installed Better Auth refresh path. Recheck the exact expiry on a deployed
+  backend before relying on it.
+- Sessions created before the cap may expire on their old schedule, up to seven
+  days from their last refresh. The next sign-in receives the 30-day cap.
+- An expired session falls back to the normal signed-out state. There is no
+  dedicated "session expired" message yet.
+- The mobile auth layout and focus behavior were verified in Chromium at
+  375x553 and 375x667. Physical iOS Safari and other mobile browsers remain
+  unverified.
+
 ## Engineering and verification
 
 - No general stored-data migration process exists for this undeployed app.

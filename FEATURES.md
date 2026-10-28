@@ -31,6 +31,18 @@
   sessions and browser contexts
 - `AuthSync` bridges Better Auth identity into the app-level `users` table on sign-in
 - Navbar avatar dropdown (profile / settings / logout); `/create` is auth-gated
+- Login and sign-up use a full-height responsive layout. Below `sm` the form
+  drops the card shell and uses the full content width, with Google and GitHub
+  side by side; the desktop card returns at `sm` and above. Login fits a
+  375x553 viewport without scrolling, and sign-up fits 375x667 with its extra
+  field.
+- Password fields include an accessible show/hide control. The toggle exposes
+  its state with `aria-pressed` and switches its label between Show password
+  and Hide password.
+- Every sign-out asks for confirmation. A clean or non-editor session gets a
+  light dialog; unsaved editor work keeps the strong save/discard guard.
+- Sessions have a hard 30-day absolute limit. Activity cannot extend the
+  expiry, so users sign in again after 30 days.
 - Below 768px, the site and workspace use a full-width hamburger drawer. Signed-in
   users get the same Writing and Reading destinations as the desktop sidebar,
   with a profile link at the top, a shared Settings and Theme row, and Sign Out
