@@ -319,4 +319,125 @@ describe("AuthorShowcase", () => {
     );
     expect(screen.queryByRole("link", { name: /all my posts/i })).toBeNull();
   });
+
+  it("features the first visible work and spans its gallery cell", () => {
+    render(
+      <AuthorShowcase
+        userId="author"
+        username="maya"
+        initialShowcase={{ mode: "selected", posts: nine }}
+      />,
+    );
+
+    const first = screen.getByText("Post 1").closest("li");
+    const second = screen.getByText("Post 2").closest("li");
+
+    expect(first).toHaveClass("md:col-span-2");
+    expect(first).toHaveClass("lg:col-span-2");
+    expect(first).toHaveClass("lg:row-span-2");
+    expect(second).not.toHaveClass("md:col-span-2");
+    expect(
+      screen.getByText("Post 1").closest('[data-featured="true"]'),
+    ).not.toBeNull();
+    expect(
+      screen.getByText("Post 2").closest('[data-featured="true"]'),
+    ).toBeNull();
+  });
+
+  it("renders a two-post gallery without a placeholder or a lost link", () => {
+    useQueryMock.mockReturnValue({
+      mode: "latest",
+      posts: [card(1), card(2)],
+    });
+
+    render(
+      <AuthorShowcase
+        userId="author"
+        username="maya"
+        initialShowcase={empty}
+      />,
+    );
+
+    expect(cardLinks()).toHaveLength(2);
+    expect(
+      screen.getByTestId("author-showcase").querySelectorAll("li"),
+    ).toHaveLength(2);
+    expect(
+      screen.queryByRole("button", { name: "More of my work" }),
+    ).toBeNull();
+  });
+
+  it("renders a one-post gallery as the feature alone", () => {
+    useQueryMock.mockReturnValue({
+      mode: "latest",
+      posts: [card(1)],
+    });
+
+    render(
+      <AuthorShowcase
+        userId="author"
+        username="maya"
+        initialShowcase={empty}
+      />,
+    );
+
+    expect(cardLinks()).toHaveLength(1);
+    expect(
+      screen.getByText("Post 1").closest('[data-featured="true"]'),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "More of my work" }),
+    ).toBeNull();
+  });
+
+  it("uses the responsive gallery grid schedule", () => {
+    render(
+      <AuthorShowcase
+        userId="author"
+        username="maya"
+        initialShowcase={{ mode: "selected", posts: nine }}
+      />,
+    );
+
+    expect(screen.getByRole("list")).toHaveClass(
+      "grid",
+      "grid-cols-1",
+      "md:grid-cols-2",
+      "lg:grid-cols-3",
+    );
+  });
+
+  it("promotes the next visible work when the featured post is deleted", () => {
+    const { rerender } = render(
+      <AuthorShowcase
+        userId="author"
+        username="maya"
+        initialShowcase={{ mode: "selected", posts: nine }}
+      />,
+    );
+    expect(
+      screen.getByText("Post 1").closest('[data-featured="true"]'),
+    ).not.toBeNull();
+
+    const survivors = nine.slice(1);
+    useQueryMock.mockReturnValue({ mode: "selected", posts: survivors });
+    rerender(
+      <AuthorShowcase
+        userId="author"
+        username="maya"
+        initialShowcase={{ mode: "selected", posts: survivors }}
+      />,
+    );
+
+    expect(screen.queryByText("Post 1")).toBeNull();
+    const promoted = screen.getByText("Post 2").closest("li");
+    expect(promoted).toHaveClass(
+      "md:col-span-2",
+      "lg:col-span-2",
+      "lg:row-span-2",
+    );
+    expect(
+      screen.getByText("Post 2").closest('[data-featured="true"]'),
+    ).not.toBeNull();
+  });
 });

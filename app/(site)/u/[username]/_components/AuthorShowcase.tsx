@@ -38,6 +38,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useListFocusRestore } from "@/lib/use-list-focus-restore";
 import { buildProfilePath } from "@/lib/username";
+import { cn } from "@/lib/utils";
 
 export type ShowcaseView = {
   mode: "selected" | "latest";
@@ -131,10 +132,17 @@ export function AuthorShowcase({
             ) : null}
           </div>
 
-          <ol className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {visible.map((post) => (
-              <li key={post.postId} className="min-w-0">
-                <AuthorPostCard post={post} />
+          <ol className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {visible.map((post, index) => (
+              <li
+                key={post.postId}
+                className={cn(
+                  "min-w-0",
+                  index === 0 &&
+                    "md:col-span-2 lg:col-span-2 lg:row-span-2",
+                )}
+              >
+                <AuthorPostCard post={post} featured={index === 0} />
               </li>
             ))}
           </ol>

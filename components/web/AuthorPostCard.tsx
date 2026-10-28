@@ -31,11 +31,13 @@ export type AuthorCard = {
 
 /**
  * The showcase grid is `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`, so tiles
- * are full width below 768px and a third of the viewport above it. The
- * catalogue has a different column schedule and passes its own `sizes`. The
- * featured card spans two columns at `lg`, so it needs a wider hint.
+ * are full width below 768px, half the viewport from 768px, and a third from
+ * 1024px. The catalogue has a different column schedule and passes its own
+ * `sizes`. The featured card spans two columns at `lg`, so it needs a wider
+ * hint.
  */
-const SHOWCASE_IMAGE_SIZES = "(min-width: 768px) 33vw, 100vw";
+const SHOWCASE_IMAGE_SIZES =
+  "(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw";
 const FEATURE_IMAGE_SIZES = "(min-width: 1024px) 66vw, 100vw";
 
 export function AuthorPostCard({

@@ -40,12 +40,12 @@ describe("AuthorPostCard", () => {
     expect(likes).toHaveTextContent("128");
   });
 
-  it("sizes the image for the showcase's third-width desktop grid by default", () => {
+  it("sizes the image for the showcase's responsive gallery columns", () => {
     const { container } = render(<AuthorPostCard post={post} />);
 
     expect(container.querySelector("img")).toHaveAttribute(
       "sizes",
-      "(min-width: 768px) 33vw, 100vw",
+      "(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw",
     );
   });
 
