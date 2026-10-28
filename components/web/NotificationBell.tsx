@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { NotificationsList } from "@/app/(site)/notifications/_components/NotificationsList";
+import { NotificationsList } from "@/app/(workspace)/dashboard/notifications/_components/NotificationsList";
 import { ArrowLeft, Bell } from "lucide-react";
 
 /** Auth-only inbox. Opening it never navigates or marks notifications read. */

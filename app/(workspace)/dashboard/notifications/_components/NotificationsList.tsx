@@ -21,7 +21,7 @@
  * except by the reader; they remain as visual history.
  *
  * The list body only renders; the page-level `<h1>Notifications</h1>`
- * lives in `app/(site)/notifications/page.tsx` (mirroring
+ * lives in `app/(workspace)/dashboard/notifications/page.tsx` (mirroring
  * `ReadingListContent`). The UI keeps a defensive filter for rows whose
  * post is unavailable, though the query already drops them.
  */

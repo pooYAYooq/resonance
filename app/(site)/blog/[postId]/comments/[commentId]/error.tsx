@@ -18,7 +18,10 @@ export default function CommentDestinationError({
       <p className="text-muted-foreground">Please try again.</p>
       <div className="flex items-center gap-4">
         <Button onClick={reset}>Try again</Button>
-        <Link href="/notifications" className="underline underline-offset-4">
+        <Link
+          href="/dashboard/notifications"
+          className="underline underline-offset-4"
+        >
           Notifications
         </Link>
       </div>

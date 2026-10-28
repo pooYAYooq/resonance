@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { hydrateRoot } from "react-dom/client";
@@ -66,7 +66,7 @@ describe("WorkspaceSidebar", () => {
       ["My Posts", "/dashboard/published"],
       ["Analytics", "/dashboard/analytics"],
       ["Discover", "/blog"],
-      ["Feed", "/feed"],
+      ["Feed", "/dashboard/feed"],
       ["Saved", "/dashboard/saved"],
       ["Liked", "/dashboard/liked"],
     ]) {
@@ -78,7 +78,34 @@ describe("WorkspaceSidebar", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("marks the current route as active and renders account utilities", () => {
+  it("places creation in the writing group and keeps dashboard separate", async () => {
+    const user = userEvent.setup();
+    render(<WorkspaceSidebar />);
+
+    const checkGroups = () => {
+      const workspace = screen.getByRole("navigation", { name: "Workspace" });
+      const writing = screen.getByRole("navigation", { name: "Writing" });
+      expect(
+        within(writing).getByRole("link", { name: "New Post" }),
+      ).toHaveAttribute("href", "/create");
+      expect(
+        within(workspace).getByRole("link", { name: "Dashboard" }),
+      ).toHaveAttribute("href", "/dashboard");
+      for (const name of ["Drafts", "My Posts", "Analytics"]) {
+        expect(within(writing).getByRole("link", { name })).toBeInTheDocument();
+      }
+      expect(
+        within(writing).queryByRole("link", { name: "Dashboard" }),
+      ).toBeNull();
+    };
+
+    checkGroups();
+    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    checkGroups();
+  });
+
+  it("marks the current route as active and renders account utilities", async () => {
+    const user = userEvent.setup();
     render(<WorkspaceSidebar />);
 
     expect(screen.getByRole("link", { name: "Drafts" })).toHaveAttribute(
@@ -87,22 +114,43 @@ describe("WorkspaceSidebar", () => {
     );
     expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute(
       "href",
-      "/notifications",
+      "/dashboard/notifications",
     );
-    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
+    await user.click(
+      screen.getByRole("button", { name: "Open workspace account menu" }),
+    );
+    expect(screen.getByRole("menuitem", { name: "Profile" })).toHaveAttribute(
       "href",
       "/u/ada",
     );
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveAttribute(
       "href",
       "/settings",
     );
     expect(
-      screen.getByRole("button", { name: "Sign Out" }),
+      screen.getByRole("menuitem", { name: "Sign Out" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Light" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Dark" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "System" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemradio", { name: "Light" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemradio", { name: "Dark" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemradio", { name: "System" }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["/dashboard/feed", "Feed"],
+    ["/dashboard/notifications", "Notifications"],
+  ])("marks %s as the current destination", (pathname, label) => {
+    pathnameState.mockReturnValue(pathname);
+    render(<WorkspaceSidebar />);
+    expect(screen.getByRole("link", { name: label })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("starts expanded and restores both choices after remounting", async () => {
@@ -178,9 +226,12 @@ describe("WorkspaceSidebar", () => {
 
     await user.hover(screen.getByRole("link", { name: "Saved" }));
     expect(await screen.findByRole("tooltip", { name: "Saved" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Sign Out" })).toBeEnabled();
+    await user.click(
+      screen.getByRole("button", { name: "Open workspace account menu" }),
+    );
+    expect(screen.getByRole("menuitem", { name: "Sign Out" })).toBeEnabled();
     for (const name of ["Light", "Dark", "System"]) {
-      expect(screen.getByRole("button", { name })).toBeEnabled();
+      expect(screen.getByRole("menuitemradio", { name })).toBeEnabled();
     }
   });
 
@@ -195,10 +246,10 @@ describe("WorkspaceSidebar", () => {
     const notifications = screen.getByRole("link", {
       name: "Notifications 3 unread",
     });
-    expect(notifications).toHaveAttribute("href", "/notifications");
+    expect(notifications).toHaveAttribute("href", "/dashboard/notifications");
     await user.hover(notifications);
     expect(
-      await screen.findByRole("tooltip", { name: "Notifications (3 unread)" }),
+      await screen.findByRole("tooltip", { name: "Notifications • 3 unread" }),
     ).toBeVisible();
   });
 

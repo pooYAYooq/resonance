@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Pure-presentational row for a single notification on `/notifications`.
+ * Pure-presentational row for a single notification on `/dashboard/notifications`.
  * Mirrors `CommentCard`'s pure-presentational stance: no Convex hooks,
  * receives a fully-hydrated notification object and renders the actor,
  * the event copy, the destination, and the timestamp, plus a compact

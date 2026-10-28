@@ -64,16 +64,19 @@ vi.mock("convex/react", () => ({
 }));
 
 // Exercise real drawer links without subscribing to the notification backend.
-vi.mock("@/app/(site)/notifications/_components/NotificationsList", () => ({
-  NotificationsList: ({ header }: { header?: React.ReactNode }) => (
-    <div>
-      {header}
-      <NotificationLink href="/blog/post1/comments/comment1">
-        Open comment
-      </NotificationLink>
-    </div>
-  ),
-}));
+vi.mock(
+  "@/app/(workspace)/dashboard/notifications/_components/NotificationsList",
+  () => ({
+    NotificationsList: ({ header }: { header?: React.ReactNode }) => (
+      <div>
+        {header}
+        <NotificationLink href="/blog/post1/comments/comment1">
+          Open comment
+        </NotificationLink>
+      </div>
+    ),
+  }),
+);
 
 const emptyBody = JSON.stringify({
   format: "blocknote@1",

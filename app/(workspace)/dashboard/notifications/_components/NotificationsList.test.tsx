@@ -192,12 +192,16 @@ describe("NotificationsList", () => {
       isAuthenticated: false,
       isLoading: false,
     });
-    window.history.replaceState({}, "", "/notifications?unread=true#new");
+    window.history.replaceState(
+      {},
+      "",
+      "/dashboard/notifications?unread=true#new",
+    );
     render(<NotificationsList />);
 
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith(
-        "/auth/login?returnTo=%2Fnotifications%3Funread%3Dtrue%23new",
+        "/auth/login?returnTo=%2Fdashboard%2Fnotifications%3Funread%3Dtrue%23new",
       ),
     );
     expect(usePaginatedQueryArgsMock).toHaveBeenCalledWith("skip");

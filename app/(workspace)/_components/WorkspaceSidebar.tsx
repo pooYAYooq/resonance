@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AppNavigation } from "@/components/web/MobileNavMenu";
+import { AccountMenu } from "@/components/web/AccountMenu";
 import { cn } from "@/lib/utils";
 
 const SIDEBAR_STORAGE_KEY = "resonance:workspace-sidebar";
@@ -38,6 +39,7 @@ export function WorkspaceNavigation({
   return (
     <AppNavigation
       isAuthenticated
+      workspaceMode
       onNavigateAction={onNavigateAction}
       collapsed={collapsed}
     />
@@ -79,19 +81,23 @@ export function WorkspaceSidebar() {
         data-state={collapsed ? "collapsed" : "expanded"}
         className={cn(
           "hidden shrink-0 border-r bg-background transition-[width] duration-200 ease-in-out motion-reduce:transition-none md:sticky md:top-0 md:flex md:h-dvh md:flex-col",
-          collapsed ? "w-20" : "w-72",
+          collapsed ? "w-[54px]" : "w-[312px]",
         )}
       >
         <div
           className={cn(
-            "flex shrink-0 items-center gap-2 py-4",
-            collapsed ? "flex-col px-3" : "justify-between px-4",
+            "group/sidebar-header relative flex shrink-0 items-center gap-2 overflow-hidden py-4",
+            collapsed ? "flex-col px-3" : "justify-between pl-[11px] pr-4",
           )}
         >
           <Link
             href="/dashboard"
             aria-label="Resonance dashboard"
-            className="flex h-11 items-center rounded-md px-2 text-xl font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className={cn(
+              "flex h-11 items-center rounded-md px-2 text-xl font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              collapsed &&
+                "group-hover/sidebar-header:opacity-0 group-has-[button:focus-visible]/sidebar-header:opacity-0 [@media(hover:none)]:invisible",
+            )}
           >
             {collapsed ? "R" : "RESONANCE"}
           </Link>
@@ -100,16 +106,20 @@ export function WorkspaceSidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-11"
+                className={cn(
+                  "size-11",
+                  collapsed &&
+                    "pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 opacity-0 group-hover/sidebar-header:pointer-events-auto group-hover/sidebar-header:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100",
+                )}
                 aria-label={toggleLabel}
                 aria-expanded={!collapsed}
                 aria-controls={navigationId}
                 onClick={toggleSidebar}
               >
                 {collapsed ? (
-                  <PanelLeftOpen aria-hidden="true" />
+                  <PanelLeftOpen className="size-5" aria-hidden="true" />
                 ) : (
-                  <PanelLeftClose aria-hidden="true" />
+                  <PanelLeftClose className="size-5" aria-hidden="true" />
                 )}
               </Button>
             </TooltipTrigger>
@@ -120,6 +130,9 @@ export function WorkspaceSidebar() {
         </div>
         <div id={navigationId} className="flex min-h-0 flex-1 flex-col">
           <WorkspaceNavigation collapsed={collapsed} />
+        </div>
+        <div className="shrink-0 p-2">
+          <AccountMenu presentation="workspace" collapsed={collapsed} />
         </div>
       </aside>
     </TooltipProvider>

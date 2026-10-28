@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
 
-const { pathnameState, useQueryState, signOutMock } = vi.hoisted(() => ({
-  pathnameState: vi.fn(),
-  useQueryState: vi.fn(),
-  signOutMock: vi.fn(),
+const { pathnameState, useQueryState, signOutMock, setThemeMock } = vi.hoisted(
+  () => ({
+    pathnameState: vi.fn(),
+    useQueryState: vi.fn(),
+    signOutMock: vi.fn(),
+    setThemeMock: vi.fn(),
+  }),
+);
+
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ theme: "light", setTheme: setThemeMock }),
 }));
 
 vi.mock("convex/react", () => ({
@@ -86,6 +93,7 @@ function DirtyRegistrationBinder() {
 describe("MobileNavMenu", () => {
   beforeEach(() => {
     pathnameState.mockReturnValue("/create");
+    setThemeMock.mockClear();
     useQueryState.mockImplementation((query: unknown) =>
       query === "getUnreadCount" ? 0 : undefined,
     );
@@ -109,8 +117,28 @@ describe("MobileNavMenu", () => {
     );
     expect(screen.getByRole("link", { name: "Feed" })).toHaveAttribute(
       "href",
-      "/feed",
+      "/dashboard/feed",
     );
+  });
+
+  it("places New Post in Writing and Dashboard in Workspace", async () => {
+    const user = userEvent.setup();
+    render(<MobileNavMenu isAuthenticated />);
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
+
+    const workspace = screen.getByRole("navigation", { name: "Workspace" });
+    const writing = screen.getByRole("navigation", { name: "Writing" });
+    expect(
+      within(writing).getByRole("link", { name: "New Post" }),
+    ).toHaveAttribute("href", "/create");
+    expect(
+      within(workspace).getByRole("link", { name: "Dashboard" }),
+    ).toHaveAttribute("href", "/dashboard");
+    expect(
+      within(writing).queryByRole("link", { name: "Dashboard" }),
+    ).toBeNull();
   });
 
   it("exposes Home, Discover, Log In, and Sign Up for anonymous users", async () => {
@@ -151,10 +179,8 @@ describe("MobileNavMenu", () => {
         screen.getByRole("button", { name: "Open navigation menu" }),
       );
 
-      expect(screen.getByText("Writing")).not.toHaveClass("sr-only");
       expect(screen.getByText("Drafts")).not.toHaveClass("sr-only");
-      expect(screen.getByText("Appearance")).not.toHaveClass("sr-only");
-      expect(screen.getByRole("button", { name: "Light" })).toBeEnabled();
+      expect(screen.getByRole("navigation", { name: "Writing" })).toBeVisible();
       expect(
         screen.queryByRole("button", { name: "Expand sidebar" }),
       ).not.toBeInTheDocument();
@@ -183,7 +209,7 @@ describe("MobileNavMenu", () => {
     );
 
     expect(
-      screen.getByRole("dialog", { name: "Navigation" }),
+      screen.getByRole("dialog", { name: "RESONANCE" }),
     ).toBeInTheDocument();
     for (const [name, href] of [
       ["New Post", "/create"],
@@ -191,7 +217,7 @@ describe("MobileNavMenu", () => {
       ["My Posts", "/dashboard/published"],
       ["Analytics", "/dashboard/analytics"],
       ["Discover", "/blog"],
-      ["Feed", "/feed"],
+      ["Feed", "/dashboard/feed"],
       ["Saved", "/dashboard/saved"],
       ["Liked", "/dashboard/liked"],
     ]) {
@@ -205,14 +231,16 @@ describe("MobileNavMenu", () => {
       screen.queryByRole("link", { name: "Overview" }),
     ).not.toBeInTheDocument();
 
-    expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute(
-      "href",
-      "/notifications",
-    );
-    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
-      "href",
-      "/u/ada",
-    );
+    expect(
+      screen.queryByRole("link", { name: /Notifications/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "View profile for Ada Lovelace" }),
+    ).toHaveAttribute("href", "/u/ada");
+    expect(
+      screen.queryByRole("link", { name: "Profile" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("ada@example.com")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
       "href",
       "/settings",
@@ -220,9 +248,34 @@ describe("MobileNavMenu", () => {
     expect(
       screen.getByRole("button", { name: "Sign Out" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Theme" })).toBeVisible();
+    const identity = screen.getByRole("link", {
+      name: "View profile for Ada Lovelace",
+    });
+    const account = screen.getByRole("navigation", { name: "Account" });
+    const themes = screen.getByRole("group", { name: "Theme" });
+    const workspace = screen.getByRole("navigation", { name: "Workspace" });
+    const reading = screen.getByRole("navigation", { name: "Reading" });
+    const signOut = screen.getByRole("button", { name: "Sign Out" });
+    expect(
+      identity.compareDocumentPosition(account) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      account.compareDocumentPosition(themes) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      themes.compareDocumentPosition(workspace) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      reading.compareDocumentPosition(signOut) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
-  it("shows the mobile unread count beside the Notifications link", async () => {
+  it("does not query or duplicate notifications in the mobile drawer", async () => {
     const user = userEvent.setup();
     useQueryState.mockImplementation((query: unknown) =>
       query === "getUnreadCount"
@@ -241,7 +294,57 @@ describe("MobileNavMenu", () => {
       screen.getByRole("button", { name: "Open navigation menu" }),
     );
 
-    expect(screen.getByText("3 unread")).toBeInTheDocument();
+    expect(screen.queryByText("3 unread")).not.toBeInTheDocument();
+    expect(useQueryState).toHaveBeenCalledWith("getUnreadCount", "skip");
+  });
+
+  it("links the identity row to profile setup when there is no username", async () => {
+    const user = userEvent.setup();
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 0
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            username: null,
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
+
+    render(<MobileNavMenu isAuthenticated />);
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
+    expect(
+      screen.getByRole("link", { name: "Set up your profile" }),
+    ).toHaveAttribute("href", "/profile/edit");
+  });
+
+  it("keeps the drawer open when changing theme", async () => {
+    const user = userEvent.setup();
+    useQueryState.mockImplementation((query: unknown) =>
+      query === "getUnreadCount"
+        ? 0
+        : {
+            userId: "auth-user-1",
+            displayName: "Ada Lovelace",
+            username: "ada",
+            email: "ada@example.com",
+            avatarUrl: null,
+          },
+    );
+
+    render(<MobileNavMenu isAuthenticated />);
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
+    const drawer = screen.getByRole("dialog", { name: "RESONANCE" });
+    await user.click(screen.getByRole("button", { name: "Dark" }));
+
+    expect(setThemeMock).toHaveBeenCalledWith("dark");
+    expect(drawer).toHaveAttribute("data-state", "open");
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
   it("closes after selecting a workspace destination", async () => {
@@ -254,7 +357,7 @@ describe("MobileNavMenu", () => {
     await user.click(screen.getByRole("link", { name: "Discover" }));
 
     expect(
-      screen.queryByRole("dialog", { name: "Navigation" }),
+      screen.queryByRole("dialog", { name: "RESONANCE" }),
     ).not.toBeInTheDocument();
   });
 
@@ -276,10 +379,12 @@ describe("MobileNavMenu", () => {
     await user.click(
       screen.getByRole("button", { name: "Open navigation menu" }),
     );
-    await user.click(screen.getByRole("link", { name: "Profile" }));
+    await user.click(
+      screen.getByRole("link", { name: "View profile for Ada Lovelace" }),
+    );
 
     expect(
-      screen.queryByRole("dialog", { name: "Navigation" }),
+      screen.queryByRole("dialog", { name: "RESONANCE" }),
     ).not.toBeInTheDocument();
   });
 
