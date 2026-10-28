@@ -6,19 +6,18 @@ a session history.
 
 ## Current focus
 
-Mobile authentication and session safety on `fix/auth-login-logout`, through
-small iterations outside the roadmap sequence. The slice covers the full-height
-auth layout, full-width mobile form with the desktop card, password reveal,
-sign-out confirmation, and a hard 30-day session cap.
-[Features](../FEATURES.md#authentication) owns the capabilities.
+Mobile authentication and session safety on
+`feat/auth-sign-in-and-session-safety`, through small iterations outside the
+roadmap sequence. The slice covers the full-height auth layout, full-width
+mobile form with the desktop card, password reveal, sign-out confirmation, and
+a hard 30-day session cap. [Features](../FEATURES.md#authentication) owns the
+capabilities.
 
 ## Next action
 
-Review the working tree, stage the logical commits, and open the PR. Remaining
-verification gaps are recorded in
-[known limitations](KNOWN_LIMITATIONS.md#authentication-and-sessions). The next
-roadmap item remains V1-20, context-specific post-card variants, when roadmap
-delivery resumes.
+Resume V1-20, context-specific post-card variants. The remaining physical-mobile
+verification for auth is recorded in
+[known limitations](KNOWN_LIMITATIONS.md#authentication-and-sessions).
 
 Saved and Liked behavior remains documented in
 [Features](../FEATURES.md#private-collections), with its acceptance in

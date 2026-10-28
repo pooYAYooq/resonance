@@ -99,8 +99,8 @@ type PendingSurface = {
  * Navigation coordinator mounted above every route group. Editors register
  * their save/exit contract; ordinary app-link clicks, browser history
  * traversals, and explicit sign outs are decided by the pure policy and
- * surfaced through one accessible dialog at a time. With no registration it
- * stays completely transparent.
+ * surfaced through one accessible dialog at a time. With no registration,
+ * navigation stays transparent but sign-out still asks for confirmation.
  */
 export function AuthoringExitProvider({
   children,
@@ -175,30 +175,6 @@ export function AuthoringExitProvider({
     setSignOutBusy(false);
     setSignOutError(null);
   }, []);
-
-  const handleConfirmSignOut = useCallback(async () => {
-    const action = signOutActionRef.current;
-    if (!action || signOutBusy) return;
-    setSignOutBusy(true);
-    setSignOutError(null);
-    try {
-      // A clean authoring session still clears any stale recovery copy before
-      // leaving. Failure is not blocking because there is nothing to recover.
-      registrationRef.current?.clearRecovery();
-      const result = await runSignOut(action);
-      if (!result.ok) {
-        setSignOutBusy(false);
-        setSignOutError(result.message ?? "Sign out failed.");
-        return;
-      }
-      closeSignOutConfirm();
-    } catch (error) {
-      setSignOutBusy(false);
-      setSignOutError(
-        error instanceof Error ? error.message : "Sign out failed.",
-      );
-    }
-  }, [closeSignOutConfirm, runSignOut, signOutBusy]);
 
   const syncNativeRisk = useCallback(() => {
     const handler = beforeUnloadRef.current;
@@ -461,6 +437,55 @@ export function AuthoringExitProvider({
   useEffect(() => {
     requestRef.current = request;
   }, [request]);
+
+  const handleConfirmSignOut = useCallback(async () => {
+    const action = signOutActionRef.current;
+    if (!action || signOutBusy) return;
+    const registration = registrationRef.current;
+
+    // The light dialog lives above the routes, so an editor can register
+    // after it opens, for example by navigating Back to /create. Re-check the
+    // current session before clearing recovery or signing out.
+    if (registration) {
+      const decision = decideAuthoringExit(
+        { kind: "sign-out" },
+        registration.getSession(),
+      );
+      if (decision.kind !== "allow") {
+        const returnFocus = restoreFocusRef.current;
+        closeSignOutConfirm();
+        requestRef.current({ kind: "sign-out" });
+        restoreFocusRef.current = returnFocus;
+        return;
+      }
+    }
+
+    setSignOutBusy(true);
+    setSignOutError(null);
+    try {
+      // A clean authoring session still clears any stale recovery copy before
+      // leaving. Failure is not blocking because there is nothing to recover.
+      registration?.clearRecovery();
+      const result = await runSignOut(action);
+      if (!result.ok) {
+        if (registration && registrationRef.current === registration) {
+          registration.resumeRecovery();
+        }
+        setSignOutBusy(false);
+        setSignOutError(result.message ?? "Sign out failed.");
+        return;
+      }
+      closeSignOutConfirm();
+    } catch (error) {
+      if (registration && registrationRef.current === registration) {
+        registration.resumeRecovery();
+      }
+      setSignOutBusy(false);
+      setSignOutError(
+        error instanceof Error ? error.message : "Sign out failed.",
+      );
+    }
+  }, [closeSignOutConfirm, runSignOut, signOutBusy]);
 
   const requestSignOut = useCallback(
     (action: SignOutAction, returnFocus?: HTMLElement | null) => {
