@@ -58,11 +58,15 @@ describe("WorkspaceShell", () => {
     );
     const { rerender } = render(view());
     await user.click(screen.getByRole("button", { name: "Sign out test" }));
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
     expect(screen.getByText("Private workspace content")).not.toBeVisible();
     authState.mockReturnValue({ isAuthenticated: false, isLoading: false });
     rerender(view());
     expect(pushMock).not.toHaveBeenCalled();
-    expect(screen.getByRole("status", { name: "Signing out" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Signing out…" })).toBeDisabled();
     await act(async () => settle({ ok: true }));
     expect(pushMock).not.toHaveBeenCalled();
     expect(screen.getByText("Private workspace content")).not.toBeVisible();
@@ -84,6 +88,10 @@ describe("WorkspaceShell", () => {
       </AuthoringExitProvider>,
     );
     await user.click(screen.getByRole("button", { name: "Sign out test" }));
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
     expect(screen.getByText("Private workspace content")).not.toBeVisible();
     await act(async () => settle({ ok: false }));
     expect(screen.getByText("Private workspace content")).toBeVisible();

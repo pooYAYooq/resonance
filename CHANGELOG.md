@@ -12,6 +12,14 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Accessible show/hide password controls on login and sign-up, with the current
+  visibility exposed to assistive technology.
+
+- A confirmation step for every sign-out. Clean and non-editor sessions get a
+  light dialog; unsaved editor work keeps the existing save/discard guard.
+
+- A hard 30-day absolute session limit. Activity cannot extend the expiry.
+
 - Collapsible desktop workspace navigation with an icon rail, accessible
   tooltip labels, and a browser-local preference that survives refreshes.
 
@@ -126,6 +134,9 @@ work is tracked in `ROADMAP.md`.
 
 ### Changed
 
+- Mobile login and sign-up use a full-height, full-width layout without card
+  chrome; the desktop card returns at `sm` and above, and Google and GitHub
+  actions sit side by side.
 - Keep read notifications for 90 days after reading and unread notifications
   for two years, with daily cleanup that keeps unread badges accurate.
 - Follow notifications allow one delivery per follower and recipient every
@@ -189,6 +200,8 @@ work is tracked in `ROADMAP.md`.
 
 ### Fixed
 
+- The mobile auth layout no longer overlaps the Back to Home control or clips
+  focus indicators, and the form has no horizontal overflow.
 - Anchor the desktop notification bell's unread badge to the bell button. The
   absolutely positioned badge previously anchored to the page corner because
   the button was not a positioned ancestor.

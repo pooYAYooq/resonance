@@ -134,7 +134,8 @@ resonance/
 │   │   │                         # plus pure edit-state helpers.
 │   │   └── settings/page.tsx    # Appearance and Account configuration only.
 │   ├── auth/                   # Auth pages. Isolated layout. No Navbar.
-│   │   ├── layout.tsx          # Full-screen centered layout with Back button
+│   │   ├── layout.tsx          # Responsive full-height layout; full-width
+│   │   │                       # mobile form, desktop card, Back button
 │   │   ├── login/
 │   │   └── sign-up/
 │   └── api/                    # Next.js route handlers (Better Auth HTTP handler)
@@ -144,6 +145,7 @@ resonance/
 │   ├── auth.config.ts          # Convex auth config. Registers Better Auth provider.
 │   ├── auth.ts                 # Creates the Better Auth instance; reads SITE_URL.
 │   │                           # Google + GitHub OAuth with profile field mapping;
+│   │                           # 30-day absolute session cap with refresh disabled;
 │   │                           # user onCreate/onDelete triggers run in the account write.
 │   ├── http.ts                 # Registers Better Auth HTTP routes on Convex router
 │   ├── posts.ts                # attempt-bound saveDraft/publishPost/updatePublishedPost (owner-scoped drafts,
@@ -380,11 +382,19 @@ components/
     │     providers. Editors register their session contract; app-link
     │     clicks, Back/Forward traversals, and sign-out requests are decided
     │     by lib/authoring-exit-policy.ts and surfaced one at a time.
-    │     Without a registered editor it is transparent.
+    │     Without a registered editor, navigation stays transparent but
+    │     sign-out still asks for confirmation.
     │
     ├── AuthoringExitDialog.tsx
     │     Light/strong/blocking exit surfaces with bounded viewport,
     │     Escape-as-Cancel, and focus restoration.
+    │
+    ├── SignOutDialog.tsx
+    │     Light sign-out confirmation for clean or non-editor sessions.
+    │
+    ├── PasswordInput.tsx
+    │     Password field with an accessible show/hide toggle used by the
+    │     login and sign-up forms.
     │
     ├── AuthSync.tsx
     │     Client component mounted inside ConvexClientProvider. Fires
@@ -1086,6 +1096,15 @@ existing profiles through `users.syncUser`, creating a missing record from the
 provider display name and keeping email/avatar fields synchronized; display
 names remain author-owned and are not overwritten by provider sync. See
 [Account Provisioning and the One-Time Welcome](#account-provisioning-and-the-one-time-welcome).
+
+Sessions use Better Auth's session store with a hard 30-day absolute expiry.
+`disableSessionRefresh` prevents activity from extending it, so a session cannot
+live indefinitely. The auth pages use a full-height responsive layout; phones
+drop the card shell and use the available width, while `sm` and above keep the
+card. Password fields use `PasswordInput` for an accessible show/hide control.
+Sign-out requests from the account menu, mobile drawer, and Settings route
+through `AuthoringExitProvider`: without a registered editor it shows a light
+confirmation, and unsaved editor work keeps the strong save/discard flow.
 
 ---
 

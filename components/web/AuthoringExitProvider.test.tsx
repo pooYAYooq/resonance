@@ -383,6 +383,10 @@ describe("AuthoringExitProvider", () => {
     renderProvider(registration, <SignOutTrigger action={action} />);
 
     await user.click(screen.getByRole("button", { name: "Trigger sign out" }));
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
     await waitFor(() =>
@@ -890,7 +894,7 @@ describe("AuthoringExitProvider", () => {
     await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
-  it("runs a clean sign out immediately and a dirty one through a strong dialog", async () => {
+  it("confirms a clean sign out and routes a dirty one through a strong dialog", async () => {
     const user = userEvent.setup();
     let settleClean!: (result: { ok: boolean }) => void;
     const cleanAction = vi.fn(
@@ -904,10 +908,13 @@ describe("AuthoringExitProvider", () => {
       <SignOutTrigger action={cleanAction} />,
     );
     await user.click(screen.getByRole("button", { name: "Trigger sign out" }));
-    // The request is in flight: a clean session must not show any exit
-    // surface while authentication resolves.
+    expect(cleanAction).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
     expect(cleanAction).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Signing out…" })).toBeDisabled();
     await act(async () => {
       settleClean({ ok: true });
     });
@@ -928,6 +935,91 @@ describe("AuthoringExitProvider", () => {
       screen.getByRole("button", { name: "Discard & sign out" }),
     );
     expect(dirtyAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("confirms a sign out when no editor is registered", async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async () => ({ ok: true }));
+    render(
+      <AuthoringExitProvider>
+        <SignOutTrigger action={action} />
+      </AuthoringExitProvider>,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Trigger sign out" });
+    trigger.focus();
+    await user.click(trigger);
+
+    expect(action).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(action).not.toHaveBeenCalled();
+
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+  });
+
+  it("resumes draft recovery when a clean sign-out fails", async () => {
+    const user = userEvent.setup();
+    const registration = makeRegistration(cleanSession);
+    const action = vi.fn(async () => ({
+      ok: false,
+      message: "Network down",
+    }));
+    renderProvider(registration, <SignOutTrigger action={action} />);
+
+    await user.click(screen.getByRole("button", { name: "Trigger sign out" }));
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    await waitFor(() =>
+      expect(registration.resumeRecovery).toHaveBeenCalledTimes(1),
+    );
+    expect(registration.clearRecovery).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("Network down");
+  });
+
+  it("revalidates a late editor registration before signing out", async () => {
+    const user = userEvent.setup();
+    const registration = makeRegistration();
+    const action = vi.fn(async () => ({ ok: true }));
+    const view = (withEditor: boolean) => (
+      <AuthoringExitProvider>
+        {withEditor && <RegistrationBinder registration={registration} />}
+        <SignOutTrigger action={action} />
+      </AuthoringExitProvider>
+    );
+    const { rerender } = render(view(false));
+
+    await user.click(screen.getByRole("button", { name: "Trigger sign out" }));
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+    expect(action).not.toHaveBeenCalled();
+
+    rerender(view(true));
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(action).not.toHaveBeenCalled();
+    expect(registration.clearRecovery).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("button", { name: "Discard & sign out" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("alertdialog", { name: "Sign out?" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Discard & sign out" }),
+    );
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
   });
 });
 

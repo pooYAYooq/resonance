@@ -89,6 +89,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Compact vertical rhythm for auth screens on short phone viewports. */
+@custom-variant short (@media (max-height: 700px));
+
 /* Theme is Darkmater from tweakcn.com */
 :root {
   --background: oklch(1 0 0);
@@ -505,7 +508,7 @@
     --tw-ring-shadow: 0 0 #0000;
     --tw-inset-ring-shadow: 0 0 #0000;
     outline: 1px solid var(--ring);
-    outline-offset: 2px;
+    outline-offset: 0;
   }
 
   :is(

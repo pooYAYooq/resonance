@@ -134,6 +134,12 @@ interface SocialProviderConfig {
  */
 const authFunctions: AuthFunctions = internal.auth;
 
+/**
+ * Hard absolute session lifetime. Refreshing is disabled so activity cannot
+ * extend a session indefinitely; users re-authenticate after 30 days.
+ */
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
 export const authComponent = createClient<DataModel>(components.betterAuth, {
   authFunctions,
   triggers: {
@@ -226,6 +232,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       .map((origin) => origin.trim())
       .filter(Boolean),
     database: authComponent.adapter(ctx),
+    session: {
+      expiresIn: SESSION_MAX_AGE_SECONDS,
+      disableSessionRefresh: true,
+    },
     // Configure simple, non-verified email/password to get started
     emailAndPassword: {
       enabled: true,

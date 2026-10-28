@@ -9,6 +9,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/web/PasswordInput";
 import { authClient } from "@/lib/auth-client";
 import { buildAuthHref, getSafeReturnTo } from "@/lib/auth-return";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -93,7 +94,7 @@ function SignUpForm() {
 
   return (
     <>
-      <div className="text-center mb-8">
+      <div className="text-center mb-8 short:mb-6">
         <h1 className="text-3xl font-extrabold tracking-tight">
           Create your account
         </h1>
@@ -101,8 +102,8 @@ function SignUpForm() {
           Join the community of curious minds.
         </p>
       </div>
-      <Card>
-        <CardContent className="pt-6">
+      <Card className="max-sm:overflow-visible max-sm:rounded-none max-sm:bg-transparent max-sm:py-0 max-sm:shadow-none max-sm:ring-0">
+        <CardContent className="max-sm:px-0">
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup className="gap-5">
               <Controller
@@ -117,7 +118,7 @@ function SignUpForm() {
                     <Input
                       id="signup-name"
                       aria-invalid={fieldState.invalid}
-                      placeholder="John Doe"
+                      placeholder="Teddy Bear"
                       {...field}
                     />
                     {fieldState.invalid && (
@@ -138,7 +139,7 @@ function SignUpForm() {
                     <Input
                       id="signup-email"
                       aria-invalid={fieldState.invalid}
-                      placeholder="john@example.com"
+                      placeholder="teddy@example.com"
                       {...field}
                     />
                     {fieldState.invalid && (
@@ -156,10 +157,9 @@ function SignUpForm() {
                     className="gap-y-3"
                   >
                     <FieldLabel htmlFor="signup-password">Password</FieldLabel>
-                    <Input
+                    <PasswordInput
                       id="signup-password"
                       aria-invalid={fieldState.invalid}
-                      type="password"
                       placeholder="••••••••"
                       {...field}
                     />
@@ -189,7 +189,7 @@ function SignUpForm() {
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -246,7 +246,7 @@ function SignUpForm() {
           </form>
         </CardContent>
       </Card>
-      <p className="mt-8 text-sm text-muted-foreground text-center">
+      <p className="mt-8 short:mt-6 text-sm text-muted-foreground text-center">
         Already have an account?{" "}
         <Link
           href={buildAuthHref("/auth/login", returnTo)}

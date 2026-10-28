@@ -6,18 +6,18 @@ a session history.
 
 ## Current focus
 
-Dashboard sidebar improvements on `codex/dashboard-sidebar-improvements`,
-through small iterations outside the roadmap sequence. [Features](../FEATURES.md#authentication)
-owns the navigation behavior; [sidebar evidence](ACCESSIBILITY.md#sidebar-and-mobile-drawer-iterations-2026-10-28)
-records the latest verification and remaining browser coverage.
+Mobile authentication and session safety on
+`feat/auth-sign-in-and-session-safety`, through small iterations outside the
+roadmap sequence. The slice covers the full-height auth layout, full-width
+mobile form with the desktop card, password reveal, sign-out confirmation, and
+a hard 30-day session cap. [Features](../FEATURES.md#authentication) owns the
+capabilities.
 
 ## Next action
 
-Review the approved sidebar, mobile drawer, and workspace route changes for
-staging. Remaining verification gaps are recorded in
-[known limitations](KNOWN_LIMITATIONS.md#accessibility-and-responsive-behavior).
-The next roadmap item remains V1-20, context-specific post-card variants, when
-roadmap delivery resumes.
+Resume V1-20, context-specific post-card variants. The remaining physical-mobile
+verification for auth is recorded in
+[known limitations](KNOWN_LIMITATIONS.md#authentication-and-sessions).
 
 Saved and Liked behavior remains documented in
 [Features](../FEATURES.md#private-collections), with its acceptance in
