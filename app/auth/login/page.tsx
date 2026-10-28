@@ -9,6 +9,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/web/PasswordInput";
 import { authClient } from "@/lib/auth-client";
 import { buildAuthHref, getSafeReturnTo } from "@/lib/auth-return";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -91,14 +92,14 @@ function LoginForm() {
 
   return (
     <>
-      <div className="text-center mb-8">
+      <div className="text-center mb-8 short:mb-6">
         <h1 className="text-3xl font-extrabold tracking-tight">Welcome back</h1>
         <p className="mt-3 text-muted-foreground text-base">
           Sign in to continue writing.
         </p>
       </div>
-      <Card>
-        <CardContent className="pt-6">
+      <Card className="max-sm:overflow-visible max-sm:rounded-none max-sm:bg-transparent max-sm:py-0 max-sm:shadow-none max-sm:ring-0">
+        <CardContent className="max-sm:px-0">
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup className="gap-5">
               <Controller
@@ -131,10 +132,9 @@ function LoginForm() {
                     className="gap-y-3"
                   >
                     <FieldLabel htmlFor="login-password">Password</FieldLabel>
-                    <Input
+                    <PasswordInput
                       id="login-password"
                       aria-invalid={fieldState.invalid}
-                      type="password"
                       placeholder="Enter your password"
                       {...field}
                     />
@@ -164,7 +164,7 @@ function LoginForm() {
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -221,7 +221,7 @@ function LoginForm() {
           </form>
         </CardContent>
       </Card>
-      <p className="mt-8 text-sm text-muted-foreground text-center">
+      <p className="mt-8 short:mt-6 text-sm text-muted-foreground text-center">
         New to RESONANCE?{" "}
         <Link
           href={buildAuthHref("/auth/sign-up", returnTo)}
