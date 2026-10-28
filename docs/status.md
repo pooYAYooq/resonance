@@ -7,17 +7,17 @@ a session history.
 ## Current focus
 
 Dashboard sidebar improvements on `codex/dashboard-sidebar-improvements`,
-through small iterations outside the roadmap sequence. The desktop collapse
-and browser-local persistence behavior is approved. [Features](../FEATURES.md#authentication)
-owns the navigation behavior; [sidebar evidence](ACCESSIBILITY.md#collapsible-workspace-sidebar-2026-10-28)
-records checkpoint verification.
+through small iterations outside the roadmap sequence. [Features](../FEATURES.md#authentication)
+owns the navigation behavior; [sidebar evidence](ACCESSIBILITY.md#sidebar-and-mobile-drawer-iterations-2026-10-28)
+records the latest verification and remaining browser coverage.
 
 ## Next action
 
-Agree the next sidebar iteration with the maintainer. Account-menu placement,
-Appearance, and navigation ordering are discussion candidates; each change is
-tried and approved before adding its tests. The next roadmap item remains
-V1-20, context-specific post-card variants, when roadmap delivery resumes.
+Review the approved sidebar, mobile drawer, and workspace route changes for
+staging. Remaining verification gaps are recorded in
+[known limitations](KNOWN_LIMITATIONS.md#accessibility-and-responsive-behavior).
+The next roadmap item remains V1-20, context-specific post-card variants, when
+roadmap delivery resumes.
 
 Saved and Liked behavior remains documented in
 [Features](../FEATURES.md#private-collections), with its acceptance in

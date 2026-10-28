@@ -69,6 +69,12 @@ resonance/
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx      # Metadata-only child layout under WorkspaceShell.
 │   │   │   ├── page.tsx        # Dashboard root with independent drafts and published-post previews.
+│   │   │   ├── feed/
+│   │   │   │   ├── page.tsx    # Private reader feed shell (static metadata, noindex).
+│   │   │   │   └── _components/FeedContent.tsx # Client auth gate, fixed cutoff, bounded cursor pagination.
+│   │   │   ├── notifications/
+│   │   │   │   ├── page.tsx    # Private notifications shell (static metadata, noindex).
+│   │   │   │   └── _components/ # Shared page/drawer list, responsive rows, expansion, and scoped deletion.
 │   │   │   ├── drafts/page.tsx # Full owner-scoped draft list.
 │   │   │   ├── published/page.tsx # Full current-author published list.
 │   │   │   ├── analytics/page.tsx # Private author analytics: summary cards and follower chart.
@@ -118,27 +124,8 @@ resonance/
 │   │   │           │                              # profiles.listAuthorPosts, 12 a page, live.
 │   │   │           └── CatalogueQueryBoundary.tsx # Class boundary; Retry remounts the
 │   │   │                                          # subscription from page one.
-│   │   ├── notifications/
-│   │   │   ├── page.tsx        # Notifications. Server Component shell
-│   │   │   │                   # (static metadata, noindex). Auth gate,
-│   │   │   │                   # pagination, and read state live in
-│   │   │   │                   # the client _components/NotificationsList.
-│   │   │   └── _components/
-│   │   │       ├── NotificationsList.tsx  # Client. useConvexAuth gate
-│   │   │       │                          # (redirect to /auth/login) +
-│   │   │       │                          # usePaginatedQuery
-│   │   │       │                          # notifications.getNotifications;
-│   │   │       │                          # activation/read state, Undo deletion,
-│   │   │       │                          # shared toolbar, and Discover recovery.
-│   │   │       ├── NotificationRow.tsx  # Mobile stacked details, desktop expansion,
-│   │   │       │                          # unread dot, direct links, and follow action.
-│   │   │       ├── notificationExpansion.ts # Recipient/row-scoped localStorage state.
-│   │   │       └── DeleteAllNotificationsDialog.tsx # Counted all/read/unread scopes.
-│   │   ├── feed/
-│   │   │   ├── page.tsx        # Private reader feed shell (static metadata, noindex).
-│   │   │   └── _components/
-│   │   │       └── FeedContent.tsx       # Client auth gate, fixed cutoff,
-│   │   │                                  # bounded cursor pagination + PostCard grid.
+│   │   ├── notifications/page.tsx # Redirects to /dashboard/notifications.
+│   │   ├── feed/page.tsx          # Redirects to /dashboard/feed.
 │   │   ├── saved/page.tsx    # Redirect to /dashboard/saved.
 │   │   ├── liked/page.tsx    # Redirect to /dashboard/liked.
 │   │   ├── profile/edit/

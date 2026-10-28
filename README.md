@@ -145,6 +145,12 @@ app/
     dashboard/
       layout.tsx              # Metadata-only child layout
       page.tsx                # Dashboard root with drafts and published-post previews
+      feed/
+        page.tsx              # Private reader feed inside the workspace shell
+        _components/           # FeedContent and bounded pagination tests
+      notifications/
+        page.tsx              # Private notifications inside the workspace shell
+        _components/           # Shared page/drawer list, rows, expansion, and deletion dialog
       analytics/page.tsx      # Private author analytics: summary cards and follower-growth chart
       saved/
         page.tsx              # Private Saved posts page within the dashboard shell
@@ -177,13 +183,9 @@ app/
       [postId]/
         page.tsx              # Single post view with likes, comments, and publication timestamps
         comments/[commentId]/ # Focused conversation, server-loaded target + live updates
-    feed/
-      page.tsx                # Private reader feed (client-gated + globally paginated)
-      _components/            # FeedContent (fixed cutoff + bounded cursor pagination)
+    feed/page.tsx              # Redirects to /dashboard/feed
     liked/page.tsx            # Redirect to /dashboard/liked
-    notifications/
-      page.tsx                # Private notifications feed (client-gated + paginated)
-      _components/            # Shared page/drawer list, responsive rows, saved expansion, and scoped deletion dialog
+    notifications/page.tsx    # Redirects to /dashboard/notifications
     profile/edit/
       page.tsx                # Authenticated identity + selected-work editor
       _components/            # ProfileIdentityForm, CountryPicker, SelectedWorkEditor, edit-state helpers

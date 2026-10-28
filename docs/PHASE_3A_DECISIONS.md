@@ -70,6 +70,17 @@ action. Collection search, filters, and exact timestamps remain deferred. This
 refines the 2026-10-26 routing amendment and does not change dashboard placement
 or reopen the deferred Dashboard Overview redesign.
 
+## Feed and Notifications workspace amendment (2026-10-28)
+
+The maintainer moved the authenticated Feed and Notifications pages into the
+workspace shell at `/dashboard/feed` and
+`/dashboard/notifications`. Their former `/feed` and
+`/notifications` addresses redirect to the workspace routes.
+Feed remains the same bounded reader stream. The notifications bell remains a
+drawer; the full notification page now opens inside the workspace. This amends
+the route placement in the target-state architecture and the page-placement
+portion of 3A-010. [Features](../FEATURES.md#notifications) owns behavior.
+
 ## Decisions
 
 Dated entries retain their original rationale; amendments above take precedence.
