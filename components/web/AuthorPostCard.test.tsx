@@ -116,4 +116,88 @@ describe("AuthorPostCard", () => {
     expect(screen.queryByText("Cover unavailable")).toBeNull();
     expect(container.querySelector("img")).toBeTruthy();
   });
+
+  it("renders the featured layout with a defined card boundary", () => {
+    render(<AuthorPostCard post={post} featured />);
+
+    const cover = screen.getByTestId("author-card-cover");
+    const card = cover.closest('[data-slot="card"]');
+    expect(card).toHaveAttribute("data-featured", "true");
+    expect(card).toHaveClass("rounded-xl", "bg-card", "ring-1");
+    expect(cover).toHaveClass("sm:aspect-auto");
+    expect(cover).toHaveClass("sm:h-full");
+  });
+
+  it("keeps the single-link contract in featured mode", () => {
+    render(<AuthorPostCard post={post} featured />);
+
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAccessibleName("A quiet header");
+    expect(links[0]).toHaveAttribute("href", "/blog/post-1");
+  });
+
+  it("uses the feature image sizes by default", () => {
+    const { container } = render(<AuthorPostCard post={post} featured />);
+
+    expect(container.querySelector("img")).toHaveAttribute(
+      "sizes",
+      "(min-width: 1024px) 66vw, 100vw",
+    );
+  });
+
+  it("gives the featured cover a responsive minimum height", () => {
+    render(<AuthorPostCard post={post} featured />);
+
+    const cover = screen.getByTestId("author-card-cover");
+    expect(cover).toHaveClass("sm:min-h-[14rem]");
+    expect(cover).toHaveClass("md:min-h-[16rem]");
+    expect(cover).toHaveClass("lg:min-h-[18rem]");
+  });
+
+  it("wraps long unbroken titles inside the card", () => {
+    render(<AuthorPostCard post={{ ...post, title: "A".repeat(120) }} />);
+
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass("break-words");
+  });
+
+  it("wraps long unbroken titles in featured mode", () => {
+    render(
+      <AuthorPostCard
+        post={{ ...post, title: "A".repeat(120) }}
+        featured
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass("break-words");
+  });
+
+  it("keeps the cover hover transform motion-safe", () => {
+    const { container } = render(<AuthorPostCard post={post} />);
+
+    expect(container.querySelector("img")).toHaveClass(
+      "motion-safe:group-hover:scale-[1.035]",
+    );
+  });
+
+  it("keeps the featured cover hover transform motion-safe", () => {
+    const { container } = render(<AuthorPostCard post={post} featured />);
+
+    expect(container.querySelector("img")).toHaveClass(
+      "motion-safe:group-hover:scale-[1.035]",
+    );
+  });
+
+  it("keeps the retry control outside the link in featured mode", () => {
+    const { container } = render(<AuthorPostCard post={post} featured />);
+    const link = screen.getByRole("link");
+
+    fireEvent.error(container.querySelector("img")!);
+
+    const retry = screen.getByRole("button", {
+      name: "Retry cover for A quiet header",
+    });
+    expect(link.contains(retry)).toBe(false);
+    expect(link).toHaveAccessibleName("A quiet header");
+  });
 });
