@@ -28,6 +28,7 @@ import {
 import type { RecoveryResult } from "@/lib/draft-recovery";
 import type { WritingSessionTarget } from "@/app/(workspace)/create/_components/useWritingSession";
 import { AuthoringExitDialog } from "./AuthoringExitDialog";
+import { SignOutDialog } from "./SignOutDialog";
 import { resolveEditorMode } from "@/app/(workspace)/create/editorMode";
 
 /**
@@ -142,11 +143,62 @@ export function AuthoringExitProvider({
   );
   const nativeAttachedRef = useRef(false);
   const [surface, setSurfaceState] = useState<PendingSurface | null>(null);
+  const [signOutConfirm, setSignOutConfirm] = useState(false);
+  const [signOutBusy, setSignOutBusy] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const signOutConfirmRef = useRef(false);
 
   const updateSurface = useCallback((next: PendingSurface | null) => {
     surfaceRef.current = next;
     setSurfaceState(next);
   }, []);
+
+  const openSignOutConfirm = useCallback(
+    (action: SignOutAction, returnFocus?: HTMLElement | null) => {
+      if (signOutConfirmRef.current || surfaceRef.current) return;
+      signOutActionRef.current = action;
+      restoreFocusRef.current =
+        returnFocus ??
+        (document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null);
+      signOutConfirmRef.current = true;
+      setSignOutConfirm(true);
+      setSignOutError(null);
+    },
+    [],
+  );
+
+  const closeSignOutConfirm = useCallback(() => {
+    signOutConfirmRef.current = false;
+    setSignOutConfirm(false);
+    setSignOutBusy(false);
+    setSignOutError(null);
+  }, []);
+
+  const handleConfirmSignOut = useCallback(async () => {
+    const action = signOutActionRef.current;
+    if (!action || signOutBusy) return;
+    setSignOutBusy(true);
+    setSignOutError(null);
+    try {
+      // A clean authoring session still clears any stale recovery copy before
+      // leaving. Failure is not blocking because there is nothing to recover.
+      registrationRef.current?.clearRecovery();
+      const result = await runSignOut(action);
+      if (!result.ok) {
+        setSignOutBusy(false);
+        setSignOutError(result.message ?? "Sign out failed.");
+        return;
+      }
+      closeSignOutConfirm();
+    } catch (error) {
+      setSignOutBusy(false);
+      setSignOutError(
+        error instanceof Error ? error.message : "Sign out failed.",
+      );
+    }
+  }, [closeSignOutConfirm, runSignOut, signOutBusy]);
 
   const syncNativeRisk = useCallback(() => {
     const handler = beforeUnloadRef.current;
@@ -412,11 +464,25 @@ export function AuthoringExitProvider({
 
   const requestSignOut = useCallback(
     (action: SignOutAction, returnFocus?: HTMLElement | null) => {
+      if (surfaceRef.current || signOutConfirmRef.current) return;
+      const registration = registrationRef.current;
+      if (!registration) {
+        openSignOutConfirm(action, returnFocus);
+        return;
+      }
+      const decision = decideAuthoringExit(
+        { kind: "sign-out" },
+        registration.getSession(),
+      );
+      if (decision.kind === "allow") {
+        openSignOutConfirm(action, returnFocus);
+        return;
+      }
       signOutActionRef.current = action;
       requestRef.current({ kind: "sign-out" });
       if (returnFocus) restoreFocusRef.current = returnFocus;
     },
-    [],
+    [openSignOutConfirm],
   );
 
   const register = useCallback(
@@ -731,6 +797,16 @@ export function AuthoringExitProvider({
               }
             : undefined
         }
+        onRestoreFocus={handleRestoreFocus}
+      />
+      <SignOutDialog
+        open={signOutConfirm}
+        pending={signOutBusy}
+        error={signOutError}
+        onCancel={closeSignOutConfirm}
+        onConfirm={() => {
+          void handleConfirmSignOut();
+        }}
         onRestoreFocus={handleRestoreFocus}
       />
     </AuthoringExitContext.Provider>
