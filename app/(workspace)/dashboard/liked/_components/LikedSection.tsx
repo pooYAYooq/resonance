@@ -77,7 +77,7 @@ export function LikedSection() {
           description="Like posts that resonate with you and they'll appear here."
           action={
             <Button asChild variant="outline">
-              <Link href="/blog">Explore Discover</Link>
+              <Link href="/blog">Explore Blog</Link>
             </Button>
           }
         />

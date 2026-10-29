@@ -16,7 +16,7 @@ export default function BlogError({ reset }: BlogErrorProps) {
       >
         <h1 className="text-2xl font-semibold">Could not load the blog</h1>
         <p className="text-muted-foreground">
-          Something went wrong while loading Discover. Please try again.
+          Something went wrong while loading the blog. Please try again.
         </p>
         <Button type="button" onClick={reset}>
           Try again

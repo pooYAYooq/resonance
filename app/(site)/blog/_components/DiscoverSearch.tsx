@@ -11,7 +11,7 @@ export function DiscoverSearch({ query }: DiscoverSearchProps) {
   return (
     <form action="/blog" method="get" role="search" className="w-full">
       <label htmlFor="discover-search" className="sr-only">
-        Search Discover
+        Search Blog
       </label>
       <div className="relative">
         <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />

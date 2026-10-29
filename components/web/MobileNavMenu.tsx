@@ -52,7 +52,7 @@ const writingLinks = [
 
 const readingLinks = [
   { href: "/dashboard/feed", label: "Feed", icon: Rss },
-  { href: "/blog", label: "Discover", icon: Compass },
+  { href: "/blog", label: "Blog", icon: Compass },
   { href: "/dashboard/saved", label: "Saved", icon: Bookmark },
   { href: "/dashboard/liked", label: "Liked", icon: Heart },
 ];

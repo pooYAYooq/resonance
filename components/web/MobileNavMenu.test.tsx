@@ -99,7 +99,7 @@ describe("MobileNavMenu", () => {
     );
   });
 
-  it("exposes New Post, Discover, and Feed links for authenticated users", async () => {
+  it("exposes New Post, Blog, and Feed links for authenticated users", async () => {
     const user = userEvent.setup();
 
     render(<MobileNavMenu isAuthenticated />);
@@ -111,7 +111,7 @@ describe("MobileNavMenu", () => {
       "href",
       "/create",
     );
-    expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Blog" })).toHaveAttribute(
       "href",
       "/blog",
     );
@@ -141,7 +141,7 @@ describe("MobileNavMenu", () => {
     ).toBeNull();
   });
 
-  it("exposes Home, Discover, Log In, and Sign Up for anonymous users", async () => {
+  it("exposes Home, Blog, Log In, and Sign Up for anonymous users", async () => {
     const user = userEvent.setup();
 
     render(<MobileNavMenu isAuthenticated={false} />);
@@ -155,7 +155,7 @@ describe("MobileNavMenu", () => {
       "href",
       "/",
     );
-    expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Blog" })).toHaveAttribute(
       "href",
       "/blog",
     );
@@ -216,7 +216,7 @@ describe("MobileNavMenu", () => {
       ["Drafts", "/dashboard/drafts"],
       ["My Posts", "/dashboard/published"],
       ["Analytics", "/dashboard/analytics"],
-      ["Discover", "/blog"],
+      ["Blog", "/blog"],
       ["Feed", "/dashboard/feed"],
       ["Saved", "/dashboard/saved"],
       ["Liked", "/dashboard/liked"],
@@ -354,7 +354,7 @@ describe("MobileNavMenu", () => {
     await user.click(
       screen.getByRole("button", { name: "Open navigation menu" }),
     );
-    await user.click(screen.getByRole("link", { name: "Discover" }));
+    await user.click(screen.getByRole("link", { name: "Blog" }));
 
     expect(
       screen.queryByRole("dialog", { name: "RESONANCE" }),

@@ -40,7 +40,7 @@ export function Navbar() {
                     className={buttonVariants({ variant: "ghost" })}
                     href="/blog"
                   >
-                    Discover
+                    Blog
                   </Link>
                   <Link
                     className={buttonVariants({ variant: "ghost" })}
@@ -67,7 +67,7 @@ export function Navbar() {
                     className={buttonVariants({ variant: "ghost" })}
                     href="/blog"
                   >
-                    Discover
+                    Blog
                   </Link>
                 </>
               ))}

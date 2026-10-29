@@ -258,7 +258,7 @@ describe("Navbar", () => {
     expect(trigger).toHaveFocus();
   });
 
-  it("shows Discover, Feed, New Post, and notifications when authenticated", () => {
+  it("shows Blog, Feed, New Post, and notifications when authenticated", () => {
     currentQueryValue = currentUser;
     useConvexAuthState.mockReturnValue({
       isAuthenticated: true,
@@ -266,7 +266,7 @@ describe("Navbar", () => {
     });
     render(<Navbar />);
 
-    expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Blog" })).toHaveAttribute(
       "href",
       "/blog",
     );

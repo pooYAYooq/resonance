@@ -65,7 +65,7 @@ describe("WorkspaceSidebar", () => {
       ["Drafts", "/dashboard/drafts"],
       ["My Posts", "/dashboard/published"],
       ["Analytics", "/dashboard/analytics"],
-      ["Discover", "/blog"],
+      ["Blog", "/blog"],
       ["Feed", "/dashboard/feed"],
       ["Saved", "/dashboard/saved"],
       ["Liked", "/dashboard/liked"],

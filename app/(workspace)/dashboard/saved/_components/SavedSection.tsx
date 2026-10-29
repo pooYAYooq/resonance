@@ -82,7 +82,7 @@ export function SavedSection() {
           description="Save posts to revisit later and they'll appear here."
           action={
             <Button asChild variant="outline">
-              <Link href="/blog">Explore Discover</Link>
+              <Link href="/blog">Explore Blog</Link>
             </Button>
           }
         />
