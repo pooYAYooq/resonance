@@ -14,12 +14,6 @@ vi.mock("./BookmarkButton", () => ({
 const base = {
   postId: "post-1" as never,
   title: "A readable feed post",
-  body: JSON.stringify({
-    format: "blocknote@1",
-    blocks: [
-      { type: "paragraph", content: [{ type: "text", text: "Excerpt" }] },
-    ],
-  }),
   imageUrl: null,
   commentCount: 3,
   likeCount: 8,
@@ -35,7 +29,7 @@ const base = {
 };
 
 describe("FeedPostCard", () => {
-  it("renders the author, relative date, title, excerpt, tag, and actions", () => {
+  it("renders the author, relative date, title, tag, and actions", () => {
     const { container } = render(<FeedPostCard {...base} />);
 
     expect(screen.getByRole("link", { name: "Ari" })).toHaveAttribute(
@@ -50,7 +44,7 @@ describe("FeedPostCard", () => {
     expect(
       screen.getByRole("heading", { name: "A readable feed post" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Excerpt")).toHaveClass("line-clamp-2");
+    expect(container.querySelector("p")).toBeNull();
     expect(screen.getByText("3 comments")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Technology" }),
@@ -72,7 +66,11 @@ describe("FeedPostCard", () => {
     expect(card).not.toHaveClass("lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]");
     const cover = screen.getByTestId("post-card-cover");
     expect(cover).toHaveClass("aspect-[3/2]", "rounded-t-sm");
-    expect(cover).toHaveClass("md:rounded-l-sm", "md:rounded-tr-none");
+    expect(cover).toHaveClass(
+      "md:aspect-auto",
+      "md:rounded-l-sm",
+      "md:rounded-tr-none",
+    );
   });
 
   it("uses the large title scale for short titles", () => {

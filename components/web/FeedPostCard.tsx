@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { Id } from "@/convex/_generated/dataModel";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { extractPlainText, parsePostBody } from "@/lib/post-content";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "./CoverImage";
 import { PostAuthorLine } from "./PostAuthorLine";
@@ -15,7 +14,6 @@ import { PostTags } from "./PostTags";
 type FeedPostCardProps = {
   postId: Id<"posts">;
   title: string;
-  body: string;
   imageUrl?: string | null;
   commentCount: number;
   likeCount: number;
@@ -37,7 +35,6 @@ function titleClasses(title: string) {
 export function FeedPostCard({
   postId,
   title,
-  body,
   imageUrl,
   commentCount,
   likeCount,
@@ -51,11 +48,6 @@ export function FeedPostCard({
   tags,
   now,
 }: FeedPostCardProps) {
-  const parsedBody = parsePostBody(body);
-  const excerpt =
-    parsedBody.kind === "structured"
-      ? extractPlainText(parsedBody.document.blocks)
-      : "";
   const postHref = `/blog/${postId}`;
 
   return (
@@ -68,7 +60,7 @@ export function FeedPostCard({
       <PostCardCover
         testId="post-card-cover"
         ratio="3/2"
-        className="rounded-t-sm md:rounded-l-sm md:rounded-tr-none"
+        className="rounded-t-sm md:aspect-auto md:rounded-l-sm md:rounded-tr-none"
       >
         <CoverImage
           src={imageUrl}
@@ -97,11 +89,6 @@ export function FeedPostCard({
             {title}
           </h2>
         </Link>
-        {excerpt ? (
-          <p className="line-clamp-2 text-sm text-muted-foreground">
-            {excerpt}
-          </p>
-        ) : null}
         <PostTags tags={tags ?? []} />
         <div className="mt-auto flex items-center justify-between gap-3">
           <PostEngagement

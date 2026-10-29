@@ -165,7 +165,6 @@ export function FeedContent() {
           key={post._id}
           postId={post._id}
           title={post.title}
-          body={post.body}
           imageUrl={post.imageUrl}
           commentCount={post.commentCount}
           likeCount={post.likeCount ?? 0}
