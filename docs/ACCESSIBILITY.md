@@ -1450,6 +1450,50 @@ not a new complete editor pass.
   Discover action, and an exhausted page with no visible rows focuses it; see
   [notifications verification](NOTIFICATIONS_EVIDENCE.md).
 
+### Author gallery cards (2026-10-29)
+
+- **Method:** Playwright-managed Chromium 1.63.0 on the Linux workstation, not
+  the maintainer's Windows host. Widths 320, 375, 768, 1024, and 1280; light and
+  dark themes; keyboard traversal; accessibility-tree names and roles; one-post
+  and three-post public author fixtures. No screen reader was used.
+- **Gallery geometry:** every card cover measured 3:2 in the browser.
+  - One post: 1280 feature 747x614 with a 747x498 cover; 768 tile 306x280 with
+    a 306x204 cover (two-column grid, single tile); 320 tile 238x238 with a
+    238x159 cover.
+  - Three posts: 1280 feature 747x658 with a 747x498 cover and two 361-wide
+    tiles; 1024 feature 576x544 with a 576x384 cover and two 276-wide tiles;
+    768 all three 306-wide tiles; 320 all three 238-wide tiles.
+  - No horizontal overflow at any tested width.
+  - All three author cards measured a 10px radius; the cover top corners
+    matched the card radius.
+- **Responsive lead:** the feature exists only from `lg`; below `lg` the first
+  card uses the same tile content as the rest.
+- **Section heading:** `Selected articles` stayed on one line at 320 and 375
+  (15px, nowrap) with no horizontal overflow.
+- **Catalogue:** 320 one column, 768 two columns, 1280 three columns; uniform
+  cards, no featured card, 3:2 covers.
+- **Keyboard and names:** tab order reached the feature card link, then the two
+  supporting tiles; each link exposed the post title as its accessible name and
+  a visible 1px focus outline.
+- **Feature metadata:** the featured card showed a concise date (`Oct 29, 2026`
+  in the preview) and static tags (`Theory`, `Culture`, `Design`, `Nature`,
+  `Music`). The tags are labels, not links, so the card kept one anchor and one
+  tab stop.
+- **Title sizing:** at 320 and 375 the feature title used 17px and stayed on one
+  line (`Real Artists are Gems...`), with no horizontal overflow. Long titles
+  step to 15px and clamp to two lines visually; the card link keeps the full
+  title as its accessible name, so the ellipsis does not hide the title from
+  assistive technology.
+- **Cover failure:** routing the image optimizer to 404 produced
+  "Cover unavailable" and a Retry. The Retry was not inside the card link
+  (`nested: false`), and clicking it restored the image.
+- **Reduced motion:** with `prefers-reduced-motion: reduce`, hover left the
+  cover transform at `none`.
+- **Not browser-verified:** a two-post gallery, and the 6/9 reveal states. The
+  available fixtures had one and three posts, and no author with a six- or
+  nine-item selection. Component tests cover the two-post and reveal states;
+  this is a verification gap, not a pass.
+
 ## Limitations
 
 - Chromium-only evidence. Firefox and Safari remain recorded limitations of
@@ -1476,6 +1520,9 @@ not a new complete editor pass.
   validation fixes moved to a Playwright-managed Chrome window with a fresh
   profile and no maintainer cookies; checks recorded in each context are
   labeled in the rows, and no evidence was inferred across contexts.
+- The author gallery browser pass used one- and three-post fixtures only; the
+  two-post and 6/9 reveal states remain component-tested, not browser-verified
+  (2026-10-29).
 
 ## Re-verification
 

@@ -137,6 +137,14 @@ const structuredBody = JSON.stringify({
 });
 
 describe("PostCard", () => {
+  it("uses the shared small post-card radius", () => {
+    const { container } = render(<PostCard {...basePost} />);
+
+    expect(container.querySelector('[data-slot="card"]')).toHaveClass(
+      "rounded-md",
+    );
+  });
+
   it("renders the post title", () => {
     render(<PostCard {...basePost} />);
     expect(

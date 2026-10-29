@@ -15,6 +15,12 @@ responsive-width checks are recorded as the `J7` rows in
 [accessibility evidence](ACCESSIBILITY.md); raw command output and browser notes
 were local and uncommitted.
 
+> **Copy note (2026-10-29):** the current profile and catalogue use
+> "Selected articles" and "View all posts". The observations below retain the
+> copy tested at the recorded revision; current behavior and the renamed copy
+> are recorded in
+> [accessibility evidence](ACCESSIBILITY.md#author-gallery-cards-2026-10-29).
+
 ## Tested revision and environment
 
 - Code revision: `feat/public-author-showcase`, commits `d856b5b` (render the

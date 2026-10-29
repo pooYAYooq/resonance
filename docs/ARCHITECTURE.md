@@ -273,6 +273,9 @@ resonance/
 │       │                        # blank transparent fallback surface with a subtle
 │       │                        # bottom border. Cards, the reader, and Review agree;
 │       │                        # published surfaces render through PostCover. Server-component safe.
+│       ├── PostCardCover.tsx    # Shared post-card cover frame: ratio and clipping
+│       │                        # only; cards supply server-safe or retry-capable
+│       │                        # images. Server-component safe.
 │       ├── PostCover.tsx        # Published 16:9 cover frame: one ratio, one clip,
 │       │                        # no height cap, and the single crop/focal seam.
 │       │                        # Server-component safe; a caller's aspect-* cannot override.
@@ -292,8 +295,11 @@ resonance/
 │       ├── PostTagSelector.tsx  # Controlled tag grid capped at five selections, shadcn Checkbox rows.
 │       ├── EmptyState.tsx       # Icon + title + description + optional CTA primitive
 │       ├── SectionHeading.tsx   # Heading with optional count + right-side action slot
-│       ├── AuthorPostCard.tsx   # Reader-facing author-work card: 3:2 cover, title, like
-│       │                       # count, one anchor, and a sibling cover-recovery Retry.
+│       ├── AuthorPostCard.tsx   # Reader-facing author-work card: a bounded
+│       │                       # 3:2 tile or a larger featured tile at lg
+│       │                       # and up with the cover on top; one anchor,
+│       │                       # title, published date, static tags, like
+│       │                       # count, and a sibling cover-recovery Retry.
 │       ├── AuthorJoinedDate.tsx # Hydration-safe `Joined {calendar|relative}` label with a
 │       │                       # visible-tab refresh timer and visibilitychange catch-up.
 │       ├── HarmonicWaves.tsx    # Static, aria-hidden hero-band artwork (accent via
@@ -482,10 +488,11 @@ components/
     │     community" on the landing page's `RecentPostsSection`.
     │
     ├── AuthorPostCard.tsx
-    │     Reader-facing card for the author page and catalogue: a single
-    │     anchor over a 3:2 cover, title, and like count, plus a cover
-    │     recovery Retry that is a sibling of the anchor so the link
-    │     stays usable when an image fails.
+    │     Reader-facing card for the author page and catalogue: a bounded
+    │     3:2 tile or a larger featured tile at lg and up with the cover on
+    │     top, a single anchor over the cover, title, published date, static
+    │     tags, and like count, plus a cover-recovery Retry that is a sibling
+    │     of the anchor.
     │
     ├── AuthorJoinedDate.tsx
     │     Hydration-safe `Joined` label rendering the calendar or
@@ -1287,11 +1294,12 @@ because each `imageStorageId` is unique — that one stays in the map.
 
 Discover uses `DiscoverPostSummary` because its editorial result presentation
 has a different density and metadata hierarchy from the universal `PostCard`.
-Feed, profile, and marketing consumers retain `PostCard` until their own
-context-specific work is scheduled. Saved and Liked use the collection-specific
-`CollectionPostCard` and collapsible time groups. Shared data contracts and
-primitives provide consistency without forcing every surface into one visual
-card.
+Feed, landing, and dashboard-preview consumers retain `PostCard` until their own
+context-specific work is scheduled. The profile uses `AuthorPostCard`, which now
+has a bounded tile and a featured gallery layout. Saved and Liked use the
+collection-specific `CollectionPostCard` and collapsible time groups. Shared
+data contracts and primitives provide consistency without forcing every surface
+into one visual card.
 
 ### 10. Why a single-row `stats` table for the total post count?
 

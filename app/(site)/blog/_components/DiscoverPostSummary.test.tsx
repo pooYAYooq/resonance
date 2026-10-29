@@ -4,6 +4,30 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { DiscoverPostSummary } from "./DiscoverPostSummary";
 
 describe("DiscoverPostSummary", () => {
+  it("uses the shared small post-card radius", () => {
+    render(
+      <DiscoverPostSummary
+        post={{
+          _id: "post-1" as Id<"posts">,
+          title: "Readable title",
+          bodyText: "A plain text excerpt",
+          authorId: "author-1",
+          authorName: "Ari",
+          authorUsername: "ari",
+          tags: [],
+          imageUrl: null,
+          publishedAt: Date.UTC(2026, 0, 2),
+          commentCount: 0,
+          likeCount: 0,
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("discover-card-header").closest('[data-slot="card"]'),
+    ).toHaveClass("rounded-md");
+  });
+
   it("renders projected content and engagement without serialized body data", () => {
     const dateFormatter = vi.spyOn(Date.prototype, "toLocaleDateString");
 

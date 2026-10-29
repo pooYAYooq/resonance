@@ -7,6 +7,9 @@ interface TagPillProps {
   className?: string;
 }
 
+const TAG_PILL_CLASSES =
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground";
+
 /**
  * Renders a tag that links to blog posts filtered by the tag.
  *
@@ -17,11 +20,17 @@ export function TagPill({ tag, className }: TagPillProps) {
     <Link
       href={`/blog?tag=${encodeURIComponent(tag)}`}
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
+        TAG_PILL_CLASSES,
+        "transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
         className,
       )}
     >
       {tag}
     </Link>
   );
+}
+
+/** A static tag label for cards that must keep a single anchor. */
+export function TagLabel({ tag, className }: TagPillProps) {
+  return <span className={cn(TAG_PILL_CLASSES, className)}>{tag}</span>;
 }

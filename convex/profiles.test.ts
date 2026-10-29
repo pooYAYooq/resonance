@@ -490,6 +490,11 @@ describe("profiles selection API", () => {
       posts[0],
       posts[1],
     ]);
+    expect(showcase.posts[0]).toMatchObject({
+      postId: posts[2],
+      publishedAt: 1002,
+      tags: [],
+    });
 
     const draft = await seedPost(t, identity.subject, {
       title: "Draft post",
@@ -721,7 +726,7 @@ describe("profiles selection API", () => {
     for (const card of first.page) {
       expect(Object.hasOwn(card, "body")).toBe(false);
       expect(Object.hasOwn(card, "bodyText")).toBe(false);
-      expect(Object.hasOwn(card, "tags")).toBe(false);
+      expect(card.tags).toEqual([]);
       expect(Object.hasOwn(card, "commentCount")).toBe(false);
       expect(Object.hasOwn(card, "email")).toBe(false);
       expect(Object.hasOwn(card, "isLiked")).toBe(false);
@@ -986,7 +991,14 @@ describe("profiles API edge coverage", () => {
         paginationOpts: { numItems: 5, cursor: null },
       });
       expect(result.page).toEqual([
-        { postId: posts[0], title: "Post 0", imageUrl: null, likeCount: 3 },
+        {
+          postId: posts[0],
+          title: "Post 0",
+          imageUrl: null,
+          publishedAt: 1000,
+          tags: [],
+          likeCount: 3,
+        },
       ]);
       await expect(
         own.mutation(api.profiles.updateSelection, {

@@ -15,6 +15,8 @@ const post: AuthorCard = {
   postId: "post-1",
   title: "A quiet header",
   imageUrl: "https://cdn.example/cover.png",
+  publishedAt: Date.UTC(2026, 0, 2),
+  tags: ["Technology", "Design"],
   likeCount: 128,
 };
 
@@ -30,6 +32,9 @@ describe("AuthorPostCard", () => {
 
     const image = container.querySelector("img");
     expect(image).toHaveAttribute("alt", "");
+    expect(
+      screen.getByTestId("author-card-cover").closest('[data-slot="card"]'),
+    ).toHaveClass("rounded-md");
   });
 
   it("keeps a 3:2 cover frame and an accessible like count", () => {
@@ -40,12 +45,12 @@ describe("AuthorPostCard", () => {
     expect(likes).toHaveTextContent("128");
   });
 
-  it("sizes the image for the showcase's third-width desktop grid by default", () => {
+  it("sizes the image for the showcase's responsive gallery columns", () => {
     const { container } = render(<AuthorPostCard post={post} />);
 
     expect(container.querySelector("img")).toHaveAttribute(
       "sizes",
-      "(min-width: 768px) 33vw, 100vw",
+      "(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw",
     );
   });
 
@@ -115,5 +120,196 @@ describe("AuthorPostCard", () => {
 
     expect(screen.queryByText("Cover unavailable")).toBeNull();
     expect(container.querySelector("img")).toBeTruthy();
+  });
+
+  it("renders the featured layout with a defined card boundary", () => {
+    render(<AuthorPostCard post={post} featured />);
+
+    const cover = screen.getByTestId("author-card-cover");
+    const card = cover.closest('[data-slot="card"]');
+    expect(card).toHaveAttribute("data-featured", "true");
+    expect(card).toHaveClass("rounded-md", "bg-card", "ring-1");
+    expect(cover).toHaveClass("aspect-[3/2]");
+    expect(cover).not.toHaveClass("sm:aspect-auto");
+    expect(cover).not.toHaveClass("sm:h-full");
+  });
+
+  it("keeps the featured card vertical with the title below the cover", () => {
+    render(<AuthorPostCard post={post} featured />);
+
+    const link = screen.getByRole("link");
+    expect(link).toHaveClass("flex-col");
+    expect(link).not.toHaveClass("sm:grid");
+    expect(link).not.toHaveClass("sm:flex-row");
+    expect(link).not.toHaveClass("md:flex-row");
+    expect(link.querySelector("div:last-child")).toHaveClass("flex-1");
+  });
+
+  it("keeps the single-link contract in featured mode", () => {
+    render(<AuthorPostCard post={post} featured />);
+
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAccessibleName("A quiet header");
+    expect(links[0]).toHaveAttribute("href", "/blog/post-1");
+  });
+
+  it("uses the feature image sizes by default", () => {
+    const { container } = render(<AuthorPostCard post={post} featured />);
+
+    expect(container.querySelector("img")).toHaveAttribute(
+      "sizes",
+      "(min-width: 1024px) 66vw, (min-width: 768px) 50vw, 100vw",
+    );
+  });
+
+  it("keeps the featured cover horizontal at the base ratio", () => {
+    render(<AuthorPostCard post={post} featured />);
+
+    const cover = screen.getByTestId("author-card-cover");
+    expect(cover).toHaveClass("aspect-[3/2]");
+    expect(cover).not.toHaveClass("md:aspect-auto");
+    expect(cover).not.toHaveClass("lg:aspect-auto");
+    expect(cover).not.toHaveClass("sm:min-h-[14rem]");
+    expect(cover).not.toHaveClass("md:min-h-[16rem]");
+    expect(cover).not.toHaveClass("lg:min-h-[18rem]");
+  });
+
+  it("wraps long unbroken titles inside the card", () => {
+    render(<AuthorPostCard post={{ ...post, title: "A".repeat(120) }} />);
+
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
+      "break-words",
+    );
+  });
+
+  it("wraps long unbroken titles in featured mode", () => {
+    render(
+      <AuthorPostCard post={{ ...post, title: "A".repeat(120) }} featured />,
+    );
+
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
+      "break-words",
+    );
+  });
+
+  it("keeps the cover hover transform motion-safe", () => {
+    const { container } = render(<AuthorPostCard post={post} />);
+
+    expect(container.querySelector("img")).toHaveClass(
+      "motion-safe:group-hover:scale-[1.035]",
+    );
+  });
+
+  it("keeps the featured cover hover transform motion-safe", () => {
+    const { container } = render(<AuthorPostCard post={post} featured />);
+
+    expect(container.querySelector("img")).toHaveClass(
+      "motion-safe:group-hover:scale-[1.035]",
+    );
+  });
+
+  it("keeps the retry control outside the link in featured mode", () => {
+    const { container } = render(<AuthorPostCard post={post} featured />);
+    const link = screen.getByRole("link");
+
+    fireEvent.error(container.querySelector("img")!);
+
+    const retry = screen.getByRole("button", {
+      name: "Retry cover for A quiet header",
+    });
+    expect(link.contains(retry)).toBe(false);
+    expect(link).toHaveAccessibleName("A quiet header");
+  });
+
+  it("shows the concise feature date and static tags at desktop widths", () => {
+    render(<AuthorPostCard post={post} featured />);
+
+    expect(screen.getByText("Jan 2, 2026")).toBeInTheDocument();
+    expect(screen.queryByText(/Published/)).toBeNull();
+    expect(screen.getByText("Technology")).toBeInTheDocument();
+    expect(screen.getByText("Design")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Technology" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Design" })).toBeNull();
+
+    expect(screen.getByText("Jan 2, 2026").closest("div")).toHaveClass(
+      "hidden",
+      "lg:flex",
+    );
+    expect(screen.getByText("Technology").closest("div")).toHaveClass(
+      "hidden",
+      "lg:flex",
+    );
+    expect(screen.getByText("Jan 2").closest("div")).toHaveClass("lg:hidden");
+  });
+
+  it("shows the concise tile date without feature tags", () => {
+    render(<AuthorPostCard post={post} />);
+
+    expect(screen.getByText("Jan 2")).toBeInTheDocument();
+    expect(screen.getByText("Jan 2").closest("div")).not.toHaveClass(
+      "lg:hidden",
+    );
+    expect(screen.queryByText("Jan 2, 2026")).toBeNull();
+    expect(screen.queryByText(/Published/)).toBeNull();
+    expect(screen.queryByText("Technology")).toBeNull();
+    expect(screen.queryByText("Design")).toBeNull();
+  });
+
+  it("uses the large title scale for short featured titles at desktop widths", () => {
+    render(<AuthorPostCard post={post} featured />);
+
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
+      "text-[17px]",
+      "lg:text-2xl",
+      "xl:text-3xl",
+      "line-clamp-2",
+    );
+  });
+
+  it("steps the featured title down for medium and long titles", () => {
+    const { rerender } = render(
+      <AuthorPostCard post={{ ...post, title: "A".repeat(50) }} featured />,
+    );
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
+      "text-[15px]",
+      "lg:text-2xl",
+      "xl:text-3xl",
+      "line-clamp-2",
+    );
+
+    rerender(
+      <AuthorPostCard post={{ ...post, title: "A".repeat(70) }} featured />,
+    );
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
+      "text-[15px]",
+      "lg:text-xl",
+      "xl:text-2xl",
+      "line-clamp-2",
+    );
+
+    rerender(
+      <AuthorPostCard post={{ ...post, title: "A".repeat(100) }} featured />,
+    );
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
+      "text-[15px]",
+      "lg:text-lg",
+      "xl:text-xl",
+      "line-clamp-2",
+    );
+  });
+
+  it("steps the tile title down for long titles and clamps both", () => {
+    const { rerender } = render(<AuthorPostCard post={post} />);
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
+      "text-[17px]",
+      "line-clamp-2",
+    );
+
+    rerender(<AuthorPostCard post={{ ...post, title: "A".repeat(50) }} />);
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
+      "text-[15px]",
+      "line-clamp-2",
+    );
   });
 });

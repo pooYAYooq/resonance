@@ -24,6 +24,8 @@ export type AuthorCard = {
   postId: Id<"posts">;
   title: string;
   imageUrl: string | null;
+  publishedAt: number;
+  tags: string[];
   likeCount: number;
 };
 
@@ -63,6 +65,8 @@ export const authorCardValidator = v.object({
   postId: v.id("posts"),
   title: v.string(),
   imageUrl: v.union(v.string(), v.null()),
+  publishedAt: v.number(),
+  tags: v.array(v.string()),
   likeCount: v.number(),
 });
 
@@ -208,6 +212,8 @@ async function toAuthorCard(
     imageUrl: summary.imageStorageId
       ? await ctx.storage.getUrl(summary.imageStorageId)
       : null,
+    publishedAt: summary.publishedAt,
+    tags: summary.tags,
     likeCount: summary.likeCount,
   };
 }

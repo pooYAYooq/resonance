@@ -105,12 +105,12 @@ Source: Track 4 in `FEATURES.md` at `46d26a3`, 3A.3 requirements, and decision
 
 Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 
-| ID    | Item                                             | Status | Estimate |
-| ----- | ------------------------------------------------ | ------ | -------- |
-| V1-17 | Stronger public profile identity and author work | Done   | M        |
-| V1-18 | Compact, actionable Notifications                | Done   | M        |
-| V1-19 | Saved and Liked collection presentation          | Done   | S        |
-| V1-20 | Context-specific post-card variants              | Todo   | M        |
+| ID    | Item                                             | Status      | Estimate |
+| ----- | ------------------------------------------------ | ----------- | -------- |
+| V1-17 | Stronger public profile identity and author work | Done        | M        |
+| V1-18 | Compact, actionable Notifications                | Done        | M        |
+| V1-19 | Saved and Liked collection presentation          | Done        | S        |
+| V1-20 | Context-specific post-card variants              | In progress | M        |
 
 Saved and Liked are separate dashboard collection pages. Cards use a 3:2 cover
 and tags under the cover at tablet/desktop widths; phones use flat rows without
@@ -133,8 +133,11 @@ delivered earlier keep their own records in
 `J6-ProfileEditor` rows in [accessibility evidence](docs/ACCESSIBILITY.md). The
 remaining username-editor states, the real screen-reader session, the
 real-runtime stress matrix, and the deletion-cascade limitation stay visible in
-[known limitations](docs/KNOWN_LIMITATIONS.md). V1-20 context-specific post-card
-variants are untouched.
+[known limitations](docs/KNOWN_LIMITATIONS.md). V1-20 is in progress: the author
+selected-work gallery and the shared cover frame are implemented and
+browser-verified, and the profile and catalogue cards are approved. Feed,
+Discover, landing, collections, and the closeout remain. The Dashboard Overview
+stays deferred and is not part of V1-20.
 
 The compact-notification baseline was integrated as PR #117; its dated
 results remain in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md#earlier-compact-notification-verification).
