@@ -269,6 +269,16 @@ describe("AuthorPostCard", () => {
 
   it("steps the featured title down for medium and long titles", () => {
     const { rerender } = render(
+      <AuthorPostCard post={{ ...post, title: "A".repeat(50) }} featured />,
+    );
+    expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
+      "text-[15px]",
+      "lg:text-2xl",
+      "xl:text-3xl",
+      "line-clamp-2",
+    );
+
+    rerender(
       <AuthorPostCard post={{ ...post, title: "A".repeat(70) }} featured />,
     );
     expect(screen.getByRole("heading", { level: 3 })).toHaveClass(

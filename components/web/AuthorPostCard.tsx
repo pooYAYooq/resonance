@@ -60,8 +60,11 @@ const TILE_DATE = new Intl.DateTimeFormat("en-US", {
 function titleClasses(title: string, featured: boolean) {
   const length = title.trim().length;
   if (featured) {
-    if (length > 90) return "text-[15px] lg:text-lg xl:text-xl";
-    if (length > 60) return "text-[15px] lg:text-xl xl:text-2xl";
+    if (length > 45) {
+      if (length > 90) return "text-[15px] lg:text-lg xl:text-xl";
+      if (length > 60) return "text-[15px] lg:text-xl xl:text-2xl";
+      return "text-[15px] lg:text-2xl xl:text-3xl";
+    }
     return "text-[17px] lg:text-2xl xl:text-3xl";
   }
   if (length > 45) return "text-[15px]";
