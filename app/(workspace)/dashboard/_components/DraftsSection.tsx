@@ -121,7 +121,7 @@ export function DraftsSection() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3 sm:gap-0 sm:overflow-hidden sm:rounded-md sm:border sm:bg-card">
+        <div className="flex flex-col gap-3 sm:gap-0 sm:overflow-hidden sm:rounded-sm sm:border sm:bg-card">
           {results.map((draft) => (
             <DraftManagementRow
               key={draft._id}

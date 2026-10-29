@@ -12,6 +12,17 @@ const draft: ComponentProps<typeof DraftManagementRow>["draft"] = {
 };
 
 describe("DraftManagementRow", () => {
+  it("uses the small radius on the mobile card and the borderless desktop row", () => {
+    const { container } = render(
+      <DraftManagementRow draft={draft} deleting={false} onDelete={vi.fn()} />,
+    );
+
+    expect(container.querySelector("article")).toHaveClass(
+      "rounded-sm",
+      "sm:rounded-none",
+    );
+  });
+
   it("identifies pending updates and resumes the original published post editor", () => {
     render(
       <DraftManagementRow

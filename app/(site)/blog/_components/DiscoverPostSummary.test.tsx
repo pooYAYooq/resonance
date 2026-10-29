@@ -25,7 +25,7 @@ describe("DiscoverPostSummary", () => {
 
     expect(
       screen.getByTestId("discover-card-header").closest('[data-slot="card"]'),
-    ).toHaveClass("rounded-md");
+    ).toHaveClass("rounded-sm");
   });
 
   it("renders projected content and engagement without serialized body data", () => {

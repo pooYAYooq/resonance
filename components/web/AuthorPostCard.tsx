@@ -90,17 +90,17 @@ export function AuthorPostCard({
   return (
     <Card
       data-featured={featured ? "true" : undefined}
-      className="relative h-full gap-0 overflow-visible rounded-md p-0 transition-colors hover:bg-muted/30"
+      className="relative h-full gap-0 overflow-visible rounded-sm p-0 transition-colors hover:bg-muted/30"
     >
       <Link
         href={`/blog/${post.postId}`}
         aria-label={post.title}
-        className="group flex h-full min-w-0 flex-col rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+        className="group flex h-full min-w-0 flex-col rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
       >
         <PostCardCover
           testId="author-card-cover"
           ratio="3/2"
-          className="rounded-t-md"
+          className="rounded-t-sm"
         >
           {post.imageUrl ? (
             <Image
@@ -173,7 +173,7 @@ export function AuthorPostCard({
       </Link>
 
       {coverFailed ? (
-        <div className="absolute inset-x-0 top-0 flex aspect-[3/2] flex-col items-center justify-center gap-2 rounded-t-md bg-muted px-3 text-center text-xs text-muted-foreground">
+        <div className="absolute inset-x-0 top-0 flex aspect-[3/2] flex-col items-center justify-center gap-2 rounded-t-sm bg-muted px-3 text-center text-xs text-muted-foreground">
           <span>Cover unavailable</span>
           <button
             type="button"

@@ -17,6 +17,17 @@ const post: ComponentProps<typeof PublishedRow>["post"] = {
 };
 
 describe("PublishedRow", () => {
+  it("uses the small radius on the mobile card and the borderless desktop row", () => {
+    const { container } = render(
+      <PublishedRow post={post} deleting={false} onDeleteAction={vi.fn()} />,
+    );
+
+    expect(container.querySelector("article")).toHaveClass(
+      "rounded-sm",
+      "sm:rounded-none",
+    );
+  });
+
   it("shows publication and subsequent update dates, linked tags, and read-only engagement", () => {
     render(
       <PublishedRow post={post} deleting={false} onDeleteAction={vi.fn()} />,
