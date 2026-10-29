@@ -171,6 +171,15 @@ evidence resolves them. The previous detailed delivery history remains in
   tooling, so the browser pass exercised the card-image recovery instead;
   `J6-ProfileEditor` used the same automated-only pattern for query-echo timing.
   See [accessibility evidence](ACCESSIBILITY.md).
+- The author gallery browser pass used one- and three-post fixtures. The
+  two-post and 6/9 reveal states are component-tested, not browser-verified; see
+  [accessibility evidence](ACCESSIBILITY.md#author-gallery-cards-2026-10-29).
+- A single-post author at tablet width renders one tile in a two-column grid,
+  leaving the second column empty. This follows the no-lead-below-`lg` rule and
+  was not changed by the approved card pass.
+- The feed, landing, and dashboard preview still use the legacy `PostCard`;
+  V1-20's feed, Discover, and landing phases replace the feed and landing uses.
+  The dashboard overview remains the deferred `3A-015` boundary.
 - The dev deployment carries two disposable fixture accounts,
   `notification.author@example.com` (`/u/reso_z2sss43gck`) and
   `notification.viewer@example.com` (`/u/reso_nfgngix5xn`): no published posts,

@@ -24,19 +24,6 @@ describe("PostCardCover", () => {
     expect(screen.getByTestId("post-card-cover")).toHaveClass("aspect-video");
   });
 
-  it("renders a fill frame with no fixed aspect ratio", () => {
-    render(
-      <PostCardCover ratio="fill">
-        <span>cover</span>
-      </PostCardCover>,
-    );
-
-    const frame = screen.getByTestId("post-card-cover");
-    expect(frame).toHaveClass("h-full");
-    expect(frame).not.toHaveClass("aspect-[3/2]");
-    expect(frame).not.toHaveClass("aspect-video");
-  });
-
   it("merges layout classes and a custom test id", () => {
     render(
       <PostCardCover

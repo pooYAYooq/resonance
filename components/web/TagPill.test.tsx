@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { TagPill } from "./TagPill";
+import { TagLabel, TagPill } from "./TagPill";
 
 describe("TagPill", () => {
   it("renders a linked tag with URL encoding", () => {
@@ -43,5 +43,14 @@ describe("TagPill", () => {
       "focus-visible:outline-ring",
       "focus-visible:outline-offset-2",
     );
+  });
+
+  it("renders a static tag label without a nested link", () => {
+    render(<TagLabel tag="Culture" />);
+
+    const label = screen.getByText("Culture");
+    expect(label.tagName).toBe("SPAN");
+    expect(label).toHaveClass("text-xs", "py-0.5");
+    expect(screen.queryByRole("link", { name: "Culture" })).toBeNull();
   });
 });

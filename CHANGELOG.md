@@ -12,6 +12,13 @@ work is tracked in `ROADMAP.md`.
 
 ### Added
 
+- Author profile selected work now opens with a featured gallery card on
+  desktop, followed by smaller tiles, with concise published dates, tags on the
+  feature, and length-aware two-line titles. Below `lg` every card uses the same
+  small tile layout.
+
+- Post cards now share the same small corner radius across sizes and layouts.
+
 - Accessible show/hide password controls on login and sign-up, with the current
   visibility exposed to assistive technology.
 

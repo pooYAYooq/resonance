@@ -59,6 +59,8 @@ const card = (n: number): AuthorCard => ({
   postId: `post-${n}`,
   title: `Post ${n}`,
   imageUrl: null,
+  publishedAt: 1000 + n,
+  tags: [],
   likeCount: n,
 });
 

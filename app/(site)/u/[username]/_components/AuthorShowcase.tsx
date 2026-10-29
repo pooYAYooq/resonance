@@ -86,7 +86,7 @@ export function AuthorShowcase({
   const visibleCount = Math.min(revealed, posts.length);
   const visible = posts.slice(0, visibleCount);
   const heading =
-    showcase.mode === "selected" ? "A few of my favourites" : "Latest posts";
+    showcase.mode === "selected" ? "Selected articles" : "Latest posts";
   const showReveal =
     showcase.mode === "selected" && visibleCount < posts.length;
   // Announce only after a reveal, and always from the current totals so a live
@@ -117,7 +117,7 @@ export function AuthorShowcase({
           <div className="mb-[23px] flex items-baseline justify-between gap-5">
             <h2
               id={headingId}
-              className="text-[20px] font-semibold tracking-[-0.045em] md:text-[21px]"
+              className="whitespace-nowrap text-[15px] font-semibold tracking-[-0.045em] sm:text-[18px] md:text-[21px]"
             >
               {heading}
             </h2>
@@ -126,7 +126,7 @@ export function AuthorShowcase({
                 href={`${buildProfilePath(username)}/posts`}
                 className="flex shrink-0 items-center gap-2 text-[11px] whitespace-nowrap text-[#ab4a22] hover:underline md:text-[12px] dark:text-[#efa471]"
               >
-                All my posts
+                View all posts
                 <ArrowRight aria-hidden="true" className="size-[15px]" />
               </Link>
             ) : null}
@@ -138,8 +138,7 @@ export function AuthorShowcase({
                 key={post.postId}
                 className={cn(
                   "min-w-0",
-                  index === 0 &&
-                    "md:col-span-2 lg:col-span-2 lg:row-span-2",
+                  index === 0 && "lg:col-span-2 lg:row-span-2",
                 )}
               >
                 <AuthorPostCard post={post} featured={index === 0} />

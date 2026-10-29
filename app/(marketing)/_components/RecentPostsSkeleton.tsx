@@ -23,7 +23,7 @@ export function RecentPostsSkeleton() {
           {[...Array(4)].map((_, i) => (
             <div
               key={i}
-              className="flex flex-col gap-4 rounded-xl bg-card ring-1 ring-foreground/10 overflow-hidden"
+              className="flex flex-col gap-4 rounded-md bg-card ring-1 ring-foreground/10 overflow-hidden"
             >
               <Skeleton className="h-56 w-full rounded-none" />
               <div className="px-6 pb-6 space-y-3">

@@ -29,7 +29,7 @@ export function DiscoverPostSummary({
   priority = false,
 }: DiscoverPostSummaryProps) {
   return (
-    <Card className="overflow-hidden">
+    <Card className="rounded-md overflow-hidden">
       <div className="relative aspect-[3/2] w-full">
         <CoverImage
           src={post.imageUrl}

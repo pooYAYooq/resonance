@@ -30,6 +30,8 @@ const card = (n: number): AuthorCard => ({
   postId: `post-${n}`,
   title: `Post ${n}`,
   imageUrl: `https://cdn.example/${n}.png`,
+  publishedAt: 1000 + n,
+  tags: [],
   likeCount: n,
 });
 
@@ -90,7 +92,7 @@ describe("AuthorShowcase", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "A few of my favourites" }),
+      screen.getByRole("heading", { name: "Selected articles" }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "More of my work" }));
 
@@ -307,7 +309,7 @@ describe("AuthorShowcase", () => {
       />,
     );
 
-    const catalogue = screen.getByRole("link", { name: /all my posts/i });
+    const catalogue = screen.getByRole("link", { name: /view all posts/i });
     expect(catalogue).toHaveAttribute("href", "/u/mayab/posts");
 
     rerender(
@@ -317,7 +319,7 @@ describe("AuthorShowcase", () => {
         initialShowcase={{ mode: "selected", posts: nine }}
       />,
     );
-    expect(screen.queryByRole("link", { name: /all my posts/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /view all posts/i })).toBeNull();
   });
 
   it("features the first visible work and spans its gallery cell", () => {
@@ -332,7 +334,7 @@ describe("AuthorShowcase", () => {
     const first = screen.getByText("Post 1").closest("li");
     const second = screen.getByText("Post 2").closest("li");
 
-    expect(first).toHaveClass("md:col-span-2");
+    expect(first).not.toHaveClass("md:col-span-2");
     expect(first).toHaveClass("lg:col-span-2");
     expect(first).toHaveClass("lg:row-span-2");
     expect(second).not.toHaveClass("md:col-span-2");
@@ -390,6 +392,25 @@ describe("AuthorShowcase", () => {
     ).toBeNull();
   });
 
+  it("keeps the section heading on one line at narrow widths", () => {
+    render(
+      <AuthorShowcase
+        userId="author"
+        username="maya"
+        initialShowcase={{ mode: "selected", posts: nine }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Selected articles" }),
+    ).toHaveClass(
+      "whitespace-nowrap",
+      "text-[15px]",
+      "sm:text-[18px]",
+      "md:text-[21px]",
+    );
+  });
+
   it("uses the responsive gallery grid schedule", () => {
     render(
       <AuthorShowcase
@@ -431,11 +452,8 @@ describe("AuthorShowcase", () => {
 
     expect(screen.queryByText("Post 1")).toBeNull();
     const promoted = screen.getByText("Post 2").closest("li");
-    expect(promoted).toHaveClass(
-      "md:col-span-2",
-      "lg:col-span-2",
-      "lg:row-span-2",
-    );
+    expect(promoted).not.toHaveClass("md:col-span-2");
+    expect(promoted).toHaveClass("lg:col-span-2", "lg:row-span-2");
     expect(
       screen.getByText("Post 2").closest('[data-featured="true"]'),
     ).not.toBeNull();

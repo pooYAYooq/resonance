@@ -427,16 +427,25 @@
   reserved, and deleted-account names return a shared 404.
 - The author page shows up to nine posts selected by the author in their saved
   order, three at a time with three more per More of my work and a polite
-  `Showing N of M posts.` announcement. An author with no selection instead
-  shows their three newest published posts. An author with no published work
-  renders no work section at all: no heading, cards, catalogue link, or reserved
-  space.
+  `Showing N of M posts.` announcement. When work exists, the gallery opens with
+  a large featured tile for the first visible work at desktop widths, with a 3:2
+  cover and the title below, followed by smaller tiles; the first card spans two
+  columns and two rows at large desktop widths. Below `lg` every card uses the
+  same small tile layout. The selected-work section is headed "Selected
+  articles" and keeps that heading on one line at narrow widths. Both cards show
+  the published date without a "Published" label; the featured card also shows
+  the post's tags. Longer titles step down a text size and clamp to two lines
+  with an ellipsis.
+  An author with no selection instead shows their three newest published posts.
+  An author with no published work renders no work section at all: no heading,
+  cards, catalogue link, or reserved space.
 - The public catalogue at `/u/<username>/posts` opens from the author page's
-  same-tab All my posts link. A compact header (avatar, display name, optional
+  same-tab View all posts link. A compact header (avatar, display name, optional
   `@username`, and a Back to profile link) sits over the author's published
   posts newest first, twelve at a time with Load more. An author with no
   published posts sees an explanation and the return link with no placeholder
-  grid; unknown names use the shared 404 recovery.
+  grid; unknown names use the shared 404 recovery. The catalogue keeps the
+  uniform tile grid.
 - The author page stays live without a reload: identity edits, deleted posts,
   and follower/following counts update in place, and deleting the author's final
   selection falls back to their latest posts. The catalogue keeps only its card
@@ -522,7 +531,11 @@
 
 - Landing page sections in `app/(marketing)/_components/`: Hero, Features,
   Recent Posts (Suspense + content-shaped skeleton), Stats
-- Shared `PostCard` across blog listing, landing, and profile pages
+- Shared `PostCard` for the feed, landing, and dashboard preview;
+  `DiscoverPostSummary` for Discover; `AuthorPostCard` for the author gallery
+  and catalogue
+- All post cards share the same small `rounded-md` corner radius across sizes
+  and layouts
 - `EmptyState` and `SectionHeading` primitives; `FooterCTA` remains limited to
   the legacy footer variant and is not rendered by the workspace shell
 - Dark/light/system theme toggle; toast notifications (Sonner)

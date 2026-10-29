@@ -72,11 +72,12 @@ were local and uncommitted.
   reserved space.
 - Viewer actions: the owner sees Edit Profile, a signed-in non-follower sees
   Follow, and the anonymous Follow link returns to the author page after login.
-- Selection and reveal: nine deliberate selections render as
-  `A few of my favourites` in that order; reveal is 3 to 6 to 9 with
+- Selection and reveal: nine deliberate selections render under
+  `Selected articles` (renamed from `A few of my favourites`) in that order;
+  reveal is 3 to 6 to 9 with
   `Showing 6 of 9 posts.` and `Showing 9 of 9 posts.`, focus moves to the first
   newly revealed card each time, and the control disappears at exhaustion.
-- Catalogue: the same-tab All my posts link opens twelve items, one load-more
+- Catalogue: the same-tab View all posts link opens twelve items, one load-more
   reaches thirteen unique links newest first, Back returns to the author page, a
   direct deep link works, and both the empty catalogue and the missing-author
   recovery render.

@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type PostCardCoverRatio = "3/2" | "16/9" | "fill";
+export type PostCardCoverRatio = "3/2" | "16/9";
 
 const RATIO_CLASSES: Record<PostCardCoverRatio, string> = {
   "3/2": "aspect-[3/2]",
   "16/9": "aspect-video",
-  fill: "h-full",
 };
 
 type PostCardCoverProps = {
@@ -19,10 +18,8 @@ type PostCardCoverProps = {
 /**
  * The clipped cover frame shared by post cards. The frame owns the ratio and
  * clipping; the card supplies the image so server-safe and retry-capable
- * covers can use the same geometry.
- *
- * `ratio="fill"` has no intrinsic height. The surrounding layout must give the
- * frame a resolvable height, such as a grid or flex item with a defined height.
+ * covers can use the same geometry. Card covers keep a horizontal ratio and
+ * never fill an arbitrary height.
  */
 export function PostCardCover({
   ratio = "3/2",
