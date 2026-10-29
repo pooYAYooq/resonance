@@ -295,6 +295,7 @@ describe("Discover summary and Search corpus boundaries", () => {
         userId: "author-1",
         displayName: "Ada Lovelace",
         bio: "",
+        avatarUrl: "https://cdn.example/ada.png",
         followerCount: 0,
         followingCount: 0,
         publishedPostCount: 0,
@@ -350,6 +351,7 @@ describe("Discover summary and Search corpus boundaries", () => {
       paginationOpts: { numItems: 10, cursor: null },
     });
     expect(latest.page).toHaveLength(1);
+    expect(latest.page[0].authorAvatarUrl).toBe("https://cdn.example/ada.png");
     expect(latest.page[0].bodyText).toContain("Opening body text");
     expect(latest.page[0].bodyText).not.toContain("caption");
     expect(latest.page[0].bodyText).not.toContain("TAIL_MARKER");
@@ -1600,6 +1602,7 @@ describe("Public Discover queries", () => {
       authorId: "author-2",
       authorName: "Grace Hopper",
       authorUsername: null,
+      authorAvatarUrl: null,
       tags: ["Science"],
       imageUrl: null,
       publishedAt: 20,
