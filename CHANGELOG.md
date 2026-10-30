@@ -17,6 +17,13 @@ work is tracked in `ROADMAP.md`.
   feature, and length-aware two-line titles. Below `lg` every card uses the same
   small tile layout.
 
+- Feed and Blog now use uniform horizontal post rows with author avatars,
+  names, concise published dates, tags, engagement, and a Save/Read action.
+  Covers fill the row height at `md` and up, and rows omit excerpts. The feed
+  auto-loads with a visible Load more fallback; Blog keeps manual Load more with
+  focus restoration and polite status announcements. The Blog surface is
+  renamed from Discover while the `/blog` route stays.
+
 - Post cards now share the same small corner radius across sizes and layouts.
 
 - Accessible show/hide password controls on login and sign-up, with the current

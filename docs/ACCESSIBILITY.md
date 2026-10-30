@@ -57,6 +57,38 @@ behavioral failure.
 
 ## Results
 
+### Feed and Blog cards (2026-10-30)
+
+- Revision: `11b910d` on `feat/feed-and-blog-post-cards`; base `25a7ad0`.
+- Automated: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test:ci` (908 tests),
+  `pnpm test:component` (1153 tests), `pnpm build`, and `pnpm format:check`
+  passed.
+- Desktop visual confirmation: the maintainer confirmed the feed and Blog
+  uniform rows, real avatars, dates, tags, engagement, Save/Read actions,
+  excerpt-free rows, full-height covers at `md+`, and the Blog hover lift on
+  `/blog`.
+- Keyboard/component evidence: Blog Load more restores focus to the first
+  appended card when the final page removes the button, keeps the in-flight
+  control focusable with `aria-disabled`, and announces the current count,
+  loading, and completion through a persistent polite status. Feed auto-load
+  keeps the visible fallback and restores focus when an auto-load removes the
+  final button.
+- Footer spacing: the Blog results grid keeps bottom padding, and the Load more
+  control keeps a reserved 64px slot even after the final page removes the
+  button, so the footer does not jump and the last card keeps its gap.
+  Component-tested; desktop confirmation is pending the spacing pass.
+- Browser check: headless Chromium through local Playwright at 1280px against
+  the signed-out public `/blog` on the local dev server. Nine cards rendered
+  with zero excerpt paragraphs; the last card bottom was 2577px and the footer
+  top 2713px (136px gap); the reserved Load more slot was 64px with no button
+  after exhaustion. The card hover lift and full-height covers were visible.
+- Not verified: the signed-in feed, the 320/375/768/1024 widths, and the dark
+  theme in a real browser; the T3 preview was disconnected or signed out during
+  this revision. Mobile stacks and responsive classes are component-tested
+  only. No real screen reader was used for the status regions.
+- Retest when the feed/Blog card classes, pagination controls, or status copy
+  change, or when a signed-in browser session is available for the width matrix.
+
 ### Sidebar and mobile drawer iterations (2026-10-28)
 
 Working tree on `codex/dashboard-sidebar-improvements`, based on

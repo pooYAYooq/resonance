@@ -7,15 +7,17 @@ a session history.
 ## Current focus
 
 V1-20, context-specific post-card variants on
-`feat/context-post-card-variants`. The author profile and catalogue cards are
-implemented, browser-verified, and approved; feed, Discover, and landing cards
-remain. [Features](../FEATURES.md#profiles--settings) owns the author-page
-capability.
+`feat/feed-and-blog-post-cards`. The author gallery is merged; the feed and Blog
+rows are implemented with uniform horizontal cards, full author metadata, no
+excerpt, full-height covers at `md` and up, hybrid feed pagination, manual Blog
+pagination, and the Blog surface name. Landing and collections remain.
+[Features](../FEATURES.md#blog) owns the reader capabilities.
 
 ## Next action
 
-Open the Phase 1 PR for review and merge, then start the feed and Discover
-phase. The remaining physical-mobile verification for auth is recorded in
+Finish the feed and Blog width/theme browser matrix, then open the Phase 2 PR.
+After merge, start the landing card and close out V1-20. The remaining
+physical-mobile verification for auth is recorded in
 [known limitations](KNOWN_LIMITATIONS.md#authentication-and-sessions).
 
 Saved and Liked behavior remains documented in
@@ -28,8 +30,8 @@ reopen the relevant checks under the evidence document's retest triggers.
 
 ## Blockers and constraints
 
-- The feed loading-announcement advisory is explicitly deferred. It is not a
-  reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
+- Feed and Blog pagination status regions are component-tested, not verified
+  with a real screen reader; see [known limitations](KNOWN_LIMITATIONS.md).
 - The dev deployment carries disposable fixture data; existing accounts and
   retained test posts are described in [notifications evidence](NOTIFICATIONS_EVIDENCE.md).
   Browser checks delete only what they create unless the maintainer explicitly

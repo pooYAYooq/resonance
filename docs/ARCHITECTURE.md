@@ -97,7 +97,7 @@ resonance/
 │   ├── (site)/                 # Reader routes (Navbar + compact Footer)
 │   │   ├── layout.tsx          # SiteShell with the compact footer.
 │   │   ├── blog/
-│   │   │   ├── page.tsx        # Discover route. Server Component. Normalizes URL state.
+│   │   │   ├── page.tsx        # Blog route. Server Component. Normalizes URL state.
 │   │   │   ├── _components/    # Search, Topics, states, summaries, and paginated results
 │   │   │   └── [postId]/
 │   │   │       ├── page.tsx    # Post detail. fetchQuery + generateMetadata.
@@ -261,9 +261,13 @@ resonance/
 │       │                       # optimistic state sync, toasts) — wrapped by LikeButton/CommentLikeButton
 │       ├── CommentLikeButton.tsx # Thin LikeToggle wrapper bound to toggleCommentLike;
 │       │                       # rendered on each CommentCard
-│       ├── PostCard.tsx         # Reusable post card with optional linked tags. Title is an <h2> so the
-│       │                        # page-level <h1> remains unique per page. Derives excerpts from
-│       │                        # stored bodies via lib/post-content so serialized JSON never leaks.
+│       ├── PostCard.tsx         # Legacy landing/dashboard preview card, closed to new consumers.
+│       │                        # Title is an <h2> so the page-level <h1> remains unique per page.
+│       │                        # Derives excerpts from stored bodies via lib/post-content.
+│       ├── FeedPostCard.tsx     # Feed row: 3:2 cover that fills the row at md+, author line,
+│       │                        # title, tags, engagement, and Read. No excerpt.
+│       ├── BlogPostCard.tsx     # Blog row: 16:9 cover that fills the row at md+, title,
+│       │                        # author line, tags, static like count, Save, and Read. No excerpt.
 │       ├── CollectionPostCard.tsx # Saved/Liked presentation: 3:2 cover, byline after
 │       │                         # title, tags under the cover, page-specific action,
 │       │                         # and a flat mobile row.
@@ -273,9 +277,9 @@ resonance/
 │       │                        # blank transparent fallback surface with a subtle
 │       │                        # bottom border. Cards, the reader, and Review agree;
 │       │                        # published surfaces render through PostCover. Server-component safe.
-│       ├── PostCardCover.tsx    # Shared post-card cover frame: ratio and clipping
-│       │                        # only; cards supply server-safe or retry-capable
-│       │                        # images. Server-component safe.
+│       ├── PostCardCover.tsx    # Shared post-card cover frame: ratio below md, clipping,
+│       │                        # and a full-height row cover at md+; cards supply
+│       │                        # server-safe or retry-capable images. Server-component safe.
 │       ├── PostCover.tsx        # Published 16:9 cover frame: one ratio, one clip,
 │       │                        # no height cap, and the single crop/focal seam.
 │       │                        # Server-component safe; a caller's aspect-* cannot override.
@@ -594,14 +598,14 @@ parameters are removed from mode-switch links. Search uses native Convex
 full-text relevance over title, extracted body text, and current author name.
 Latest and Topic results use indexed, bounded pagination by `publishedAt`.
 Result pages hydrate only their bounded rows through `discoverPosts`, resolving
-cover URLs after the page is known. Missing projection rows
-are omitted rather than exposing incomplete summaries.
+cover URLs and each author's avatar and username after the page is known.
+Missing projection rows are omitted rather than exposing incomplete summaries.
 
 The projected `commentCount` and `likeCount` values are copied during publish
 and published-edit synchronization, then kept aligned by the like and comment
 mutations through the same transaction.
 
-The route composes `DiscoverSearch`, `BlogPostList`, `DiscoverPostSummary`,
+The route composes `DiscoverSearch`, `BlogPostList`, `BlogPostCard`,
 `DiscoverStates`, and `DiscoverTopics`. Search remains first; on mobile the
 main result stream remains before the Topic section, while desktop uses a
 dominant main column and narrower Topic rail. The authenticated Feed empty

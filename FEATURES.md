@@ -48,7 +48,7 @@
   with a profile link at the top, a shared Settings and Theme row, and Sign Out
   below the navigation. Accounts without a username link to profile setup. The
   navbar bell provides access to notifications. Anonymous users get Home,
-  Discover, Log In, Sign Up, and theme controls.
+  Blog, Log In, Sign Up, and theme controls.
 - The desktop workspace sidebar collapses from 312px to a 54px icon rail with
   hover and keyboard-focus labels, active destination styling, and an unread
   notification dot. Its expand control is visible on devices that cannot hover.
@@ -64,7 +64,7 @@
   the owner-bound claim lifecycle, and remote media must use safe HTTP(S) URLs
 - Post bodies use the canonical `blocknote@1` structured document format,
   validated at both the browser form and the Convex write boundary
-- Discover at `/blog` defaults to Latest published posts, searches title,
+- Blog at `/blog` defaults to Latest published posts, searches title,
   extracted body text, and author name with `q`, and opens paginated canonical
   Topic listings with `tag`; post detail remains at `/blog/[postId]` with
   dynamic OG metadata
@@ -255,7 +255,7 @@
   action. Removing that action removes the row reactively. Toggle names include
   the post title, and focus restoration retains the page-specific action across
   rows while ignoring group headings when choosing fallback targets. Empty
-  collections link to Discover.
+  collections link to Blog.
 - Collection cards do not show a saved/liked timestamp or the post publication
   date. The time group is the only visible time context; exact timestamps and
   collection search or filters remain deferred. Excerpts and Read More are also
@@ -302,7 +302,7 @@
   visible until the server response is ready. Slow requests show a small status
   indicator after 150ms; no full-screen overlay or comment-anchor scrolling runs.
   Missing comments keep the published post context; unavailable posts show a
-  Discover link, and conversation request failures offer retry. Actor names and
+  Blog link, and conversation request failures offer retry. Actor names and
   avatars open the profile at the top; post titles/covers and post-like events
   open the full article at the top. Comment actions and excerpts open the focused
   conversation on desktop and mobile. Opening the already-visible destination
@@ -373,7 +373,7 @@
   through the request's creation watermark in batches, preserving newer arrivals.
   Rows stay as visual history within the retention policy below, and focus
   returns to the named list region after the request succeeds.
-- The empty state names the missing list and recovers to Discover
+- The empty state names the missing list and recovers to Blog
 - Deleting a post removes its notifications in the bounded post-deletion
   cascade, decrementing each unread row's counter exactly once.
 - Missing or unpublished posts are filtered out of the list. A missing comment
@@ -396,16 +396,23 @@
   cannot restore notifications already removed. Verification is recorded in
   [notification retention evidence](docs/NOTIFICATIONS_EVIDENCE.md#notification-retention).
 
-### Discover
+### Blog
 
 - `/blog` provides Latest, published-post and author-name Search, and active
-  canonical Topics with bounded pagination and Discover-specific editorial
-  summaries
+  canonical Topics with bounded pagination
 - Published posts maintain bounded `discoverPosts`, `discoverPostTopics`, and
   `topicStats` projections through publish/edit lifecycle synchronization;
   bounded backfill and author-name repair are retry-safe
-- An authenticated empty Feed state links to Discover so readers can find
+- An authenticated empty Feed state links to Blog so readers can find
   authors and topics before following them
+- Blog results render as uniform horizontal rows: a 16:9 cover, title,
+  avatar/name, absolute published date, tags, static like count, Save, and Read.
+  The cover fills the row at `md` and up; rows show no excerpt
+- The list keeps manual Load more pagination with focus restoration when the
+  final page removes the button, and a polite status for loading, appended
+  counts, and completion
+- The user-facing surface is named Blog; the `/blog` route and internal
+  `discover` query names stay
 
 ### Reader Feed
 
@@ -414,6 +421,12 @@
 - A 30-day materialized `feed` table provides one globally ordered stream across authors
 - Pages contain at most 20 posts and use a fixed `asOf` cutoff for stable cursor pagination
 - Post fan-out, follow backfill, unfollow deletion, and daily expiration cleanup run in bounded scheduled batches
+- Feed rows use a 3:2 cover that fills the row at `md` and up, author
+  avatar/name, relative published time, title, tags, engagement, and Read; rows
+  show no excerpt
+- Feed pagination is hybrid: a sentinel auto-loads the next page with a visible
+  Load more fallback and a polite status; focus is restored when an auto-load
+  removes the button
 
 ### Profiles & Settings
 
@@ -531,10 +544,10 @@
 
 - Landing page sections in `app/(marketing)/_components/`: Hero, Features,
   Recent Posts (Suspense + content-shaped skeleton), Stats
-- Shared `PostCard` for the feed, landing, and dashboard preview;
-  `DiscoverPostSummary` for Discover; `AuthorPostCard` for the author gallery
-  and catalogue
-- All post cards share the same small `rounded-md` corner radius across sizes
+- `FeedPostCard` for the feed; `BlogPostCard` for Blog; `PostCard` remains the
+  legacy landing and dashboard preview card; `AuthorPostCard` for the author
+  gallery and catalogue
+- All post cards share the same small `rounded-sm` corner radius across sizes
   and layouts
 - `EmptyState` and `SectionHeading` primitives; `FooterCTA` remains limited to
   the legacy footer variant and is not rendered by the workspace shell
