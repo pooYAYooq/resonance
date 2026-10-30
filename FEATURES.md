@@ -64,7 +64,7 @@
   the owner-bound claim lifecycle, and remote media must use safe HTTP(S) URLs
 - Post bodies use the canonical `blocknote@1` structured document format,
   validated at both the browser form and the Convex write boundary
-- Blog at `/blog` defaults to Latest published posts, searches title,
+- Blog at `/blog` defaults to all published posts, newest first, searches title,
   extracted body text, and author name with `q`, and opens paginated canonical
   Topic listings with `tag`; post detail remains at `/blog/[postId]` with
   dynamic OG metadata
@@ -398,7 +398,7 @@
 
 ### Blog
 
-- `/blog` provides Latest, published-post and author-name Search, and active
+- `/blog` provides All posts, published-post and author-name Search, and active
   canonical Topics with bounded pagination
 - Published posts maintain bounded `discoverPosts`, `discoverPostTopics`, and
   `topicStats` projections through publish/edit lifecycle synchronization;
@@ -411,6 +411,23 @@
 - The list keeps manual Load more pagination with focus restoration when the
   final page removes the button, and a polite status for loading, appended
   counts, and completion
+- Below `xl`, a closed-by-default Topics control opens an overlay panel that
+  does not move the results. At `sm` and up, search and Topics share a square,
+  same-height row; below `sm`, Topics stacks as a full-width bar. Topics are
+  ordered by published count, ties alphabetically, and the active topic uses
+  color only. The panel closes on selection, Escape, or outside click; at `xl`
+  and up the 18rem Topics sidebar remains. An active search shows a clear
+  control; clearing the field or submitting an empty field returns to All posts
+- Below `md`, Blog rows drop card chrome and become full-width flat list items
+  with dividers; the page uses the container's 16/24/32px side padding. The
+  hero is full width with no top padding, uses a 36px title and a concise
+  description, and the search/Topics bar stays sticky below the navigation.
+  Tablet uses a 60px title and 32px page top padding. On short landscape
+  viewports the navbar scrolls away and the search/Topics bar pins at the top,
+  leaving room for a full post. Topic and search navigation scrolls to the
+  results header, leaving only the hero above the sticky controls; the active
+  topic has a clear X in both the sub-`xl` control and the `xl` sidebar, and the
+  sidebar sticks below the search bar.
 - The user-facing surface is named Blog; the `/blog` route and internal
   `discover` query names stay
 
@@ -421,9 +438,11 @@
 - A 30-day materialized `feed` table provides one globally ordered stream across authors
 - Pages contain at most 20 posts and use a fixed `asOf` cutoff for stable cursor pagination
 - Post fan-out, follow backfill, unfollow deletion, and daily expiration cleanup run in bounded scheduled batches
-- Feed rows use a 3:2 cover that fills the row at `md` and up, author
-  avatar/name, relative published time, title, tags, engagement, and Read; rows
-  show no excerpt
+- Feed rows stack below `lg`, use a 50/50 row at `lg`, and a 40/60 row at `xl`;
+  the 3:2 cover fills the row at `lg` and up. Rows show author avatar/name,
+  relative published time, title, tags, engagement, and Read, with no excerpt
+- Below `md`, feed rows drop card chrome and become full-width flat list items
+  with dividers
 - Feed pagination is hybrid: a sentinel auto-loads the next page with a visible
   Load more fallback and a polite status; focus is restored when an auto-load
   removes the button
@@ -542,11 +561,14 @@
 
 ### UI/UX
 
+- Compact sticky navbar with a 24px wordmark and 10px vertical padding, while
+  keeping the 44px mobile menu and 32px account avatar comfortable; the menu
+  space is reserved during auth loading so the navbar does not shift
 - Landing page sections in `app/(marketing)/_components/`: Hero, Features,
   Recent Posts (Suspense + content-shaped skeleton), Stats
-- `FeedPostCard` for the feed; `BlogPostCard` for Blog; `PostCard` remains the
-  legacy landing and dashboard preview card; `AuthorPostCard` for the author
-  gallery and catalogue
+- `FeedPostCard` for the feed; `BlogPostCard` for Blog; `BlogTopicsMenu` for the
+  sub-`xl` topic selector; `PostCard` remains the legacy landing and dashboard
+  preview card; `AuthorPostCard` for the author gallery and catalogue
 - All post cards share the same small `rounded-sm` corner radius across sizes
   and layouts
 - `EmptyState` and `SectionHeading` primitives; `FooterCTA` remains limited to

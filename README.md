@@ -10,7 +10,7 @@
 | Feature              | Description                                                                                                                                                                                |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                                                  |
-| **Blog**             | Latest published posts, full-text Search over title/body/author, active canonical Topics, bounded paginated rows with author metadata, and Feed recovery                                   |
+| **Blog**             | All published posts, full-text Search over title/body/author, active canonical Topics, bounded paginated rows with author metadata, and Feed recovery                                      |
 | **Blog and Posts**   | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, edit published posts in place, and read individual posts                      |
 | **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                                                 |
 | **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                                                  |
@@ -354,12 +354,12 @@ account as `users.welcomeDismissedAt`; see
 
 ### Data Fetching Patterns
 
-| Section       | Query                                                                | Pattern                                         |
-| ------------- | -------------------------------------------------------------------- | ----------------------------------------------- |
-| Landing stats | `fetchQuery(api.posts.countPosts)`                                   | Live total post count                           |
-| Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`                    | Paginated, wrapped in `<Suspense>`              |
-| Blog          | `usePaginatedQuery(api.discover.getDiscoverPosts)` / `getTopicPosts` | Reactive Latest/Search/Topic projection reads   |
-| Post detail   | `fetchQuery(api.posts.getPostById)`                                  | Single post + cover/inline image URL resolution |
+| Section       | Query                                                                | Pattern                                          |
+| ------------- | -------------------------------------------------------------------- | ------------------------------------------------ |
+| Landing stats | `fetchQuery(api.posts.countPosts)`                                   | Live total post count                            |
+| Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`                    | Paginated, wrapped in `<Suspense>`               |
+| Blog          | `usePaginatedQuery(api.discover.getDiscoverPosts)` / `getTopicPosts` | Reactive All posts/Search/Topic projection reads |
+| Post detail   | `fetchQuery(api.posts.getPostById)`                                  | Single post + cover/inline image URL resolution  |
 
 ---
 

@@ -59,14 +59,15 @@ behavioral failure.
 
 ### Feed and Blog cards (2026-10-30)
 
-- Revision: `11b910d` on `feat/feed-and-blog-post-cards`; base `25a7ad0`.
+- Revision: Blog responsive `b3e731f`; feed responsive `3950e3f`; base
+  `25a7ad0`.
 - Automated: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test:ci` (908 tests),
-  `pnpm test:component` (1153 tests), `pnpm build`, and `pnpm format:check`
+  `pnpm test:component` (1173 tests), `pnpm build`, and `pnpm format:check`
   passed.
 - Desktop visual confirmation: the maintainer confirmed the feed and Blog
   uniform rows, real avatars, dates, tags, engagement, Save/Read actions,
-  excerpt-free rows, full-height covers at `md+`, and the Blog hover lift on
-  `/blog`.
+  excerpt-free rows, full-height covers at the horizontal breakpoint, and the
+  Blog hover lift on `/blog`.
 - Keyboard/component evidence: Blog Load more restores focus to the first
   appended card when the final page removes the button, keeps the in-flight
   control focusable with `aria-disabled`, and announces the current count,
@@ -75,19 +76,76 @@ behavioral failure.
   final button.
 - Footer spacing: the Blog results grid keeps bottom padding, and the Load more
   control keeps a reserved 64px slot even after the final page removes the
-  button, so the footer does not jump and the last card keeps its gap.
-  Component-tested; desktop confirmation is pending the spacing pass.
-- Browser check: headless Chromium through local Playwright at 1280px against
-  the signed-out public `/blog` on the local dev server. Nine cards rendered
-  with zero excerpt paragraphs; the last card bottom was 2577px and the footer
-  top 2713px (136px gap); the reserved Load more slot was 64px with no button
-  after exhaustion. The card hover lift and full-height covers were visible.
-- Not verified: the signed-in feed, the 320/375/768/1024 widths, and the dark
-  theme in a real browser; the T3 preview was disconnected or signed out during
-  this revision. Mobile stacks and responsive classes are component-tested
-  only. No real screen reader was used for the status regions.
-- Retest when the feed/Blog card classes, pagination controls, or status copy
-  change, or when a signed-in browser session is available for the width matrix.
+  button, so the footer does not jump and the last card keeps its gap. Browser
+  checked at every tested width.
+- Browser check: headless Chromium through local Playwright against the
+  signed-out public `/blog` on the local dev server at 320, 375, 768, 1024, and
+  1280 in light and dark. No horizontal overflow at any width. Card covers
+  stayed horizontal: 1.78 at 320/375, 1.66 at 768, 2.21 at 1024, and 2.06 at 1280. Below `md`, cards were flat full-width list items (transparent, no ring
+  or shadow, 0 radius) at 288/343px content width; at 768 the boxed row was
+  720px wide. The page used the container's 16/24/32px side padding. The
+  reserved Load more slot was 64px at every width. The last-card-to-footer gap
+  was 128px at 320/375 and 136px at 768/1024/1280.
+- Topics menu: below `xl`, the trigger is closed by default. At 768/1024 search
+  and Topics shared a row (search 452/692px, Topics 256x56px, both square with
+  a 0px radius); at 320 both stacked full width at 288x56px. Opening the panel
+  kept the first-card top unchanged (799px at 320, 694px at 768, 738px at
+  1024). The panel was 288px wide at 320 and 384px at 768/1024; at `sm` and up
+  it right-aligns to the trigger, so it stayed fully inside the viewport at
+  640, 768, 900, and 1024. Escape closed it and returned focus to the trigger.
+  Choosing Design navigated to
+  `/blog?tag=Design`, changed the trigger to "Topics: Design", and closed the
+  panel. Topics were ordered Culture (5), Design (4), Photography (4); the
+  selected Culture link had `text-decoration: none` and the primary color, and
+  the selected All topics link used color only. At 1280 the trigger was hidden
+  and the 18rem sidebar was visible. The dark panel was checked at 768.
+- Search clear: on `/blog?q=design`, the clear control was visible and removed
+  the query. Clicking it returned to `/blog`, emptied the input, and showed
+  All posts; emptying the field by hand did the same. The control was absent
+  on `/blog`, and the clear and Search controls fit inside the 240px field at 320. The native `::-webkit-search-cancel-button` is suppressed, so only the
+  custom clear control is visible.
+- Responsive hero: at 320/375 the hero starts at the navigation bottom with no
+  top padding and is 286/246px tall, with a 36px title and the concise
+  description. At 640 it is 319px tall with a 48px title; at 768 the top
+  padding is 32px, the height is 331px, and the title is 60px. The desktop hero
+  is unchanged at 391px with a 72px title.
+- Sticky filter bar: after scrolling 1200px at 320, 375, 640, 768, and 1024, the
+  search/Topics wrapper stayed at the navigation bottom (65px below 768, 57px
+  at 768/1024). Its 12px top padding kept the search and Topics visible. At
+  1280 the 18rem Topics sidebar stuck at 138px, directly below the search bar.
+- Compact navbar: the navbar is now 65px tall on mobile and 57px on desktop,
+  with a 24px logo. The 32px avatar, 36px notification/theme controls, and 44px
+  mobile menu all fit inside it. The navbar keeps its 1px bottom border; the
+  Blog filter tucks 1px underneath it: navbar bottom 65px, filter top 64px. The
+  border draws over the filter background, so a post cover behind the seam at
+  393/412/360 widths cannot show through. A 44px mobile-menu placeholder and a
+  65/57px min-height keep
+  the navbar from growing when auth resolves; the measured height stayed 65px
+  at 320 and 57px at 768/1280 through a 1.5s load sample.
+- Results anchor: choosing Design or submitting `design` navigated to
+  `#blog-results` and placed the title directly below the sticky controls. At
+  768/1280 the sticky bar top was 57px, the title 160px, and the first card
+  229px; at 320 the values were 65px, 236px, and 305px. The hero stayed above
+  the viewport. Filtered pages keep an 80px bottom cushion so the target scroll
+  is reachable even with one result.
+- Short landscape: at 932x430, 844x390, 667x375, and 568x320 the navbar became
+  static and scrolled away, the search/Topics bar stayed pinned at 0px with a
+  73px height, the title sat at 96px, and the first card at 165px. The filter
+  stayed a single row at 568px, with no horizontal overflow. This leaves the
+  title and a full post visible on the A71 landscape viewport.
+- Topic clear: the active topic showed the circled X in the sub-`xl` trigger
+  and in the `xl` sidebar. Clearing it returned to `/blog#blog-results` with the
+  title and first post in the same position.
+- Feed layout preview: a temporary mock preview with a 312px simulated
+  workspace sidebar showed the feed card stacked at 768 (cover 408x249),
+  50/50 at 1024 (cover 316x228), and 40/60 at 1280 (cover 355x228). This is a
+  layout check, not the authenticated feed.
+- Not verified: the authenticated feed at any width; the T3 preview was
+  disconnected or signed out during this revision. No real screen reader was
+  used for the status regions.
+- Retest when the feed/Blog card classes, pagination controls, status copy,
+  Blog grid breakpoints, or Topics menu behavior change, or when a signed-in
+  session is available for the feed matrix.
 
 ### Sidebar and mobile drawer iterations (2026-10-28)
 

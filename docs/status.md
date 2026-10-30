@@ -8,16 +8,19 @@ a session history.
 
 V1-20, context-specific post-card variants on
 `feat/feed-and-blog-post-cards`. The author gallery is merged; the feed and Blog
-rows are implemented with uniform horizontal cards, full author metadata, no
-excerpt, full-height covers at `md` and up, hybrid feed pagination, manual Blog
-pagination, and the Blog surface name. Landing and collections remain.
+rows are implemented with uniform cards, full author metadata, no excerpt,
+full-height covers at the horizontal breakpoint, hybrid feed pagination, manual
+Blog pagination, the Blog surface name, sticky search/Topics controls, a compact
+mobile hero, and a short-landscape layout. Landing and collections remain.
 [Features](../FEATURES.md#blog) owns the reader capabilities.
 
 ## Next action
 
-Finish the feed and Blog width/theme browser matrix, then open the Phase 2 PR.
-After merge, start the landing card and close out V1-20. The remaining
-physical-mobile verification for auth is recorded in
+Run the authenticated feed width/theme browser matrix, then open the Phase 2 PR.
+The public Blog matrix is recorded in
+[accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30). After
+merge, start the landing card and close out V1-20. The remaining physical-mobile
+verification for auth is recorded in
 [known limitations](KNOWN_LIMITATIONS.md#authentication-and-sessions).
 
 Saved and Liked behavior remains documented in

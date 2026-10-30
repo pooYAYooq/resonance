@@ -137,11 +137,14 @@ real-runtime stress matrix, and the deletion-cascade limitation stay visible in
 selected-work gallery and the shared cover frame are implemented and
 browser-verified, and the profile and catalogue cards are approved. The feed and
 Blog rows now use uniform horizontal cards with full author metadata, no
-excerpt, full-height covers at `md` and up, hybrid feed pagination, manual Blog
-pagination, and the Blog surface name; desktop presentation is confirmed by the
-maintainer and a signed-out 1280px Blog check is recorded in
+excerpt, full-height covers at the horizontal breakpoint, hybrid feed
+pagination, manual Blog pagination, and the Blog surface name. The Blog search
+and Topics controls stay sticky, the mobile hero is compact, and short
+landscape viewports use a static navbar with a pinned compact filter. Desktop
+presentation is confirmed by the maintainer and the public Blog width/theme
+matrix at 320/375/768/1024/1280 is recorded in
 [accessibility evidence](docs/ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30).
-The remaining width and theme matrix stays in
+The authenticated feed matrix stays in
 [known limitations](docs/KNOWN_LIMITATIONS.md).
 Landing, collections, and the closeout remain. The Dashboard Overview stays
 deferred and is not part of V1-20.
