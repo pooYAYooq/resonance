@@ -29,7 +29,8 @@ export function PostAuthorLine({
   const profileHref = authorUsername ? buildProfilePath(authorUsername) : null;
   const dateLabel =
     dateMode === "relative"
-      ? formatRelativeTime(date, now ?? Date.now())
+      ? // eslint-disable-next-line react-hooks/purity -- Fallback display time when the caller does not pin `now`
+        formatRelativeTime(date, now ?? Date.now())
       : formatPostDate(date);
 
   return (

@@ -286,18 +286,20 @@ describe("FeedContent", () => {
       isDone: false,
       continueCursor: "cursor-1",
     };
-    let nextPage:
-      | {
-          page: ReturnType<typeof post>[];
-          isDone: boolean;
-          continueCursor: string;
-        }
-      | undefined;
+    const nextPage: {
+      current:
+        | {
+            page: ReturnType<typeof post>[];
+            isDone: boolean;
+            continueCursor: string;
+          }
+        | undefined;
+    } = { current: undefined };
     useQueryState.mockImplementation(
       (args: { paginationOpts: { cursor: string | null } } | "skip") =>
         args === "skip" || args.paginationOpts.cursor === null
           ? firstPage
-          : nextPage,
+          : nextPage.current,
     );
     const view = render(<FeedContent />);
 
@@ -306,7 +308,7 @@ describe("FeedContent", () => {
     const button = screen.getByRole("button", { name: /loading/i });
     button.focus();
 
-    nextPage = {
+    nextPage.current = {
       page: [post("post-2", "Second post")],
       isDone: true,
       continueCursor: "",

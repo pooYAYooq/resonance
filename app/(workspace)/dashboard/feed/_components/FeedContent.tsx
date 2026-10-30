@@ -33,7 +33,6 @@ export function FeedContent() {
   const rootRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLButtonElement>(null);
-  const itemCountRef = useRef(0);
   const paginationFocusRef = useRef<{
     control: HTMLButtonElement;
     itemCount: number;
@@ -59,12 +58,15 @@ export function FeedContent() {
       : "skip",
   );
 
+  const currentItemCount = () =>
+    rootRef.current?.querySelectorAll('[data-slot="card"]').length ?? 0;
+
   const requestNextPage = useCallback(() => {
     if (!page || page.isDone) return;
     if (loadMoreRef.current && document.activeElement === loadMoreRef.current) {
       paginationFocusRef.current = {
         control: loadMoreRef.current,
-        itemCount: itemCountRef.current,
+        itemCount: currentItemCount(),
       };
     }
     setPages((current) => [...current, ...page.page]);
@@ -138,7 +140,6 @@ export function FeedContent() {
       [...pages, ...(page?.page ?? [])].map((post) => [post._id, post]),
     ).values(),
   );
-  itemCountRef.current = uniquePosts.length;
 
   if (uniquePosts.length === 0 && page?.isDone) {
     return (
@@ -191,7 +192,7 @@ export function FeedContent() {
               if (!loadMoreRef.current) return;
               paginationFocusRef.current = {
                 control: loadMoreRef.current,
-                itemCount: itemCountRef.current,
+                itemCount: currentItemCount(),
               };
             }}
             onBlur={(event) => {

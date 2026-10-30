@@ -4,7 +4,11 @@ import { BlogPostCard } from "./BlogPostCard";
 
 vi.mock("@/components/web/CoverImage", () => ({
   CoverImage: ({ alt, priority }: { alt: string; priority?: boolean }) => (
-    <img alt={alt} data-priority={String(Boolean(priority))} />
+    <span
+      role="img"
+      aria-label={alt}
+      data-priority={String(Boolean(priority))}
+    />
   ),
 }));
 
@@ -121,14 +125,14 @@ describe("BlogPostCard", () => {
   });
 
   it("renders the cover image when one exists", () => {
-    const { container } = render(
+    render(
       <BlogPostCard
         post={{ ...post, imageUrl: "https://cdn.example/cover.png" }}
         priority
       />,
     );
 
-    expect(screen.getByAltText("Readable title")).toHaveAttribute(
+    expect(screen.getByRole("img", { name: "Readable title" })).toHaveAttribute(
       "data-priority",
       "true",
     );
