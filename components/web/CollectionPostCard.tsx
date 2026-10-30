@@ -36,7 +36,7 @@ export function CollectionPostCard({
   const profileHref = authorUsername ? buildProfilePath(authorUsername) : null;
 
   return (
-    <Card className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-3 rounded-none border-b border-border/70 bg-transparent p-0 pt-3 pb-4 shadow-none ring-0 overflow-visible last:border-b-0 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-4 sm:rounded-md sm:border-0 sm:bg-card sm:p-4 sm:shadow-xs sm:ring-1 sm:overflow-hidden sm:transition-colors sm:hover:bg-muted/50 sm:focus-within:bg-muted/50 xl:h-full">
+    <Card className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-3 rounded-none border-b border-border/70 bg-transparent p-0 pt-3 pb-4 shadow-none ring-0 overflow-visible last:border-b-0 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-4 sm:rounded-sm sm:border-0 sm:bg-card sm:p-4 sm:shadow-xs sm:ring-1 sm:overflow-hidden sm:transition-colors sm:hover:bg-muted/50 sm:focus-within:bg-muted/50 xl:h-full">
       <div className="col-start-1 row-start-1 relative aspect-[3/2] w-[96px] shrink-0 self-start overflow-hidden rounded-sm bg-muted sm:w-28">
         <CoverImage
           src={imageUrl}

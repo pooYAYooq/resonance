@@ -164,9 +164,10 @@ describe("SavedSection", () => {
     render(<SavedSection />);
 
     expect(screen.getByText("No saved posts yet")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Explore Discover" }),
-    ).toHaveAttribute("href", "/blog");
+    expect(screen.getByRole("link", { name: "Explore Blog" })).toHaveAttribute(
+      "href",
+      "/blog",
+    );
     expect(paginatedArgs).toHaveBeenCalledWith({});
   });
 
@@ -339,9 +340,7 @@ describe("SavedSection", () => {
     rerender(<SavedSection />);
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: "Explore Discover" }),
-      ).toHaveFocus(),
+      expect(screen.getByRole("link", { name: "Explore Blog" })).toHaveFocus(),
     );
   });
 
@@ -633,9 +632,7 @@ describe("SavedSection", () => {
     rerender(<SavedSection />);
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: "Explore Discover" }),
-      ).toHaveFocus(),
+      expect(screen.getByRole("link", { name: "Explore Blog" })).toHaveFocus(),
     );
   });
 

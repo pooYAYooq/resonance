@@ -18,9 +18,16 @@ describe("DiscoverTopics", () => {
 
     expect(screen.getByRole("link", { name: /technology/i })).toHaveAttribute(
       "href",
-      "/blog?tag=Technology",
+      "/blog?tag=Technology#blog-results",
     );
     expect(screen.getByText("12 posts")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Clear topic" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("list")).toHaveClass(
+      "grid-cols-2",
+      "xl:grid-cols-1",
+    );
   });
 
   it("marks only the active canonical topic", async () => {
@@ -41,13 +48,17 @@ describe("DiscoverTopics", () => {
     expect(screen.getByRole("link", { name: /design/i })).not.toHaveAttribute(
       "aria-current",
     );
+    expect(screen.getByRole("link", { name: "Clear topic" })).toHaveAttribute(
+      "href",
+      "/blog#blog-results",
+    );
   });
 
   it("renders an empty recovery state when no topics are available", async () => {
     render(await DiscoverTopics({ topics: [] }));
     expect(screen.getByText(/no topics available/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /browse latest/i }),
-    ).toHaveAttribute("href", "/blog");
+      screen.getByRole("link", { name: /browse all posts/i }),
+    ).toHaveAttribute("href", "/blog#blog-results");
   });
 });

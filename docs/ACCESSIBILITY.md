@@ -57,6 +57,134 @@ behavioral failure.
 
 ## Results
 
+### Feed and Blog cards (2026-10-30)
+
+- Revision: Blog responsive `b3e731f`; feed responsive `3950e3f`; base
+  `25a7ad0`.
+- Automated: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test:ci` (908 tests),
+  `pnpm test:component` (1173 tests), `pnpm build`, and `pnpm format:check`
+  passed.
+- Desktop visual confirmation: the maintainer confirmed the feed and Blog
+  uniform rows, real avatars, dates, tags, engagement, Save/Read actions,
+  excerpt-free rows, full-height covers at the horizontal breakpoint, and the
+  Blog hover lift on `/blog`.
+- Keyboard/component evidence: Blog Load more restores focus to the first
+  appended card when the final page removes the button, keeps the in-flight
+  control focusable with `aria-disabled`, and announces the current count,
+  loading, and completion through a persistent polite status. Feed auto-load
+  keeps the visible fallback and restores focus when an auto-load removes the
+  final button.
+- Footer spacing: the Blog results grid keeps bottom padding, and the Load more
+  control keeps a reserved 64px slot even after the final page removes the
+  button, so the footer does not jump and the last card keeps its gap. Browser
+  checked at every tested width.
+- Browser check: headless Chromium through local Playwright against the
+  signed-out public `/blog` on the local dev server at 320, 375, 768, 1024, and
+  1280 in light and dark. No horizontal overflow at any width. Card covers
+  stayed horizontal: 1.78 at 320/375, 1.66 at 768, 2.21 at 1024, and 2.06 at 1280. Below `md`, cards were flat full-width list items (transparent, no ring
+  or shadow, 0 radius) at 288/343px content width; at 768 the boxed row was
+  720px wide. The page used the container's 16/24/32px side padding. The
+  reserved Load more slot was 64px at every width. The last-card-to-footer gap
+  was 128px at 320/375 and 136px at 768/1024/1280.
+- Topics menu: below `xl`, the trigger is closed by default. At 768/1024 search
+  and Topics shared a row (search 452/692px, Topics 256x56px, both square with
+  a 0px radius); at 320 both stacked full width at 288x56px. Opening the panel
+  kept the first-card top unchanged (799px at 320, 694px at 768, 738px at
+  1024). The panel was 288px wide at 320 and 384px at 768/1024; at `sm` and up
+  it right-aligns to the trigger, so it stayed fully inside the viewport at
+  640, 768, 900, and 1024. Escape closed it and returned focus to the trigger.
+  Choosing Design navigated to
+  `/blog?tag=Design`, changed the trigger to "Topics: Design", and closed the
+  panel. Topics were ordered Culture (5), Design (4), Photography (4); the
+  selected Culture link had `text-decoration: none` and the primary color, and
+  the selected All topics link used color only. At 1280 the trigger was hidden
+  and the 18rem sidebar was visible. The dark panel was checked at 768.
+- Search clear: on `/blog?q=design`, the clear control was visible and removed
+  the query. Clicking it returned to `/blog`, emptied the input, and showed
+  All posts; emptying the field by hand did the same. The control was absent
+  on `/blog`, and the clear and Search controls fit inside the 240px field at 320. The native `::-webkit-search-cancel-button` is suppressed, so only the
+  custom clear control is visible.
+- Responsive hero: at 320/375 the hero starts at the navigation bottom with no
+  top padding and is 286/246px tall, with a 36px title and the concise
+  description. At 640 it is 319px tall with a 48px title; at 768 the top
+  padding is 32px, the height is 331px, and the title is 60px. The desktop hero
+  is unchanged at 391px with a 72px title.
+- Sticky filter bar: after scrolling 1200px at 320, 375, 640, 768, and 1024, the
+  search/Topics wrapper stayed at the navigation bottom (65px below 768, 57px
+  at 768/1024). Its 12px top padding kept the search and Topics visible. At
+  1280 the 18rem Topics sidebar stuck at 138px, directly below the search bar.
+- Compact navbar: the navbar is now 65px tall on mobile and 57px on desktop,
+  with a 24px logo. The 32px avatar, 36px notification/theme controls, and 44px
+  mobile menu all fit inside it. The navbar keeps its 1px bottom border; the
+  Blog filter tucks 1px underneath it: navbar bottom 65px, filter top 64px. The
+  border draws over the filter background, so a post cover behind the seam at
+  393/412/360 widths cannot show through. A 44px mobile-menu placeholder and a
+  65/57px min-height keep
+  the navbar from growing when auth resolves; the measured height stayed 65px
+  at 320 and 57px at 768/1280 through a 1.5s load sample.
+- Results anchor: choosing Design or submitting `design` navigated to
+  `#blog-results` and placed the title directly below the sticky controls. At
+  768/1280 the sticky bar top was 57px, the title 160px, and the first card
+  229px; at 320 the values were 65px, 236px, and 305px. The hero stayed above
+  the viewport. Filtered pages keep an 80px bottom cushion so the target scroll
+  is reachable even with one result.
+- Short landscape: at 932x430, 844x390, 667x375, and 568x320 the navbar became
+  static and scrolled away, the search/Topics bar stayed pinned at 0px with a
+  73px height, the title sat at 96px, and the first card at 165px. The filter
+  stayed a single row at 568px, with no horizontal overflow. This leaves the
+  title and a full post visible on the A71 landscape viewport.
+- Topic clear: the active topic showed the circled X in the sub-`xl` trigger
+  and in the `xl` sidebar. Clearing it returned to `/blog#blog-results` with the
+  title and first post in the same position.
+- Signed-in feed matrix: T3 preview signed in as the Phone Preview fixture,
+  at 320/375/768/1024/1280 in light and dark. Five cards, no horizontal
+  overflow. At 320/375 rows were flat (transparent, 0 radius, 0 ring) with 3:2
+  covers 288x185 and 343x215. At 768 the card stacked (cover 408x272) with card
+  chrome; at 1024 it used 50/50 (cover 316x204); at 1280 40/60 (cover 355x174).
+  The workspace sidebar was hidden at 320/375 and 312px at 768+.
+- Not verified: no real screen reader was used for the status regions.
+- Retest when the feed/Blog card classes, pagination controls, status copy,
+  Blog grid breakpoints, Topics menu behavior, or feed matrix fixture change.
+
+**Blog search and filter review fixes (2026-10-31 Australia/Sydney, `d45255e` plus fixes)**
+
+- The earlier search-clear check verified navigation and field value, but did
+  not check retained focus or typing while navigation was pending. The
+  query-dependent search key remounted the input on completion. Six new
+  regressions failed before the fix and passed afterward, covering the real
+  page's input identity/focus, replacement typing during clear navigation,
+  external query/history synchronization, pending submit edits, and focus
+  after the clear button disappears. Two further regressions failed on a
+  pending-search clear found during local review, then passed when manual
+  and button clearing also cancelled the pending search. The final targeted
+  page/search run passed all 20 tests. Search remains mounted and distinguishes
+  a local navigation acknowledgement from an external query change.
+- Chromium on the signed-out local Blog confirmed the same focused input
+  survives manual clearing and clear-button navigation at 375x667. Typing and
+  submitting a replacement search worked; Back and Forward synchronized the
+  field. The delayed-navigation typing race is component-tested, not a
+  throttled browser result.
+- A separate Chromium check held the submitted search request pending, then
+  cleared via the button before releasing it. The settled route had no query,
+  the results heading remained All posts, and the empty input retained focus.
+- The earlier responsive matrix missed short portrait. At 320x480, Chromium
+  reproduced the incorrect filter row before the fix. The row direction,
+  Topics width, compact padding, and result offset now all require both
+  height at most 500px and landscape orientation, matching the existing
+  sticky-navbar condition.
+- The targeted Chromium resize sequence passed at 320x480, 480x320, 568x320,
+  375x667, 768x1024, and back to 320x480. Short portrait used full-width
+  288px stacked controls, 12px filter padding, and a 236px results scroll
+  margin; short landscape retained a row, 8px padding, and a 96px margin.
+  Search and Topics did not overlap and no horizontal page overflow occurred.
+  These targeted checks do not replace the earlier light/dark card matrices.
+- Final verification passed lint, standalone typecheck, all 908 edge-runtime
+  tests, all 1,181 component tests across 117 files (`--maxWorkers=2`), and
+  the production build.
+- Retest after changes to search identity, draft reconciliation, route
+  navigation, filter media queries, or result offsets. Real screen-reader
+  acceptance remains outside this evidence.
+
 ### Sidebar and mobile drawer iterations (2026-10-28)
 
 Working tree on `codex/dashboard-sidebar-improvements`, based on

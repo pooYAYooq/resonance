@@ -34,7 +34,7 @@ describe("AuthorPostCard", () => {
     expect(image).toHaveAttribute("alt", "");
     expect(
       screen.getByTestId("author-card-cover").closest('[data-slot="card"]'),
-    ).toHaveClass("rounded-md");
+    ).toHaveClass("rounded-sm");
   });
 
   it("keeps a 3:2 cover frame and an accessible like count", () => {
@@ -75,6 +75,9 @@ describe("AuthorPostCard", () => {
     fireEvent.error(container.querySelector("img")!);
 
     expect(screen.getByText("Cover unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Cover unavailable").closest("div")).toHaveClass(
+      "rounded-t-sm",
+    );
     const retry = screen.getByRole("button", {
       name: "Retry cover for A quiet header",
     });
@@ -128,8 +131,8 @@ describe("AuthorPostCard", () => {
     const cover = screen.getByTestId("author-card-cover");
     const card = cover.closest('[data-slot="card"]');
     expect(card).toHaveAttribute("data-featured", "true");
-    expect(card).toHaveClass("rounded-md", "bg-card", "ring-1");
-    expect(cover).toHaveClass("aspect-[3/2]");
+    expect(card).toHaveClass("rounded-sm", "bg-card", "ring-1");
+    expect(cover).toHaveClass("aspect-[3/2]", "rounded-t-sm");
     expect(cover).not.toHaveClass("sm:aspect-auto");
     expect(cover).not.toHaveClass("sm:h-full");
   });

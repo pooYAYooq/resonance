@@ -141,7 +141,7 @@ describe("PostCard", () => {
     const { container } = render(<PostCard {...basePost} />);
 
     expect(container.querySelector('[data-slot="card"]')).toHaveClass(
-      "rounded-md",
+      "rounded-sm",
     );
   });
 

@@ -259,7 +259,7 @@ describe("NotificationsList", () => {
     render(<NotificationsList />);
 
     expect(screen.getByText("No notifications yet")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Blog" })).toHaveAttribute(
       "href",
       "/blog",
     );
@@ -552,7 +552,7 @@ describe("NotificationsList", () => {
 
     await act(async () => options.onAutoClose());
 
-    expect(screen.getByRole("link", { name: "Discover" })).toHaveFocus();
+    expect(screen.getByRole("link", { name: "Blog" })).toHaveFocus();
   });
 
   it("commits an expired drawer deletion once and removes its Undo action", async () => {
@@ -795,7 +795,7 @@ describe("NotificationsList", () => {
       expect(hasFocus("Open Ada's profile")).toBe(true);
     });
 
-    it("focuses the Discover recovery action when pagination exhausts with no visible rows", async () => {
+    it("focuses the Blog recovery action when pagination exhausts with no visible rows", async () => {
       const user = userEvent.setup();
       setPage([], "CanLoadMore");
       const view = render(<NotificationsList />);
@@ -805,7 +805,7 @@ describe("NotificationsList", () => {
       view.rerender(<NotificationsList />);
       setPage([], "Exhausted");
       view.rerender(<NotificationsList />);
-      expect(screen.getByRole("link", { name: "Discover" })).toHaveFocus();
+      expect(screen.getByRole("link", { name: "Blog" })).toHaveFocus();
       expect(screen.getByText("No notifications yet")).toBeVisible();
     });
 

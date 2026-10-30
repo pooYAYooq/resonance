@@ -7,15 +7,20 @@ a session history.
 ## Current focus
 
 V1-20, context-specific post-card variants on
-`feat/context-post-card-variants`. The author profile and catalogue cards are
-implemented, browser-verified, and approved; feed, Discover, and landing cards
-remain. [Features](../FEATURES.md#profiles--settings) owns the author-page
-capability.
+`feat/feed-and-blog-post-cards`. The author gallery is merged; the feed and Blog
+rows are implemented with uniform cards, full author metadata, no excerpt,
+full-height covers at the horizontal breakpoint, hybrid feed pagination, manual
+Blog pagination, the Blog surface name, sticky search/Topics controls, a compact
+mobile hero, and a short-landscape layout. Landing and collections remain.
+[Features](../FEATURES.md#blog) owns the reader capabilities.
 
 ## Next action
 
-Open the Phase 1 PR for review and merge, then start the feed and Discover
-phase. The remaining physical-mobile verification for auth is recorded in
+Implement the landing post card, then the collection card variants before
+V1-20 closeout. The public Blog and signed-in feed matrices, plus search and
+responsive filter regressions, are recorded in
+[accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30).
+The remaining physical-mobile verification for auth is recorded in
 [known limitations](KNOWN_LIMITATIONS.md#authentication-and-sessions).
 
 Saved and Liked behavior remains documented in
@@ -28,8 +33,8 @@ reopen the relevant checks under the evidence document's retest triggers.
 
 ## Blockers and constraints
 
-- The feed loading-announcement advisory is explicitly deferred. It is not a
-  reproduced screen-reader failure; see [known limitations](KNOWN_LIMITATIONS.md).
+- Feed and Blog pagination status regions are component-tested, not verified
+  with a real screen reader; see [known limitations](KNOWN_LIMITATIONS.md).
 - The dev deployment carries disposable fixture data; existing accounts and
   retained test posts are described in [notifications evidence](NOTIFICATIONS_EVIDENCE.md).
   Browser checks delete only what they create unless the maintainer explicitly

@@ -17,6 +17,37 @@ work is tracked in `ROADMAP.md`.
   feature, and length-aware two-line titles. Below `lg` every card uses the same
   small tile layout.
 
+- Feed and Blog now use uniform post rows with author avatars, names, concise
+  published dates, tags, engagement, and a Save/Read action. Covers fill the
+  row height at the horizontal breakpoint, and rows omit excerpts. Feed rows
+  stack below `lg`, use a 50/50 row at `lg`, and a 40/60 row at `xl`; Blog rows
+  use 40/60 from `md`. Below `md`, feed and Blog rows become full-width flat
+  list items with dividers, and the page uses the container's side padding.
+  On mobile the Blog hero is full width with no top padding, a 36px title, and
+  a concise description; tablet uses a 60px title and 32px page top padding,
+  and the search/Topics bar stays sticky below the navigation. On short
+  landscape viewports the navbar scrolls away and the search/Topics bar pins at
+  the top, leaving room for a full post. Topic and search navigation scrolls to
+  the results header, leaving only the hero above the sticky controls; the
+  active topic has a clear X in the sub-`xl` control and the `xl` sidebar,
+  which also sticks below the search bar. The feed auto-loads with a visible Load more fallback;
+  Blog keeps manual Load more with focus restoration and polite status
+  announcements. Below `xl`, a closed-by-default Topics control shares a
+  square, same-height row with search at `sm` and up, then stacks as a
+  full-width bar below `sm`; it opens an overlay panel that does not move the
+  results. Topics are ordered by published count, and the active topic uses
+  color only. An active search has a single custom clear control; the native
+  browser cancel button is suppressed, and clearing the field or submitting an
+  empty field returns to All posts. The sidebar returns at `xl`. The Blog
+  surface is renamed from Discover while the `/blog` route stays.
+
+- The sticky navbar is more compact: a 24px wordmark and 10px vertical padding
+  reduce it to about 65px on mobile and 57px on desktop, while keeping the 44px
+  mobile menu and 32px account avatar. The 44px mobile-menu space is reserved
+  while auth loads, so the navbar does not grow during page load. The Blog
+  filter tucks 1px under the navbar border, keeping the border visible while a
+  cover behind the seam cannot show through.
+
 - Post cards now share the same small corner radius across sizes and layouts.
 
 - Accessible show/hide password controls on login and sign-up, with the current

@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const { useConvexAuthState, useQueryState, queryArgsMock, pushMock } =
@@ -26,21 +32,24 @@ vi.mock("@/convex/_generated/api", () => ({
   api: { feed: { getFeed: "getFeed" } },
 }));
 
-vi.mock("@/components/web/PostCard", () => ({
-  PostCard: ({
+vi.mock("@/components/web/FeedPostCard", () => ({
+  FeedPostCard: ({
     title,
     postId,
     isBookmarked,
+    featured,
   }: {
     title: string;
     postId: string;
     isBookmarked: boolean;
+    featured?: boolean;
   }) => (
     <article
       data-slot="card"
-      data-testid="post-card"
+      data-testid="feed-card"
       data-post-id={postId}
       data-is-bookmarked={isBookmarked}
+      data-featured={String(Boolean(featured))}
     >
       <a href={`/blog/${postId}`}>{title}</a>
     </article>
@@ -62,9 +71,53 @@ const post = (postId: string, title: string) => ({
   isBookmarked: false,
   createdAt: 1_700_000_000_000,
   updatedAt: 1_700_000_000_000,
+  publishedAt: 1_700_000_000_000,
   authorName: "Author",
+  authorUsername: "author",
   authorAvatarUrl: null,
+  tags: [],
 });
+
+function stubIntersectionObserver() {
+  let callback: IntersectionObserverCallback | undefined;
+  let observed = false;
+
+  class MockIntersectionObserver {
+    root = null;
+    rootMargin = "";
+    thresholds = [];
+
+    constructor(cb: IntersectionObserverCallback) {
+      callback = cb;
+    }
+
+    observe() {
+      observed = true;
+    }
+
+    unobserve() {}
+
+    disconnect() {}
+
+    takeRecords() {
+      return [];
+    }
+  }
+
+  vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+
+  return {
+    trigger() {
+      callback?.(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+    },
+    wasObserved() {
+      return observed;
+    },
+  };
+}
 
 describe("FeedContent", () => {
   beforeEach(() => {
@@ -83,6 +136,7 @@ describe("FeedContent", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("redirects unauthenticated users and skips the feed query", async () => {
@@ -121,7 +175,7 @@ describe("FeedContent", () => {
 
     expect(await screen.findByText("Your feed is empty")).toBeInTheDocument();
     expect(screen.getByText(/Follow authors/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /discover/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Blog" })).toHaveAttribute(
       "href",
       "/blog",
     );
@@ -156,6 +210,121 @@ describe("FeedContent", () => {
     ).toBeInTheDocument();
   });
 
+  it("auto-loads the next page when the sentinel intersects", async () => {
+    const observer = stubIntersectionObserver();
+    useQueryState.mockImplementation(
+      (args: { paginationOpts: { cursor: string | null } } | "skip") =>
+        args === "skip" || args.paginationOpts.cursor === null
+          ? {
+              page: [post("post-1", "First post")],
+              isDone: false,
+              continueCursor: "cursor-1",
+            }
+          : {
+              page: [post("post-2", "Second post")],
+              isDone: true,
+              continueCursor: "",
+            },
+    );
+    render(<FeedContent />);
+
+    await screen.findByText("First post");
+    expect(observer.wasObserved()).toBe(true);
+    act(() => observer.trigger());
+
+    await waitFor(() =>
+      expect(screen.getByText("Second post")).toBeInTheDocument(),
+    );
+  });
+
+  it("does not pass a featured flag to any feed card", async () => {
+    useQueryState.mockReturnValue({
+      page: [post("post-1", "First post"), post("post-2", "Second post")],
+      isDone: true,
+      continueCursor: "",
+    });
+    render(<FeedContent />);
+
+    expect(screen.getByTestId("feed-post-list")).toHaveClass(
+      "max-md:gap-2",
+      "max-md:divide-y",
+      "max-md:divide-foreground/20",
+    );
+    const cards = await screen.findAllByTestId("feed-card");
+    expect(
+      cards.every((card) => card.getAttribute("data-featured") !== "true"),
+    ).toBe(true);
+  });
+
+  it("keeps focus when auto-load removes the final Load more button", async () => {
+    const observer = stubIntersectionObserver();
+    useQueryState.mockImplementation(
+      (args: { paginationOpts: { cursor: string | null } } | "skip") =>
+        args === "skip" || args.paginationOpts.cursor === null
+          ? {
+              page: [post("post-1", "First post")],
+              isDone: false,
+              continueCursor: "cursor-1",
+            }
+          : {
+              page: [post("post-2", "Second post")],
+              isDone: true,
+              continueCursor: "",
+            },
+    );
+    render(<FeedContent />);
+
+    const button = screen.getByRole("button", { name: "Load more" });
+    button.focus();
+    await screen.findByText("First post");
+    act(() => observer.trigger());
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Second post" })).toHaveFocus(),
+    );
+  });
+
+  it("restores focus when the button is focused during an auto-load and the final page removes it", async () => {
+    const observer = stubIntersectionObserver();
+    const firstPage = {
+      page: [post("post-1", "First post")],
+      isDone: false,
+      continueCursor: "cursor-1",
+    };
+    const nextPage: {
+      current:
+        | {
+            page: ReturnType<typeof post>[];
+            isDone: boolean;
+            continueCursor: string;
+          }
+        | undefined;
+    } = { current: undefined };
+    useQueryState.mockImplementation(
+      (args: { paginationOpts: { cursor: string | null } } | "skip") =>
+        args === "skip" || args.paginationOpts.cursor === null
+          ? firstPage
+          : nextPage.current,
+    );
+    const view = render(<FeedContent />);
+
+    await screen.findByText("First post");
+    act(() => observer.trigger());
+    const button = screen.getByRole("button", { name: /loading/i });
+    button.focus();
+
+    nextPage.current = {
+      page: [post("post-2", "Second post")],
+      isDone: true,
+      continueCursor: "",
+    };
+    view.rerender(<FeedContent />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Second post" })).toHaveFocus(),
+    );
+  });
+
   it("passes the hydrated bookmark state to each feed card", async () => {
     useQueryState.mockReturnValue({
       page: [{ ...post("post-1", "Saved post"), isBookmarked: true }],
@@ -164,7 +333,7 @@ describe("FeedContent", () => {
     });
     render(<FeedContent />);
 
-    expect(await screen.findByTestId("post-card")).toHaveAttribute(
+    expect(await screen.findByTestId("feed-card")).toHaveAttribute(
       "data-is-bookmarked",
       "true",
     );
@@ -193,7 +362,7 @@ describe("FeedContent", () => {
 
     await user.click(await screen.findByRole("button", { name: /load more/i }));
     await waitFor(() =>
-      expect(screen.getAllByTestId("post-card")).toHaveLength(2),
+      expect(screen.getAllByTestId("feed-card")).toHaveLength(2),
     );
     expect(screen.getAllByText("First post")).toHaveLength(1);
     expect(screen.getByText("Second post")).toBeInTheDocument();
@@ -237,7 +406,7 @@ describe("FeedContent", () => {
         nextPage = { page: [second], isDone, continueCursor: "cursor-2" };
         view.rerender(<FeedContent />);
         expect(screen.getByRole("link", { name: "Second post" })).toHaveFocus();
-        expect(screen.getAllByTestId("post-card")).toHaveLength(2);
+        expect(screen.getAllByTestId("feed-card")).toHaveLength(2);
       },
     );
 
@@ -256,11 +425,11 @@ describe("FeedContent", () => {
       screen.getByRole("button", { name: "Load more" }).focus();
       nextPage = undefined;
       await user.keyboard("{Enter}");
-      expect(screen.getAllByTestId("post-card")).toHaveLength(2);
+      expect(screen.getAllByTestId("feed-card")).toHaveLength(2);
       nextPage = { page: [second, third], isDone: true, continueCursor: "" };
       view.rerender(<FeedContent />);
       expect(screen.getByRole("link", { name: "Third post" })).toHaveFocus();
-      expect(screen.getAllByTestId("post-card")).toHaveLength(3);
+      expect(screen.getAllByTestId("feed-card")).toHaveLength(3);
     });
 
     it.each([{ page: [] }, { page: [first] }])(
@@ -289,7 +458,7 @@ describe("FeedContent", () => {
       expect(screen.getByRole("link", { name: "First post" })).toHaveFocus();
     });
 
-    it("falls back to Discover when an empty scanning feed exhausts", async () => {
+    it("falls back to Blog when an empty scanning feed exhausts", async () => {
       useQueryState.mockImplementation(
         (args: { paginationOpts: { cursor: string | null } } | "skip") =>
           args !== "skip" && args.paginationOpts.cursor === null
@@ -304,7 +473,7 @@ describe("FeedContent", () => {
       expect(button).toHaveFocus();
       nextPage = { page: [], isDone: true, continueCursor: "" };
       view.rerender(<FeedContent />);
-      expect(screen.getByRole("link", { name: "Discover" })).toHaveFocus();
+      expect(screen.getByRole("link", { name: "Blog" })).toHaveFocus();
     });
 
     it("keeps Chromium removal focusout from canceling the final-page restore", async () => {

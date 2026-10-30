@@ -149,9 +149,10 @@ describe("LikedSection", () => {
     render(<LikedSection />);
 
     expect(screen.getByText("No liked posts yet")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Explore Discover" }),
-    ).toHaveAttribute("href", "/blog");
+    expect(screen.getByRole("link", { name: "Explore Blog" })).toHaveAttribute(
+      "href",
+      "/blog",
+    );
     expect(paginatedArgs).toHaveBeenCalledWith({});
   });
 
@@ -317,9 +318,7 @@ describe("LikedSection", () => {
     rerender(<LikedSection />);
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: "Explore Discover" }),
-      ).toHaveFocus(),
+      expect(screen.getByRole("link", { name: "Explore Blog" })).toHaveFocus(),
     );
   });
 
@@ -611,9 +610,7 @@ describe("LikedSection", () => {
     rerender(<LikedSection />);
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: "Explore Discover" }),
-      ).toHaveFocus(),
+      expect(screen.getByRole("link", { name: "Explore Blog" })).toHaveFocus(),
     );
   });
 

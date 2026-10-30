@@ -76,6 +76,14 @@ function getCard(container: HTMLElement): HTMLElement {
 }
 
 describe("CollectionPostCard", () => {
+  it("uses the small radius on the desktop card and a flat mobile row", () => {
+    const { container } = render(
+      <CollectionPostCard {...basePost} collection="saved" />,
+    );
+
+    expect(getCard(container)).toHaveClass("rounded-none", "sm:rounded-sm");
+  });
+
   it("keeps the cover first and the byline directly after the title", () => {
     const { container } = render(
       <CollectionPostCard {...basePost} collection="saved" />,

@@ -105,7 +105,7 @@ export function PostCard({
       : "";
 
   return (
-    <Card className="rounded-md pt-0 gap-0 flex flex-col h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <Card className="rounded-sm pt-0 gap-0 flex flex-col h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="relative aspect-[3/2] w-full overflow-hidden">
         <CoverImage
           src={imageUrl}

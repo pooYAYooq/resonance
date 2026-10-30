@@ -103,6 +103,13 @@ describe("Navbar", () => {
       "href",
       "/auth/login",
     );
+    expect(screen.getByRole("navigation")).toHaveClass(
+      "min-h-[65px]",
+      "md:min-h-[57px]",
+    );
+    expect(
+      screen.getByRole("heading", { level: 1, name: "RESONANCE" }),
+    ).toHaveClass("text-2xl");
   });
 
   it("does not show auth buttons while auth is loading", () => {
@@ -117,6 +124,10 @@ describe("Navbar", () => {
     expect(
       screen.queryByRole("button", { name: /open navigation menu/i }),
     ).toBeNull();
+    expect(screen.getByTestId("navbar-loading-menu-placeholder")).toHaveClass(
+      "size-11",
+      "md:hidden",
+    );
     expect(useQueryState).not.toHaveBeenCalled();
   });
 
@@ -258,7 +269,7 @@ describe("Navbar", () => {
     expect(trigger).toHaveFocus();
   });
 
-  it("shows Discover, Feed, New Post, and notifications when authenticated", () => {
+  it("shows Blog, Feed, New Post, and notifications when authenticated", () => {
     currentQueryValue = currentUser;
     useConvexAuthState.mockReturnValue({
       isAuthenticated: true,
@@ -266,7 +277,7 @@ describe("Navbar", () => {
     });
     render(<Navbar />);
 
-    expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Blog" })).toHaveAttribute(
       "href",
       "/blog",
     );

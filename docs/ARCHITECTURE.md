@@ -97,7 +97,7 @@ resonance/
 │   ├── (site)/                 # Reader routes (Navbar + compact Footer)
 │   │   ├── layout.tsx          # SiteShell with the compact footer.
 │   │   ├── blog/
-│   │   │   ├── page.tsx        # Discover route. Server Component. Normalizes URL state.
+│   │   │   ├── page.tsx        # Blog route. Server Component. Normalizes URL state.
 │   │   │   ├── _components/    # Search, Topics, states, summaries, and paginated results
 │   │   │   └── [postId]/
 │   │   │       ├── page.tsx    # Post detail. fetchQuery + generateMetadata.
@@ -261,9 +261,14 @@ resonance/
 │       │                       # optimistic state sync, toasts) — wrapped by LikeButton/CommentLikeButton
 │       ├── CommentLikeButton.tsx # Thin LikeToggle wrapper bound to toggleCommentLike;
 │       │                       # rendered on each CommentCard
-│       ├── PostCard.tsx         # Reusable post card with optional linked tags. Title is an <h2> so the
-│       │                        # page-level <h1> remains unique per page. Derives excerpts from
-│       │                        # stored bodies via lib/post-content so serialized JSON never leaks.
+│       ├── PostCard.tsx         # Legacy landing/dashboard preview card, closed to new consumers.
+│       │                        # Title is an <h2> so the page-level <h1> remains unique per page.
+│       │                        # Derives excerpts from stored bodies via lib/post-content.
+│       ├── FeedPostCard.tsx     # Feed row: stacked below lg, 50/50 at lg, 40/60 at xl;
+│       │                        # 3:2 cover fills the row at lg+, author line, title, tags,
+│       │                        # engagement, and Read. No excerpt.
+│       ├── BlogPostCard.tsx     # Blog row: 16:9 cover that fills the row at md+, title,
+│       │                        # author line, tags, static like count, Save, and Read. No excerpt.
 │       ├── CollectionPostCard.tsx # Saved/Liked presentation: 3:2 cover, byline after
 │       │                         # title, tags under the cover, page-specific action,
 │       │                         # and a flat mobile row.
@@ -273,9 +278,10 @@ resonance/
 │       │                        # blank transparent fallback surface with a subtle
 │       │                        # bottom border. Cards, the reader, and Review agree;
 │       │                        # published surfaces render through PostCover. Server-component safe.
-│       ├── PostCardCover.tsx    # Shared post-card cover frame: ratio and clipping
-│       │                        # only; cards supply server-safe or retry-capable
-│       │                        # images. Server-component safe.
+│       ├── PostCardCover.tsx    # Shared post-card cover frame: ratio below the card's
+│       │                        # horizontal breakpoint, clipping, and a full-height
+│       │                        # row cover at that breakpoint; cards supply server-safe
+│       │                        # or retry-capable images. Server-component safe.
 │       ├── PostCover.tsx        # Published 16:9 cover frame: one ratio, one clip,
 │       │                        # no height cap, and the single crop/focal seam.
 │       │                        # Server-component safe; a caller's aspect-* cannot override.
@@ -594,17 +600,22 @@ parameters are removed from mode-switch links. Search uses native Convex
 full-text relevance over title, extracted body text, and current author name.
 Latest and Topic results use indexed, bounded pagination by `publishedAt`.
 Result pages hydrate only their bounded rows through `discoverPosts`, resolving
-cover URLs after the page is known. Missing projection rows
-are omitted rather than exposing incomplete summaries.
+cover URLs and each author's avatar and username after the page is known.
+Missing projection rows are omitted rather than exposing incomplete summaries.
 
 The projected `commentCount` and `likeCount` values are copied during publish
 and published-edit synchronization, then kept aligned by the like and comment
 mutations through the same transaction.
 
-The route composes `DiscoverSearch`, `BlogPostList`, `DiscoverPostSummary`,
-`DiscoverStates`, and `DiscoverTopics`. Search remains first; on mobile the
-main result stream remains before the Topic section, while desktop uses a
-dominant main column and narrower Topic rail. The authenticated Feed empty
+The route composes `DiscoverSearch`, `BlogTopicsMenu`, `StickyBlogFilter`,
+`ResultsAnchorScroll`, `BlogPostList`, `BlogPostCard`, `DiscoverStates`, and
+`DiscoverTopics`. Search remains first. Below `xl`, a closed-by-default Topics
+menu shares a square, same-height row with search at `sm` and up, then stacks
+as a full-width bar below `sm`; its overlay panel does not move the results.
+The sticky filter measures the compact navbar, keeps its border, and tucks 1px
+under it; short landscape viewports make the navbar static and pin the filter
+at the top. At `xl` and up, the page uses a dominant main column and a narrower
+Topic rail. The authenticated Feed empty
 state links to `/blog` as its recovery path. Hot is not rendered or
 implemented because its ranking formula and time window remain deferred.
 
@@ -1290,16 +1301,14 @@ then read the cached `user` value inside the map. Doing it inside the map would
 issue one user lookup per post. The image URL still has to be resolved per post
 because each `imageStorageId` is unique — that one stays in the map.
 
-### 9. Why separate Discover summaries from `PostCard`?
+### 9. Why separate surface cards?
 
-Discover uses `DiscoverPostSummary` because its editorial result presentation
-has a different density and metadata hierarchy from the universal `PostCard`.
-Feed, landing, and dashboard-preview consumers retain `PostCard` until their own
-context-specific work is scheduled. The profile uses `AuthorPostCard`, which now
-has a bounded tile and a featured gallery layout. Saved and Liked use the
-collection-specific `CollectionPostCard` and collapsible time groups. Shared
-data contracts and primitives provide consistency without forcing every surface
-into one visual card.
+Blog uses `BlogPostCard`, the feed uses `FeedPostCard`, the author pages use
+`AuthorPostCard`, and Saved and Liked use `CollectionPostCard`. The legacy
+`PostCard` remains for the landing page and the dashboard preview. Each surface
+has a different density, pagination model, and action set, so shared primitives
+and data contracts provide consistency without forcing every surface into one
+visual card.
 
 ### 10. Why a single-row `stats` table for the total post count?
 

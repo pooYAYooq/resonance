@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const {
@@ -8,24 +8,23 @@ const {
   paginatedState,
   paginatedQuery,
   paginatedArgs,
-  discoverSummary,
+  blogCard,
 } = vi.hoisted(() => ({
   discoverPostsQuery: { name: "getDiscoverPosts" },
   topicPostsQuery: { name: "getTopicPosts" },
   paginatedState: vi.fn(),
   paginatedQuery: vi.fn(),
   paginatedArgs: vi.fn(),
-  discoverSummary: vi.fn(
+  blogCard: vi.fn(
     ({
       post: summaryPost,
       priority,
     }: {
-      post: { _id: string; title: string; bodyText: string };
+      post: { _id: string; title: string };
       priority?: boolean;
     }) => (
-      <article data-priority={String(Boolean(priority))}>
-        {summaryPost.title}
-        <span>{summaryPost.bodyText}</span>
+      <article data-slot="card" data-priority={String(Boolean(priority))}>
+        <a href={`/blog/${summaryPost._id}`}>{summaryPost.title}</a>
       </article>
     ),
   ),
@@ -46,8 +45,8 @@ vi.mock("@/convex/_generated/api", () => ({
     },
   },
 }));
-vi.mock("./DiscoverPostSummary", () => ({
-  DiscoverPostSummary: discoverSummary,
+vi.mock("./BlogPostCard", () => ({
+  BlogPostCard: blogCard,
 }));
 
 import { BlogPostList } from "./BlogPostList";
@@ -70,7 +69,7 @@ describe("BlogPostList", () => {
     paginatedState.mockReset();
     paginatedQuery.mockReset();
     paginatedArgs.mockReset();
-    discoverSummary.mockClear();
+    blogCard.mockClear();
   });
 
   it("uses the latest discover query and loads the next page", async () => {
@@ -84,16 +83,16 @@ describe("BlogPostList", () => {
 
     render(<BlogPostList mode={{ mode: "latest" }} />);
     expect(screen.getByText("Latest post")).toBeInTheDocument();
-    expect(screen.getByText("Plain excerpt")).toBeInTheDocument();
     expect(paginatedQuery).toHaveBeenCalledWith(discoverPostsQuery);
     expect(paginatedArgs).toHaveBeenCalledWith({ mode: "latest" });
     await userEvent.click(screen.getByRole("button", { name: /load more/i }));
     expect(loadMore).toHaveBeenCalledWith(12);
   });
 
-  it("prioritizes only the first Discover cover for LCP", () => {
+  it("renders every result as the same row and prioritizes only the first cover", () => {
+    const second = { ...post, _id: "post-2", title: "Second post" };
     paginatedState.mockReturnValue({
-      results: [post, { ...post, _id: "post-2", title: "Second post" }],
+      results: [post, second],
       status: "Exhausted",
       loadMore: vi.fn(),
       isLoading: false,
@@ -101,14 +100,56 @@ describe("BlogPostList", () => {
 
     render(<BlogPostList mode={{ mode: "latest" }} />);
 
-    expect(screen.getByText("Latest post")).toHaveAttribute(
+    expect(screen.getByTestId("blog-post-list")).toHaveClass(
+      "max-md:gap-2",
+      "max-md:divide-y",
+      "max-md:divide-foreground/20",
+    );
+    expect(screen.getByText("Latest post").closest("article")).toHaveAttribute(
       "data-priority",
       "true",
     );
-    expect(screen.getByText("Second post")).toHaveAttribute(
+    expect(screen.getByText("Second post").closest("article")).toHaveAttribute(
       "data-priority",
       "false",
     );
+    expect(blogCard.mock.calls[0][0]).toEqual({ post, priority: true });
+    expect(blogCard.mock.calls[1][0]).toEqual({
+      post: second,
+      priority: false,
+    });
+  });
+
+  it("reserves the Load more slot when the final page removes the button", () => {
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    render(<BlogPostList mode={{ mode: "latest" }} />);
+
+    const slot = screen.getByTestId("blog-load-more-slot");
+    expect(slot).toHaveClass("min-h-16");
+    expect(within(slot).queryByRole("button")).toBeNull();
+  });
+
+  it("places Load more inside the reserved slot", () => {
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    render(<BlogPostList mode={{ mode: "latest" }} />);
+
+    expect(
+      within(screen.getByTestId("blog-load-more-slot")).getByRole("button", {
+        name: /load more/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("keeps Load more visible and disabled while loading another page", () => {
@@ -121,9 +162,154 @@ describe("BlogPostList", () => {
 
     render(<BlogPostList mode={{ mode: "latest" }} />);
 
-    expect(
-      screen.getByRole("button", { name: /loading more/i }),
-    ).toBeDisabled();
+    const button = screen.getByRole("button", { name: /loading more/i });
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).toBeEnabled();
+  });
+
+  it("announces loading and appended results while the control stays", async () => {
+    const user = userEvent.setup();
+    const loadMore = vi.fn();
+    const second = { ...post, _id: "post-2", title: "Second post" };
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore,
+      isLoading: false,
+    });
+
+    const view = render(<BlogPostList mode={{ mode: "latest" }} />);
+    const button = screen.getByRole("button", { name: /load more/i });
+    await user.click(button);
+    expect(loadMore).toHaveBeenCalledWith(12);
+
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "LoadingMore",
+      loadMore,
+      isLoading: true,
+    });
+    view.rerender(<BlogPostList mode={{ mode: "latest" }} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading more posts.");
+    await user.click(button);
+    expect(loadMore).toHaveBeenCalledTimes(1);
+
+    paginatedState.mockReturnValue({
+      results: [post, second],
+      status: "CanLoadMore",
+      loadMore,
+      isLoading: false,
+    });
+    view.rerender(<BlogPostList mode={{ mode: "latest" }} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 2 posts.");
+    expect(button).toHaveFocus();
+  });
+
+  it("moves focus to the first appended post and announces completion when the final page removes Load more", async () => {
+    const user = userEvent.setup();
+    const loadMore = vi.fn();
+    const second = { ...post, _id: "post-2", title: "Second post" };
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore,
+      isLoading: false,
+    });
+
+    const view = render(<BlogPostList mode={{ mode: "latest" }} />);
+    const button = screen.getByRole("button", { name: /load more/i });
+    button.focus();
+    await user.click(button);
+
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "LoadingMore",
+      loadMore,
+      isLoading: true,
+    });
+    view.rerender(<BlogPostList mode={{ mode: "latest" }} />);
+
+    paginatedState.mockReturnValue({
+      results: [post, second],
+      status: "Exhausted",
+      loadMore,
+      isLoading: false,
+    });
+    view.rerender(<BlogPostList mode={{ mode: "latest" }} />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Second post" })).toHaveFocus(),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Showing all 2 posts.",
+    );
+  });
+
+  it("clears the loading message when a page settles without new posts", async () => {
+    const user = userEvent.setup();
+    const loadMore = vi.fn();
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore,
+      isLoading: false,
+    });
+
+    const view = render(<BlogPostList mode={{ mode: "latest" }} />);
+    await user.click(screen.getByRole("button", { name: /load more/i }));
+
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "LoadingMore",
+      loadMore,
+      isLoading: true,
+    });
+    view.rerender(<BlogPostList mode={{ mode: "latest" }} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading more posts.");
+
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore,
+      isLoading: false,
+    });
+    view.rerender(<BlogPostList mode={{ mode: "latest" }} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 1 post.");
+  });
+
+  it("updates the announcement when the mode changes", async () => {
+    const user = userEvent.setup();
+    const loadMore = vi.fn();
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore,
+      isLoading: false,
+    });
+
+    const view = render(<BlogPostList mode={{ mode: "latest" }} />);
+    await user.click(screen.getByRole("button", { name: /load more/i }));
+
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "LoadingMore",
+      loadMore,
+      isLoading: true,
+    });
+    view.rerender(<BlogPostList mode={{ mode: "latest" }} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading more posts.");
+
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "LoadingFirstPage",
+      loadMore,
+      isLoading: true,
+    });
+    view.rerender(<BlogPostList mode={{ mode: "search", query: "design" }} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 1 post.");
   });
 
   it("uses the topic query and loads the next page", async () => {
@@ -155,8 +341,8 @@ describe("BlogPostList", () => {
       screen.getByText(/no posts found for technology/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /browse latest/i }),
-    ).toHaveAttribute("href", "/blog");
+      screen.getByRole("link", { name: /browse all posts/i }),
+    ).toHaveAttribute("href", "/blog#blog-results");
   });
 
   it("uses the search query and loads the next page", async () => {
@@ -190,7 +376,7 @@ describe("BlogPostList", () => {
     expect(screen.getByText(/no results for.*noise/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /clear search/i })).toHaveAttribute(
       "href",
-      "/blog",
+      "/blog#blog-results",
     );
   });
 

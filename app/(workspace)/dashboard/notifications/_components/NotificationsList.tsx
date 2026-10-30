@@ -358,7 +358,7 @@ export function NotificationsList({
             title="No notifications yet"
             action={
               <Button asChild variant="outline">
-                <Link href="/blog">Discover</Link>
+                <Link href="/blog">Blog</Link>
               </Button>
             }
           />

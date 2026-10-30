@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import BlogError from "./error";
 
 describe("BlogError", () => {
-  it("offers an accessible retry action for Discover failures", async () => {
+  it("offers an accessible retry action for Blog failures", async () => {
     const reset = vi.fn();
     render(<BlogError error={new Error("network failure")} reset={reset} />);
 

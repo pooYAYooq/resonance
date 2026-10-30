@@ -10,7 +10,7 @@
 | Feature              | Description                                                                                                                                                                                |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Landing Page**     | Animated hero, feature highlights, live recent posts, community stats, and conversion CTA                                                                                                  |
-| **Discover**         | Latest published posts, full-text Search over title/body/author, active canonical Topics, bounded paginated editorial summaries, and Feed recovery                                         |
+| **Blog**             | All published posts, full-text Search over title/body/author, active canonical Topics, bounded paginated rows with author metadata, and Feed recovery                                      |
 | **Blog and Posts**   | Create structured posts with cover images and block-level inline images, save drafts, publish intentionally, edit published posts in place, and read individual posts                      |
 | **Likes**            | Like/unlike posts with live counts on cards and post pages                                                                                                                                 |
 | **Comments**         | Paginated comments with author avatars, real-time updates                                                                                                                                  |
@@ -178,7 +178,7 @@ app/
   (site)/                     # Reader routes (Navbar + compact Footer)
     layout.tsx                # SiteShell with the compact footer
     blog/
-      page.tsx                # Discover route with normalized URL state
+      page.tsx                # Blog route with normalized URL state
       _components/            # Search, Topics, states, summaries, and paginated results
       [postId]/
         page.tsx              # Single post view with likes, comments, and publication timestamps
@@ -251,7 +251,9 @@ components/
     NotificationBell.tsx      # Auth-only bell with unread badge; opens the notification drawer
     NotificationLink.tsx      # Guarded destinations, intent prefetch, and delayed status feedback
     Footer.tsx
-    PostCard.tsx              # Shared post card (landing, dashboard preview, feed)
+    PostCard.tsx              # Legacy post card (landing, dashboard preview); closed to new consumers
+    FeedPostCard.tsx          # Feed row: 3:2 cover, author line, title, tags, engagement, Read
+    BlogPostCard.tsx          # Blog row: 16:9 cover, title, author line, tags, static likes, Save, Read
     CollectionPostCard.tsx    # Saved/Liked card: 3:2 cover, byline after title, tags under cover,
                               # page-specific action, flat mobile row
     CollectionGroupList.tsx   # Session-scoped collapsible collection time groups with chevron, label, and count
@@ -352,12 +354,12 @@ account as `users.welcomeDismissedAt`; see
 
 ### Data Fetching Patterns
 
-| Section       | Query                                                                | Pattern                                         |
-| ------------- | -------------------------------------------------------------------- | ----------------------------------------------- |
-| Landing stats | `fetchQuery(api.posts.countPosts)`                                   | Live total post count                           |
-| Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`                    | Paginated, wrapped in `<Suspense>`              |
-| Discover      | `usePaginatedQuery(api.discover.getDiscoverPosts)` / `getTopicPosts` | Reactive Latest/Search/Topic projection reads   |
-| Post detail   | `fetchQuery(api.posts.getPostById)`                                  | Single post + cover/inline image URL resolution |
+| Section       | Query                                                                | Pattern                                          |
+| ------------- | -------------------------------------------------------------------- | ------------------------------------------------ |
+| Landing stats | `fetchQuery(api.posts.countPosts)`                                   | Live total post count                            |
+| Recent posts  | `fetchQuery(api.posts.getPosts, { numItems: 4 })`                    | Paginated, wrapped in `<Suspense>`               |
+| Blog          | `usePaginatedQuery(api.discover.getDiscoverPosts)` / `getTopicPosts` | Reactive All posts/Search/Topic projection reads |
+| Post detail   | `fetchQuery(api.posts.getPostById)`                                  | Single post + cover/inline image URL resolution  |
 
 ---
 

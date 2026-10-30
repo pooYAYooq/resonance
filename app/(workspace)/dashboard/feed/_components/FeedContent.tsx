@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -9,7 +9,7 @@ import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/web/EmptyState";
-import { PostCard } from "@/components/web/PostCard";
+import { FeedPostCard } from "@/components/web/FeedPostCard";
 import { buildAuthHref, getCurrentReturnTo } from "@/lib/auth-return";
 
 type FeedPost = Doc<"posts"> & {
@@ -31,6 +31,8 @@ export function FeedContent() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [pages, setPages] = useState<FeedPost[]>([]);
   const rootRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLButtonElement>(null);
   const paginationFocusRef = useRef<{
     control: HTMLButtonElement;
     itemCount: number;
@@ -55,6 +57,43 @@ export function FeedContent() {
         }
       : "skip",
   );
+
+  const currentItemCount = () =>
+    rootRef.current?.querySelectorAll('[data-slot="card"]').length ?? 0;
+
+  const requestNextPage = useCallback(() => {
+    if (!page || page.isDone) return;
+    if (loadMoreRef.current && document.activeElement === loadMoreRef.current) {
+      paginationFocusRef.current = {
+        control: loadMoreRef.current,
+        itemCount: currentItemCount(),
+      };
+    }
+    setPages((current) => [...current, ...page.page]);
+    setCursor(page.continueCursor);
+  }, [page]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (
+      !node ||
+      !page ||
+      page.isDone ||
+      typeof IntersectionObserver === "undefined"
+    )
+      return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          requestNextPage();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [page, requestNextPage]);
 
   useEffect(() => {
     if (isLoading || !isAuthenticated) {
@@ -109,10 +148,10 @@ export function FeedContent() {
           icon={Rss}
           title="Your feed is empty"
           description="Follow authors to see their latest posts here."
-          // Feed is retention; Discover is the recovery path for authors/topics.
+          // Feed is retention; Blog is the recovery path for authors/topics.
           action={
             <Button asChild variant="outline">
-              <Link href="/blog">Discover</Link>
+              <Link href="/blog">Blog</Link>
             </Button>
           }
         />
@@ -121,34 +160,46 @@ export function FeedContent() {
   }
 
   return (
-    <div ref={rootRef} className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div ref={rootRef} className="flex flex-col gap-4">
+      <div
+        data-testid="feed-post-list"
+        className="flex flex-col gap-4 max-md:gap-2 max-md:divide-y max-md:divide-foreground/20"
+      >
         {uniquePosts.map((post) => (
-          <PostCard
+          <FeedPostCard
             key={post._id}
             postId={post._id}
             title={post.title}
-            body={post.body}
             imageUrl={post.imageUrl}
             commentCount={post.commentCount}
             likeCount={post.likeCount ?? 0}
             isLiked={post.isLiked}
             isBookmarked={post.isBookmarked}
-            createdAt={post.createdAt}
+            publishedAt={post.publishedAt ?? post.createdAt}
             authorId={post.authorId}
             authorName={post.authorName}
             authorUsername={post.authorUsername}
             authorAvatarUrl={post.authorAvatarUrl}
             tags={post.tags}
+            now={asOf}
           />
         ))}
       </div>
 
       {!page?.isDone && (
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
           <Button
+            ref={loadMoreRef}
             variant="outline"
             aria-disabled={!page}
+            onFocus={() => {
+              if (!loadMoreRef.current) return;
+              paginationFocusRef.current = {
+                control: loadMoreRef.current,
+                itemCount: currentItemCount(),
+              };
+            }}
             onBlur={(event) => {
               const control = event.currentTarget;
               // Chromium can emit blur while a removed element is still
@@ -162,17 +213,9 @@ export function FeedContent() {
                   paginationFocusRef.current = null;
               });
             }}
-            onClick={(event) => {
+            onClick={() => {
               if (!page) return;
-              paginationFocusRef.current =
-                document.activeElement === event.currentTarget
-                  ? {
-                      control: event.currentTarget,
-                      itemCount: uniquePosts.length,
-                    }
-                  : null;
-              setPages((current) => [...current, ...page.page]);
-              setCursor(page.continueCursor);
+              requestNextPage();
             }}
           >
             {page ? "Load more" : <span role="status">Loading more...</span>}

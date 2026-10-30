@@ -16,6 +16,7 @@ const discoverSummaryValidator = v.object({
   authorId: v.string(),
   authorName: v.string(),
   authorUsername: v.union(v.string(), v.null()),
+  authorAvatarUrl: v.union(v.string(), v.null()),
   tags: v.array(v.string()),
   imageUrl: v.union(v.string(), v.null()),
   publishedAt: v.number(),
@@ -57,6 +58,7 @@ type DiscoverSummary = {
   authorId: string;
   authorName: string;
   authorUsername: string | null;
+  authorAvatarUrl: string | null;
   tags: string[];
   imageUrl: string | null;
   publishedAt: number;
@@ -64,15 +66,33 @@ type DiscoverSummary = {
   likeCount: number;
 };
 
+async function avatarsForOwners(
+  ctx: QueryCtx,
+  userIds: readonly string[],
+): Promise<Map<string, string | null>> {
+  const unique = Array.from(new Set(userIds));
+  const entries = await Promise.all(
+    unique.map(async (userId) => {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .unique();
+      return [userId, user?.avatarUrl ?? null] as const;
+    }),
+  );
+  return new Map(entries);
+}
+
 // Hydrate only the returned projection page to keep related reads bounded.
 async function hydrateDiscoverPosts(
   ctx: QueryCtx,
   rows: readonly Doc<"discoverPosts">[],
 ): Promise<DiscoverSummary[]> {
-  const usernames = await usernamesForOwners(
-    ctx,
-    rows.map((row) => row.authorId),
-  );
+  const authorIds = rows.map((row) => row.authorId);
+  const [usernames, avatars] = await Promise.all([
+    usernamesForOwners(ctx, authorIds),
+    avatarsForOwners(ctx, authorIds),
+  ]);
   return await Promise.all(
     rows.map(
       async (row): Promise<DiscoverSummary> => ({
@@ -82,6 +102,7 @@ async function hydrateDiscoverPosts(
         authorId: row.authorId,
         authorName: row.authorName,
         authorUsername: usernames.get(row.authorId) ?? null,
+        authorAvatarUrl: avatars.get(row.authorId) ?? null,
         tags: row.tags,
         imageUrl: row.imageStorageId
           ? await ctx.storage.getUrl(row.imageStorageId)

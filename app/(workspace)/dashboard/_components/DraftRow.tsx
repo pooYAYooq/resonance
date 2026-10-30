@@ -18,7 +18,7 @@ type DraftRowProps = {
 
 export function DraftRow({ draft, onDelete, deleting }: DraftRowProps) {
   return (
-    <article className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+    <article className="flex flex-col gap-4 rounded-sm border bg-card p-5 shadow-sm sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <h2 className="truncate text-lg font-semibold">
           {draft.title.trim() || "Untitled draft"}

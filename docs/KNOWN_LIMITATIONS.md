@@ -23,10 +23,11 @@ evidence resolves them. The previous detailed delivery history remains in
   synthetic-event/component regressions, not fresh live-browser acceptance.
   Native IME behavior remains unverified; see the country review follow-up in
   [Accessibility evidence](ACCESSIBILITY.md).
-- The maintainer deferred the feed loading-announcement advisory to avoid
-  expanding PR #103. A status region created with its initial text may not
-  announce reliably in some screen readers; this has not been reproduced with
-  a real screen reader. No follow-up implementation is currently scheduled.
+- Feed and Blog pagination now use persistent polite status regions for
+  loading, appended counts, and completion. They are component-tested but have
+  not been verified with a real screen reader; the earlier advisory about a
+  status region created with its initial text is addressed by mounting the
+  region before its first update, not by a live screen-reader pass.
 - Shared navigation corrected earlier narrow-layout overflow. The separate
   signed-out responsive acceptance at 320/375 remains unverified under V1-23;
   keyboard evidence does not close the broader responsive item.
@@ -177,9 +178,9 @@ evidence resolves them. The previous detailed delivery history remains in
 - A single-post author at tablet width renders one tile in a two-column grid,
   leaving the second column empty. This follows the no-lead-below-`lg` rule and
   was not changed by the approved card pass.
-- The feed, landing, and dashboard preview still use the legacy `PostCard`;
-  V1-20's feed, Discover, and landing phases replace the feed and landing uses.
-  The dashboard overview remains the deferred `3A-015` boundary.
+- Landing and the dashboard preview still use the legacy `PostCard`; V1-20's
+  landing phase replaces the landing use. The dashboard overview remains the
+  deferred `3A-015` boundary.
 - The dev deployment carries two disposable fixture accounts,
   `notification.author@example.com` (`/u/reso_z2sss43gck`) and
   `notification.viewer@example.com` (`/u/reso_nfgngix5xn`): no published posts,
