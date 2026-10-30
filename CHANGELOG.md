@@ -141,6 +141,11 @@ work is tracked in `ROADMAP.md`.
 
 ### Changed
 
+- Page and panel scrollbars use a consistent, theme-aware appearance, and
+  confirmation dialogs preserve the page layout when scrolling is locked.
+- Create's writing canvas fills the page background and places its Undo and
+  Redo controls beneath the editor with tooltips.
+
 - Mobile login and sign-up use a full-height, full-width layout without card
   chrome; the desktop card returns at `sm` and above, and Google and GitHub
   actions sit side by side.

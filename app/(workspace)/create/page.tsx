@@ -53,6 +53,7 @@ import {
   type CoverLookup,
 } from "./_components/coverResolution";
 import CoverAuthoring from "./_components/CoverAuthoring";
+import { CreateScrollbar } from "./_components/CreateScrollbar";
 import DocumentStudio from "./_components/DocumentStudio";
 import { EditorAbandonDialog } from "./_components/EditorAbandonDialog";
 import MediaAuthoring, { type MediaAsset } from "./_components/MediaAuthoring";
@@ -308,15 +309,18 @@ async function lookupOwnedCoverUrl(
  */
 export default function CreateRoute() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex justify-center py-12">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        </div>
-      }
-    >
-      <CreateEditor />
-    </Suspense>
+    <>
+      <CreateScrollbar />
+      <Suspense
+        fallback={
+          <div className="flex justify-center py-12">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          </div>
+        }
+      >
+        <CreateEditor />
+      </Suspense>
+    </>
   );
 }
 
@@ -2552,7 +2556,7 @@ function CreateEditor() {
         id="publication-readiness"
         role="status"
         aria-atomic="true"
-        className="px-4 pb-4 text-sm text-muted-foreground"
+        className={`px-4 pb-4 text-sm text-muted-foreground ${reviewing ? "bg-background" : "bg-muted/50"}`}
       >
         {isPending
           ? "Saving your changes…"

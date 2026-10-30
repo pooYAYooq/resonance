@@ -120,7 +120,8 @@
 
 - Full-page Create and Edit inside the workspace shell, backed by the standard
   BlockNote editor with native menus, remote embeds, code language selection,
-  Shiki highlighting, and persistent visible Undo/Redo controls
+  Shiki highlighting, and centered Undo/Redo controls below the editor with
+  accessible labels and tooltips
 - Pasted web content is repaired at paste time: copied CSS colors and alignments
   normalize to supported values, media items whose source cannot be stored are
   removed with a notice naming how many were dropped, and an over-capacity
