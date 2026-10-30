@@ -59,17 +59,26 @@ describe("FeedPostCard", () => {
     const card = container.querySelector('[data-slot="card"]');
 
     expect(card).toHaveClass(
-      "md:grid",
-      "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]",
+      "lg:grid",
+      "lg:grid-cols-2",
+      "xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]",
       "rounded-sm",
+      "max-md:rounded-none",
+      "max-md:bg-transparent",
+      "max-md:shadow-none",
+      "max-md:ring-0",
     );
-    expect(card).not.toHaveClass("lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]");
+    expect(card).not.toHaveClass("md:grid");
     const cover = screen.getByTestId("post-card-cover");
-    expect(cover).toHaveClass("aspect-[3/2]", "rounded-t-sm");
     expect(cover).toHaveClass(
-      "md:aspect-auto",
-      "md:rounded-l-sm",
-      "md:rounded-tr-none",
+      "aspect-[3/2]",
+      "rounded-t-sm",
+      "max-md:rounded-none",
+    );
+    expect(cover).toHaveClass(
+      "lg:aspect-auto",
+      "lg:rounded-l-sm",
+      "lg:rounded-tr-none",
     );
   });
 
@@ -88,13 +97,13 @@ describe("FeedPostCard", () => {
     );
   });
 
-  it("sizes the row cover for its one-third column", () => {
+  it("sizes the row cover for its 40% column", () => {
     const { container } = render(
       <FeedPostCard {...base} imageUrl="https://cdn.example/cover.png" />,
     );
     expect(container.querySelector("img")).toHaveAttribute(
       "sizes",
-      "(min-width: 768px) 33vw, 100vw",
+      "(min-width: 1024px) 30vw, 100vw",
     );
   });
 
@@ -102,7 +111,7 @@ describe("FeedPostCard", () => {
     const { container } = render(<FeedPostCard {...base} />);
 
     expect(container.querySelector('[data-slot="card"]')).toHaveClass(
-      "motion-safe:hover:-translate-y-0.5",
+      "md:motion-safe:hover:-translate-y-0.5",
     );
   });
 });

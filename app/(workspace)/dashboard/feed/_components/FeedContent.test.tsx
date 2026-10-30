@@ -245,6 +245,11 @@ describe("FeedContent", () => {
     });
     render(<FeedContent />);
 
+    expect(screen.getByTestId("feed-post-list")).toHaveClass(
+      "max-md:gap-2",
+      "max-md:divide-y",
+      "max-md:divide-foreground/20",
+    );
     const cards = await screen.findAllByTestId("feed-card");
     expect(
       cards.every((card) => card.getAttribute("data-featured") !== "true"),

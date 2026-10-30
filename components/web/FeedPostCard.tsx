@@ -53,19 +53,19 @@ export function FeedPostCard({
   return (
     <Card
       className={cn(
-        "h-full gap-0 overflow-hidden rounded-sm p-0 transition-colors motion-safe:transition-all motion-safe:hover:-translate-y-0.5 hover:bg-muted/30",
-        "md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]",
+        "h-full gap-0 overflow-hidden rounded-sm p-0 transition-colors motion-safe:transition-all max-md:rounded-none max-md:bg-transparent max-md:shadow-none max-md:ring-0 md:motion-safe:hover:-translate-y-0.5 md:hover:bg-muted/30",
+        "lg:grid lg:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]",
       )}
     >
       <PostCardCover
         testId="post-card-cover"
         ratio="3/2"
-        className="rounded-t-sm md:aspect-auto md:rounded-l-sm md:rounded-tr-none"
+        className="rounded-t-sm max-md:rounded-none lg:aspect-auto lg:rounded-l-sm lg:rounded-tr-none"
       >
         <CoverImage
           src={imageUrl}
           alt={title}
-          sizes="(min-width: 768px) 33vw, 100vw"
+          sizes="(min-width: 1024px) 30vw, 100vw"
           className="object-cover"
         />
       </PostCardCover>

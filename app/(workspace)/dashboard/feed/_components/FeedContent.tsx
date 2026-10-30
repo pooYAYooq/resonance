@@ -161,25 +161,30 @@ export function FeedContent() {
 
   return (
     <div ref={rootRef} className="flex flex-col gap-4">
-      {uniquePosts.map((post) => (
-        <FeedPostCard
-          key={post._id}
-          postId={post._id}
-          title={post.title}
-          imageUrl={post.imageUrl}
-          commentCount={post.commentCount}
-          likeCount={post.likeCount ?? 0}
-          isLiked={post.isLiked}
-          isBookmarked={post.isBookmarked}
-          publishedAt={post.publishedAt ?? post.createdAt}
-          authorId={post.authorId}
-          authorName={post.authorName}
-          authorUsername={post.authorUsername}
-          authorAvatarUrl={post.authorAvatarUrl}
-          tags={post.tags}
-          now={asOf}
-        />
-      ))}
+      <div
+        data-testid="feed-post-list"
+        className="flex flex-col gap-4 max-md:gap-2 max-md:divide-y max-md:divide-foreground/20"
+      >
+        {uniquePosts.map((post) => (
+          <FeedPostCard
+            key={post._id}
+            postId={post._id}
+            title={post.title}
+            imageUrl={post.imageUrl}
+            commentCount={post.commentCount}
+            likeCount={post.likeCount ?? 0}
+            isLiked={post.isLiked}
+            isBookmarked={post.isBookmarked}
+            publishedAt={post.publishedAt ?? post.createdAt}
+            authorId={post.authorId}
+            authorName={post.authorName}
+            authorUsername={post.authorUsername}
+            authorAvatarUrl={post.authorAvatarUrl}
+            tags={post.tags}
+            now={asOf}
+          />
+        ))}
+      </div>
 
       {!page?.isDone && (
         <div className="flex flex-col items-center gap-2">
