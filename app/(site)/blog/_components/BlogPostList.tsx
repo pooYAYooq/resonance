@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,6 @@ import { buildDiscoverLatestLink, type DiscoverMode } from "@/lib/discover";
 
 interface BlogPostListProps {
   mode: DiscoverMode;
-}
-
-function modeKey(mode: DiscoverMode) {
-  if (mode.mode === "topic") return `topic:${mode.tag}`;
-  if (mode.mode === "search") return `search:${mode.query}`;
-  return "latest";
 }
 
 // Results own one reactive paginated stream for each mode and expose continuation explicitly.
@@ -40,58 +34,11 @@ export function BlogPostList({ mode }: BlogPostListProps) {
   );
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const [announcement, setAnnouncement] = useState("");
-  const currentModeKey = modeKey(mode);
-  const previousModeRef = useRef(currentModeKey);
-  const previousStatusRef = useRef(status);
-  const previousCountRef = useRef(results.length);
 
   // A disconnected Load more control waits for the next page, then focus moves
   // to the first appended card. If the request settles without new cards, the
   // hook falls back to the replacement control or the last visible card.
   useListFocusRestore(rootRef, '[data-slot="card"]', status === "LoadingMore");
-
-  // Announce loading, appended results, and completion. Reset the message when
-  // the mode changes so a previous search's count never describes a new list.
-  useEffect(() => {
-    if (previousModeRef.current !== currentModeKey) {
-      previousModeRef.current = currentModeKey;
-      previousStatusRef.current = status;
-      previousCountRef.current = results.length;
-      setAnnouncement("");
-      return;
-    }
-
-    const previousStatus = previousStatusRef.current;
-    const previousCount = previousCountRef.current;
-    previousStatusRef.current = status;
-    previousCountRef.current = results.length;
-
-    if (status === "LoadingMore") {
-      setAnnouncement("Loading more posts.");
-      return;
-    }
-    if (previousStatus !== "LoadingMore") return;
-
-    const added = results.length - previousCount;
-    const shown = `${results.length} ${
-      results.length === 1 ? "post" : "posts"
-    } shown`;
-    if (added > 0) {
-      const loaded = `Loaded ${added} more ${added === 1 ? "post" : "posts"}`;
-      setAnnouncement(
-        status === "Exhausted"
-          ? `${loaded}. ${shown}. All posts loaded.`
-          : `${loaded}. ${shown}.`,
-      );
-    } else if (status === "Exhausted") {
-      setAnnouncement(`${shown}. All posts loaded.`);
-    } else {
-      // A page can settle without a visible increase when hydration filters
-      // out missing records. Do not leave the live region saying "loading".
-      setAnnouncement("No new posts loaded.");
-    }
-  }, [currentModeKey, results.length, status]);
 
   if (isLoading && results.length === 0) return <DiscoverResultsSkeleton />;
 
@@ -127,6 +74,14 @@ export function BlogPostList({ mode }: BlogPostListProps) {
     );
   }
 
+  const postWord = results.length === 1 ? "post" : "posts";
+  const statusMessage =
+    status === "LoadingMore"
+      ? "Loading more posts."
+      : status === "Exhausted"
+        ? `Showing all ${results.length} ${postWord}.`
+        : `Showing ${results.length} ${postWord}.`;
+
   return (
     <div
       ref={rootRef}
@@ -140,8 +95,13 @@ export function BlogPostList({ mode }: BlogPostListProps) {
           <BlogPostCard key={post._id} post={post} priority={index === 0} />
         ))}
       </div>
-      {status === "CanLoadMore" || status === "LoadingMore" ? (
-        <div className="flex justify-center">
+      {/* Reserve the control slot even when the final page removes the button,
+          so the footer does not jump and the last card keeps its gap. */}
+      <div
+        data-testid="blog-load-more-slot"
+        className="flex min-h-16 items-center justify-center"
+      >
+        {status === "CanLoadMore" || status === "LoadingMore" ? (
           <Button
             variant="outline"
             onClick={() => {
@@ -159,10 +119,10 @@ export function BlogPostList({ mode }: BlogPostListProps) {
               "Load more"
             )}
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
       <p role="status" aria-live="polite" className="sr-only">
-        {announcement}
+        {statusMessage}
       </p>
     </div>
   );

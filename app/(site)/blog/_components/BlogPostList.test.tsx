@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const {
@@ -115,6 +115,38 @@ describe("BlogPostList", () => {
     });
   });
 
+  it("reserves the Load more slot when the final page removes the button", () => {
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "Exhausted",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    render(<BlogPostList mode={{ mode: "latest" }} />);
+
+    const slot = screen.getByTestId("blog-load-more-slot");
+    expect(slot).toHaveClass("min-h-16");
+    expect(within(slot).queryByRole("button")).toBeNull();
+  });
+
+  it("places Load more inside the reserved slot", () => {
+    paginatedState.mockReturnValue({
+      results: [post],
+      status: "CanLoadMore",
+      loadMore: vi.fn(),
+      isLoading: false,
+    });
+
+    render(<BlogPostList mode={{ mode: "latest" }} />);
+
+    expect(
+      within(screen.getByTestId("blog-load-more-slot")).getByRole("button", {
+        name: /load more/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("keeps Load more visible and disabled while loading another page", () => {
     paginatedState.mockReturnValue({
       results: [post],
@@ -165,9 +197,7 @@ describe("BlogPostList", () => {
     });
     view.rerender(<BlogPostList mode={{ mode: "latest" }} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Loaded 1 more post. 2 posts shown.",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 2 posts.");
     expect(button).toHaveFocus();
   });
 
@@ -207,7 +237,7 @@ describe("BlogPostList", () => {
       expect(screen.getByRole("link", { name: "Second post" })).toHaveFocus(),
     );
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Loaded 1 more post. 2 posts shown. All posts loaded.",
+      "Showing all 2 posts.",
     );
   });
 
@@ -241,12 +271,10 @@ describe("BlogPostList", () => {
     });
     view.rerender(<BlogPostList mode={{ mode: "latest" }} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "No new posts loaded.",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 1 post.");
   });
 
-  it("clears the announcement when the mode changes", async () => {
+  it("updates the announcement when the mode changes", async () => {
     const user = userEvent.setup();
     const loadMore = vi.fn();
     paginatedState.mockReturnValue({
@@ -276,7 +304,7 @@ describe("BlogPostList", () => {
     });
     view.rerender(<BlogPostList mode={{ mode: "search", query: "design" }} />);
 
-    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 1 post.");
   });
 
   it("uses the topic query and loads the next page", async () => {

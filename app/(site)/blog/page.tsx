@@ -66,7 +66,7 @@ export default async function BlogPost({ searchParams }: BlogPageProps) {
         />
       </div>
       {/* Results stay before the rail in DOM order so mobile readers encounter content first. */}
-      <div className="mt-8 grid items-start gap-8 px-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="mt-8 grid items-start gap-8 px-6 pb-10 sm:pb-12 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <main>
           <div className="mb-5 flex items-center justify-between gap-4 border-b pb-4">
             <h2 className="text-2xl font-semibold">
