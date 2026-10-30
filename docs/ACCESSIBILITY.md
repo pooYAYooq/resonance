@@ -146,6 +146,45 @@ behavioral failure.
 - Retest when the feed/Blog card classes, pagination controls, status copy,
   Blog grid breakpoints, Topics menu behavior, or feed matrix fixture change.
 
+**Blog search and filter review fixes (2026-10-31 Australia/Sydney, `d45255e` plus fixes)**
+
+- The earlier search-clear check verified navigation and field value, but did
+  not check retained focus or typing while navigation was pending. The
+  query-dependent search key remounted the input on completion. Six new
+  regressions failed before the fix and passed afterward, covering the real
+  page's input identity/focus, replacement typing during clear navigation,
+  external query/history synchronization, pending submit edits, and focus
+  after the clear button disappears. Two further regressions failed on a
+  pending-search clear found during local review, then passed when manual
+  and button clearing also cancelled the pending search. The final targeted
+  page/search run passed all 20 tests. Search remains mounted and distinguishes
+  a local navigation acknowledgement from an external query change.
+- Chromium on the signed-out local Blog confirmed the same focused input
+  survives manual clearing and clear-button navigation at 375x667. Typing and
+  submitting a replacement search worked; Back and Forward synchronized the
+  field. The delayed-navigation typing race is component-tested, not a
+  throttled browser result.
+- A separate Chromium check held the submitted search request pending, then
+  cleared via the button before releasing it. The settled route had no query,
+  the results heading remained All posts, and the empty input retained focus.
+- The earlier responsive matrix missed short portrait. At 320x480, Chromium
+  reproduced the incorrect filter row before the fix. The row direction,
+  Topics width, compact padding, and result offset now all require both
+  height at most 500px and landscape orientation, matching the existing
+  sticky-navbar condition.
+- The targeted Chromium resize sequence passed at 320x480, 480x320, 568x320,
+  375x667, 768x1024, and back to 320x480. Short portrait used full-width
+  288px stacked controls, 12px filter padding, and a 236px results scroll
+  margin; short landscape retained a row, 8px padding, and a 96px margin.
+  Search and Topics did not overlap and no horizontal page overflow occurred.
+  These targeted checks do not replace the earlier light/dark card matrices.
+- Final verification passed lint, standalone typecheck, all 908 edge-runtime
+  tests, all 1,181 component tests across 117 files (`--maxWorkers=2`), and
+  the production build.
+- Retest after changes to search identity, draft reconciliation, route
+  navigation, filter media queries, or result offsets. Real screen-reader
+  acceptance remains outside this evidence.
+
 ### Sidebar and mobile drawer iterations (2026-10-28)
 
 Working tree on `codex/dashboard-sidebar-improvements`, based on

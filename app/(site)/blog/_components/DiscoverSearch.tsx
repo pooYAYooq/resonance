@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -10,24 +10,40 @@ interface DiscoverSearchProps {
   query: string;
 }
 
+interface SearchState {
+  query: string;
+  value: string;
+  pendingQuery: string | null;
+}
+
 // Search owns the primary route entry point and submits only the compatible q parameter.
 export function DiscoverSearch({ query }: DiscoverSearchProps) {
   const router = useRouter();
-  const [value, setValue] = useState(query.trim());
+  const inputRef = useRef<HTMLInputElement>(null);
   const activeQuery = query.trim();
+  const [search, setSearch] = useState<SearchState>({
+    query: activeQuery,
+    value: activeQuery,
+    pendingQuery: null,
+  });
+  const hasSearch = activeQuery !== "" || Boolean(search.pendingQuery);
 
-  const goToAllPosts = () => router.push("/blog#blog-results");
+  if (search.query !== activeQuery) {
+    // Our navigation acknowledges the submitted query, not any newer draft.
+    // External navigation (including history) replaces the draft instead.
+    setSearch({
+      query: activeQuery,
+      value: search.pendingQuery === activeQuery ? search.value : activeQuery,
+      pendingQuery: null,
+    });
+  }
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.value;
-    setValue(next);
-    // Clearing an active search returns the reader to All posts immediately.
-    if (next.trim() === "" && activeQuery !== "") goToAllPosts();
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const next = value.trim();
+  const navigate = (next: string) => {
+    setSearch((current) => ({
+      ...current,
+      value: next,
+      pendingQuery: next === activeQuery ? null : next,
+    }));
     router.push(
       next
         ? `/blog?q=${encodeURIComponent(next)}#blog-results`
@@ -35,9 +51,25 @@ export function DiscoverSearch({ query }: DiscoverSearchProps) {
     );
   };
 
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const next = event.target.value;
+    // Clearing an active search returns the reader to All posts immediately.
+    if (next.trim() === "" && hasSearch) {
+      navigate("");
+    } else {
+      setSearch((current) => ({ ...current, value: next }));
+    }
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    navigate(search.value.trim());
+  };
+
   const clearSearch = () => {
-    setValue("");
-    if (activeQuery !== "") goToAllPosts();
+    if (hasSearch) navigate("");
+    else setSearch((current) => ({ ...current, value: "" }));
+    inputRef.current?.focus();
   };
 
   return (
@@ -54,16 +86,17 @@ export function DiscoverSearch({ query }: DiscoverSearchProps) {
       <div className="relative">
         <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
         <Input
+          ref={inputRef}
           id="discover-search"
           name="q"
           type="search"
-          value={value}
+          value={search.value}
           onChange={handleChange}
           placeholder="Search stories, ideas, and conversations"
           className="h-14 rounded-none pl-12 pr-28 text-base [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
         />
         <div className="absolute inset-y-0 right-2 flex items-center gap-2">
-          {value ? (
+          {search.value ? (
             <button
               type="button"
               aria-label="Clear search"

@@ -71,7 +71,7 @@ export function BlogTopicsMenu({ topics, mode }: BlogTopicsMenuProps) {
   return (
     <div
       ref={rootRef}
-      className="relative w-full [@media(max-height:500px)]:w-64 sm:w-64 xl:hidden"
+      className="relative w-full [@media(max-height:500px)_and_(orientation:landscape)]:w-64 sm:w-64 xl:hidden"
     >
       <div
         data-testid="blog-topics-control"

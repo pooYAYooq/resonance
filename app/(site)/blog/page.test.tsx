@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import BlogPage from "./page";
 
 vi.mock("@/components/web/AuthCTA", () => ({
   AuthCTA: () => <div data-testid="auth-cta" />,
 }));
-const { discoverSearch, discoverTopics, blogTopicsMenu, blogPostList, topics } =
+const { push, discoverTopics, blogTopicsMenu, blogPostList, topics } =
   vi.hoisted(() => ({
-    discoverSearch: vi.fn(() => <div data-testid="discover-search" />),
+    push: vi.fn(),
     discoverTopics: vi.fn(() => <div data-testid="discover-topics" />),
     blogTopicsMenu: vi.fn(() => <div data-testid="blog-topics-menu" />),
     blogPostList: vi.fn(() => <div data-testid="blog-post-list" />),
@@ -19,8 +20,8 @@ const { discoverSearch, discoverTopics, blogTopicsMenu, blogPostList, topics } =
 vi.mock("@/lib/auth-server", () => ({
   fetchAuthQuery: vi.fn().mockResolvedValue(topics),
 }));
-vi.mock("./_components/DiscoverSearch", () => ({
-  DiscoverSearch: discoverSearch,
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
 }));
 vi.mock("./_components/DiscoverTopics", () => ({
   DiscoverTopics: discoverTopics,
@@ -34,7 +35,7 @@ vi.mock("./_components/BlogPostList", () => ({
 
 describe("BlogPage", () => {
   beforeEach(() => {
-    discoverSearch.mockClear();
+    push.mockClear();
     discoverTopics.mockClear();
     blogTopicsMenu.mockClear();
     blogPostList.mockClear();
@@ -44,7 +45,7 @@ describe("BlogPage", () => {
     render(
       await BlogPage({ searchParams: Promise.resolve({ tag: "Technology" }) }),
     );
-    expect(discoverSearch).toHaveBeenLastCalledWith({ query: "" }, undefined);
+    expect(screen.getByRole("searchbox")).toHaveValue("");
     expect(blogTopicsMenu).toHaveBeenCalledWith(
       { topics, mode: { mode: "topic", tag: "Technology" } },
       undefined,
@@ -83,10 +84,7 @@ describe("BlogPage", () => {
       }),
     );
 
-    expect(discoverSearch).toHaveBeenLastCalledWith(
-      { query: "design" },
-      undefined,
-    );
+    expect(screen.getByRole("searchbox")).toHaveValue("design");
   });
 
   it("passes the normalized mode to focused children", async () => {
@@ -96,10 +94,7 @@ describe("BlogPage", () => {
       }),
     );
 
-    expect(discoverSearch).toHaveBeenLastCalledWith(
-      { query: "design" },
-      undefined,
-    );
+    expect(screen.getByRole("searchbox")).toHaveValue("design");
     expect(blogPostList).toHaveBeenLastCalledWith(
       { mode: { mode: "search", query: "design" } },
       undefined,
@@ -135,7 +130,7 @@ describe("BlogPage", () => {
       "sticky",
       "top-[64px]",
       "py-3",
-      "[@media(max-height:500px)]:py-2",
+      "[@media(max-height:500px)_and_(orientation:landscape)]:py-2",
       "md:top-[56px]",
     );
     expect(screen.getByTestId("blog-topics-sidebar")).toHaveClass(
@@ -143,16 +138,16 @@ describe("BlogPage", () => {
       "xl:top-[138px]",
     );
     expect(screen.getByTestId("blog-filter-bar")).toHaveClass(
-      "[@media(max-height:500px)]:flex-row",
+      "[@media(max-height:500px)_and_(orientation:landscape)]:flex-row",
       "sm:flex-row",
     );
     expect(container.querySelector("#blog-results")).toHaveClass(
       "scroll-mt-[236px]",
-      "[@media(max-height:500px)]:scroll-mt-[96px]",
+      "[@media(max-height:500px)_and_(orientation:landscape)]:scroll-mt-[96px]",
       "sm:scroll-mt-[168px]",
       "md:scroll-mt-[160px]",
     );
-    const search = screen.getByTestId("discover-search");
+    const search = screen.getByRole("search");
     const menu = screen.getByTestId("blog-topics-menu");
     const main = container.querySelector("main");
     const sidebar = screen.getByTestId("discover-topics");
@@ -179,5 +174,42 @@ describe("BlogPage", () => {
       "href",
       "/blog#blog-results",
     );
+  });
+
+  it("keeps the same focused search input when clearing navigates to All posts", async () => {
+    const user = userEvent.setup();
+    const view = render(
+      await BlogPage({ searchParams: Promise.resolve({ q: "design" }) }),
+    );
+    const input = screen.getByRole("searchbox");
+    await user.click(input);
+    await user.clear(input);
+
+    expect(push).toHaveBeenLastCalledWith("/blog#blog-results");
+    view.rerender(await BlogPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByRole("searchbox")).toBe(input);
+    expect(input).toHaveFocus();
+    await user.type(input, "photography");
+    expect(input).toHaveValue("photography");
+  });
+
+  it("preserves replacement text entered before the clear navigation completes", async () => {
+    const user = userEvent.setup();
+    const view = render(
+      await BlogPage({ searchParams: Promise.resolve({ q: "design" }) }),
+    );
+    const input = screen.getByRole("searchbox");
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "photography");
+
+    view.rerender(await BlogPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByRole("searchbox")).toBe(input);
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("photography");
+    await user.keyboard("{Enter}");
+    expect(push).toHaveBeenLastCalledWith("/blog?q=photography#blog-results");
   });
 });

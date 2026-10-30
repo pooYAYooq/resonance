@@ -86,4 +86,75 @@ describe("DiscoverSearch", () => {
       screen.queryByRole("button", { name: "Clear search" }),
     ).not.toBeInTheDocument();
   });
+
+  it("synchronizes the input on Back/Forward query changes", async () => {
+    const user = userEvent.setup();
+    const view = render(<DiscoverSearch query="design" />);
+    const input = screen.getByRole("searchbox");
+    await user.type(input, " draft");
+
+    view.rerender(<DiscoverSearch query="photography" />);
+    expect(input).toHaveValue("photography");
+    view.rerender(<DiscoverSearch query="design" />);
+    expect(input).toHaveValue("design");
+    expect(input).toHaveFocus();
+  });
+
+  it("clears the draft when external navigation leaves search mode", async () => {
+    const user = userEvent.setup();
+    const view = render(<DiscoverSearch query="design" />);
+    const input = screen.getByRole("searchbox");
+    await user.type(input, " draft");
+
+    view.rerender(<DiscoverSearch query="" />);
+
+    expect(input).toHaveValue("");
+  });
+
+  it("preserves newer typing when a submitted search completes", async () => {
+    const user = userEvent.setup();
+    const view = render(<DiscoverSearch query="" />);
+    const input = screen.getByRole("searchbox");
+    await user.type(input, " design {Enter}");
+    expect(input).toHaveValue("design");
+    await user.type(input, " systems");
+
+    view.rerender(<DiscoverSearch query="design" />);
+
+    expect(input).toHaveValue("design systems");
+    expect(input).toHaveFocus();
+    // The acknowledgement is consumed; history navigation must sync again.
+    view.rerender(<DiscoverSearch query="" />);
+    expect(input).toHaveValue("");
+  });
+
+  it("returns focus to the input when its clear button disappears", async () => {
+    const user = userEvent.setup();
+    render(<DiscoverSearch query="design" />);
+
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+  });
+
+  it.each(["manual", "button"])(
+    "cancels a pending search when cleared by %s before navigation completes",
+    async (method) => {
+      const user = userEvent.setup();
+      const view = render(<DiscoverSearch query="" />);
+      const input = screen.getByRole("searchbox");
+      await user.type(input, "design{Enter}");
+      expect(push).toHaveBeenLastCalledWith("/blog?q=design#blog-results");
+
+      if (method === "manual") await user.clear(input);
+      else
+        await user.click(screen.getByRole("button", { name: "Clear search" }));
+
+      expect(push).toHaveBeenLastCalledWith("/blog#blog-results");
+      // Cancelling keeps the current route; no changed query prop is required.
+      view.rerender(<DiscoverSearch query="" />);
+      expect(input).toHaveValue("");
+      expect(input).toHaveFocus();
+    },
+  );
 });

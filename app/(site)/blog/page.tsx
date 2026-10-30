@@ -79,13 +79,10 @@ export default async function BlogPost({ searchParams }: BlogPageProps) {
       <StickyBlogFilter>
         <div
           data-testid="blog-filter-bar"
-          className="flex flex-col gap-3 [@media(max-height:500px)]:flex-row sm:flex-row sm:items-start"
+          className="flex flex-col gap-3 [@media(max-height:500px)_and_(orientation:landscape)]:flex-row sm:flex-row sm:items-start"
         >
           <div className="min-w-0 flex-1">
-            <DiscoverSearch
-              key={mode.mode === "search" ? mode.query : ""}
-              query={mode.mode === "search" ? mode.query : ""}
-            />
+            <DiscoverSearch query={mode.mode === "search" ? mode.query : ""} />
           </div>
           <BlogTopicsMenu topics={topics} mode={mode} />
         </div>
@@ -96,7 +93,7 @@ export default async function BlogPost({ searchParams }: BlogPageProps) {
         <main>
           <div
             id="blog-results"
-            className="mb-5 flex scroll-mt-[236px] items-center justify-between gap-4 border-b pb-4 [@media(max-height:500px)]:scroll-mt-[96px] sm:scroll-mt-[168px] md:scroll-mt-[160px]"
+            className="mb-5 flex scroll-mt-[236px] items-center justify-between gap-4 border-b pb-4 [@media(max-height:500px)_and_(orientation:landscape)]:scroll-mt-[96px] sm:scroll-mt-[168px] md:scroll-mt-[160px]"
           >
             <h2 className="text-2xl font-semibold">
               {mode.mode === "search"

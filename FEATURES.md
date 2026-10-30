@@ -417,14 +417,18 @@
   ordered by published count, ties alphabetically, and the active topic uses
   color only. The panel closes on selection, Escape, or outside click; at `xl`
   and up the 18rem Topics sidebar remains. An active search shows a clear
-  control; clearing the field or submitting an empty field returns to All posts
+  control; clearing the field or submitting an empty field returns to All posts.
+  Clearing keeps focus in the search input, and completing a locally requested
+  search navigation preserves any newer draft text. Back/Forward and external
+  query changes synchronize the field with the selected search. Clearing a
+  pending search returns to All posts before that query finishes navigating
 - Below `md`, Blog rows drop card chrome and become full-width flat list items
   with dividers; the page uses the container's 16/24/32px side padding. The
   hero is full width with no top padding, uses a 36px title and a concise
   description, and the search/Topics bar stays sticky below the navigation.
-  Tablet uses a 60px title and 32px page top padding. On short landscape
-  viewports the navbar scrolls away and the search/Topics bar pins at the top,
-  leaving room for a full post. Topic and search navigation scrolls to the
+  Tablet uses a 60px title and 32px page top padding. On landscape viewports
+  at most 500px high, the navbar scrolls away and the search/Topics bar pins at
+  the top, leaving room for a full post. Topic and search navigation scrolls to the
   results header, leaving only the hero above the sticky controls; the active
   topic has a clear X in both the sub-`xl` control and the `xl` sidebar, and the
   sidebar sticks below the search bar.

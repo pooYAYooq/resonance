@@ -16,10 +16,11 @@ mobile hero, and a short-landscape layout. Landing and collections remain.
 
 ## Next action
 
-Open the Phase 2 PR. The public Blog and signed-in feed matrices are recorded in
-[accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30). After
-merge, start the landing card and close out V1-20. The remaining physical-mobile
-verification for auth is recorded in
+Implement the landing post card, then the collection card variants before
+V1-20 closeout. The public Blog and signed-in feed matrices, plus search and
+responsive filter regressions, are recorded in
+[accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30).
+The remaining physical-mobile verification for auth is recorded in
 [known limitations](KNOWN_LIMITATIONS.md#authentication-and-sessions).
 
 Saved and Liked behavior remains documented in
