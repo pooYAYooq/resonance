@@ -181,11 +181,6 @@ evidence resolves them. The previous detailed delivery history remains in
 - Landing and the dashboard preview still use the legacy `PostCard`; V1-20's
   landing phase replaces the landing use. The dashboard overview remains the
   deferred `3A-015` boundary.
-- The authenticated feed's width/theme matrix is not browser-verified in this
-  revision; the T3 preview was disconnected or signed out. The public Blog
-  matrix at 320/375/768/1024/1280 in light and dark is recorded. No real screen
-  reader was used for the status regions. See
-  [accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30).
 - The dev deployment carries two disposable fixture accounts,
   `notification.author@example.com` (`/u/reso_z2sss43gck`) and
   `notification.viewer@example.com` (`/u/reso_nfgngix5xn`): no published posts,

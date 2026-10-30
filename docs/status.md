@@ -16,8 +16,7 @@ mobile hero, and a short-landscape layout. Landing and collections remain.
 
 ## Next action
 
-Run the authenticated feed width/theme browser matrix, then open the Phase 2 PR.
-The public Blog matrix is recorded in
+Open the Phase 2 PR. The public Blog and signed-in feed matrices are recorded in
 [accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30). After
 merge, start the landing card and close out V1-20. The remaining physical-mobile
 verification for auth is recorded in

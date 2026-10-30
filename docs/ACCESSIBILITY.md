@@ -136,16 +136,15 @@ behavioral failure.
 - Topic clear: the active topic showed the circled X in the sub-`xl` trigger
   and in the `xl` sidebar. Clearing it returned to `/blog#blog-results` with the
   title and first post in the same position.
-- Feed layout preview: a temporary mock preview with a 312px simulated
-  workspace sidebar showed the feed card stacked at 768 (cover 408x249),
-  50/50 at 1024 (cover 316x228), and 40/60 at 1280 (cover 355x228). This is a
-  layout check, not the authenticated feed.
-- Not verified: the authenticated feed at any width; the T3 preview was
-  disconnected or signed out during this revision. No real screen reader was
-  used for the status regions.
+- Signed-in feed matrix: T3 preview signed in as the Phone Preview fixture,
+  at 320/375/768/1024/1280 in light and dark. Five cards, no horizontal
+  overflow. At 320/375 rows were flat (transparent, 0 radius, 0 ring) with 3:2
+  covers 288x185 and 343x215. At 768 the card stacked (cover 408x272) with card
+  chrome; at 1024 it used 50/50 (cover 316x204); at 1280 40/60 (cover 355x174).
+  The workspace sidebar was hidden at 320/375 and 312px at 768+.
+- Not verified: no real screen reader was used for the status regions.
 - Retest when the feed/Blog card classes, pagination controls, status copy,
-  Blog grid breakpoints, or Topics menu behavior change, or when a signed-in
-  session is available for the feed matrix.
+  Blog grid breakpoints, Topics menu behavior, or feed matrix fixture change.
 
 ### Sidebar and mobile drawer iterations (2026-10-28)
 

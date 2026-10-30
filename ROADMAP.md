@@ -143,11 +143,9 @@ and Topics controls stay sticky, the mobile hero is compact, and short
 landscape viewports use a static navbar with a pinned compact filter. Desktop
 presentation is confirmed by the maintainer and the public Blog width/theme
 matrix at 320/375/768/1024/1280 is recorded in
-[accessibility evidence](docs/ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30).
-The authenticated feed matrix stays in
-[known limitations](docs/KNOWN_LIMITATIONS.md).
-Landing, collections, and the closeout remain. The Dashboard Overview stays
-deferred and is not part of V1-20.
+[accessibility evidence](docs/ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30),
+as is the signed-in feed matrix. Landing, collections, and the closeout remain.
+The Dashboard Overview stays deferred and is not part of V1-20.
 
 The compact-notification baseline was integrated as PR #117; its dated
 results remain in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md#earlier-compact-notification-verification).
