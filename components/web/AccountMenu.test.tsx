@@ -194,4 +194,24 @@ describe("AccountMenu", () => {
     expect(setThemeMock).toHaveBeenCalledWith("dark");
     expect(screen.getByRole("menu")).toBeVisible();
   });
+
+  it("keeps page scrolling unlocked while the workspace account menu is open", async () => {
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <AccountMenu presentation="workspace" />
+      </TooltipProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Open workspace account menu" }),
+    );
+    expect(screen.getByRole("menu")).toBeVisible();
+    expect(document.body).not.toHaveAttribute("data-scroll-locked");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open workspace account menu" }),
+    ).toHaveFocus();
+  });
 });

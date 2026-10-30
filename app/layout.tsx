@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Neuton, Work_Sans } from "next/font/google";
 import "./globals.css";
+import { ScrollbarBehavior } from "@/components/web/ScrollbarBehavior";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ConvexClientProvider } from "@/components/web/ConvexClientProvider";
@@ -58,6 +59,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="antialiased">
+        <ScrollbarBehavior />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

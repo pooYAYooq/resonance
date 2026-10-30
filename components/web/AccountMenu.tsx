@@ -97,7 +97,7 @@ export function AccountMenu({
   );
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={presentation !== "workspace"}>
       {presentation === "workspace" && collapsed ? (
         <Tooltip>
           <TooltipTrigger asChild>{trigger}</TooltipTrigger>

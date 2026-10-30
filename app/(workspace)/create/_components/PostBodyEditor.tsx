@@ -31,6 +31,12 @@ import {
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   blockNoteSupportedLanguages,
   normalizeCodeLanguage,
 } from "@/lib/code-languages";
@@ -137,42 +143,62 @@ export function HistoryControls({ resetKey = 0 }: { resetKey?: number }) {
   );
 
   return (
-    <div
-      className="mb-2 flex items-center gap-1 ps-4 sm:ps-[54px]"
-      role="toolbar"
-      aria-label="Editor history"
-    >
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        aria-label="Undo"
-        title="Undo"
-        disabled={!canUndo}
-        onClick={() => {
-          editor.undo();
-          refreshHistory((value) => value + 1);
-          editor.focus();
-        }}
+    <TooltipProvider delayDuration={300}>
+      <div
+        className="mt-4 mb-2 flex items-center justify-center gap-4"
+        role="toolbar"
+        aria-label="Editor history"
       >
-        <Undo2 />
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        aria-label="Redo"
-        title="Redo"
-        disabled={!canRedo}
-        onClick={() => {
-          editor.redo();
-          refreshHistory((value) => value + 1);
-          editor.focus();
-        }}
-      >
-        <Redo2 />
-      </Button>
-    </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="w-12"
+                aria-label="Undo"
+                disabled={!canUndo}
+                onClick={() => {
+                  editor.undo();
+                  refreshHistory((value) => value + 1);
+                  editor.focus();
+                }}
+              >
+                <Undo2 />
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={6}>
+            Undo
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="w-12"
+                aria-label="Redo"
+                disabled={!canRedo}
+                onClick={() => {
+                  editor.redo();
+                  refreshHistory((value) => value + 1);
+                  editor.focus();
+                }}
+              >
+                <Redo2 />
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={6}>
+            Redo
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
   );
 }
 

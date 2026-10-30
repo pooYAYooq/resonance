@@ -3,6 +3,57 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* The Create canvas continues beneath the viewport scrollbar. */
+html[data-create-scrollbar] {
+  --create-scrollbar-track: var(--background);
+  background: var(--create-scrollbar-track);
+}
+html[data-create-scrollbar]:has([data-studio-canvas]) {
+  --create-scrollbar-track: color-mix(
+    in oklab,
+    var(--muted) 50%,
+    var(--background)
+  );
+}
+/* Native scrollbars share the same thumb across pages and scrollable panels. */
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+*::-webkit-scrollbar-button {
+  display: none;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+html[data-create-scrollbar]::-webkit-scrollbar-track {
+  background: linear-gradient(
+    to bottom,
+    var(--background) 0 var(--create-header-bottom, 0px),
+    var(--create-scrollbar-track) var(--create-header-bottom, 0px)
+  );
+}
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--foreground) 22%, transparent);
+  background-clip: padding-box;
+}
+*:not([data-scrollbar-hover-suppressed])::-webkit-scrollbar-thumb:hover,
+*[data-scrollbar-scrolling]::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklch, var(--foreground) 50%, transparent);
+}
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent)
+      transparent;
+  }
+  *[data-scrollbar-scrolling] {
+    scrollbar-color: color-mix(in oklch, var(--foreground) 50%, transparent)
+      transparent;
+  }
+}
+
 /* BlockNote's decorative arrow overlaps its label with the bundled UI CSS. */
 .bn-shadcn [data-slot="tooltip-content"] > div[aria-hidden="true"] {
   display: none;
@@ -540,7 +591,14 @@
   }
   html {
     @apply font-sans;
+    scrollbar-gutter: stable;
     /* Offset for the sticky navbar so anchor links don't hide behind it. */
     scroll-padding-top: 4rem;
+  }
+  /* The stable gutter already reserves the width that scroll lock measures. */
+  @supports (scrollbar-gutter: stable) {
+    html body[data-scroll-locked] {
+      margin-right: 0 !important;
+    }
   }
 }
