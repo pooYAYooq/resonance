@@ -63,10 +63,10 @@ export function BlogPostList({ mode }: BlogPostListProps) {
         action={
           mode.mode === "latest" ? null : (
             <Link
-              href={buildDiscoverLatestLink()}
+              href={`${buildDiscoverLatestLink()}#blog-results`}
               className="text-sm font-medium text-primary hover:underline"
             >
-              {mode.mode === "search" ? "Clear search" : "Browse latest"}
+              {mode.mode === "search" ? "Clear search" : "Browse all posts"}
             </Link>
           )
         }
@@ -90,7 +90,10 @@ export function BlogPostList({ mode }: BlogPostListProps) {
       aria-label="Blog posts"
       className="flex flex-col gap-6 focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-ring"
     >
-      <div className="flex flex-col gap-6">
+      <div
+        data-testid="blog-post-list"
+        className="flex flex-col gap-6 max-md:gap-2 max-md:divide-y max-md:divide-foreground/20"
+      >
         {results.map((post, index) => (
           <BlogPostCard key={post._id} post={post} priority={index === 0} />
         ))}

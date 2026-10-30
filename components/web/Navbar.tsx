@@ -23,12 +23,12 @@ export function Navbar() {
   const { isAuthenticated, isLoading } = useConvexAuth();
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border bg-background">
-      <div className="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8 flex items-center justify-between py-5">
+    <nav className="sticky top-0 z-50 min-h-[65px] w-full border-b border-border bg-background md:min-h-[57px]">
+      <div className="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8 flex items-center justify-between py-2.5">
         {/* Logo */}
         <div className="flex items-center gap-4 md:gap-8">
           <Link href={isAuthenticated ? "/dashboard" : "/"}>
-            <h1 className="text-3xl font-extrabold">RESONANCE</h1>
+            <h1 className="text-2xl font-extrabold">RESONANCE</h1>
           </Link>
 
           {/* Navigation Links */}
@@ -77,7 +77,15 @@ export function Navbar() {
         {/* Auth Buttons */}
         <div className="flex items-center gap-2">
           {!isLoading && isAuthenticated && <NotificationBell />}
-          {!isLoading && <MobileNavMenu isAuthenticated={isAuthenticated} />}
+          {isLoading ? (
+            <div
+              data-testid="navbar-loading-menu-placeholder"
+              aria-hidden="true"
+              className="size-11 shrink-0 md:hidden"
+            />
+          ) : (
+            <MobileNavMenu isAuthenticated={isAuthenticated} />
+          )}
           <div className="hidden items-center gap-2 md:flex">
             {isLoading ? null : isAuthenticated ? (
               <>

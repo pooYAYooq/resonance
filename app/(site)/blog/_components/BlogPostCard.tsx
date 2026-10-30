@@ -27,11 +27,11 @@ export function BlogPostCard({ post, priority = false }: BlogPostCardProps) {
   const postHref = `/blog/${post._id}`;
 
   return (
-    <Card className="h-full gap-0 overflow-hidden rounded-sm p-0 transition-colors motion-safe:transition-all motion-safe:hover:-translate-y-0.5 hover:bg-muted/30 md:grid md:grid-cols-[2fr_3fr]">
+    <Card className="h-full gap-0 overflow-hidden rounded-sm p-0 transition-colors motion-safe:transition-all max-md:rounded-none max-md:bg-transparent max-md:shadow-none max-md:ring-0 md:grid md:grid-cols-[2fr_3fr] md:motion-safe:hover:-translate-y-0.5 md:hover:bg-muted/30">
       <PostCardCover
         testId="blog-card-cover"
         ratio="16/9"
-        className="rounded-t-sm md:aspect-auto md:rounded-l-sm md:rounded-tr-none"
+        className="rounded-t-sm max-md:rounded-none md:aspect-auto md:rounded-l-sm md:rounded-tr-none"
       >
         <CoverImage
           src={post.imageUrl}

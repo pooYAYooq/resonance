@@ -102,8 +102,8 @@ describe("BlogPostCard", () => {
     expect(card).toHaveClass(
       "transition-colors",
       "motion-safe:transition-all",
-      "motion-safe:hover:-translate-y-0.5",
-      "hover:bg-muted/30",
+      "md:motion-safe:hover:-translate-y-0.5",
+      "md:hover:bg-muted/30",
     );
     expect(card).not.toHaveClass("gap-6", "py-6", "lg:grid-cols-[1fr_1fr]");
     const cover = screen.getByTestId("blog-card-cover");
@@ -121,6 +121,21 @@ describe("BlogPostCard", () => {
     expect(screen.getByRole("heading", { level: 3 })).toHaveClass(
       "text-base",
       "line-clamp-2",
+    );
+  });
+
+  it("flattens the row below md so mobile posts read as a list", () => {
+    const { container } = render(<BlogPostCard post={post} />);
+    const card = container.querySelector('[data-slot="card"]');
+
+    expect(card).toHaveClass(
+      "max-md:rounded-none",
+      "max-md:bg-transparent",
+      "max-md:shadow-none",
+      "max-md:ring-0",
+    );
+    expect(screen.getByTestId("blog-card-cover")).toHaveClass(
+      "max-md:rounded-none",
     );
   });
 

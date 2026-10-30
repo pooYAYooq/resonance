@@ -100,6 +100,11 @@ describe("BlogPostList", () => {
 
     render(<BlogPostList mode={{ mode: "latest" }} />);
 
+    expect(screen.getByTestId("blog-post-list")).toHaveClass(
+      "max-md:gap-2",
+      "max-md:divide-y",
+      "max-md:divide-foreground/20",
+    );
     expect(screen.getByText("Latest post").closest("article")).toHaveAttribute(
       "data-priority",
       "true",
@@ -336,8 +341,8 @@ describe("BlogPostList", () => {
       screen.getByText(/no posts found for technology/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /browse latest/i }),
-    ).toHaveAttribute("href", "/blog");
+      screen.getByRole("link", { name: /browse all posts/i }),
+    ).toHaveAttribute("href", "/blog#blog-results");
   });
 
   it("uses the search query and loads the next page", async () => {
@@ -371,7 +376,7 @@ describe("BlogPostList", () => {
     expect(screen.getByText(/no results for.*noise/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /clear search/i })).toHaveAttribute(
       "href",
-      "/blog",
+      "/blog#blog-results",
     );
   });
 
