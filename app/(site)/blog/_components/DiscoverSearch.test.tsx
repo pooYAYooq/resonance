@@ -27,8 +27,8 @@ describe("DiscoverSearch", () => {
       "/blog#blog-results",
     );
     expect(screen.getByRole("button", { name: "Search" })).toHaveAttribute(
-      "data-slot",
-      "button",
+      "type",
+      "submit",
     );
     const clear = screen.getByRole("button", { name: "Clear search" });
     expect(clear).toBeInTheDocument();

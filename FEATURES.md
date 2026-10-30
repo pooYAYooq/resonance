@@ -421,7 +421,11 @@
   Clearing keeps focus in the search input, and completing a locally requested
   search navigation preserves any newer draft text. Back/Forward and external
   query changes synchronize the field with the selected search. Clearing a
-  pending search returns to All posts before that query finishes navigating
+  pending search returns to All posts before that query finishes navigating.
+  The field uses a short “Search” placeholder and an icon submit button with
+  a “Search” tooltip on hover or keyboard focus. The sticky filter bar uses
+  its background and spacing to separate controls from results, without a
+  full-width bottom divider
 - Below `md`, Blog rows drop card chrome and become full-width flat list items
   with dividers; the page uses the container's 16/24/32px side padding. The
   hero is full width with no top padding, uses a 36px title and a concise

@@ -49,7 +49,7 @@ export function StickyBlogFilter({ children }: { children: ReactNode }) {
     <div
       ref={ref}
       data-testid="blog-filter-sticky"
-      className="sticky top-[64px] z-40 -mx-4 border-b border-border/60 bg-background px-4 py-3 will-change-transform [@media(max-height:500px)_and_(orientation:landscape)]:py-2 md:-mx-6 md:px-6 md:top-[56px] lg:-mx-8 lg:px-8"
+      className="sticky top-[64px] z-40 -mx-4 bg-background px-4 py-3 will-change-transform [@media(max-height:500px)_and_(orientation:landscape)]:py-2 md:-mx-6 md:px-6 md:top-[56px] lg:-mx-8 lg:px-8"
     >
       {children}
     </div>

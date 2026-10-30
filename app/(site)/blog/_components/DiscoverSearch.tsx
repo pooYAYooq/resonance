@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface DiscoverSearchProps {
   query: string;
@@ -84,7 +90,6 @@ export function DiscoverSearch({ query }: DiscoverSearchProps) {
         Search Blog
       </label>
       <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={inputRef}
           id="discover-search"
@@ -92,8 +97,8 @@ export function DiscoverSearch({ query }: DiscoverSearchProps) {
           type="search"
           value={search.value}
           onChange={handleChange}
-          placeholder="Search stories, ideas, and conversations"
-          className="h-14 rounded-none pl-12 pr-28 text-base [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+          placeholder="Search"
+          className="h-14 rounded-none pl-4 pr-28 text-base [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
         />
         <div className="absolute inset-y-0 right-2 flex items-center gap-2">
           {search.value ? (
@@ -108,9 +113,24 @@ export function DiscoverSearch({ query }: DiscoverSearchProps) {
               </span>
             </button>
           ) : null}
-          <Button type="submit" variant="link" className="h-9 px-1.5">
-            Search
-          </Button>
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Search"
+                  className="size-11 rounded-none"
+                >
+                  <Search aria-hidden="true" className="size-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={6}>
+                Search
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     </form>
