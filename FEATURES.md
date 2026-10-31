@@ -575,9 +575,11 @@
   space is reserved during auth loading so the navbar does not shift
 - Landing page sections in `app/(marketing)/_components/`: Hero, Features,
   Recent Posts (Suspense + content-shaped skeleton), Stats
-- `FeedPostCard` for the feed; `BlogPostCard` for Blog; `BlogTopicsMenu` for the
-  sub-`xl` topic selector; `PostCard` remains the legacy landing and dashboard
-  preview card; `AuthorPostCard` for the author gallery and catalogue
+- `FeedPostCard` for the feed; `BlogPostCard` for Blog; `CollectionPostCard`
+  for Saved and Liked, composed with the shared cover, author-line, and tag
+  primitives; `BlogTopicsMenu` for the sub-`xl` topic selector; `PostCard`
+  remains the legacy landing and dashboard preview card; `AuthorPostCard` for
+  the author gallery and catalogue
 - All post cards share the same small `rounded-sm` corner radius across sizes
   and layouts
 - `EmptyState` and `SectionHeading` primitives; `FooterCTA` remains limited to

@@ -85,6 +85,16 @@ describe("CollectionGroupList", () => {
     expect(screen.getByText("A saved post")).toBeVisible();
   });
 
+  it("keeps one collection column until xl and two columns at xl", () => {
+    render(<CollectionGroupList groups={groups} collection="saved" />);
+
+    expect(document.getElementById("collection-saved-today-panel")).toHaveClass(
+      "grid-cols-1",
+      "xl:grid-cols-2",
+      "xl:items-stretch",
+    );
+  });
+
   it("keeps the other group open when one group is collapsed", async () => {
     const user = userEvent.setup();
     render(<CollectionGroupList groups={groups} collection="liked" />);

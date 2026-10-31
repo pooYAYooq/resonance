@@ -50,9 +50,11 @@ evidence resolves them. The previous detailed delivery history remains in
 - Per-card saved/liked timestamps and collection search or filters are deferred.
   The group heading is the only visible time context.
 - Phones intentionally hide author-selected tags; tags return at `sm` and above.
-- Browser and keyboard acceptance were approved for the current presentation.
-  Physical touch, real screen-reader sessions, and non-Chromium browsers remain
-  unverified; see [accessibility evidence](ACCESSIBILITY.md).
+- Browser and keyboard acceptance were approved for the current presentation. The
+  2026-10-31 primitive pass rechecked Saved and Liked cards from 320 through 1920
+  in Chromium; physical touch, real screen-reader sessions, and non-Chromium
+  browsers remain unverified; see
+  [accessibility evidence](ACCESSIBILITY.md#saved-and-liked-card-primitives-2026-10-31).
 
 ## Authoring and recovery
 

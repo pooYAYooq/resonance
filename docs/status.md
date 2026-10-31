@@ -6,27 +6,31 @@ a session history.
 
 ## Current focus
 
-V1-20 collection-card closeout. The author gallery, feed, and Blog cards are
-merged. The remaining work composes the Saved and Liked cards with the shared
-primitives without changing behavior. Landing moved out of V1-20 and is now
-V1-29; Dashboard Overview is V1-28. Both are final v1.0 surfaces, after
-V1-21/V1-23 and before release readiness. [Features](../FEATURES.md#blog) owns
-the reader capabilities.
+V1-21 visual system. V1-20 is complete: the author gallery, feed, Blog, and
+Saved/Liked cards share the post-card primitives, and the collection matrix from
+320 to 1920 is recorded in
+[accessibility evidence](ACCESSIBILITY.md#saved-and-liked-card-primitives-2026-10-31).
+Landing is V1-29; Dashboard Overview is V1-28. Both are final v1.0 surfaces,
+after V1-21/V1-23 and before release readiness.
+[Features](../FEATURES.md#blog) owns the reader capabilities.
 
 ## Next action
 
-Finish the collection cards and close V1-20, then start V1-21. V1-28 and V1-29
-each need a design session before implementation. V1-28 must settle the
-dashboard's purpose, composition, and data needs, and may change the
-architecture. V1-29 uses authored mock visuals, not live posts. The public Blog
-and signed-in feed matrices, plus search and responsive filter regressions, are
-recorded in [accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30).
+Start V1-21, including Follow/Following colors and the light-theme contrast
+observations from V1-11. V1-28 and V1-29 each need a design session before
+implementation. V1-28 must settle the dashboard's purpose, composition, and data
+needs, and may change the architecture. V1-29 uses authored mock visuals, not
+live posts. The public Blog and signed-in feed matrices, plus search and
+responsive filter regressions, are recorded in
+[accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30).
 The remaining physical-mobile verification for auth is recorded in
 [known limitations](KNOWN_LIMITATIONS.md#authentication-and-sessions).
 
 Saved and Liked behavior remains documented in
-[Features](../FEATURES.md#private-collections), with its acceptance in
-[accessibility evidence](ACCESSIBILITY.md#saved-and-liked-time-group-presentation-2026-10-27).
+[Features](../FEATURES.md#private-collections), with its grouping acceptance in
+[accessibility evidence](ACCESSIBILITY.md#saved-and-liked-time-group-presentation-2026-10-27)
+and the current card matrix in
+[the same document](ACCESSIBILITY.md#saved-and-liked-card-primitives-2026-10-31).
 Collection deferrals remain in [the roadmap](../ROADMAP.md). Existing username,
 profile, accessibility, and author-page gaps remain with their
 [limitation records](KNOWN_LIMITATIONS.md). Changes affecting notifications

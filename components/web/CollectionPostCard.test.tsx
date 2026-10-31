@@ -217,4 +217,22 @@ describe("CollectionPostCard", () => {
       "sm:focus-within:bg-muted/50",
     );
   });
+
+  it("keeps the card cover and content in one row at every width", () => {
+    const { container } = render(
+      <CollectionPostCard {...basePost} collection="saved" />,
+    );
+
+    expect(getCard(container)).toHaveClass(
+      "grid-cols-[96px_minmax(0,1fr)]",
+      "sm:grid-cols-[112px_minmax(0,1fr)]",
+      "xl:h-full",
+    );
+  });
+
+  it("uses the shared post-card cover frame", () => {
+    render(<CollectionPostCard {...basePost} collection="saved" />);
+
+    expect(screen.getByTestId("post-card-cover")).toBeInTheDocument();
+  });
 });

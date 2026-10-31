@@ -375,6 +375,38 @@ The maintainer approved the browser and keyboard-focus results.
   were not exercised in this pass. The grouping uses local time and loaded counts;
   see [known limitations](KNOWN_LIMITATIONS.md).
 
+### Saved and Liked card primitives (2026-10-31)
+
+- Revision: `feat/saved-and-liked-collection-cards`, based on `a879744`.
+- Browser check: headless Chromium through local Playwright against the
+  signed-in Saved and Liked pages on the local dev server. The T3 profile was
+  signed in as Phone Preview. Both pages were checked at 320, 360, 375, 390,
+  414, 480, 600, 640, 667, 768, 900, 1024, 1080, 1200, 1279, 1280, 1366, 1440,
+  1536, and 1920 in light and dark, for 80 page loads. No horizontal document or
+  card overflow occurred at any width.
+- Mobile below `sm`: flat rows kept transparent backgrounds, no ring or shadow,
+  0 radius, 96 x 64 covers (3:2), the title followed by the byline, the
+  page-specific action, and a divider between rows. Tags stayed hidden.
+- At `sm` and above: cards kept an 8px radius, the card background and ring, a
+  112 x 74.66 cover (3:2), the byline after the title, and linked tags in a
+  full-width row under the cover. Tags wrapped without overflow.
+- The cover and content started on the same row at every width. Each action
+  stayed inside the card and did not overlap the byline. The group header kept
+  the full content width.
+- The group grid used one column from 320 through 1279 and two columns from 1280. At 1280 the two columns were 430px wide; the single-column card was
+  620px at 1024 and 875px at 1279. Cards in the same group row shared a height
+  at 1280. A card without tags therefore kept the height of its tagged peer and
+  showed additional empty space, following the approved equal-row-height rule.
+- Automated: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test:ci` (908 tests),
+  `pnpm test:component` (1,189 tests), `pnpm build`, and `pnpm format:check`
+  passed. The targeted cover-frame, author-line, tags, collection card, group
+  list, Saved, and Liked suites passed within those runs.
+- Not verified: physical touch, real screen-reader sessions, and browsers other
+  than Chromium; see
+  [known limitations](KNOWN_LIMITATIONS.md#saved-and-liked-collections).
+- Retest when collection card classes, group grid breakpoints, collection
+  fixtures, or action presentation change.
+
 ### Required publication covers (2026-10-12)
 
 Incremental evidence on `feat/required-publication-covers`, based on `7decfa9`

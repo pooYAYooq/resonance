@@ -66,4 +66,35 @@ describe("PostAuthorLine", () => {
     expect(screen.getByText("Ari")).toBeInTheDocument();
     expect(screen.queryAllByRole("link")).toHaveLength(0);
   });
+
+  it("omits the separator and time when no date is provided", () => {
+    const { container } = render(
+      <PostAuthorLine {...base} date={null} dateMode="absolute" />,
+    );
+
+    expect(screen.getByRole("link", { name: "Ari" })).toBeInTheDocument();
+    expect(container.querySelector("time")).toBeNull();
+    expect(screen.queryByText("·")).toBeNull();
+  });
+
+  it("supports a larger responsive avatar for collection cards", () => {
+    const { container } = render(
+      <PostAuthorLine {...base} date={null} avatarSize="md" />,
+    );
+
+    expect(container.querySelector('[data-slot="avatar"]')).toHaveClass(
+      "size-6",
+      "sm:size-[30px]",
+    );
+  });
+
+  it("accepts truncation classes and exposes the full name as a title", () => {
+    render(
+      <PostAuthorLine {...base} date={null} nameClassName="max-w-[20ch]" />,
+    );
+
+    const link = screen.getByRole("link", { name: "Ari" });
+    expect(link).toHaveClass("max-w-[20ch]");
+    expect(link).toHaveAttribute("title", "Ari");
+  });
 });
