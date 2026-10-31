@@ -81,6 +81,25 @@ drawer; the full notification page now opens inside the workspace. This amends
 the route placement in the target-state architecture and the page-placement
 portion of 3A-010. [Features](../FEATURES.md#notifications) owns behavior.
 
+## Final surfaces and portfolio milestone (2026-10-31)
+
+Resonance v1.0 is a portfolio-ready milestone, not a public launch. Dashboard
+Overview and the Landing page are the final two v1.0 design surfaces. Both land
+after the visual and responsive systems in V1-21/V1-23 and before release
+readiness. This reopens the Dashboard Overview deferral in 3A-015 and the
+Overview clauses of 3A-007; the design session decides whether the page becomes
+a named destination. Until then, no Overview navigation item is added. It also
+supersedes the "does not reopen" language in the Saved and Liked amendments
+above. Landing leaves V1-20, which now closes on the collection cards.
+
+Dashboard needs its own design session because its purpose and composition are
+unresolved and may change the architecture. Landing uses authored mock visuals
+rather than live user posts, so it adds no curation or administration backend.
+Public-content moderation, reporting, and publication policy move to post-v1.0
+as the first post-v1.0 priority. The sequence and estimates live in the
+[roadmap](../ROADMAP.md); current gaps are in
+[known limitations](KNOWN_LIMITATIONS.md).
+
 ## Decisions
 
 Dated entries retain their original rationale; amendments above take precedence.
@@ -124,3 +143,4 @@ Dated entries retain their original rationale; amendments above take precedence.
 | 3A-035 | 2026-10-29 | Adopt a post presentation system of shared primitives plus one card per surface. The featured lead is larger than its supporters; the author gallery uses a larger tile with a 3:2 cover on top, while feed and Discover may use a horizontal lead with a horizontal cover. Ratios are 3:2 for feed, landing, author tiles, and collection thumbnails, 16:9 for Discover and management, and every card cover keeps a horizontal ratio rather than filling an arbitrary height. Action intensity follows the surface's job. All post cards use the same small corner radius. The dashboard overview keeps the legacy card and stays deferred. | The universal card mixed marketing, reading, and management jobs; context-specific hierarchies improve scanning and author presentation without one switchboard component. The dashboard page has no defined job, so its redesign stays separate. | V1-20; V1-21/V1-23 visual polish; Dashboard Overview.                        |
 | 3A-036 | 2026-10-30 | Amends 3A-035: feed and Blog use uniform horizontal rows with no featured lead; the author gallery keeps its desktop lead. Below `md`, feed covers are 3:2 and Blog covers are 16:9; at `md` and up covers fill the row height with a horizontal crop. Rows omit excerpts. The `/blog` surface is named Blog while internal `discover` names stay. Feed uses hybrid auto-load with a visible fallback; Blog uses manual Load more with focus restoration and polite status announcements.                                                                                                                                                     | The wider first row did not add a real differentiator, and full-height covers remove empty card space. A consistent, excerpt-free row is easier to scan and matches the surface's job.                                                            | V1-20 feed and Blog; landing and collections remain.                         |
 | 3A-037 | 2026-10-31 | Compact the shared sticky navbar to a 24px wordmark and 10px vertical padding (65px mobile, 57px desktop), reserving the 44px mobile menu while auth loads. Blog search/Topics stays sticky below it; short landscape viewports make the navbar static and pin a compact filter. Mobile feed and Blog rows are flat full-width list items with 1px dividers; the Blog hero is compact on mobile and uses 32px tablet top padding.                                                                                                                                                                                                             | The full-height navbar plus sticky filter left almost no content in landscape. Compact chrome keeps navigation and filtering available while preserving a readable post.                                                                          | V1-20 Blog and feed; shared navbar.                                          |
+| 3A-038 | 2026-10-31 | v1.0 is portfolio-ready, not a public launch. Dashboard Overview and Landing are final v1.0 surfaces after V1-21/V1-23 and before release readiness. Landing leaves V1-20; Dashboard reopens 3A-015 and the Overview clauses of 3A-007. Dashboard needs a design session and may change the architecture. Landing uses authored mock visuals, not live posts, and adds no curation backend. Moderation is post-v1.0.                                                                                                                                                                                                                          | The public and authenticated entry points decide whether the product feels complete; mock landing content also removes a release-time trust-and-safety dependency.                                                                                | V1-20 closeout; V1-28; V1-29.                                                |

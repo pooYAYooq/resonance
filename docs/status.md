@@ -6,20 +6,21 @@ a session history.
 
 ## Current focus
 
-V1-20, context-specific post-card variants on
-`feat/feed-and-blog-post-cards`. The author gallery is merged; the feed and Blog
-rows are implemented with uniform cards, full author metadata, no excerpt,
-full-height covers at the horizontal breakpoint, hybrid feed pagination, manual
-Blog pagination, the Blog surface name, sticky search/Topics controls, a compact
-mobile hero, and a short-landscape layout. Landing and collections remain.
-[Features](../FEATURES.md#blog) owns the reader capabilities.
+V1-20 collection-card closeout. The author gallery, feed, and Blog cards are
+merged. The remaining work composes the Saved and Liked cards with the shared
+primitives without changing behavior. Landing moved out of V1-20 and is now
+V1-29; Dashboard Overview is V1-28. Both are final v1.0 surfaces, after
+V1-21/V1-23 and before release readiness. [Features](../FEATURES.md#blog) owns
+the reader capabilities.
 
 ## Next action
 
-Implement the landing post card, then the collection card variants before
-V1-20 closeout. The public Blog and signed-in feed matrices, plus search and
-responsive filter regressions, are recorded in
-[accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30).
+Finish the collection cards and close V1-20, then start V1-21. V1-28 and V1-29
+each need a design session before implementation. V1-28 must settle the
+dashboard's purpose, composition, and data needs, and may change the
+architecture. V1-29 uses authored mock visuals, not live posts. The public Blog
+and signed-in feed matrices, plus search and responsive filter regressions, are
+recorded in [accessibility evidence](ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30).
 The remaining physical-mobile verification for auth is recorded in
 [known limitations](KNOWN_LIMITATIONS.md#authentication-and-sessions).
 
@@ -33,14 +34,22 @@ reopen the relevant checks under the evidence document's retest triggers.
 
 ## Blockers and constraints
 
+- V1-28's purpose, composition, and data needs are unresolved and may change
+  the architecture. No estimate or implementation starts before its design
+  session.
+- V1-29 uses authored mock visuals, not live posts. The current landing still
+  renders uncurated latest posts until that slice; the gap is recorded in
+  [known limitations](KNOWN_LIMITATIONS.md).
+- Public-content moderation and reporting are post-v1.0. Resonance v1.0 is a
+  portfolio milestone, not a public launch.
 - Feed and Blog pagination status regions are component-tested, not verified
   with a real screen reader; see [known limitations](KNOWN_LIMITATIONS.md).
 - The dev deployment carries disposable fixture data; existing accounts and
   retained test posts are described in [notifications evidence](NOTIFICATIONS_EVIDENCE.md).
   Browser checks delete only what they create unless the maintainer explicitly
   asks to retain fixtures.
-- The app is not deployed; development data is disposable. A production
-  migration would need its own rollout plan.
+- The app is not deployed; v1.0 is a portfolio milestone, so development data
+  is disposable. A production migration would need its own rollout plan.
 
 ## Read when relevant
 

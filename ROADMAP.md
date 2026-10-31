@@ -14,18 +14,36 @@ Resonance v1.0 requires Phase 3A complete (decision 3A-024):
 - The release revision passes lint, edge tests, component tests, build/typecheck,
   formatting, and diff checks.
 - Browser acceptance is recorded for the full journey.
+- Dashboard Overview (V1-28) and Landing (V1-29) are complete before release
+  readiness.
 - Release readiness items V1-24 to V1-27 are complete.
 
 Phase 3 Platform and post-1.0 items stay outside v1.0. Paste hardening (V1-05)
 is the explicit v1.0 exception. Design-session deferrals retain their v1.0
-membership until an approved decision changes it.
+membership until an approved decision changes it. Resonance v1.0 is a
+portfolio-ready milestone, not a public launch; public-content moderation and
+reporting are post-v1.0.
 
 ## v1.0 delivery scope
 
-27 tracked items. Status values: Todo, In progress, Done, Pending spec, and
+29 tracked items. Status values: Todo, In progress, Done, Pending spec, and
 Pending design session. Done means agreed scope implemented and verified in
 this revision, with accepted limitations recorded. It does not mean merged,
 deployed, or released. Estimates (S, M, L) are rough sizes, not commitments.
+
+### Delivery order
+
+IDs identify scope, not execution. The remaining v1.0 work runs in this order:
+
+| Order | Work                             | Gate                                                   |
+| ----- | -------------------------------- | ------------------------------------------------------ |
+| 1     | V1-20 collection card closeout   | Feed, Blog, and author cards integrated                |
+| 2     | V1-21 visual system              | V1-20                                                  |
+| 3     | V1-22 page-state language        | V1-21                                                  |
+| 4     | V1-23 responsive polish          | V1-21 and V1-22                                        |
+| 5     | V1-28 Dashboard Overview         | V1-23 and an approved design session                   |
+| 6     | V1-29 Landing page               | V1-23 and an approved design session with mock visuals |
+| 7     | V1-24 to V1-27 release readiness | V1-28 and V1-29                                        |
 
 Historical verification details for completed work are preserved in
 [the PR #103 roadmap revision](https://github.com/pooYAYooq/resonance/blob/d2d5fed/ROADMAP.md).
@@ -144,8 +162,9 @@ landscape viewports use a static navbar with a pinned compact filter. Desktop
 presentation is confirmed by the maintainer and the public Blog width/theme
 matrix at 320/375/768/1024/1280 is recorded in
 [accessibility evidence](docs/ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30),
-as is the signed-in feed matrix. Landing, collections, and the closeout remain.
-The Dashboard Overview stays deferred and is not part of V1-20.
+as is the signed-in feed matrix. Collections and the closeout remain. Landing
+moved to V1-29; the Dashboard Overview moved to V1-28 and is not part of V1-20.
+See [decision 3A-038](docs/PHASE_3A_DECISIONS.md#final-surfaces-and-portfolio-milestone-2026-10-31).
 
 The compact-notification baseline was integrated as PR #117; its dated
 results remain in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md#earlier-compact-notification-verification).
@@ -181,9 +200,29 @@ Source: `docs/PHASE_3A.md` 3A.5.
   drawer-heading refinement recorded in the historical evidence. Keeping
   Dashboard in the drawer/sidebar does not approve its Overview redesign.
 
+### Final surfaces
+
+Source: decision 3A-038. Both are final v1.0 design slices; they run after
+V1-21/V1-23 and before release readiness.
+
+| ID    | Item                                       | Status                 | Estimate |
+| ----- | ------------------------------------------ | ---------------------- | -------- |
+| V1-28 | Dashboard Overview purpose and composition | Pending design session | TBD      |
+| V1-29 | Landing page content and presentation      | Pending design session | M        |
+
+- V1-28 reopens the Dashboard Overview boundary in 3A-015. Its purpose,
+  information architecture, and data needs must be settled before
+  implementation. The design session may change routes, data shapes, or schema;
+  the estimate is set after that session.
+- V1-29 uses authored mock visuals rather than live user posts. It replaces the
+  current uncurated landing section and adds no curation or admin backend. Its
+  design session owns the mock content and layout.
+- Both must be complete before V1-24 to V1-27.
+
 ### Release readiness
 
-Source: Phase 3A.3 release tasks in `docs/status.md` at `46d26a3`.
+Source: Phase 3A.3 release tasks in `docs/status.md` at `46d26a3`. Runs after
+V1-28 and V1-29.
 
 | ID    | Item                            | Status | Estimate |
 | ----- | ------------------------------- | ------ | -------- |
@@ -198,7 +237,9 @@ Each item keeps its original condition or note.
 
 ### Phase 3 Platform
 
-- Admin role and moderation. Later, High.
+- Public-content moderation, reporting, and publication policy. First post-v1.0
+  priority.
+- Admin role and broader platform administration. Later, High.
 - AI features. Later, High.
 - Subscriptions and tipping. Later, High.
 - Email digest. Later, Medium.
@@ -219,7 +260,6 @@ V1-16 and V1-23. Optional enhancements:
 
 ### Deferred boundaries
 
-- Dashboard Overview purpose and composition.
 - Hot ranking formula and time window.
 - Server autosave, unpublish, revision history, and detailed Create/Edit composition.
   Silent local recovery is implemented instead.
