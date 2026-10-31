@@ -82,10 +82,10 @@ The remaining redesign is constrained by these repository facts:
   which replaces global site chrome with the workspace sidebar, mobile drawer,
   and utility cluster. `(site)` owns `/profile/edit` and `/settings`; the
   former `(app)` route group has been removed.
-- The deferred dashboard root retains legacy author previews. Saved now lives in
-  the site shell, and Analytics is available at `/dashboard/analytics` as a
-  secondary workspace destination. `/dashboard` must remain routed without
-  becoming a premature Overview.
+- The dashboard root retains legacy author previews pending V1-28. Saved and
+  Liked have separate workspace pages at `/dashboard/saved` and
+  `/dashboard/liked`; Analytics remains a secondary workspace destination.
+  `/dashboard` must remain routed without becoming a premature Overview.
 - `PostCard` currently combines a reusable hydrated post shape with one visual
   presentation. The data shape is a reusable seam; the universal visual card is
   not the target.
@@ -121,19 +121,21 @@ site-shell surfaces, not workspace-mode pages.
 
 ### Navigation Responsibilities
 
-| Context                  | Primary destinations                                                                          | Utility behavior                                                                                          |
-| ------------------------ | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Anonymous marketing/site | Home, Discover, Log In, Sign Up                                                               | No private data queries before auth resolves.                                                             |
-| Authenticated site       | Discover, Feed, New Post                                                                      | Logo -> Dashboard; bell/unread badge; account hub for Profile, Saved, Liked, Settings, and Sign Out.      |
-| Workspace sidebar        | Dashboard, New Post, Drafts, My Posts, Analytics, Discover, Feed, Saved, Liked, Notifications | Discover may leave the workspace shell. Dashboard access is approved; Overview redesign remains deferred. |
-| Workspace utilities      | Notification bell and account actions                                                         | Desktop sidebar footer; mobile workspace header; shared behavior may use different presentation.          |
+| Context                  | Primary destinations                                                                          | Utility behavior                                                                                                                                                    |
+| ------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anonymous marketing/site | Home, Discover, Log In, Sign Up                                                               | No private data queries before auth resolves.                                                                                                                       |
+| Authenticated site       | Discover, Feed, New Post                                                                      | Logo -> Dashboard; bell/unread badge; account hub for Profile, Saved, Liked, Settings, and Sign Out.                                                                |
+| Workspace sidebar        | Dashboard, New Post, Drafts, My Posts, Analytics, Discover, Feed, Saved, Liked, Notifications | Discover may leave the workspace shell. Dashboard access is approved. Overview purpose and composition await the V1-28 design session and remain required for v1.0. |
+| Workspace utilities      | Notification bell and account actions                                                         | Desktop sidebar footer; mobile workspace header; shared behavior may use different presentation.                                                                    |
 
 `Profile` always means public identity at `/u/<username>`. Its owner action opens
 `/profile/edit`. Settings is not an identity-editing form.
 The sidebar and mobile drawer share the Dashboard destination, explicitly
 approved after the late review of PR #96; see the Dashboard access clarification
-in `docs/PHASE_3A_DECISIONS.md`. This approves navigation access, not the deferred
-Overview redesign.
+in `docs/PHASE_3A_DECISIONS.md`. This approves navigation access. Overview
+purpose and composition await the V1-28 design session and remain required for
+v1.0. No Overview navigation item is added before that decision
+([3A-038](PHASE_3A_DECISIONS.md#final-surfaces-and-portfolio-milestone-2026-10-31)).
 
 ### Data and Component Boundaries
 
@@ -207,6 +209,14 @@ tracked in [`../ROADMAP.md`](../ROADMAP.md).
 - Shared page-state language for loading, empty, not-found, pagination, and
   authenticated-route states.
 - Responsive and interaction polish across the established product hierarchy.
+
+### 3A.6: Final Surfaces
+
+- Dashboard Overview purpose and composition, after a dedicated design session
+  that may change routes, data shapes, or schema.
+- Landing page content and presentation using authored mock visuals, not live
+  user posts.
+- Both complete after 3A.5 and before release readiness.
 
 ## Detailed Approved Requirements
 
@@ -317,11 +327,16 @@ tracked in [`../ROADMAP.md`](../ROADMAP.md).
 | Slice                                  | Product outcome                                                                                 | Scope areas crossed                                           | Why this combination is deliberate                                                                                                   | Explicitly later                                                                                                                         |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | 0. Documentation Canonicalization      | One durable source of truth, decision log, roadmap, and resume point.                           | Delivery governance                                           | Prevents rediscovery and conflicting instructions before any code changes.                                                           | Application implementation.                                                                                                              |
-| 1. Product Structure                   | Coherent shells/navigation, reader utilities, Settings/Profile split, and analytics relocation. | 3A.1 plus Saved/Liked data foundations needed for navigation. | A sidebar cannot expose working reader utilities until their routes/access paths exist. The shell boundary must be established once. | Dashboard Overview redesign, final card variants, Discover, writing redesign.                                                            |
+| 1. Product Structure                   | Coherent shells/navigation, reader utilities, Settings/Profile split, and analytics relocation. | 3A.1 plus Saved/Liked data foundations needed for navigation. | A sidebar cannot expose working reader utilities until their routes/access paths exist. The shell boundary must be established once. | Final card variants, Discover, writing redesign.                                                                                         |
 | 2. Discover Foundations                | Real Search, Latest, Topics, and Feed recovery to Discover.                                     | 3A.2 with editorial post presentation foundations.            | Search, topic browsing, result pagination, cards, and empty states form one honest discovery loop.                                   | Hot implementation until its formula/time window is defined.                                                                             |
 | 3. Writing and Content Management      | Writing environment, review/publish completion, management rows, and deletion UI.               | 3A.3 plus My Posts dependencies.                              | Create/Edit, Drafts, My Posts, publishing, and deletion confirmation are one author lifecycle.                                       | Server autosave, revision history, unpublish, and detailed editor-layout decisions. Track 1 baseline shipped in PR #72; follow-ups open. |
 | 4. Identity and Engagement Surfaces    | Stronger profiles, actionable Notifications, and compact collection presentations.              | 3A.4 with shared page-state work from 3A.5.                   | These surfaces support the reader-to-author loop and must use consistent recovery, loading, and collection behavior.                 | Follower directories and activity feeds; notification expansion is approved by the engagement amendment.                                 |
 | 5. Visual System and Responsive Polish | Deliberate Resonance visual system and final interaction polish.                                | 3A.5 across shipped surfaces.                                 | A durable visual system depends on settled page responsibilities and component families.                                             | New product infrastructure.                                                                                                              |
+| 6. Final Surfaces                      | Dashboard Overview composition and Landing presentation.                                        | 3A.6 after 3A.5.                                              | The public and authenticated entry points should consume the settled visual system and be complete before release readiness.         | New platform infrastructure.                                                                                                             |
+
+Final surfaces follow the visual-system and responsive work and precede release
+readiness. Dashboard's design session may approve architecture changes under
+decision 3A-038.
 
 ## Sequencing Rules
 
@@ -370,7 +385,6 @@ notification expansion, final visual-system work, or a universal card redesign.
 
 ## Deferred Boundaries
 
-- Dashboard Overview purpose and composition.
 - Hot ranking formula and time window.
 - Server-side autosave, unpublish, revision history, and detailed Create/Edit
   composition. Silent local draft recovery shipped in PR #72; that is a

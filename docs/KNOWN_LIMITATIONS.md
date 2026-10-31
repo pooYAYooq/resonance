@@ -178,9 +178,13 @@ evidence resolves them. The previous detailed delivery history remains in
 - A single-post author at tablet width renders one tile in a two-column grid,
   leaving the second column empty. This follows the no-lead-below-`lg` rule and
   was not changed by the approved card pass.
-- Landing and the dashboard preview still use the legacy `PostCard`; V1-20's
-  landing phase replaces the landing use. The dashboard overview remains the
-  deferred `3A-015` boundary.
+- Landing still renders the four most recent published posts with no editorial
+  selection, and the dashboard preview still uses the legacy `PostCard`. V1-29
+  replaces the landing section with authored mock visuals; V1-28 redesigns the
+  dashboard. Both are v1.0 completion blockers and run after V1-21/V1-23.
+- Public published content has no moderation, reporting, or publication policy.
+  v1.0 is a portfolio milestone, not a public launch; moderation is the first
+  post-v1.0 priority.
 - The dev deployment carries two disposable fixture accounts,
   `notification.author@example.com` (`/u/reso_z2sss43gck`) and
   `notification.viewer@example.com` (`/u/reso_nfgngix5xn`): no published posts,
