@@ -271,7 +271,8 @@ resonance/
 │       │                        # author line, tags, static like count, Save, and Read. No excerpt.
 │       ├── CollectionPostCard.tsx # Saved/Liked presentation: 3:2 cover, byline after
 │       │                         # title, tags under the cover, page-specific action,
-│       │                         # and a flat mobile row.
+│       │                         # and a flat mobile row. Composes PostCardCover,
+│       │                         # PostAuthorLine, and PostTags.
 │       ├── CollectionGroupList.tsx # Session-scoped collapsible Today/Yesterday/rolling-window groups;
 │       │                         # left chevron, label, loaded count, and expanded surface.
 │       ├── CoverImage.tsx       # Shared cover: renders the resolved custom URL or a
@@ -1304,7 +1305,9 @@ because each `imageStorageId` is unique — that one stays in the map.
 ### 9. Why separate surface cards?
 
 Blog uses `BlogPostCard`, the feed uses `FeedPostCard`, the author pages use
-`AuthorPostCard`, and Saved and Liked use `CollectionPostCard`. The legacy
+`AuthorPostCard`, and Saved and Liked use `CollectionPostCard`. The collection
+card composes `PostCardCover`, `PostAuthorLine`, and `PostTags` for the cover,
+byline, and tags that match the other surfaces. The legacy
 `PostCard` remains for the landing page and the dashboard preview. Each surface
 has a different density, pagination model, and action set, so shared primitives
 and data contracts provide consistency without forcing every surface into one

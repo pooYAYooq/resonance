@@ -37,13 +37,12 @@ IDs identify scope, not execution. The remaining v1.0 work runs in this order:
 
 | Order | Work                             | Gate                                                   |
 | ----- | -------------------------------- | ------------------------------------------------------ |
-| 1     | V1-20 collection card closeout   | Feed, Blog, and author cards integrated                |
-| 2     | V1-21 visual system              | V1-20                                                  |
-| 3     | V1-22 page-state language        | V1-21                                                  |
-| 4     | V1-23 responsive polish          | V1-21 and V1-22                                        |
-| 5     | V1-28 Dashboard Overview         | V1-23 and an approved design session                   |
-| 6     | V1-29 Landing page               | V1-23 and an approved design session with mock visuals |
-| 7     | V1-24 to V1-27 release readiness | V1-28 and V1-29                                        |
+| 1     | V1-21 visual system              | V1-20 complete                                         |
+| 2     | V1-22 page-state language        | V1-21                                                  |
+| 3     | V1-23 responsive polish          | V1-21 and V1-22                                        |
+| 4     | V1-28 Dashboard Overview         | V1-23 and an approved design session                   |
+| 5     | V1-29 Landing page               | V1-23 and an approved design session with mock visuals |
+| 6     | V1-24 to V1-27 release readiness | V1-28 and V1-29                                        |
 
 Historical verification details for completed work are preserved in
 [the PR #103 roadmap revision](https://github.com/pooYAYooq/resonance/blob/d2d5fed/ROADMAP.md).
@@ -123,12 +122,12 @@ Source: Track 4 in `FEATURES.md` at `46d26a3`, 3A.3 requirements, and decision
 
 Source: `docs/PHASE_3A.md` 3A.4, delivery slice map slice 4.
 
-| ID    | Item                                             | Status      | Estimate |
-| ----- | ------------------------------------------------ | ----------- | -------- |
-| V1-17 | Stronger public profile identity and author work | Done        | M        |
-| V1-18 | Compact, actionable Notifications                | Done        | M        |
-| V1-19 | Saved and Liked collection presentation          | Done        | S        |
-| V1-20 | Context-specific post-card variants              | In progress | M        |
+| ID    | Item                                             | Status | Estimate |
+| ----- | ------------------------------------------------ | ------ | -------- |
+| V1-17 | Stronger public profile identity and author work | Done   | M        |
+| V1-18 | Compact, actionable Notifications                | Done   | M        |
+| V1-19 | Saved and Liked collection presentation          | Done   | S        |
+| V1-20 | Context-specific post-card variants              | Done   | M        |
 
 Saved and Liked are separate dashboard collection pages. Cards use a 3:2 cover
 and tags under the cover at tablet/desktop widths; phones use flat rows without
@@ -151,20 +150,23 @@ delivered earlier keep their own records in
 `J6-ProfileEditor` rows in [accessibility evidence](docs/ACCESSIBILITY.md). The
 remaining username-editor states, the real screen-reader session, the
 real-runtime stress matrix, and the deletion-cascade limitation stay visible in
-[known limitations](docs/KNOWN_LIMITATIONS.md). V1-20 is in progress: the author
+[known limitations](docs/KNOWN_LIMITATIONS.md). V1-20 is complete. The author
 selected-work gallery and the shared cover frame are implemented and
 browser-verified, and the profile and catalogue cards are approved. The feed and
-Blog rows now use uniform horizontal cards with full author metadata, no
-excerpt, full-height covers at the horizontal breakpoint, hybrid feed
-pagination, manual Blog pagination, and the Blog surface name. The Blog search
-and Topics controls stay sticky, the mobile hero is compact, and short
-landscape viewports use a static navbar with a pinned compact filter. Desktop
-presentation is confirmed by the maintainer and the public Blog width/theme
-matrix at 320/375/768/1024/1280 is recorded in
-[accessibility evidence](docs/ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30),
-as is the signed-in feed matrix. Collections and the closeout remain. Landing
-moved to V1-29; the Dashboard Overview moved to V1-28 and is not part of V1-20.
-See [decision 3A-038](docs/PHASE_3A_DECISIONS.md#final-surfaces-and-portfolio-milestone-2026-10-31).
+Blog rows use uniform horizontal cards with full author metadata, no excerpt,
+full-height covers at the horizontal breakpoint, hybrid feed pagination, manual
+Blog pagination, and the Blog surface name. The Blog search and Topics controls
+stay sticky, the mobile hero is compact, and short landscape viewports use a
+static navbar with a pinned compact filter. Desktop presentation is confirmed by
+the maintainer and the public Blog width/theme matrix at 320/375/768/1024/1280 is
+recorded in [accessibility evidence](docs/ACCESSIBILITY.md#feed-and-blog-cards-2026-10-30),
+as is the signed-in feed matrix. Saved and Liked now compose the shared cover,
+author-line, and tag primitives without behavior changes; the card matrix from
+320 to 1920 is recorded in
+[accessibility evidence](docs/ACCESSIBILITY.md#saved-and-liked-card-primitives-2026-10-31).
+Landing moved to V1-29; the Dashboard Overview moved to V1-28 and is not part of
+V1-20. See
+[decision 3A-038](docs/PHASE_3A_DECISIONS.md#final-surfaces-and-portfolio-milestone-2026-10-31).
 
 The compact-notification baseline was integrated as PR #117; its dated
 results remain in [notifications verification](docs/NOTIFICATIONS_EVIDENCE.md#earlier-compact-notification-verification).

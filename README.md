@@ -255,7 +255,7 @@ components/
     FeedPostCard.tsx          # Feed row: 3:2 cover, author line, title, tags, engagement, Read
     BlogPostCard.tsx          # Blog row: 16:9 cover, title, author line, tags, static likes, Save, Read
     CollectionPostCard.tsx    # Saved/Liked card: 3:2 cover, byline after title, tags under cover,
-                              # page-specific action, flat mobile row
+                              # page-specific action, flat mobile row; shared primitives
     CollectionGroupList.tsx   # Session-scoped collapsible collection time groups with chevron, label, and count
     CoverImage.tsx            # Custom cover image or the blank transparent fallback surface with a subtle bottom border
     PostCover.tsx             # Uncapped published 16:9 cover frame: shared ratio and single crop seam
